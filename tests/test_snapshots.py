@@ -1,7 +1,7 @@
 # tests/test_snapshots.py
 import unittest
-from MCP_Server.engine.session.graph import SessionShadowGraph
-from MCP_Server.engine.snapshots.manager import snapshot_manager
+from engine.session.graph import SessionShadowGraph
+from engine.snapshots.manager import snapshot_manager
 
 class TestSnapshots(unittest.TestCase):
     def setUp(self):

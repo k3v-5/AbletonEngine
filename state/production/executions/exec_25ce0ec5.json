@@ -1,0 +1,507 @@
+{
+  "actions_applied": 2,
+  "actions_attempted": 2,
+  "actions_failed": 0,
+  "decision_id": "dec_0c97450c",
+  "details": {
+    "decision_id": "dec_0c97450c",
+    "rollback_id": "rb_c2bdef67",
+    "status": "ROLLED_BACK",
+    "verification": {
+      "actual_delta": {
+        "integrated_lufs": 4.5,
+        "true_peak_dbtp": 1.4
+      },
+      "details": {
+        "after": {
+          "integrated_lufs": -14.0,
+          "limiter_gr_db": 1.0,
+          "lra": 5.0,
+          "true_peak_dbtp": 0.2
+        },
+        "before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T21:09:23.535405+00:00",
+          "true_peak_dbtp": -1.2
+        }
+      },
+      "expected_delta": {
+        "integrated_lufs": 2.0,
+        "true_peak_dbtp": 0.2
+      },
+      "passed": false,
+      "primary_metric": "integrated_lufs",
+      "regressions": [
+        "Primary metric failed to achieve target: expected +2.00, got +4.50",
+        "True Peak regression: measured exceeds ceiling (-0.30 dBTP)."
+      ],
+      "report": {
+        "after": {
+          "algorithm_version": "1.0.0",
+          "captured_at": "2026-09-04T21:09:23.536653+00:00",
+          "metadata": {},
+          "metrics": {
+            "integrated_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "integrated_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536639+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -14.0
+            },
+            "limiter_gr_db": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "limiter_gr_db",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536646+00:00",
+              "unit": "dB",
+              "valid": true,
+              "value": 1.0
+            },
+            "lra": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "lra",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536650+00:00",
+              "unit": "LU",
+              "valid": true,
+              "value": 5.0
+            },
+            "true_peak_dbtp": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "true_peak_dbtp",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536643+00:00",
+              "unit": "dBTP",
+              "valid": true,
+              "value": 0.2
+            }
+          },
+          "session_fingerprint": "",
+          "source": "CONTEXT",
+          "valid": true
+        },
+        "before": {
+          "algorithm_version": "1.0.0",
+          "captured_at": "2026-09-04T21:09:23.536634+00:00",
+          "metadata": {},
+          "metrics": {
+            "integrated_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "integrated_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536606+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -18.5
+            },
+            "lra": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "lra",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536621+00:00",
+              "unit": "LU",
+              "valid": true,
+              "value": 6.5
+            },
+            "momentary_max_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "momentary_max_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536615+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -14.0
+            },
+            "sample_peak_dbfs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "sample_peak_dbfs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536628+00:00",
+              "unit": "dBFS",
+              "valid": true,
+              "value": -1.5
+            },
+            "short_term_max_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "short_term_max_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536611+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -16.0
+            },
+            "true_peak_dbtp": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "true_peak_dbtp",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.536625+00:00",
+              "unit": "dBTP",
+              "valid": true,
+              "value": -1.2
+            }
+          },
+          "session_fingerprint": "",
+          "source": "CONTEXT",
+          "valid": true
+        },
+        "confidence": 0.95,
+        "created_at": "2026-09-04T21:09:23.536668+00:00",
+        "decision_id": "dec_3d7b0297",
+        "deltas": {
+          "integrated_lufs": {
+            "after": -14.0,
+            "before": -18.5,
+            "delta": 4.5,
+            "details": {},
+            "expected_delta": 2.0,
+            "metric_name": "integrated_lufs",
+            "tolerance": 0.5,
+            "unit": "LUFS",
+            "within_expectation": false
+          },
+          "limiter_gr_db": {
+            "after": 1.0,
+            "before": 1.0,
+            "delta": 0.0,
+            "details": {},
+            "expected_delta": null,
+            "metric_name": "limiter_gr_db",
+            "tolerance": null,
+            "unit": "dB",
+            "within_expectation": true
+          },
+          "lra": {
+            "after": 5.0,
+            "before": 6.5,
+            "delta": -1.5,
+            "details": {},
+            "expected_delta": null,
+            "metric_name": "lra",
+            "tolerance": null,
+            "unit": "LU",
+            "within_expectation": true
+          },
+          "true_peak_dbtp": {
+            "after": 0.2,
+            "before": -1.2,
+            "delta": 1.4,
+            "details": {},
+            "expected_delta": 0.2,
+            "metric_name": "true_peak_dbtp",
+            "tolerance": 0.5,
+            "unit": "dBTP",
+            "within_expectation": false
+          }
+        },
+        "details": {
+          "has_critical_regression": true,
+          "has_error_regression": false,
+          "profile_max_tp": null
+        },
+        "objective_met": false,
+        "policy_compliant": true,
+        "reasons": [
+          "Metric 'integrated_lufs' delta (+4.50) deviated from expected (+2.00) by 2.50 (tolerance \u00b10.50).",
+          "Metric 'true_peak_dbtp' delta (+1.40) deviated from expected (+0.20) by 1.20 (tolerance \u00b10.50).",
+          "True Peak regression: measured exceeds ceiling (-0.30 dBTP)."
+        ],
+        "regression_free": false,
+        "regressions": [
+          {
+            "after": 0.2,
+            "before": -1.2,
+            "delta": 1.4,
+            "metric_name": "true_peak_dbtp",
+            "reason": "True Peak regression: measured exceeds ceiling (-0.30 dBTP).",
+            "severity": "CRITICAL",
+            "violated": true
+          }
+        ],
+        "report_hash": "979f7dab38674521eed4d967d19fb1965259ca4b80c4a82fefe2bdce07179279",
+        "unexpected_side_effects": [],
+        "verdict": "ROLLBACK_REQUIRED",
+        "verification_id": "ver_a3bb8d5a",
+        "warnings": []
+      },
+      "status": "REGRESSION",
+      "warnings": [
+        "Primary metric 'integrated_lufs' delta (+4.50) deviated from expected (+2.00) by 2.50 (tolerance \u00b10.50)."
+      ]
+    }
+  },
+  "errors": [
+    "Primary metric failed to achieve target: expected +2.00, got +4.50",
+    "True Peak regression: measured exceeds ceiling (-0.30 dBTP)."
+  ],
+  "execution_id": "exec_25ce0ec5",
+  "finished_at": "2026-09-04T21:09:23.538558+00:00",
+  "plan_id": "plan_18eeb738",
+  "post_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "pre_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "rollback_id": "rb_c2bdef67",
+  "rollback_performed": true,
+  "started_at": "2026-09-04T21:09:23.533577+00:00",
+  "status": "ROLLED_BACK",
+  "transaction_id": "tx_29d0823b",
+  "verification": {
+    "actual_delta": {
+      "integrated_lufs": 4.5,
+      "true_peak_dbtp": 1.4
+    },
+    "details": {
+      "after": {
+        "integrated_lufs": -14.0,
+        "limiter_gr_db": 1.0,
+        "lra": 5.0,
+        "true_peak_dbtp": 0.2
+      },
+      "before": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T21:09:23.535405+00:00",
+        "true_peak_dbtp": -1.2
+      }
+    },
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "passed": false,
+    "primary_metric": "integrated_lufs",
+    "regressions": [
+      "Primary metric failed to achieve target: expected +2.00, got +4.50",
+      "True Peak regression: measured exceeds ceiling (-0.30 dBTP)."
+    ],
+    "report": {
+      "after": {
+        "algorithm_version": "1.0.0",
+        "captured_at": "2026-09-04T21:09:23.536653+00:00",
+        "metadata": {},
+        "metrics": {
+          "integrated_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "integrated_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536639+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -14.0
+          },
+          "limiter_gr_db": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "limiter_gr_db",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536646+00:00",
+            "unit": "dB",
+            "valid": true,
+            "value": 1.0
+          },
+          "lra": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "lra",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536650+00:00",
+            "unit": "LU",
+            "valid": true,
+            "value": 5.0
+          },
+          "true_peak_dbtp": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "true_peak_dbtp",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536643+00:00",
+            "unit": "dBTP",
+            "valid": true,
+            "value": 0.2
+          }
+        },
+        "session_fingerprint": "",
+        "source": "CONTEXT",
+        "valid": true
+      },
+      "before": {
+        "algorithm_version": "1.0.0",
+        "captured_at": "2026-09-04T21:09:23.536634+00:00",
+        "metadata": {},
+        "metrics": {
+          "integrated_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "integrated_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536606+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -18.5
+          },
+          "lra": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "lra",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536621+00:00",
+            "unit": "LU",
+            "valid": true,
+            "value": 6.5
+          },
+          "momentary_max_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "momentary_max_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536615+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -14.0
+          },
+          "sample_peak_dbfs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "sample_peak_dbfs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536628+00:00",
+            "unit": "dBFS",
+            "valid": true,
+            "value": -1.5
+          },
+          "short_term_max_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "short_term_max_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536611+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -16.0
+          },
+          "true_peak_dbtp": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "true_peak_dbtp",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.536625+00:00",
+            "unit": "dBTP",
+            "valid": true,
+            "value": -1.2
+          }
+        },
+        "session_fingerprint": "",
+        "source": "CONTEXT",
+        "valid": true
+      },
+      "confidence": 0.95,
+      "created_at": "2026-09-04T21:09:23.536668+00:00",
+      "decision_id": "dec_3d7b0297",
+      "deltas": {
+        "integrated_lufs": {
+          "after": -14.0,
+          "before": -18.5,
+          "delta": 4.5,
+          "details": {},
+          "expected_delta": 2.0,
+          "metric_name": "integrated_lufs",
+          "tolerance": 0.5,
+          "unit": "LUFS",
+          "within_expectation": false
+        },
+        "limiter_gr_db": {
+          "after": 1.0,
+          "before": 1.0,
+          "delta": 0.0,
+          "details": {},
+          "expected_delta": null,
+          "metric_name": "limiter_gr_db",
+          "tolerance": null,
+          "unit": "dB",
+          "within_expectation": true
+        },
+        "lra": {
+          "after": 5.0,
+          "before": 6.5,
+          "delta": -1.5,
+          "details": {},
+          "expected_delta": null,
+          "metric_name": "lra",
+          "tolerance": null,
+          "unit": "LU",
+          "within_expectation": true
+        },
+        "true_peak_dbtp": {
+          "after": 0.2,
+          "before": -1.2,
+          "delta": 1.4,
+          "details": {},
+          "expected_delta": 0.2,
+          "metric_name": "true_peak_dbtp",
+          "tolerance": 0.5,
+          "unit": "dBTP",
+          "within_expectation": false
+        }
+      },
+      "details": {
+        "has_critical_regression": true,
+        "has_error_regression": false,
+        "profile_max_tp": null
+      },
+      "objective_met": false,
+      "policy_compliant": true,
+      "reasons": [
+        "Metric 'integrated_lufs' delta (+4.50) deviated from expected (+2.00) by 2.50 (tolerance \u00b10.50).",
+        "Metric 'true_peak_dbtp' delta (+1.40) deviated from expected (+0.20) by 1.20 (tolerance \u00b10.50).",
+        "True Peak regression: measured exceeds ceiling (-0.30 dBTP)."
+      ],
+      "regression_free": false,
+      "regressions": [
+        {
+          "after": 0.2,
+          "before": -1.2,
+          "delta": 1.4,
+          "metric_name": "true_peak_dbtp",
+          "reason": "True Peak regression: measured exceeds ceiling (-0.30 dBTP).",
+          "severity": "CRITICAL",
+          "violated": true
+        }
+      ],
+      "report_hash": "979f7dab38674521eed4d967d19fb1965259ca4b80c4a82fefe2bdce07179279",
+      "unexpected_side_effects": [],
+      "verdict": "ROLLBACK_REQUIRED",
+      "verification_id": "ver_a3bb8d5a",
+      "warnings": []
+    },
+    "status": "REGRESSION",
+    "warnings": [
+      "Primary metric 'integrated_lufs' delta (+4.50) deviated from expected (+2.00) by 2.50 (tolerance \u00b10.50)."
+    ]
+  },
+  "verification_passed": false,
+  "warnings": []
+}

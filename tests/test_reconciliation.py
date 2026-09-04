@@ -2,11 +2,11 @@
 import unittest
 import os
 import json
-from MCP_Server.engine.session.graph import SessionShadowGraph
-from MCP_Server.engine.adapters.mock_adapter import MockAbletonAdapter
-from MCP_Server.engine.session.synchronizer import SessionSynchronizer
-from MCP_Server.engine.session.diff import SessionDiff
-from MCP_Server.engine.persistence.storage import storage
+from engine.session.graph import SessionShadowGraph
+from engine.adapters.mock_adapter import MockAbletonAdapter
+from engine.session.synchronizer import SessionSynchronizer
+from engine.session.diff import SessionDiff
+from engine.persistence.storage import storage
 
 class TestReconciliation(unittest.TestCase):
     def setUp(self):

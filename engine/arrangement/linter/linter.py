@@ -7,7 +7,7 @@ Enforces production-grade structural rules:
 4. Narrative completeness (exposition, tension, climax, resolution)
 """
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from engine.arrangement.models.section import Section, SectionType
 from engine.arrangement.linter.comparison import SectionComparator
 

@@ -36,6 +36,16 @@ from .arrangement import (
 from .sound import SoundEngine
 from .mix import MixEngine
 from .mastering import MasteringEngine
+from .production import (
+    ProductionGraph, DecisionMemory, ProductionPolicyEngine,
+    ProductionContext, ProductionPlanner, ProductionExecutor,
+    ProductionStorage, production_storage, ProductionPlan
+)
+from .forensics import (
+    AudioForensicsEngine, ForensicsStorage,
+    ForensicReport, ForensicEvent, CausalHypothesis
+)
+
 
 class ProductionEngine:
     """Production Intelligence Engine (PIE) - Core Middleware for Ableton Live"""
@@ -57,15 +67,39 @@ class ProductionEngine:
         self.mix = MixEngine(self)
         self.mastering = MasteringEngine(self)
 
+        # Hito 1: Governance, Causal Memory & Production Planning
+        self.production_storage = production_storage
+        self.production_graph = self.production_storage.load_graph()
+        self.production_memory = self.production_storage.load_memory()
+        self.production_policy_engine = ProductionPolicyEngine()
+        self.production_context = ProductionContext(
+            shadow_graph=self.graph,
+            transaction_manager=self.transactions
+        )
+        self.production_planner = ProductionPlanner(
+            policy_engine=self.production_policy_engine,
+            memory=self.production_memory
+        )
+        self.production_executor = ProductionExecutor(
+            memory=self.production_memory
+        )
+
+        # Phase 7: Audio Forensics Engine
+        self.forensics_storage = ForensicsStorage()
+        self.forensics = AudioForensicsEngine(storage=self.forensics_storage)
+
+
     def set_adapter(self, adapter: BaseAbletonAdapter):
         self.adapter = adapter
         self.synchronizer = SessionSynchronizer(self.graph, self.adapter)
         self.transactions = TransactionManager(self.graph, self.adapter)
+        self.production_context.transaction_manager = self.transactions
         self.instruments.set_adapter(self.adapter)
         self.arrangement = ArrangementGenerator(self)
         self.sound.set_adapter(self.adapter)
         self.mix = MixEngine(self)
         self.mastering = MasteringEngine(self)
+
 
     def initialize(self):
         """Startup bootstrap: load persisted state, connect to Ableton, reconcile"""

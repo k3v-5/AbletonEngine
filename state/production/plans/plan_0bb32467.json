@@ -1,0 +1,109 @@
+{
+  "actions": [
+    {
+      "device": "Limiter",
+      "op_type": "set_device_parameter",
+      "parameter": "Ceiling",
+      "value": -0.5
+    },
+    {
+      "device": "Limiter",
+      "op_type": "set_device_parameter",
+      "parameter": "Gain",
+      "value": 2.0
+    }
+  ],
+  "created_at": "2026-09-04T15:49:58.087224+00:00",
+  "decision_type": "CORRECT",
+  "domain": "master",
+  "expected_delta": {
+    "integrated_lufs": 2.0,
+    "true_peak_dbtp": 0.2
+  },
+  "historical_evidence": [],
+  "intent_id": "intent_ee06e0aa",
+  "is_no_op": false,
+  "plan_id": "plan_0bb32467",
+  "policy_result": {
+    "allowed": true,
+    "alternatives": [],
+    "policy_id": "AGGREGATED_EVALUATION",
+    "required_conditions": [],
+    "severity": "WARNING",
+    "status": "ALLOW",
+    "violations": [],
+    "warnings": []
+  },
+  "rejected_candidates": [
+    {
+      "alternatives": [
+        {
+          "action": "ADJUST_INDIVIDUAL_TRACK_EQ",
+          "suggested_domain": "mix"
+        }
+      ],
+      "candidate_id": "cand_aggressive_master_eq",
+      "description": "Multi-band high and low shelf boost on master bus (+3.0 dB)",
+      "policy_id": "AGGREGATED_EVALUATION",
+      "violations": [
+        "Master EQ modifies 3 bands, exceeding limit of 2 bands.",
+        "Master EQ band delta (3.00 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+        "Master EQ band delta (2.50 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+        "Master EQ band delta (3.00 dB) exceeds maximum allowed change (\u00b11.00 dB)."
+      ]
+    },
+    {
+      "alternatives": [
+        {
+          "action": "RESOLVE_HEADROOM_IN_MIX",
+          "suggested_domain": "mix"
+        }
+      ],
+      "candidate_id": "cand_excessive_limiter",
+      "description": "Hard limiter slam (+6.0 dB gain, GR > 4.0 dB)",
+      "policy_id": "AGGREGATED_EVALUATION",
+      "violations": [
+        "Limiter gain reduction (4.50 dB) exceeds maximum safe ceiling (2.50 dB).",
+        "True Peak (0.10 dBTP) exceeds maximum platform ceiling (-0.30 dBTP)."
+      ]
+    }
+  ],
+  "relevant_entities": [
+    "Master"
+  ],
+  "selected_candidate": {
+    "actions": [
+      {
+        "device": "Limiter",
+        "op_type": "set_device_parameter",
+        "parameter": "Ceiling",
+        "value": -0.5
+      },
+      {
+        "device": "Limiter",
+        "op_type": "set_device_parameter",
+        "parameter": "Gain",
+        "value": 2.0
+      }
+    ],
+    "decision_type": "CORRECT",
+    "description": "Transparent master limiter boost (+2.0 dB gain, ceiling -0.5 dBTP)",
+    "domain": "master",
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "gain_reduction_db": 1.6,
+    "id": "cand_limiter_minimal",
+    "intervention_cost": 1.0,
+    "target": "Master",
+    "true_peak_dbtp": -0.5
+  },
+  "session_fingerprint": "433a940c1d7ca93238227867699d715f185b377a6dbda3c34471bbcf3cd51da1",
+  "status": "COMMITTED",
+  "target": "Master",
+  "tolerances": {
+    "integrated_lufs": 0.5,
+    "true_peak_dbtp": 0.2
+  }
+}

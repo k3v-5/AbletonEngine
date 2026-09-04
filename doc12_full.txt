@@ -1,0 +1,1882 @@
+<USER_REQUEST>
+DOCUMENTO 12 — ROLLBACK DE PRIMERA CLASE, RECUPERACIÓN Y CONSISTENCIA CAUSAL
+0. Propósito
+
+Este documento define la implementación completa del Rollback Engine de PIE.
+
+El objetivo es que cualquier modificación ejecutada por el sistema pueda:
+
+revertirse de forma atómica;
+verificarse acústicamente antes y después;
+conservar íntegramente su historial;
+generar una nueva decisión causal de rollback;
+impedir estados parcialmente revertidos;
+sobrevivir a fallos de Ableton Live, socket, proceso o validación;
+distinguir entre rollback solicitado por el usuario, rollback automático por regresión y rollback por recuperación de transacción incompleta;
+mantener sincronizados:
+SessionShadowGraph;
+ProductionGraph;
+DecisionMemory;
+estado transaccional;
+snapshots;
+fingerprint de sesión.
+
+El rollback no debe borrar ni modificar destructivamente el historial anterior.
+
+La regla fundamental es:
+
+Una acción nunca desaparece. Si se revierte, su reversión se convierte en un nuevo hecho causal dentro del Production Graph.
+
+1. Objetivos obligatorios
+
+La implementación deberá garantizar las siguientes propiedades:
+
+Atomicidad
+
+Una operación se revierte completamente o no se revierte.
+No puede existir un estado intermedio presentado como válido.
+
+Idempotencia
+
+Solicitar dos veces el mismo rollback no debe ejecutar dos veces la reversión.
+
+Trazabilidad
+
+Toda reversión debe apuntar inequívocamente a la decisión/acción original.
+
+Causalidad
+
+El rollback debe conservar la relación:
+INTENT
+  ↓
+DECISION
+  ↓
+ACTION
+  ↓
+RESULT
+  ↓
+REGRESSION
+  ↓
+ROLLBACK DECISION
+  ↓
+ROLLBACK ACTION
+  ↓
+ROLLBACK RESULT
+
+
+Verificación
+
+No se considera exitoso un rollback simplemente porque Ableton aceptó los comandos.
+Debe existir verificación posterior.
+
+Protección contra rollback incorrecto
+
+Si el estado actual ya cambió de manera incompatible, no se debe aplicar ciegamente el estado anterior.
+
+Persistencia
+
+El historial debe sobrevivir al reinicio del servidor.
+
+Recuperación
+
+Una transacción interrumpida debe poder detectarse y recuperarse.
+
+Determinismo
+
+La misma situación y los mismos datos deben producir la misma decisión de rollback.
+
+No destrucción del historial
+
+Nunca eliminar nodos originales para "volver atrás".
+2. Alcance
+
+Este documento modifica exclusivamente la nueva capa:
+
+engine/production/
+
+
+No se debe alterar el comportamiento semántico existente de:
+
+SessionShadowGraph
+
+
+ni de los motores anteriores salvo para consumir sus interfaces públicas.
+
+La nueva estructura deberá quedar conceptualmente:
+
+engine/
+└── production/
+    ├── __init__.py
+    ├── models.py
+    ├── graph.py
+    ├── memory.py
+    ├── policies.py
+    ├── planner.py
+    ├── context.py
+    ├── executor.py
+    ├── rollback.py
+    ├── verification.py
+    ├── serializer.py
+    └── exceptions.py
+
+
+Si alguno de estos módulos ya fue creado por documentos anteriores, deberá extenderse, no duplicarse.
+
+3. Concepto de Rollback
+
+Debe diferenciarse entre:
+
+3.1 Undo
+
+Una operación puramente mecánica:
+
+set_volume(-2 dB)
+↓
+set_volume(+2 dB)
+
+3.2 Rollback PIE
+
+Una operación causal y verificable:
+
+Decision D1
+   ↓
+Action A1
+   ↓
+Result R1
+   ↓
+Regression detected
+   ↓
+Rollback Decision D2
+   ↓
+Rollback Action A2
+   ↓
+Verification V2
+   ↓
+Rollback Result R2
+
+
+Por tanto:
+
+Rollback no es simplemente ejecutar la operación inversa.
+
+Debe reconstruir el estado seguro conocido, verificarlo y documentar el proceso.
+
+4. Modelo de datos
+4.1 RollbackStatus
+
+Crear enum:
+
+class RollbackStatus(str, Enum):
+    REQUESTED = "REQUESTED"
+    VALIDATING = "VALIDATING"
+    APPROVED = "APPROVED"
+    EXECUTING = "EXECUTING"
+    VERIFYING = "VERIFYING"
+    COMMITTED = "COMMITTED"
+    REJECTED = "REJECTED"
+    FAILED = "FAILED"
+    PARTIAL = "PARTIAL"
+    ALREADY_REVERTED = "ALREADY_REVERTED"
+
+5. Tipos de rollback
+
+Crear:
+
+class RollbackType(str, Enum):
+    USER_REQUESTED = "USER_REQUESTED"
+    AUTO_REGRESSION = "AUTO_REGRESSION"
+    TRANSACTION_RECOVERY = "TRANSACTION_RECOVERY"
+    EXECUTION_FAILURE = "EXECUTION_FAILURE"
+    POLICY_REQUIRED = "POLICY_REQUIRED"
+    SYSTEM_RECOVERY = "SYSTEM_RECOVERY"
+
+6. RollbackRequest
+
+Debe contener como mínimo:
+
+@dataclass(frozen=True)
+class RollbackRequest:
+    rollback_id: str
+    target_decision_id: str
+    requested_by: str
+    rollback_type: RollbackType
+    reason: str
+    created_at: str
+    current_session_fingerprint: str
+    expected_target_fingerprint: Optional[str]
+    auto_verify: bool = True
+    auto_commit: bool = True
+
+Reglas
+
+target_decision_id es obligatorio.
+
+No permitir:
+
+rollback_id == target_decision_id
+
+
+No permitir IDs vacíos.
+
+7. RollbackPlan
+
+Crear:
+
+@dataclass(frozen=True)
+class RollbackPlan:
+    rollback_id: str
+    target_decision_id: str
+    source_transaction_id: str
+    source_snapshot_id: Optional[str]
+
+    pre_rollback_fingerprint: str
+    expected_post_rollback_fingerprint: str
+
+    operations: tuple
+    protected_objects: tuple
+
+    verification_requirements: tuple
+
+    policy_status: str
+    created_at: str
+
+
+El plan debe ser inmutable.
+
+Nunca modificar un plan existente.
+
+8. Identificación del estado objetivo
+
+El rollback debe determinar exactamente a qué estado se quiere regresar.
+
+Debe existir una de estas fuentes:
+
+Prioridad 1
+
+Snapshot transaccional asociado directamente a la acción.
+
+Prioridad 2
+
+Estado inverso registrado en la acción.
+
+Prioridad 3
+
+Snapshot de sesión inmediatamente anterior.
+
+Prioridad 4
+
+Reconstrucción determinista mediante operaciones inversas.
+
+Si ninguna fuente es suficientemente confiable:
+
+ROLLBACK_REJECTED
+reason = "NO_SAFE_RESTORE_STATE"
+
+
+Nunca intentar adivinar.
+
+9. Reversibilidad
+
+Toda acción ejecutable por ProductionExecutor debe declarar:
+
+reversible: bool
+
+
+y:
+
+rollback_strategy: str
+
+
+Ejemplos:
+
+SET_VOLUME
+→ INVERSE_OPERATION
+
+SET_PAN
+→ INVERSE_OPERATION
+
+SET_PARAMETER
+→ SNAPSHOT_PARAMETER
+
+CREATE_TRACK
+→ DELETE_CREATED_TRACK
+
+DELETE_TRACK
+→ SNAPSHOT_RESTORE
+
+CREATE_CLIP
+→ DELETE_CREATED_CLIP
+
+DELETE_CLIP
+→ SNAPSHOT_RESTORE
+
+DEVICE_PARAMETER_CHANGE
+→ PARAMETER_SNAPSHOT
+
+MULTI_OPERATION
+→ TRANSACTION_SNAPSHOT
+
+10. Acciones irreversibles
+
+Si una acción es:
+
+reversible = False
+
+
+deberá bloquearse el rollback automático.
+
+El sistema deberá producir:
+
+REQUIRE_CONFIRMATION
+
+
+o:
+
+REJECT
+
+
+según la política.
+
+Nunca deberá afirmar:
+
+rollback successful
+
+
+si no puede garantizar la reversión.
+
+11. Snapshot obligatorio
+
+Antes de ejecutar cualquier acción modificadora relevante, ProductionExecutor deberá disponer de:
+
+pre_transaction_snapshot
+
+
+El snapshot debe contener únicamente el estado necesario para recuperar de forma segura, pero deberá ser suficiente para reconstruir las entidades afectadas.
+
+Como mínimo:
+
+{
+  "snapshot_id": "...",
+  "project_id": "...",
+  "session_fingerprint": "...",
+  "transaction_id": "...",
+  "created_at": "...",
+  "tracks": {},
+  "devices": {},
+  "clips": {},
+  "parameters": {},
+  "routing": {},
+  "mixer": {}
+}
+
+
+No asumir que un snapshot parcial es restaurable.
+
+El snapshot deberá declarar:
+
+completeness: COMPLETE | PARTIAL
+
+
+Un snapshot PARTIAL no puede utilizarse para rollback automático de objetos que no cubre.
+
+12. Atomicidad
+
+El rollback debe utilizar el mismo sistema transaccional existente.
+
+Nunca ejecutar:
+
+restore volume
+restore EQ
+restore compressor
+
+
+como comandos independientes sin transacción.
+
+Debe ser:
+
+BEGIN ROLLBACK TRANSACTION
+
+stage restore volume
+stage restore EQ
+stage restore compressor
+
+validate
+
+COMMIT
+
+verify
+
+
+Si falla una operación:
+
+ROLLBACK TRANSACTION
+
+
+y el estado debe permanecer en el estado previo al intento de rollback.
+
+13. Rollback en dos niveles
+
+Debe existir una distinción explícita entre:
+
+Nivel 1 — Rollback de PIE
+
+Revierte una decisión individual.
+
+Ejemplo:
+
+DECISION: bajar guitarra -2 dB
+
+Nivel 2 — Rollback de transacción
+
+Revierte todo un conjunto atómico.
+
+Ejemplo:
+
+Transaction TX-104
+ ├── volume -2 dB
+ ├── EQ -1 dB
+ └── compressor ratio 2:1
+
+
+Si las tres operaciones fueron una sola transacción, no permitir rollback parcial salvo que una operación haya sido declarada explícitamente independiente.
+
+14. Dependencias entre decisiones
+
+Antes de revertir una decisión, consultar el Production Graph.
+
+Ejemplo:
+
+D1: crear vocal bus
+D2: añadir EQ al vocal bus
+D3: añadir compressor al vocal bus
+D4: automatizar vocal bus
+
+
+Si se solicita rollback de D1, D2-D4 pueden depender de D1.
+
+No se debe eliminar D1 dejando referencias inválidas.
+
+El sistema debe responder:
+
+DEPENDENCY_CONFLICT
+
+
+y listar:
+
+dependent_decisions:
+    D2
+    D3
+    D4
+
+
+El planificador podrá proponer:
+
+cascade rollback
+
+
+pero nunca ejecutarlo automáticamente si requiere revertir decisiones posteriores no incluidas en la solicitud original, salvo política explícita.
+
+15. Cascade Rollback
+
+Crear:
+
+class RollbackScope(str, Enum):
+    SINGLE_DECISION = "SINGLE_DECISION"
+    TRANSACTION = "TRANSACTION"
+    DEPENDENCY_CHAIN = "DEPENDENCY_CHAIN"
+
+
+El default debe ser:
+
+SINGLE_DECISION
+
+
+El sistema nunca debe asumir:
+
+rollback everything after this
+
+
+sin recibir dicha instrucción.
+
+16. Fingerprint durante rollback
+
+Antes de ejecutar:
+
+fingerprint_current
+
+
+debe compararse con:
+
+fingerprint_plan
+
+
+Si no coinciden:
+
+STALE_ROLLBACK_PLAN
+
+
+Pero debe analizarse si las diferencias afectan al rollback.
+
+Cambio relevante
+
+Ejemplo:
+
+EQ del mismo track cambió.
+
+
+→ invalidar.
+
+Cambio irrelevante
+
+Ejemplo:
+
+Nombre de un track no relacionado.
+
+
+→ podría permanecer válido.
+
+La decisión debe utilizar el mismo mecanismo de relevancia de fingerprint definido por el ProductionExecutor.
+
+17. Protección contra sobrescritura
+
+Caso crítico:
+
+D1
+↓
+usuario modifica manualmente el mismo parámetro
+↓
+rollback D1
+
+
+El rollback no debe sobrescribir silenciosamente el cambio manual.
+
+Ejemplo:
+
+D1:
+volume = -2 dB
+
+Estado actual:
+volume = -5 dB
+
+
+No ejecutar automáticamente:
+
+volume = 0 dB
+
+
+porque eso destruiría la modificación posterior.
+
+Debe marcar:
+
+CONFLICTING_STATE
+
+
+y:
+
+REQUIRE_CONFIRMATION
+
+18. Verificación post-rollback
+
+Después de ejecutar el rollback se deben comprobar tres dimensiones.
+
+18.1 Verificación estructural
+
+Comprobar:
+
+tracks;
+devices;
+clips;
+parámetros;
+routing;
+mixer;
+locks.
+18.2 Verificación de fingerprint
+
+Comparar:
+
+actual_fingerprint
+vs
+expected_post_rollback_fingerprint
+
+18.3 Verificación acústica
+
+Ejecutar las métricas pertinentes.
+
+Como mínimo cuando corresponda:
+
+LUFS;
+True Peak;
+sample peak;
+crest factor;
+correlación estéreo;
+masking;
+sub-bass balance;
+vocal intelligibility;
+phase coherence.
+19. Tolerancias
+
+No exigir igualdad flotante exacta.
+
+Definir:
+
+@dataclass(frozen=True)
+class VerificationTolerance:
+    absolute: float
+    relative: float
+
+
+Cada métrica debe disponer de tolerancia.
+
+Ejemplo:
+
+volume:
+absolute = 0.001
+
+LUFS:
+absolute = 0.05
+
+true_peak:
+absolute = 0.05
+
+
+Los valores exactos deberán centralizarse en configuración, no dispersarse por el código.
+
+20. Regresión después del rollback
+
+Un rollback no se considera exitoso simplemente porque restauró valores.
+
+Debe verificarse:
+
+rollback result
+
+
+Si el estado restaurado produce una nueva regresión crítica:
+
+ROLLBACK_FAILED
+
+
+El sistema no debe entrar en un ciclo infinito intentando revertir la reversión.
+
+21. Rollback del rollback
+
+No ejecutar automáticamente.
+
+Debe ser tratado como una nueva decisión:
+
+D1 original
+D2 rollback D1
+D3 rollback D2
+
+
+Esto permite conservar la causalidad completa.
+
+22. Protección contra ciclos de rollback
+
+Debe existir un límite configurable:
+
+max_automatic_rollback_depth = 1
+
+
+Para un mismo incidente.
+
+Si:
+
+D1 → rollback → regression → rollback → regression
+
+
+el sistema debe detenerse y producir:
+
+MANUAL_INTERVENTION_REQUIRED
+
+
+Nunca continuar indefinidamente.
+
+23. Estados de recuperación
+
+Definir:
+
+CLEAN
+TRANSACTION_ACTIVE
+COMMIT_PENDING
+ROLLBACK_PENDING
+RECOVERY_REQUIRED
+RECOVERY_IN_PROGRESS
+RECOVERED
+RECOVERY_FAILED
+
+
+Estos estados deben persistirse.
+
+24. Recuperación después de crash
+
+Caso:
+
+transaction started
+operations partially sent
+server crashes
+
+
+Al reiniciar:
+
+cargar journal;
+localizar transacciones incompletas;
+determinar última operación confirmada;
+comparar fingerprint;
+determinar si Ableton refleja:
+estado anterior;
+estado posterior;
+estado parcial;
+seleccionar estrategia de recuperación.
+
+Nunca asumir que:
+
+socket send == Ableton applied
+
+25. Estados de transacción incompleta
+
+Debe poder distinguir:
+
+NOT_STARTED
+PARTIALLY_APPLIED
+FULLY_APPLIED
+UNKNOWN
+
+
+Si el estado es:
+
+UNKNOWN
+
+
+no ejecutar automáticamente operaciones destructivas.
+
+Debe pasar a:
+
+RECOVERY_REQUIRED
+
+26. Journal de rollback
+
+El sistema debe registrar eventos append-only:
+
+{
+  "event_id": "...",
+  "rollback_id": "...",
+  "transaction_id": "...",
+  "event_type": "ROLLBACK_OPERATION_APPLIED",
+  "timestamp": "...",
+  "operation_index": 2,
+  "operation": {},
+  "result": {},
+  "fingerprint": "..."
+}
+
+
+Tipos mínimos:
+
+ROLLBACK_REQUESTED
+ROLLBACK_PLAN_CREATED
+ROLLBACK_VALIDATED
+ROLLBACK_REJECTED
+ROLLBACK_STARTED
+ROLLBACK_OPERATION_STAGED
+ROLLBACK_OPERATION_APPLIED
+ROLLBACK_OPERATION_FAILED
+ROLLBACK_COMMITTED
+ROLLBACK_VERIFICATION_STARTED
+ROLLBACK_VERIFICATION_PASSED
+ROLLBACK_VERIFICATION_FAILED
+ROLLBACK_COMPLETED
+ROLLBACK_RECOVERY_REQUIRED
+
+27. Persistencia
+
+Utilizar:
+
+state/production/
+
+
+y el mecanismo StorageManager existente.
+
+No crear:
+
+SQLite
+MongoDB
+Redis
+YAML
+
+
+como dependencia obligatoria.
+
+La persistencia deberá ser:
+
+JSON;
+atómica;
+determinista;
+recuperable;
+versionada.
+28. Atomicidad de archivos
+
+Nunca escribir directamente:
+
+production_graph.json
+
+
+de forma destructiva.
+
+Utilizar:
+
+temporary file
+↓
+flush
+↓
+fsync
+↓
+atomic rename
+
+
+Cuando el entorno lo permita.
+
+29. Integridad de persistencia
+
+Cada documento persistido deberá poder incluir:
+
+{
+  "schema_version": 1,
+  "content_hash": "...",
+  "created_at": "...",
+  "updated_at": "...",
+  "payload": {}
+}
+
+
+Al cargar:
+
+validar schema;
+validar hash;
+validar estructura;
+rechazar corrupción;
+intentar recuperar backup anterior.
+30. Backup
+
+Antes de sobrescribir estado persistente crítico:
+
+current
+↓
+backup
+↓
+write new
+↓
+validate
+↓
+commit
+
+
+Conservar al menos una versión inmediatamente anterior.
+
+El número de versiones debe ser configurable.
+
+31. Production Graph después del rollback
+
+Nunca modificar:
+
+D1
+A1
+R1
+
+
+Crear nuevos nodos.
+
+Ejemplo:
+
+D1 ACTION
+   │
+   ▼
+R1 RESULT
+   │
+   ▼
+D2 ROLLBACK DECISION
+   │
+   ▼
+A2 ROLLBACK ACTION
+   │
+   ▼
+R2 RESULT
+
+32. Tipos de nodos específicos
+
+Se recomienda registrar:
+
+ROLLBACK_REQUEST
+ROLLBACK_ANALYSIS
+ROLLBACK_DECISION
+ROLLBACK_ACTION
+ROLLBACK_VERIFICATION
+ROLLBACK_RESULT
+RECOVERY_EVENT
+
+
+Si NodeTypes anterior ya define ROLLBACK, extender metadatos sin romper compatibilidad.
+
+33. Relaciones del grafo
+
+La relación mínima será:
+
+ROLLBACK_DECISION
+    --ROLLED_BACK_BY-->
+    ORIGINAL_ACTION
+
+
+Además:
+
+ROLLBACK_DECISION
+    --CAUSED_BY-->
+    REGRESSION
+
+ROLLBACK_ACTION
+    --DERIVED_FROM-->
+    ROLLBACK_DECISION
+
+ROLLBACK_RESULT
+    --VERIFIED_BY-->
+    ROLLBACK_VERIFICATION
+
+34. Explicabilidad
+
+production_explain() deberá poder explicar:
+
+¿Por qué se hizo rollback?
+¿Qué decisión originó la acción?
+¿Qué métrica falló?
+¿Qué cambio produjo la regresión?
+¿Qué estado se restauró?
+¿Qué operaciones se ejecutaron?
+¿Qué verificaciones pasaron?
+¿Hubo conflictos?
+¿El rollback fue automático o manual?
+
+
+Ejemplo conceptual:
+
+{
+  "rollback_id": "rb_001",
+  "target_decision": "dec_001",
+  "reason": {
+    "type": "ACOUSTIC_REGRESSION",
+    "metric": "true_peak_dbfs",
+    "before": -1.2,
+    "after": 0.2,
+    "threshold": -1.0
+  },
+  "restore_source": "snapshot_tx_001",
+  "operations": 3,
+  "verification": {
+    "structural": "PASS",
+    "fingerprint": "PASS",
+    "acoustic": "PASS"
+  },
+  "status": "COMMITTED"
+}
+
+35. Policy Engine
+
+El rollback también debe pasar por políticas.
+
+Crear políticas:
+
+ROLLBACK_TARGET_EXISTS
+ROLLBACK_TARGET_REVERSIBLE
+ROLLBACK_FINGERPRINT_VALID
+ROLLBACK_NO_CONFLICT
+ROLLBACK_DEPENDENCIES_SAFE
+ROLLBACK_SNAPSHOT_VALID
+ROLLBACK_TRANSACTION_REQUIRED
+ROLLBACK_VERIFICATION_REQUIRED
+ROLLBACK_MAX_DEPTH
+ROLLBACK_IDEMPOTENCY
+
+36. Regla crítica
+
+Una política CRITICAL nunca puede ser ignorada.
+
+Por ejemplo:
+
+ROLLBACK_SNAPSHOT_VALID = CRITICAL
+
+
+Si falla:
+
+REJECT
+
+37. Idempotencia
+
+Si:
+
+D1
+
+
+ya fue revertida por:
+
+RB1
+
+
+y se solicita nuevamente:
+
+rollback(D1)
+
+
+debe devolver:
+
+ALREADY_REVERTED
+
+
+No ejecutar comandos nuevamente.
+
+La búsqueda debe utilizar:
+
+target_decision_id
+
+
+y no solamente rollback_id.
+
+38. No-op
+
+Si la acción ya no tiene efecto en el estado actual:
+
+NO_OP
+
+
+puede ser válido.
+
+Pero debe registrarse.
+
+Ejemplo:
+
+D1 set volume = -2 dB
+actual volume already = 0 dB
+
+
+Si restaurar a 0 dB no requiere modificación:
+
+ROLLBACK_RESULT = NO_OP
+
+
+No fingir que se ejecutó una operación.
+
+39. Interacción con DecisionMemory
+
+Cada rollback deberá almacenarse como experiencia histórica:
+
+context
+decision
+action
+failure
+rollback
+result
+
+
+Pero esta memoria nunca debe convertirse en una regla automática.
+
+La memoria puede responder:
+
+"Este tipo de EQ produjo regresión anteriormente."
+
+
+No puede concluir:
+
+"Por tanto siempre debe hacerse X."
+
+40. Consulta de rollback
+
+DecisionMemory.get_related() debe poder devolver:
+
+original decision
+related observations
+previous attempts
+previous regressions
+previous rollbacks
+successful alternatives
+
+
+Esto alimentará al Planner futuro.
+
+41. API interna
+
+Implementar:
+
+class RollbackEngine:
+    def create_plan(
+        self,
+        request: RollbackRequest,
+        context: ProductionContext,
+    ) -> RollbackPlan:
+        ...
+
+    def validate(
+        self,
+        plan: RollbackPlan,
+        context: ProductionContext,
+    ) -> PolicyResult:
+        ...
+
+    def execute(
+        self,
+        plan: RollbackPlan,
+        context: ProductionContext,
+    ) -> RollbackResult:
+        ...
+
+    def verify(
+        self,
+        rollback_id: str,
+        context: ProductionContext,
+    ) -> VerificationResult:
+        ...
+
+    def recover(
+        self,
+        transaction_id: str,
+        context: ProductionContext,
+    ) -> RecoveryResult:
+        ...
+
+    def status(
+        self,
+        rollback_id: str,
+    ) -> RollbackStatus:
+        ...
+
+42. ProductionExecutor
+
+ProductionExecutor debe delegar rollback a:
+
+RollbackEngine
+
+
+No duplicar lógica.
+
+Arquitectura:
+
+ProductionExecutor
+        │
+        ├── execute(plan)
+        │
+        └── rollback(...)
+                  │
+                  ▼
+            RollbackEngine
+
+43. auto_rollback
+
+El parámetro:
+
+auto_rollback=True
+
+
+debe significar:
+
+Permitir rollback automático cuando la verificación detecte una regresión clasificada como recuperable por política.
+
+No significa:
+
+Ignorar políticas y revertir cualquier cosa.
+
+44. Clasificación de regresiones
+
+Crear categorías:
+
+NONE
+INFO
+WARNING
+ERROR
+CRITICAL
+UNKNOWN
+
+
+Reglas:
+
+NONE
+→ no rollback
+
+WARNING
+→ normalmente no rollback automático
+
+ERROR
+→ rollback si policy permite
+
+CRITICAL
+→ rollback automático si la operación es reversible
+
+UNKNOWN
+→ no rollback automático
+
+45. Evitar falsos positivos
+
+El rollback automático debe exigir:
+
+baseline measurement valid
++
+post-action measurement valid
++
+metric threshold exceeded
++
+causal attribution confidence sufficient
+
+
+Si alguna condición no se cumple:
+
+NO_AUTO_ROLLBACK
+
+46. Confianza
+
+La decisión automática deberá almacenar:
+
+confidence: float
+
+
+en:
+
+0.0 <= confidence <= 1.0
+
+
+Nunca permitir valores fuera del rango.
+
+El threshold debe ser configurable.
+
+Por ejemplo:
+
+auto_rollback_confidence_threshold = 0.90
+
+
+No hardcodearlo en múltiples archivos.
+
+47. Causalidad del rollback
+
+No basta con detectar:
+
+true_peak increased
+
+
+Debe intentarse establecer:
+
+action
+↓
+metric changed
+
+
+Si otra modificación ocurrió simultáneamente:
+
+ACTION A
+ACTION B
+↓
+metric changed
+
+
+no atribuir automáticamente el problema a A.
+
+Resultado:
+
+CAUSALITY_AMBIGUOUS
+
+
+y:
+
+REQUIRE_CONFIRMATION
+
+48. Concurrente / carreras
+
+El motor debe asumir que el proyecto puede cambiar mientras se genera o ejecuta un rollback.
+
+Por ello:
+
+plan
+↓
+fingerprint
+↓
+validate
+↓
+execute
+
+
+debe comprobar nuevamente el fingerprint inmediatamente antes del commit.
+
+No confiar únicamente en la validación inicial.
+
+49. Doble validación
+
+Debe existir:
+
+validation at plan creation
+
+
+y:
+
+validation immediately before commit
+
+
+Si cambia el estado entre ambas:
+
+STALE
+
+
+y cancelar.
+
+50. Integración con locks
+
+Si el objeto objetivo está:
+
+locked = True
+
+
+el rollback no puede modificarlo.
+
+El sistema debe devolver:
+
+ROLLBACK_BLOCKED_LOCKED_OBJECT
+
+
+Incluso si el rollback original fue generado por PIE.
+
+El lock tiene prioridad.
+
+51. Seguridad ante snapshots antiguos
+
+Nunca restaurar automáticamente un snapshot excesivamente antiguo sin comprobar:
+
+schema compatibility
+session identity
+project identity
+track identity
+device identity
+fingerprint lineage
+
+
+Si el snapshot pertenece a otro proyecto:
+
+REJECT
+
+52. Identidad del proyecto
+
+Todo rollback debe verificar:
+
+request.project_id
+snapshot.project_id
+context.project_id
+transaction.project_id
+
+
+Todos deben coincidir.
+
+53. Identidad de objetos
+
+No confiar únicamente en nombres.
+
+Incorrecto:
+
+"Lead Vocal"
+
+
+Correcto:
+
+track_id = stable UUID
+
+
+Los nombres sirven únicamente como información humana.
+
+54. Objetos eliminados
+
+Si la acción original eliminó una pista:
+
+delete track
+
+
+el rollback debe poder restaurarla desde snapshot.
+
+Debe comprobar:
+
+track ID;
+nombre;
+tipo;
+routing;
+dispositivos;
+clips;
+mixer state;
+sends;
+automatización cubierta por snapshot.
+
+Si el snapshot no contiene alguno de esos elementos:
+
+PARTIAL_RESTORE
+
+
+No declarar éxito total.
+
+55. Objetos creados
+
+Si la acción creó una entidad, rollback deberá eliminarla solamente si:
+
+entity still belongs to source transaction
+
+
+Si posteriormente fue modificada por otra decisión:
+
+DEPENDENCY_CONFLICT
+
+
+No eliminarla automáticamente.
+
+56. Operaciones MIDI
+
+Si se modifican notas MIDI:
+
+rollback
+
+
+debe operar con identificadores estables de eventos cuando existan.
+
+Nunca asumir únicamente:
+
+pitch + start_time
+
+
+porque pueden existir notas duplicadas.
+
+57. Automatizaciones
+
+Debe conservarse:
+
+target parameter;
+lane;
+puntos;
+tiempos;
+valores;
+interpolation mode.
+
+El rollback debe restaurar la automatización completa cubierta por la transacción.
+
+58. Dispositivos
+
+Para dispositivos:
+
+device_id
+device_type
+parameter_id
+parameter_value
+
+
+No identificar dispositivos únicamente por posición:
+
+device_index = 3
+
+
+porque la cadena puede haber cambiado.
+
+59. Verificación de Ableton
+
+Después del commit:
+
+query actual state
+
+
+No utilizar exclusivamente la respuesta del comando enviado.
+
+Ejemplo:
+
+set_volume(track, -2)
+
+
+no equivale a:
+
+volume_confirmed = -2
+
+
+Debe realizarse lectura posterior.
+
+60. Socket failure
+
+Si falla el socket durante rollback:
+
+ROLLBACK_EXECUTION_INTERRUPTED
+
+
+No asumir éxito.
+
+El sistema debe entrar en:
+
+RECOVERY_REQUIRED
+
+
+y posteriormente consultar el estado real de Ableton.
+
+61. Timeout
+
+Todos los comandos deben tener timeout configurable.
+
+Nunca:
+
+while True:
+    wait()
+
+
+Sin límite.
+
+62. Reintentos
+
+Los reintentos deben ser limitados y explícitos.
+
+Por defecto:
+
+max_retries = 1
+
+
+Una operación no idempotente no debe repetirse automáticamente salvo que el protocolo garantice seguridad.
+
+63. Resultado final
+
+Crear:
+
+@dataclass(frozen=True)
+class RollbackResult:
+    rollback_id: str
+    status: RollbackStatus
+
+    transaction_id: str
+
+    operations_planned: int
+    operations_applied: int
+
+    structural_verification: str
+    fingerprint_verification: str
+    acoustic_verification: str
+
+    regressions_detected: tuple
+    conflicts_detected: tuple
+
+    pre_fingerprint: str
+    post_fingerprint: str
+
+    rollback_committed: bool
+    recovery_required: bool
+
+    completed_at: str
+
+64. MCP
+
+Agregar o completar:
+
+production_rollback(decision_id_or_transaction)
+
+
+Debe permitir identificar:
+
+decision_id
+
+
+o:
+
+transaction_id
+
+
+pero nunca aceptar ambos si apuntan a objetos diferentes.
+
+Si existe ambigüedad:
+
+INVALID_REQUEST
+
+65. Respuesta MCP
+
+La herramienta deberá devolver información estructurada.
+
+Ejemplo:
+
+{
+  "success": true,
+  "rollback_id": "rb_001",
+  "status": "COMMITTED",
+  "target_decision_id": "dec_4091",
+  "operations": {
+    "planned": 3,
+    "applied": 3
+  },
+  "verification": {
+    "structural": "PASS",
+    "fingerprint": "PASS",
+    "acoustic": "PASS"
+  },
+  "recovery_required": false
+}
+
+
+Nunca devolver:
+
+"Done"
+
+
+como única información.
+
+66. Tests obligatorios
+
+Crear:
+
+tests/test_production_rollback.py
+
+
+Debe contener como mínimo:
+
+Test 1 — Rollback simple
+action
+→ rollback
+→ state restored
+
+Test 2 — Rollback idempotente
+rollback
+→ rollback again
+→ no second mutation
+
+Test 3 — Snapshot inválido
+
+Debe producir:
+
+REJECT
+
+Test 4 — Fingerprint stale
+
+Modificar una pista relevante antes del rollback.
+
+Resultado:
+
+STALE
+
+Test 5 — Cambio irrelevante
+
+Modificar objeto desconectado.
+
+Resultado:
+
+rollback remains valid
+
+Test 6 — Locked object
+
+Debe rechazar.
+
+Test 7 — Dependencia
+
+Intentar revertir una decisión con dependencias posteriores.
+
+Debe detectarlas.
+
+Test 8 — Rollback automático por regresión
+action
+→ simulated regression
+→ auto rollback
+→ verification
+
+Test 9 — Fallo de socket
+
+Simular desconexión durante operación.
+
+Debe producir:
+
+RECOVERY_REQUIRED
+
+Test 10 — Crash
+
+Simular transacción incompleta.
+
+Reiniciar estado.
+
+Debe detectar recuperación pendiente.
+
+Test 11 — Atomicidad
+
+Hacer fallar la operación 2 de 3.
+
+Verificar:
+
+0/3 committed
+
+Test 12 — No pérdida de historial
+
+Después de rollback:
+
+original nodes still exist
+rollback nodes exist
+
+Test 13 — Rollback conflictivo
+
+Cambiar manualmente el parámetro después de la acción original.
+
+Debe evitar sobrescritura silenciosa.
+
+Test 14 — Objeto eliminado
+
+Crear → eliminar → rollback.
+
+Debe restaurarse correctamente si snapshot completo.
+
+Test 15 — Objeto creado
+
+Crear → rollback.
+
+Debe desaparecer únicamente si sigue perteneciendo a la acción original.
+
+Test 16 — No rollback loop
+
+Simular regresión después del rollback.
+
+Debe detenerse.
+
+Test 17 — Proyecto incorrecto
+
+Snapshot de otro proyecto.
+
+Debe rechazar.
+
+Test 18 — Corrupted persistence
+
+Modificar hash del JSON.
+
+Debe detectar corrupción.
+
+Test 19 — Determinismo
+
+Mismo estado → mismo rollback plan.
+
+Test 20 — Explainability
+
+production_explain() debe reconstruir la cadena completa.
+
+67. Failure Injection
+
+Además de tests normales, implementar fixtures para:
+
+socket disconnect
+timeout
+partial execution
+invalid snapshot
+corrupt JSON
+fingerprint mismatch
+locked object
+missing device
+missing track
+unexpected parameter value
+verification regression
+ambiguous causality
+concurrent modification
+
+
+Cada fallo debe producir un estado explícito.
+
+Nunca aceptar:
+
+exception swallowed
+
+68. Definition of Done
+
+Este documento se considera completado únicamente cuando:
+
+ RollbackEngine existe.
+ Todos los rollback pasan por transacciones.
+ Existe snapshot verificable.
+ Existe fingerprint pre/post.
+ Existe detección de estado stale.
+ Existe protección contra conflictos.
+ Existe idempotencia.
+ Existe rollback automático controlado por políticas.
+ Existe recuperación tras fallo.
+ Existe journal.
+ Existe persistencia atómica.
+ Existe verificación estructural.
+ Existe verificación acústica.
+ Existe verificación de fingerprint.
+ Rollback queda registrado en ProductionGraph.
+ El historial original jamás se elimina.
+ DecisionMemory registra el resultado.
+ Los objetos locked no pueden ser modificados.
+ No existen loops infinitos de rollback.
+ Existen tests de failure injection.
+ La suite anterior continúa verde.
+ No se introducen dependencias externas innecesarias.
+ La implementación es determinista.
+ Los errores son explícitos y serializables.
+ production_rollback() expone el comportamiento de forma segura.
+ production_explain() puede reconstruir causalmente la reversión.
+ La documentación queda actualizada.
+69. Criterio final de aceptación
+
+El escenario definitivo que la IA implementadora debe demostrar es:
+
+Usuario:
+"Sube el volumen del master."
+
+        ↓
+
+ProductionPlanner
+        ↓
+ProductionPolicyEngine
+        ↓
+Plan aprobado
+        ↓
+Snapshot
+        ↓
+Fingerprint F1
+        ↓
+Transaction
+        ↓
+Action
+        ↓
+Ableton Live
+        ↓
+Fingerprint F2
+        ↓
+Audio Verification
+        ↓
+CRITICAL REGRESSION
+        ↓
+RollbackEngine
+        ↓
+Policy Validation
+        ↓
+Restore Snapshot
+        ↓
+Commit
+        ↓
+Fingerprint F3
+        ↓
+Audio Verification
+        ↓
+PASS
+
+
+Y el Production Graph debe conservar:
+
+INTENT
+  ↓
+OBSERVATION
+  ↓
+ANALYSIS
+  ↓
+DECISION
+  ↓
+ACTION
+  ↓
+MEASUREMENT
+  ↓
+REGRESSION
+  ↓
+ROLLBACK_DECISION
+  ↓
+ROLLBACK_ACTION
+  ↓
+ROLLBACK_VERIFICATION
+  ↓
+ROLLBACK_RESULT
+
+
+El resultado final debe permitir responder de manera determinista:
+
+"¿Qué hizo PIE, por qué lo hizo, qué salió mal, qué evidencia demostró el problema, qué restauró exactamente, por qué decidió revertirlo, qué operaciones ejecutó y cómo sabemos que el proyecto quedó nuevamente en un estado seguro?"
+
+Si el sistema no puede responder esas preguntas mediante datos persistidos del Production Graph + Decision Memory + Transaction Journal, el Documento 12 no está terminado.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-04T12:51:01-06:00.
+</ADDITIONAL_METADATA>

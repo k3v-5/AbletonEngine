@@ -1,0 +1,241 @@
+{
+  "analysis_version": "1.0.0",
+  "baseline": {
+    "band_baselines": {
+      "BASS_HIGH": {
+        "mean": -76.12,
+        "median": -76.09,
+        "p10": -76.85,
+        "p50": -76.09,
+        "p90": -75.44,
+        "percentile_10": -76.85,
+        "percentile_50": -76.09,
+        "percentile_90": -75.44,
+        "std": 0.53
+      },
+      "BASS_LOW": {
+        "mean": -86.78,
+        "median": -86.32,
+        "p10": -90.09,
+        "p50": -86.32,
+        "p90": -84.29,
+        "percentile_10": -90.09,
+        "percentile_50": -86.32,
+        "percentile_90": -84.29,
+        "std": 2.16
+      },
+      "BASS_MID": {
+        "mean": -87.46,
+        "median": -87.26,
+        "p10": -89.46,
+        "p50": -87.26,
+        "p90": -85.78,
+        "percentile_10": -89.46,
+        "percentile_50": -87.26,
+        "percentile_90": -85.78,
+        "std": 1.37
+      },
+      "BRILLIANCE_1": {
+        "mean": -120.0,
+        "median": -120.0,
+        "p10": -120.0,
+        "p50": -120.0,
+        "p90": -119.99,
+        "percentile_10": -120.0,
+        "percentile_50": -120.0,
+        "percentile_90": -119.99,
+        "std": 0.0
+      },
+      "BRILLIANCE_2": {
+        "mean": -120.0,
+        "median": -120.0,
+        "p10": -120.0,
+        "p50": -120.0,
+        "p90": -120.0,
+        "percentile_10": -120.0,
+        "percentile_50": -120.0,
+        "percentile_90": -120.0,
+        "std": 0.0
+      },
+      "HIGH_MIDS_1": {
+        "mean": -93.87,
+        "median": -93.83,
+        "p10": -94.57,
+        "p50": -93.83,
+        "p90": -93.21,
+        "percentile_10": -94.57,
+        "percentile_50": -93.83,
+        "percentile_90": -93.21,
+        "std": 0.51
+      },
+      "HIGH_MIDS_2": {
+        "mean": -114.63,
+        "median": -114.45,
+        "p10": -116.38,
+        "p50": -114.45,
+        "p90": -113.14,
+        "percentile_10": -116.38,
+        "percentile_50": -114.45,
+        "percentile_90": -113.14,
+        "std": 1.21
+      },
+      "LOW_MIDS_1": {
+        "mean": -62.0,
+        "median": -62.0,
+        "p10": -62.09,
+        "p50": -62.0,
+        "p90": -61.92,
+        "percentile_10": -62.09,
+        "percentile_50": -62.0,
+        "percentile_90": -61.92,
+        "std": 0.07
+      },
+      "LOW_MIDS_2": {
+        "mean": -4.26,
+        "median": -4.26,
+        "p10": -4.26,
+        "p50": -4.26,
+        "p90": -4.26,
+        "percentile_10": -4.26,
+        "percentile_50": -4.26,
+        "percentile_90": -4.26,
+        "std": 0.0
+      },
+      "MIDS": {
+        "mean": -47.35,
+        "median": -47.35,
+        "p10": -47.36,
+        "p50": -47.35,
+        "p90": -47.35,
+        "percentile_10": -47.36,
+        "percentile_50": -47.35,
+        "percentile_90": -47.35,
+        "std": 0.0
+      },
+      "PRESENCE_1": {
+        "mean": -119.11,
+        "median": -119.08,
+        "p10": -119.67,
+        "p50": -119.08,
+        "p90": -118.57,
+        "percentile_10": -119.67,
+        "percentile_50": -119.08,
+        "percentile_90": -118.57,
+        "std": 0.41
+      },
+      "PRESENCE_2": {
+        "mean": -119.94,
+        "median": -119.94,
+        "p10": -119.99,
+        "p50": -119.94,
+        "p90": -119.9,
+        "percentile_10": -119.99,
+        "percentile_50": -119.94,
+        "percentile_90": -119.9,
+        "std": 0.03
+      },
+      "SUB_LOW": {
+        "mean": -93.47,
+        "median": -91.61,
+        "p10": -101.7,
+        "p50": -91.61,
+        "p90": -88.76,
+        "percentile_10": -101.7,
+        "percentile_50": -91.61,
+        "percentile_90": -88.76,
+        "std": 4.95
+      },
+      "SUB_MID": {
+        "mean": -92.1,
+        "median": -90.98,
+        "p10": -97.91,
+        "p50": -90.98,
+        "p90": -88.38,
+        "percentile_10": -97.91,
+        "percentile_50": -90.98,
+        "percentile_90": -88.38,
+        "std": 3.54
+      }
+    },
+    "centroid_stats": {
+      "mean": 439.96,
+      "median": 439.96,
+      "p10": 439.9,
+      "p50": 439.96,
+      "p90": 440.03,
+      "percentile_10": 439.9,
+      "percentile_50": 439.96,
+      "percentile_90": 440.03,
+      "std": 0.05
+    },
+    "crest_factor_stats": {
+      "mean": 3.01,
+      "median": 3.01,
+      "p10": 3.0,
+      "p50": 3.01,
+      "p90": 3.02,
+      "percentile_10": 3.0,
+      "percentile_50": 3.01,
+      "percentile_90": 3.02,
+      "std": 0.01
+    },
+    "peak_stats": {
+      "mean": -6.02,
+      "median": -6.02,
+      "p10": -6.02,
+      "p50": -6.02,
+      "p90": -6.02,
+      "percentile_10": -6.02,
+      "percentile_50": -6.02,
+      "percentile_90": -6.02,
+      "std": 0.0
+    },
+    "rms_stats": {
+      "mean": -9.03,
+      "median": -9.03,
+      "p10": -9.04,
+      "p50": -9.03,
+      "p90": -9.02,
+      "percentile_10": -9.04,
+      "percentile_50": -9.03,
+      "percentile_90": -9.02,
+      "std": 0.01
+    },
+    "stereo_correlation_stats": {
+      "mean": 1.0,
+      "median": 1.0,
+      "p10": 1.0,
+      "p50": 1.0,
+      "p90": 1.0,
+      "percentile_10": 1.0,
+      "percentile_50": 1.0,
+      "percentile_90": 1.0,
+      "std": 0.0
+    },
+    "track_id": "Master"
+  },
+  "channels": 2,
+  "config": {
+    "algorithm_version": "1.0.0",
+    "clipping_threshold_dbfs": -0.01,
+    "correlation_threshold": 0.75,
+    "fft_size": 2048,
+    "hop_size": 512,
+    "max_frequency_hz": 20000.0,
+    "maximum_event_gap_ms": 100.0,
+    "min_frequency_hz": 20.0,
+    "minimum_event_duration_ms": 50.0,
+    "peak_threshold_db": -0.1,
+    "resonance_threshold_db": 6.0,
+    "window": "hann"
+  },
+  "deterministic_hash": "78cd1f8d39295e43d6891f82636a43e4f72a7b425c314a7d2d830888274b5696",
+  "duration_seconds": 1.0,
+  "events": [],
+  "frames_analyzed": 83,
+  "hypotheses": [],
+  "measurements_count": 83,
+  "processing_time_seconds": 0.0422,
+  "report_id": "rep_forensic_Master_251786",
+  "sample_rate": 44100
+}

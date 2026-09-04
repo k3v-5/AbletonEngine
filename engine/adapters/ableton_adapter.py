@@ -1,5 +1,5 @@
 # engine/adapters/ableton_adapter.py
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from .base import BaseAbletonAdapter
 from ..errors import AbletonConnectionError, RemoteScriptError
 

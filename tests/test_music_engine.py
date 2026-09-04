@@ -1,38 +1,38 @@
 # tests/test_music_engine.py
 import unittest
 import time
-from MCP_Server.engine.music.models import NoteEvent, Chord, Motif, PartFingerprint
-from MCP_Server.engine.music.intent import MusicalIntent
-from MCP_Server.engine.music.theory.notes import (
+from engine.music.models import NoteEvent, Chord, Motif, PartFingerprint
+from engine.music.intent import MusicalIntent
+from engine.music.theory.notes import (
     note_to_midi, midi_to_note, pitch_class_to_name,
     get_enharmonic, normalize_pitch_class
 )
-from MCP_Server.engine.music.theory.scales import (
+from engine.music.theory.scales import (
     get_scale_notes, get_scale_pitch_classes,
     scale_degree_to_midi, midi_to_scale_degree,
     snap_to_scale, is_in_scale
 )
-from MCP_Server.engine.music.harmony.roman import parse_roman_numeral, roman_progression_to_chords
-from MCP_Server.engine.music.harmony.generator import generate_harmonic_structure
-from MCP_Server.engine.music.voicing.profiles import apply_voicing_profile
-from MCP_Server.engine.music.voicing.voice_leading import optimize_voice_leading, voice_leading_cost
-from MCP_Server.engine.music.rhythm.generator import generate_drums
-from MCP_Server.engine.music.groove.profiles import apply_groove_to_notes, GROOVE_PROFILES
-from MCP_Server.engine.music.humanizer.engine import humanize_notes, apply_velocity_curve
-from MCP_Server.engine.music.motifs.motif import create_motif_from_notes
-from MCP_Server.engine.music.motifs.transformations import transform_motif, realize_motif_as_notes
-from MCP_Server.engine.music.motifs.memory import motif_memory
-from MCP_Server.engine.music.variation.engine import apply_variation
-from MCP_Server.engine.music.validation.constraints import validate_notes
-from MCP_Server.engine.music.validation.repair import repair_notes
-from MCP_Server.engine.music.midi.compiler import (
+from engine.music.harmony.roman import parse_roman_numeral, roman_progression_to_chords
+from engine.music.harmony.generator import generate_harmonic_structure
+from engine.music.voicing.profiles import apply_voicing_profile
+from engine.music.voicing.voice_leading import optimize_voice_leading, voice_leading_cost
+from engine.music.rhythm.generator import generate_drums
+from engine.music.groove.profiles import apply_groove_to_notes, GROOVE_PROFILES
+from engine.music.humanizer.engine import humanize_notes, apply_velocity_curve
+from engine.music.motifs.motif import create_motif_from_notes
+from engine.music.motifs.transformations import transform_motif, realize_motif_as_notes
+from engine.music.motifs.memory import motif_memory
+from engine.music.variation.engine import apply_variation
+from engine.music.validation.constraints import validate_notes
+from engine.music.validation.repair import repair_notes
+from engine.music.midi.compiler import (
     compile_notes_to_ableton_format, compute_part_fingerprint, compare_fingerprints
 )
-from MCP_Server.engine.music import music_engine
-from MCP_Server.engine.adapters.mock_adapter import MockAbletonAdapter
-from MCP_Server.engine.session.graph import SessionShadowGraph
-from MCP_Server.engine.models.session import TrackNode
-from MCP_Server.engine.transactions.manager import TransactionManager
+from engine.music import music_engine
+from engine.adapters.mock_adapter import MockAbletonAdapter
+from engine.session.graph import SessionShadowGraph
+from engine.models.session import TrackNode
+from engine.transactions.manager import TransactionManager
 
 class TestMusicTheory(unittest.TestCase):
     def test_note_midi_conversions(self):

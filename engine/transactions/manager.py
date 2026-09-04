@@ -1,6 +1,6 @@
 # engine/transactions/manager.py
 import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from ..models import (
     Transaction, Operation, TransactionStatus,
     generate_id, TrackNode, ClipNode

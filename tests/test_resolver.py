@@ -1,9 +1,9 @@
 # tests/test_resolver.py
 import unittest
-from MCP_Server.engine.session.graph import SessionShadowGraph
-from MCP_Server.engine.session.resolver import SessionResolver
-from MCP_Server.engine.models import TrackNode, generate_id
-from MCP_Server.engine.errors import AmbiguousObjectError, ObjectNotFoundError
+from engine.session.graph import SessionShadowGraph
+from engine.session.resolver import SessionResolver
+from engine.models import TrackNode, generate_id
+from engine.errors import AmbiguousObjectError, ObjectNotFoundError
 
 class TestResolver(unittest.TestCase):
     def setUp(self):

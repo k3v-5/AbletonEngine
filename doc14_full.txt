@@ -1,0 +1,1614 @@
+<USER_REQUEST>
+DOCUMENTO 14 — INTEGRATION TESTS
+Requerimiento técnico exhaustivo para la integración del Production Governance Layer
+
+Proyecto: AbletonEngine / PIE
+Hito: Hito 1 — Governance, Causal Memory & Loudness Compliance
+Fase de ejecución: 14 de 18
+Tipo: Requerimiento de implementación y verificación
+Objetivo: Construir y ejecutar la suite de pruebas de integración que demuestre que todos los componentes desarrollados en los documentos anteriores funcionan como un único sistema, sin romper las Fases 1–6.
+
+1. OBJETIVO DEL DOCUMENTO
+
+La IA implementadora deberá crear una suite de Integration Tests capaz de demostrar, de extremo a extremo, que PIE puede recibir una intención musical/producción, analizar el estado actual, generar un plan determinista, someterlo a políticas, validarlo contra el estado de sesión, ejecutarlo mediante una transacción, verificar acústicamente el resultado y registrar toda la causalidad en ProductionGraph y DecisionMemory.
+
+La prueba principal deberá demostrar que el sistema no funciona como:
+
+LLM → acción → Ableton
+
+
+sino como:
+
+INTENT
+   ↓
+CONTEXT
+   ↓
+OBSERVATION
+   ↓
+ANALYSIS
+   ↓
+HYPOTHESIS
+   ↓
+CANDIDATES
+   ↓
+POLICY
+   ↓
+PLAN
+   ↓
+VALIDATION
+   ↓
+TRANSACTION
+   ↓
+EXECUTION
+   ↓
+POST-MEASUREMENT
+   ↓
+VERIFICATION
+   ↓
+COMMIT
+   ↓
+RESULT
+   ↓
+MEMORY
+   ↓
+PRODUCTION GRAPH
+
+
+La suite deberá comprobar además que ningún camino alternativo puede saltarse las capas de seguridad.
+
+2. REGLA FUNDAMENTAL
+
+La suite de integración no deberá limitarse a comprobar que las funciones retornan True.
+
+Cada prueba deberá verificar:
+
+estado inicial;
+intención recibida;
+contexto utilizado;
+fingerprint inicial;
+observaciones;
+candidatos generados;
+candidatos rechazados;
+políticas evaluadas;
+razón de aceptación/rechazo;
+plan final;
+fingerprint asociado al plan;
+transacción creada;
+acciones ejecutadas;
+mediciones posteriores;
+delta esperado;
+delta real;
+regresiones;
+resultado de la verificación;
+commit o rollback;
+nodos generados;
+aristas generadas;
+memoria registrada;
+estado final de la sesión.
+
+Una prueba que solamente compruebe:
+
+assert result.success is True
+
+
+será considerada insuficiente.
+
+3. ALCANCE
+
+Este documento deberá integrar como mínimo:
+
+engine/mix/
+engine/mastering/
+engine/production/models.py
+engine/production/graph.py
+engine/production/memory.py
+engine/production/policies.py
+engine/production/planner.py
+engine/production/context.py
+engine/production/executor.py
+engine/production/serializer.py
+engine/transactions/
+state/
+server.py
+
+
+No se deberá modificar la semántica existente de:
+
+SessionShadowGraph
+
+
+La integración deberá utilizar adaptadores o interfaces cuando sea necesario.
+
+4. ARCHIVO PRINCIPAL DE TEST
+
+Crear:
+
+tests/test_production_integration.py
+
+
+El archivo deberá estar completamente aislado de los tests unitarios.
+
+También deberán crearse fixtures reutilizables si la arquitectura actual de tests lo permite:
+
+tests/fixtures/
+
+
+o dentro de:
+
+tests/conftest.py
+
+
+No duplicar fixtures innecesariamente.
+
+5. ENTORNO DE PRUEBAS
+
+Los Integration Tests no deberán depender de Ableton Live real.
+
+Debe existir un entorno controlado:
+
+ProductionIntegrationEnvironment
+
+
+capaz de simular:
+
+SessionShadowGraph;
+tracks;
+devices;
+mixer;
+audio measurements;
+transactions;
+fingerprints;
+socket execution;
+rollback;
+DSP measurements.
+
+La prueba deberá poder ejecutarse en CI o en una máquina sin Ableton Live.
+
+6. TEST DOUBLE PARA ABLETON
+
+Implementar un adaptador:
+
+FakeAbletonExecutor
+
+
+o equivalente.
+
+Debe implementar las mismas operaciones relevantes que espera ProductionExecutor.
+
+Como mínimo:
+
+create_track()
+delete_track()
+set_volume()
+set_pan()
+set_device_parameter()
+set_eq_gain()
+set_limiter_gain_reduction()
+get_session_state()
+get_track_state()
+
+
+No se deberán introducir métodos ficticios que no correspondan a operaciones reales utilizadas por PIE.
+
+7. ESTADO INICIAL CANÓNICO
+
+Todos los tests principales deberán utilizar un estado reproducible.
+
+Ejemplo conceptual:
+
+Project:
+    project_id = "integration_project_001"
+    tempo = 124
+    key = "A minor"
+    genre = "Melodic Techno"
+
+Tracks:
+    Kick
+    Bass
+    Lead
+    Pad
+    Master
+
+
+El estado exacto deberá estar definido mediante fixtures y no generado aleatoriamente.
+
+8. BASELINE OBLIGATORIO
+
+Antes de ejecutar cualquier acción:
+
+baseline = context.capture_baseline()
+
+
+Debe conservar:
+
+session_fingerprint
+track state
+device state
+mixer state
+relevant measurements
+production graph version
+memory version
+
+
+La prueba deberá comprobar que el baseline es estable.
+
+Ejecutar dos veces:
+
+baseline_a = capture_baseline()
+baseline_b = capture_baseline()
+
+
+sin modificar el proyecto.
+
+Resultado esperado:
+
+baseline_a.fingerprint == baseline_b.fingerprint
+
+9. ESCENARIO E2E PRINCIPAL
+
+Implementar obligatoriamente el escenario:
+
+"Quiero que el master tenga más volumen."
+
+Este será el Golden Integration Scenario.
+
+10. PASO 1 — CREACIÓN DE INTENCIÓN
+
+La intención deberá convertirse en una estructura tipada.
+
+No permitir que el planner trabaje directamente con un string sin normalización.
+
+Debe existir conceptualmente:
+
+ProductionIntent(
+    text="Quiero que el master tenga más volumen",
+    domain="mastering",
+    target="loudness",
+)
+
+
+La prueba deberá verificar:
+
+intent exists
+intent.domain == "mastering"
+intent.target == "loudness"
+
+
+Debe generarse un nodo:
+
+INTENT
+
+11. PASO 2 — CAPTURA DE CONTEXTO
+
+El sistema deberá crear:
+
+ProductionContext
+
+
+con:
+
+project_id
+genre
+tempo
+key
+target
+domain
+session_fingerprint
+relevant_tracks
+relevant_devices
+measurements
+active_profile
+
+
+La prueba deberá comprobar que el contexto corresponde al estado real del fixture.
+
+12. PASO 3 — MEDICIÓN BASE
+
+Antes de crear un plan se deberá medir el master.
+
+Debe existir una medición:
+
+LoudnessMeasurement
+
+
+con:
+
+integrated_lufs
+short_term_lufs
+momentary_lufs
+lra
+true_peak
+sample_peak
+crest_factor
+metadata
+measurement_valid
+
+
+La prueba deberá comprobar:
+
+measurement.measurement_valid is True
+
+
+y que:
+
+metadata.standard
+metadata.standard_version
+metadata.sample_rate
+metadata.channel_layout
+metadata.algorithm_version
+
+
+estén presentes.
+
+13. PASO 4 — ANÁLISIS
+
+El planner deberá producir un diagnóstico.
+
+Ejemplo:
+
+CURRENT:
+-14.8 LUFS
+
+TARGET:
+-14.0 LUFS
+
+DELTA:
++0.8 LUFS
+
+
+El diagnóstico deberá determinar si realmente existe un problema.
+
+La prueba deberá demostrar que:
+
+objetivo no cumplido
++
+headroom disponible
++
+True Peak compatible
++
+GR permitido
+
+
+pueden justificar una intervención.
+
+14. PRINCIPIO DO NOTHING
+
+Crear además un escenario donde el master ya esté dentro del objetivo.
+
+Por ejemplo:
+
+Integrated:
+-14.1 LUFS
+
+Target:
+-14.0 LUFS
+
+Tolerance:
+±1.0 LUFS
+
+
+El planner deberá producir:
+
+NO_OP
+
+
+No deberá generar:
+
+LIMITER
+EQ
+GAIN
+COMPRESSOR
+
+
+La prueba deberá verificar que el sistema no modifica el master únicamente porque puede hacerlo.
+
+15. PASO 5 — GENERACIÓN DE CANDIDATOS
+
+El planner deberá producir alternativas.
+
+Ejemplo:
+
+Candidate A:
+Gain +0.8 dB
+
+Candidate B:
+Limiter +0.8 dB
+
+Candidate C:
+Master EQ + limiter
+
+Candidate D:
+Mix-level correction
+
+
+El número exacto podrá variar según la implementación, pero deberá existir más de una alternativa cuando el problema permita múltiples soluciones.
+
+Cada candidato deberá ser registrado.
+
+16. CANDIDATOS RECHAZADOS
+
+Un candidato rechazado no debe desaparecer.
+
+Debe quedar almacenado en:
+
+ProductionGraph
+
+
+como:
+
+CANDIDATE
+    |
+    └── REJECTED_BY
+              ↓
+        POLICY_CHECK
+
+
+La prueba deberá comprobar que los candidatos rechazados son recuperables posteriormente.
+
+17. PASO 6 — POLICY ENGINE
+
+Todos los candidatos deberán pasar por:
+
+ProductionPolicyEngine.evaluate()
+
+
+Nunca deberá existir un camino:
+
+planner → executor
+
+
+sin:
+
+policy evaluation
+
+
+La prueba deberá verificar explícitamente este requisito.
+
+18. POLICY CHECK DE LIMITADOR
+
+Crear candidato:
+
+gain_reduction = 3.1 dB
+
+
+si la política aplicable limita el máximo a:
+
+2.5 dB
+
+
+Resultado obligatorio:
+
+REJECT
+
+
+Y:
+
+severity = ERROR
+
+
+o superior según la implementación.
+
+Debe quedar registrado:
+
+candidate
+policy
+violation
+reason
+
+19. POLICY CHECK DE MASTER EQ
+
+Crear candidato:
+
+EQ:
++1.5 dB @ 10000 Hz
+
+
+Debe rechazarse porque:
+
+abs(gain) > 1.0 dB
+
+
+El test deberá comprobar el rechazo.
+
+20. MIX_PROBLEM
+
+Construir un escenario donde el análisis determine:
+
+diagnostic = MIX_PROBLEM
+
+
+Ejemplo:
+
+sub-bass excess
+masking kick/bass
+insufficient headroom
+
+
+El planner deberá no solucionar esto aumentando o alterando el master.
+
+Debe producir:
+
+REJECT
+reason = MIX_MASTER_BOUNDARY
+
+
+y recomendar un:
+
+MIX_ACTION_PLAN
+
+21. LOCKED OBJECT
+
+Crear una pista:
+
+Bass
+locked = True
+
+
+Intentar generar una acción:
+
+set_volume(Bass, -2 dB)
+
+
+Debe ser rechazada.
+
+Verificar:
+
+no mutation
+no transaction commit
+policy violation recorded
+
+22. TRANSACTION_REQUIRED
+
+Intentar ejecutar una acción sin transacción.
+
+Resultado obligatorio:
+
+REJECT
+
+
+No debe producirse ninguna modificación del estado.
+
+Este test es crítico porque demuestra que el LLM no puede mutar directamente el proyecto.
+
+23. PLAN GENERATION
+
+Para el escenario válido:
+
+plan = planner.plan(intent, context)
+
+
+El plan deberá ser:
+
+immutable
+versioned
+fingerprinted
+policy_checked
+
+
+La prueba deberá verificar que generar un plan no modifica:
+
+SessionShadowGraph
+ProductionGraph state, salvo los nodos de planificación esperados
+Ableton state
+
+24. PLAN DETERMINISTA
+
+Ejecutar:
+
+plan_a = planner.plan(intent, context)
+plan_b = planner.plan(intent, context)
+
+
+El resultado deberá ser equivalente.
+
+Comparar:
+
+plan identity
+candidate ordering
+policy results
+selected candidate
+action parameters
+ranking
+expected delta
+
+
+No comparar únicamente el objeto superficial.
+
+25. SERIALIZACIÓN DEL PLAN
+
+Serializar el plan.
+
+Deserializarlo.
+
+Volver a serializarlo.
+
+Debe cumplirse:
+
+serialize(deserialize(serialize(plan)))
+==
+serialize(plan)
+
+
+La serialización deberá ser determinista.
+
+26. PLAN FINGERPRINT
+
+El plan deberá estar asociado a:
+
+session_fingerprint
+
+
+La prueba deberá verificar:
+
+plan.session_fingerprint == baseline.fingerprint
+
+27. VALIDACIÓN
+
+Ejecutar:
+
+production_validate(plan_id)
+
+
+La validación deberá comprobar:
+
+plan exists
+plan is not stale
+target still exists
+locked state unchanged
+relevant devices unchanged
+policy still valid
+transaction requirements satisfied
+
+
+Resultado:
+
+VALID
+
+
+para el escenario correcto.
+
+28. STALE PLAN
+
+Generar un plan.
+
+Después modificar un parámetro relevante.
+
+Ejemplo:
+
+Master volume
+
+
+Generar nuevo fingerprint.
+
+Intentar ejecutar el plan anterior.
+
+Debe producir:
+
+StalePlanError
+
+
+o equivalente tipado.
+
+El plan no debe ejecutarse parcialmente.
+
+29. CAMBIO IRRELEVANTE
+
+Generar un plan para:
+
+Master
+
+
+Después modificar una pista completamente desconectada de la acción.
+
+La prueba deberá comprobar que el fingerprint lógico del plan sigue siendo válido si la arquitectura de fingerprinting está diseñada para excluir cambios irrelevantes.
+
+No se permite simplemente comparar el hash global de toda la sesión si esto contradice el requisito de validez contextual.
+
+30. EXECUTE
+
+Ejecutar:
+
+executor.execute(plan)
+
+
+Debe ocurrir:
+
+validation
+↓
+transaction begin
+↓
+pre-state capture
+↓
+action
+↓
+post-state capture
+↓
+measurement
+↓
+verification
+↓
+commit
+
+
+Nunca:
+
+action
+↓
+commit
+↓
+verification
+
+31. PRE-STATE
+
+Antes de modificar cualquier parámetro guardar:
+
+transaction snapshot
+
+
+Debe permitir reconstruir el estado anterior.
+
+32. POST-MEASUREMENT
+
+Después de ejecutar la acción deberá realizarse una medición nueva.
+
+Debe existir:
+
+measurement_before
+measurement_after
+
+
+La prueba deberá calcular:
+
+actual_delta
+
+
+y compararlo con:
+
+expected_delta
+
+33. VERIFICACIÓN MULTIVARIABLE
+
+La integración no deberá verificar únicamente LUFS.
+
+Como mínimo:
+
+Integrated LUFS
+True Peak
+Sample Peak
+Crest Factor
+LRA
+Stereo Correlation
+Masking
+Sub-bass balance
+
+
+Si una métrica no es aplicable al escenario concreto, deberá quedar marcada explícitamente como:
+
+NOT_APPLICABLE
+
+
+Nunca inventar valores.
+
+34. REGRESSION TEST
+
+Construir un escenario donde:
+
+primary_goal = PASS
+
+
+pero:
+
+secondary_metric = FAIL
+
+
+Ejemplo:
+
+LUFS mejora
+pero True Peak excede el límite
+
+
+Resultado:
+
+verification = FAIL
+rollback = REQUIRED
+
+35. ROLLBACK
+
+Cuando la verificación falle:
+
+transaction.rollback()
+
+
+deberá restaurar exactamente el estado previo.
+
+Comparar:
+
+pre_state
+post_rollback_state
+
+
+Los campos relevantes deberán ser idénticos.
+
+36. ROLLBACK NO DESTRUYE HISTORIAL
+
+Después del rollback deberá existir:
+
+ACTION
+   ↓
+VERIFICATION
+   ↓
+ROLLBACK
+
+
+La acción original deberá permanecer consultable.
+
+No se permite:
+
+delete(decision)
+
+
+como mecanismo de rollback.
+
+37. PRODUCTION GRAPH POST-EJECUCIÓN
+
+Tras una ejecución exitosa deberá existir como mínimo una cadena causal:
+
+INTENT
+ ↓
+OBSERVATION
+ ↓
+ANALYSIS
+ ↓
+HYPOTHESIS
+ ↓
+CANDIDATE
+ ↓
+POLICY_CHECK
+ ↓
+DECISION
+ ↓
+ACTION
+ ↓
+MEASUREMENT
+ ↓
+VERIFICATION
+ ↓
+RESULT
+
+
+La prueba deberá comprobar existencia y conectividad.
+
+38. DAG INTEGRITY
+
+Después de completar el escenario:
+
+graph.validate()
+
+
+debe devolver:
+
+valid = True
+
+
+No debe existir ningún ciclo.
+
+39. EXPLAIN DECISION
+
+Seleccionar la decisión final.
+
+Ejecutar:
+
+graph.explain_decision(decision_id)
+
+
+El reporte deberá contener las categorías:
+
+FACT
+MEASUREMENT
+INFERENCE
+DECISION
+ACTION
+RESULT
+
+
+El test deberá comprobar que cada categoría tiene evidencia cuando corresponda.
+
+40. DECISION MEMORY
+
+Después de una ejecución exitosa:
+
+memory.search(...)
+
+
+deberá encontrar la decisión.
+
+El registro deberá contener como mínimo:
+
+project_id
+genre
+tempo
+key
+domain
+target
+conditions
+decision
+action
+result
+confidence
+timestamp/version
+
+41. HISTORICAL MATCH NO AUTÓNOMO
+
+Insertar una decisión histórica aparentemente idéntica.
+
+Posteriormente crear un proyecto diferente.
+
+El sistema podrá utilizar la memoria para generar:
+
+historical candidate
+
+
+pero deberá pasar nuevamente por:
+
+current observation
+current measurement
+current policy
+current simulation
+current validation
+
+
+El test deberá demostrar que:
+
+memory hit != automatic execution
+
+42. MCP INTEGRATION
+
+Los tests deberán verificar que existen las herramientas:
+
+production_status
+production_plan
+production_validate
+production_execute
+production_explain
+production_history
+production_graph
+production_rollback
+production_memory_search
+
+
+No se deberá probar solamente que están registradas.
+
+Debe probarse al menos un flujo real:
+
+production_plan()
+→ production_validate()
+→ production_execute()
+→ production_explain()
+
+43. production_plan() NO DEBE MUTAR
+
+Invocar:
+
+production_plan(...)
+
+
+y comparar estado antes/después.
+
+Debe demostrarse que:
+
+Ableton state = unchanged
+SessionShadowGraph = unchanged
+
+
+exceptuando exclusivamente los registros de planificación permitidos.
+
+44. production_execute() SÍ DEBE MUTAR
+
+El test correspondiente deberá demostrar que únicamente después de:
+
+production_execute(plan_id)
+
+
+se produce la modificación esperada.
+
+45. TEST DE IDEMPOTENCIA
+
+Intentar ejecutar dos veces el mismo:
+
+plan_id
+
+
+después de una ejecución exitosa.
+
+La segunda ejecución deberá:
+
+REJECT
+
+
+o:
+
+ALREADY_EXECUTED
+
+
+según el contrato definitivo.
+
+No debe duplicar la modificación.
+
+46. TEST DE DOBLE COMMIT
+
+Intentar provocar:
+
+commit()
+commit()
+
+
+sobre la misma transacción.
+
+Debe rechazarse.
+
+El estado final debe continuar consistente.
+
+47. TEST DE FALLA DURANTE EXECUTION
+
+Simular:
+
+transaction begins
+action 1 succeeds
+action 2 fails
+
+
+El sistema deberá:
+
+rollback
+
+
+y restaurar el estado completo.
+
+No debe quedar:
+
+half-applied plan
+
+48. TEST DE FALLA DE MEDICIÓN
+
+Simular:
+
+action succeeds
+post_measurement fails
+
+
+La acción no deberá considerarse definitivamente exitosa.
+
+Debe ocurrir:
+
+verification unavailable
+→ transaction rollback
+
+
+salvo que la política explícitamente defina otra estrategia.
+
+No se permite asumir:
+
+measurement failure = success
+
+49. TEST DE FALLA DE SOCKET
+
+Simular:
+
+Ableton socket unavailable
+
+
+Resultado:
+
+execution failure
+transaction rollback
+
+
+El Production Graph deberá conservar:
+
+ACTION_ATTEMPTED
+EXECUTION_FAILURE
+ROLLBACK
+
+50. TEST DE EXCEPCIÓN INESPERADA
+
+Provocar una excepción genérica dentro del executor.
+
+Verificar:
+
+transaction closed
+no partial mutation
+graph consistent
+memory consistent
+
+
+No debe quedar una transacción abierta.
+
+51. CONSISTENCIA ENTRE MEMORIA Y GRAPH
+
+Después de cada escenario exitoso:
+
+ProductionGraph
+
+
+y:
+
+DecisionMemory
+
+
+deberán apuntar al mismo:
+
+decision_id
+
+
+cuando corresponda.
+
+No puede existir una decisión en memoria sin referencia causal válida.
+
+52. PERSISTENCIA
+
+Guardar:
+
+ProductionGraph
+DecisionMemory
+
+
+mediante el sistema de persistencia establecido.
+
+Cerrar el entorno.
+
+Crear una instancia nueva.
+
+Recargar.
+
+Verificar que:
+
+graph_before == graph_after
+memory_before == memory_after
+
+
+en contenido semánticamente equivalente.
+
+53. ATOMICIDAD DE PERSISTENCIA
+
+Simular interrupción durante escritura.
+
+Debe comprobarse que no se obtiene un archivo JSON parcialmente escrito.
+
+Debe existir:
+
+previous valid state
+
+
+o:
+
+new valid state
+
+
+pero nunca:
+
+corrupt JSON
+
+54. TEST DE CONCURRENCIA
+
+Si el diseño actual permite concurrencia, ejecutar dos solicitudes:
+
+plan A
+plan B
+
+
+sobre el mismo estado.
+
+Una modificación relevante de A deberá invalidar B si B depende del mismo recurso.
+
+Resultado esperado:
+
+A = executable
+B = stale
+
+
+No deben ejecutarse ambas ciegamente.
+
+55. TEST DE LOCK
+
+Dos operaciones concurrentes sobre el mismo recurso deberán respetar el mecanismo de locking existente.
+
+Debe evitarse:
+
+lost update
+
+56. TEST DE COMPATIBILIDAD CON FASES 1–6
+
+Después de todos los Integration Tests ejecutar:
+
+tests/run_all_tests.py
+
+
+El resultado obligatorio:
+
+Phase 1–6 = PASS
+Hito 1 = PASS
+
+
+Ninguna modificación realizada para este documento podrá requerir modificar los tests anteriores únicamente para ocultar regresiones.
+
+57. COBERTURA MÍNIMA
+
+La suite deberá cubrir como mínimo:
+
+Área	Obligatorio
+Intent → Context	Sí
+Context → Measurement	Sí
+Measurement → Analysis	Sí
+Analysis → Candidate	Sí
+Candidate → Policy	Sí
+Policy → Plan	Sí
+Plan → Validation	Sí
+Validation → Transaction	Sí
+Transaction → Execution	Sí
+Execution → Measurement	Sí
+Measurement → Verification	Sí
+Verification → Commit	Sí
+Verification → Rollback	Sí
+Graph persistence	Sí
+Memory persistence	Sí
+MCP	Sí
+Stale plan	Sí
+Failure injection	Sí
+Legacy regression	Sí
+58. GOLDEN TEST
+
+Debe existir un test principal fácilmente identificable:
+
+test_end_to_end_master_loudness_governed_pipeline()
+
+
+Este test debe representar el flujo completo.
+
+No debe mockear internamente:
+
+ProductionPlanner
+ProductionPolicyEngine
+ProductionGraph
+DecisionMemory
+Executor
+
+
+Los componentes deben trabajar realmente juntos.
+
+Se permitirá mockear únicamente las fronteras externas, principalmente:
+
+Ableton
+socket
+DSP input
+clock
+filesystem
+
+
+cuando sea necesario para determinismo.
+
+59. NO MOCKEAR LA LÓGICA QUE SE ESTÁ PROBANDO
+
+Está prohibido hacer:
+
+mock_policy.evaluate.return_value = ALLOW
+
+
+en el Golden Test.
+
+También:
+
+mock_planner.plan.return_value = expected_plan
+
+
+o:
+
+mock_executor.execute.return_value = success
+
+
+Eso convertiría el test en una prueba de wiring, no de integración.
+
+60. DETERMINISMO
+
+Todas las pruebas deberán fijar:
+
+random seed
+clock
+project_id
+session state
+DSP fixture
+
+
+cuando corresponda.
+
+Dos ejecuciones limpias deberán generar:
+
+same plan
+same ranking
+same fingerprints
+same decision structure
+same measurements
+
+
+exceptuando campos explícitamente temporales.
+
+61. TIMESTAMPS
+
+Los timestamps no deberán romper comparaciones deterministas.
+
+Utilizar un:
+
+FakeClock
+
+
+o abstraer el reloj.
+
+No utilizar directamente:
+
+datetime.now()
+
+
+en lógica que deba compararse byte a byte.
+
+62. IDENTIFICADORES
+
+Los IDs de test deberán ser reproducibles cuando sea necesario.
+
+No utilizar UUID aleatorio para elementos que se comparan entre ejecuciones.
+
+Preferir:
+
+hash(canonical_input)
+
+
+o un ID determinista de fixture.
+
+63. ASSERTIONS
+
+Cada assertion deberá explicar el fallo.
+
+Preferir:
+
+assert result.status == "REJECT", (
+    f"Expected policy rejection, got {result.status}"
+)
+
+
+sobre assertions opacas.
+
+64. TEST MATRIX
+
+Crear una matriz formal:
+
+Scenario
+Input
+Expected Policy
+Expected Plan
+Expected Execution
+Expected Verification
+Expected Rollback
+Expected Graph
+Expected Memory
+
+
+Debe cubrir al menos:
+
+Master loudness válido.
+Master ya correcto → NO_OP.
+Limitador > guardrail.
+Master EQ > guardrail.
+MIX_PROBLEM.
+Locked track.
+No transaction.
+Stale plan.
+Execution failure.
+Verification regression.
+Socket failure.
+Historical memory candidate.
+Persistence reload.
+Idempotent execution.
+Legacy regression.
+65. CRITERIO DE ÉXITO DEL GOLDEN SCENARIO
+
+El escenario principal solamente será considerado PASS si:
+
+Intent created
+AND
+Context valid
+AND
+Measurement valid
+AND
+Candidate generated
+AND
+Policy passed
+AND
+Plan valid
+AND
+Fingerprint valid
+AND
+Transaction committed
+AND
+Expected action executed
+AND
+Post measurement valid
+AND
+Verification passed
+AND
+No critical regression
+AND
+Graph valid
+AND
+Memory persisted
+
+66. CRITERIO DE FALLO
+
+El sistema deberá considerarse FAILED si ocurre cualquiera de estos casos:
+
+acción sin policy check
+acción sin transaction
+acción sobre locked object
+stale plan ejecutado
+regresión crítica sin rollback
+rollback incompleto
+ProductionGraph corrupto
+ciclo en DAG
+decisión sin causalidad
+memoria ejecutada automáticamente
+persistencia corrupta
+mutación durante plan()
+
+67. DEFINITION OF DONE
+
+El Documento 14 se considera terminado únicamente cuando:
+
+ Existe tests/test_production_integration.py.
+ Existe entorno de integración aislado.
+ Existe Fake Ableton/adapter equivalente.
+ Existe Golden Test end-to-end.
+ El flujo Intent → Result funciona completo.
+ El planner real participa.
+ El Policy Engine real participa.
+ El Production Graph real participa.
+ DecisionMemory real participa.
+ Executor real participa.
+ Transaction Manager real participa.
+ Se verifica fingerprint.
+ Se detecta stale plan.
+ Se verifica rollback.
+ Se verifican métricas antes/después.
+ Se prueban regresiones.
+ Se prueban fallos de ejecución.
+ Se prueba persistencia.
+ Se prueban herramientas MCP.
+ Se prueba idempotencia.
+ Se comprueba integridad DAG.
+ Se comprueba causalidad.
+ Se comprueba que plan() no muta.
+ Se comprueba que Memory no autoejecuta.
+ Los tests de Fases 1–6 continúan verdes.
+ tests/run_all_tests.py termina exitosamente.
+ No existen tests que simplemente mockeen el sistema que pretenden verificar.
+ No existen errores silenciosos.
+ No existen estados de transacción abiertos al finalizar un test.
+ No existen grafos corruptos después de un fallo.
+ No existen modificaciones parciales después de rollback.
+68. RESTRICCIONES PARA LA IA IMPLEMENTADORA
+
+La IA que implemente este documento NO DEBERÁ:
+
+Reescribir componentes existentes innecesariamente.
+Duplicar SessionShadowGraph.
+Introducir YAML.
+Introducir una base de datos externa.
+Introducir Machine Learning.
+Introducir dependencia de Ableton Live para ejecutar tests.
+Saltarse ProductionPolicyEngine.
+Saltarse transacciones.
+Convertir los Integration Tests en mocks de todos los componentes.
+Modificar tests antiguos para hacerlos pasar sin corregir la causa real.
+Eliminar información del Production Graph durante rollback.
+Permitir que una excepción deje una transacción abierta.
+Permitir ejecución de planes stale.
+Tratar una medición inválida como medición válida.
+Inventar métricas de audio.
+69. ENTREGABLES FÍSICOS
+
+Al terminar este documento deberán existir, como mínimo:
+
+tests/
+├── test_production_integration.py
+├── fixtures/
+│   └── production_integration.py
+
+
+y cualquier adaptación estrictamente necesaria dentro de:
+
+engine/production/
+
+
+Además:
+
+documentation/
+
+
+deberá recibir una descripción del escenario E2E y de las garantías verificadas.
+
+70. INFORME FINAL OBLIGATORIO DE LA IA
+
+Al terminar la implementación, la IA no deberá responder simplemente "tests passed".
+
+Debe entregar un informe con:
+
+DOCUMENTO 14 — RESULTADO DE IMPLEMENTACIÓN
+
+Files created:
+Files modified:
+
+Integration scenarios:
+    PASS / FAIL
+
+Golden scenario:
+    PASS / FAIL
+
+Policy integration:
+    PASS / FAIL
+
+Transaction integration:
+    PASS / FAIL
+
+Fingerprint validation:
+    PASS / FAIL
+
+Rollback:
+    PASS / FAIL
+
+Production Graph:
+    PASS / FAIL
+
+Decision Memory:
+    PASS / FAIL
+
+MCP:
+    PASS / FAIL
+
+Persistence:
+    PASS / FAIL
+
+Failure injection:
+    PASS / FAIL
+
+Legacy Phase 1–6:
+    PASS / FAIL
+
+Total tests:
+Passed:
+Failed:
+Skipped:
+
+Remaining issues:
+
+
+Si existe cualquier fallo, deberá indicar:
+
+test
+root cause
+file
+line
+impact
+proposed fix
+
+
+y no declarar el documento terminado hasta resolverlo o dejarlo explícitamente bloqueado por una dependencia externa.
+
+71. PRINCIPIO ARQUITECTÓNICO FINAL
+
+El resultado de este documento debe demostrar algo mucho más importante que "el código funciona":
+
+PIE puede tomar una decisión de producción y demostrar, mediante pruebas automatizadas, que la decisión fue observada, razonada, autorizada, ejecutada, medida, verificada y registrada causalmente.
+
+Ese es el punto en el que ProductionGraph + Policy Engine + Decision Memory + Executor dejan de ser cuatro módulos independientes y se convierten realmente en la capa de gobierno operativo de PIE.
+
+Siguiente documento: Documento 15 — FAILURE INJECTION, dedicado exclusivamente a intentar romper deliberadamente esta arquitectura —socket caído, transacciones interrumpidas, corrupción de estado, regresiones acústicas, planes stale, fallos de persistencia y errores inesperados— y demostrar que PIE siempre termina en un estado consistente.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-04T12:42:17-06:00.
+</ADDITIONAL_METADATA>

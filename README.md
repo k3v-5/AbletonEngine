@@ -1,28 +1,39 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 165 specialized tools and 80 automated unit tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 174 specialized tools and 331 automated unit/acceptance/chaos tests (100% pass rate).
+
+📚 **Documentación Principal:**
+- 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/USER_GUIDE.md)
+- 🗺️ [**Índice Maestro de Módulos, Herramientas y Sitemap (INDEX.md)**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/INDEX.md)
+- 🚀 [**Hoja de Ruta y Pasos Siguientes (NEXT_STEPS.md)**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/NEXT_STEPS.md)
+- 🛡️ [**Documento 15: Failure Injection & Chaos Resilience**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_failure_injection.md)
+- 🔬 [**Documento 14: Integration Tests & Golden Pipeline**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_integration.md)
+- 🔌 [**Documento 13: Superficie FastMCP de Gobernanza**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_mcp.md)
+- ⏪ [**Documento 12: Rollback de Primera Clase**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_rollback.md)
 
 ---
 
 ## Core Philosophy & Design Axioms
 
 - **"The LLM decides musical intent; the Engine decides how to execute it; Ableton Live executes."**
-- **"The Arrangement Engine does not copy clips; it reasons about energy, roles, phrases, transitions, and narrative evolution."**
 - **"Separation of Mix vs. Master: Low-end mud, kick/bass masking, and headroom defects must be resolved in the mix, NEVER patched in mastering."**
 - **"Principle of Minimum Intervention: DO NOTHING is a valid and preferred outcome if the session already meets target acoustic standards."**
-- **"No Fake DSP and No Fake Success: All spectral and perceptual measurements use real DSP algorithms (ITU-R BS.1770-4 LUFS, True Peak 4x oversampling, FFT energy integration). Never invent metrics or report successful device creation when slots are empty."**
+- **"Causal Governance & Verifiability: Every production action must be traceably linked to concrete measurements, musical intent, and post-execution verification in an acyclic causal DAG."**
+- **"Memory as Evidence, Not Blind Autopilot: Historical decisions serve as candidate evidence; they NEVER auto-execute without passing current session policies and verification."**
+- **"Inviolable Guardrails: CRITICAL policies (limiter gain reduction <= 2.5 dB, true peak <= -0.3 dBTP, master EQ <= 2 bands) CANNOT be bypassed by LLM overrides."**
+- **"No Fake DSP and No Fake Success: All spectral and perceptual measurements use real DSP algorithms (ITU-R BS.1770-5 LUFS, True Peak 4x sinc FIR oversampling, FFT energy integration). Never invent metrics or report successful device creation when slots are empty."**
 
 ---
 
-## Architecture Overview (Fases 1 to 6)
+## Architecture Overview (Phases 1 to 6 + Hito 1 Governance)
 
 ```
                        ┌─────────────────────────────────────┐
                        │        LLM Cognitive Client         │
                        │    (Antigravity / Claude Desktop)   │
                        └──────────────────┬──────────────────┘
-                                          │ FastMCP (165 Tools)
+                                          │ FastMCP (174 Tools)
                                           ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │                 Production Intelligence Engine (PIE)                  │
@@ -36,18 +47,16 @@
   │ • Energy Curves   │ • Macro Controls  │ • LUFS / True Peak / Masking   │
   │ • Transitions     │ • Chain Templates │ • Frequency Conflict Graph     │
   │ • Drop Differ.    │ • Native Racks    │ • Closed-Loop Corrections      │
-  ├───────────────────┴───────────────────┴────────────────────────────────┤
-  │ Fase 6: Mastering Engine + Reference Matching + Final QC              │
-  │ • Delivery Targets: STREAMING (-14 LUFS), CLUB (-7.5), DIGITAL, VIDEO  │
-  │ • True Peak Brickwall Limiting (Max GR <= 2.5 dB)                     │
-  │ • Conservative Master EQ (Max +-1.0 dB across top 2 bands)            │
-  │ • Master Glue Compressor & Subtle Analog Warmth                       │
-  │ • 6-Condition Translation Matrix (Mono, Phone, 40 phon, 90 phon)       │
-  │ • Commercial Reference Matcher with Flawed Reference Protection        │
-  │ • Final QC: DC Offset, Digital Dropouts, Clipping, Imbalance           │
-  │ • Versioned WAV Export (v001, v002) with Deterministic SHA-256         │
-  │ • Autonomous Unified Pipeline: master_project()                       │
-  └──────────────────────────────────┬─────────────────────────────────────┘
+  ├───────────────────┼───────────────────┼────────────────────────────────┤
+  │ Fase 6: Mastering │ HITO 1: Governance, Causal Memory & Compliance     │
+  │ • 5-Device Chain  │ • ProductionGraph (Acyclic Causal DAG, BFS check)  │
+  │ • Reference Match │ • DecisionMemory (Contextual, Candidate-Only)      │
+  │ • Translation (6x)│ • PolicyEngine (7 Inviolable Acoustic Guardrails)  │
+  │ • Versioned WAV   │ • ProductionPlanner (Minimum Intervention Ranking) │
+  │ • master_project()│ • ProductionExecutor (SHA-256 Scoped Fingerprints) │
+  │                   │ • VerificationMatrix (Delta vs Expected Regression)│
+  │                   │ • ITU-R BS.1770-5 (Normative Standard / Profiles)  │
+  └───────────────────┴───────────────────┴────────────────────────────────┘
                                      │ TCP Socket (Port 9877)
                                      ▼
                        ┌─────────────────────────────────────┐
@@ -58,10 +67,74 @@
 
 ---
 
-## Tool Catalog Summary (165 FastMCP Tools)
+## ITU-R BS.1770-5 Compliance & Delivery Profiles
+
+PIE implements a strict mathematical and conceptual separation between **Measurement**, **Profile**, and **Compliance**:
+
+$$\text{Measurement} \neq \text{Profile} \neq \text{Compliance}$$
+
+1. **Measurement (`LoudnessMeasurement`):** Strictly descriptive of objective acoustics (`integrated_lufs`, `true_peak_dbtp`, `loudness_range_lra`). `LoudnessAnalyzer` only measures and never takes mastering decisions or applies profiles.
+2. **Profile (`LoudnessProfile`):** Target specification and guardrails. Immutable contract (`EBU_R128`, `STREAMING`, `CLUB`).
+3. **Compliance (`LoudnessComplianceResult`):** Pure, deterministic evaluation of whether a measurement satisfies profile tolerances.
+
+### Key Conceptual Guardrails
+- **`-14 LUFS` is NOT a universal streaming law:** It is an internal operational target used by PIE. Platforms dynamically adjust replay volume using diverse metadata targets.
+- **`CLUB` profile is NOT a universal industry standard:** It is an internal PIE high-energy acoustic target (-7.5 LUFS) designed for DJ play and sound system punch.
+- **`Gain Reduction` is NOT a loudness measurement:** Limiter gain reduction is a processing metric that belongs to mastering devices, never to `LoudnessMeasurement`.
+- **`True Peak` is NOT Sample Peak:** Discrete sample peak (`sample_peak_dbfs`) measures sample values; True Peak (`true_peak_dbtp`) utilizes 4x sinc FIR oversampling (Annex 2) to detect inter-sample peaks that breach $0.0\text{ dBTP}$ even when sample peaks are $< 0.0\text{ dBFS}$.
+
+| Category | Type | Profile Name | Target LUFS | Tolerance | Max True Peak | Max Limiter GR | Description |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| **Normative Standard** | `STANDARD` | `EBU_R128` | -23.0 LUFS | ±0.5 LU | -1.0 dBTP | 2.0 dB | International broadcast standard (ITU-R BS.1770-5 / EBU R 128) |
+| **Delivery Guidance** | `RECOMMENDATION`| `STREAMING` | -14.0 LUFS | ±1.0 LU | -1.0 dBTP | 2.5 dB | PIE target for commercial streaming (AES TD1004 guidance) |
+| **Delivery Guidance** | `RECOMMENDATION`| `DIGITAL_DOWNLOAD`| -9.0 LUFS | ±1.0 LU | -0.5 dBTP | 2.5 dB | Direct master download target (Bandcamp / Beatport) |
+| **Delivery Guidance** | `RECOMMENDATION`| `VIDEO` | -15.0 LUFS | ±1.0 LU | -1.0 dBTP | 2.0 dB | Web video & film sync delivery |
+| **Engine Policy** | `PIE_POLICY` | `CLUB` | -7.5 LUFS | ±1.0 LU | -0.3 dBTP | 3.0 dB | PIE high-energy sound system / DJ club target |
+| **Engine Policy** | `PIE_POLICY` | `PREMASTER` | -18.0 LUFS | ±2.0 LU | -3.0 dBTP | 0.0 dB | Pre-master delivery for external mastering engineer |
+
+### DSP Implementation Details
+- **K-Weighting:** Stage 1 high shelf ($f_0 \approx 1682\text{ Hz}$, $+4\text{ dB}$) + Stage 2 RLB high-pass ($f_0 \approx 38\text{ Hz}$).
+- **True Peak (Annex 2):** 4x zero-stuffed upsampling combined with a windowed sinc FIR reconstruction filter detecting inter-sample peaks $> 0\text{ dBTP}$ even when discrete sample peaks are $< 0\text{ dBFS}$.
+- **Loudness Range (LRA):** EBU Tech 3342 dual-gating (-70 LKFS absolute, -20 LU relative gating across 3-second short-term windows).
+
+---
+
+## Hito 1 Governance Layer
+
+### 1. ProductionGraph (Causal DAG)
+Separates **WHAT EXISTS** (`SessionShadowGraph`) from **WHY IT EXISTS** (`ProductionGraph`):
+- **15 Canonical Node Types:** `INTENT`, `OBSERVATION`, `ANALYSIS`, `HYPOTHESIS`, `CANDIDATE`, `DECISION`, `POLICY_CHECK`, `SIMULATION`, `ACTION`, `MEASUREMENT`, `VERIFICATION`, `RESULT`, `ROLLBACK`, `REJECTION`, `NO_OP`.
+- **10 Canonical Edge Types:** `DERIVED_FROM`, `CAUSED_BY`, `PARENT_OF`, `ALTERNATIVE_TO`, `VALIDATED_BY`, `REJECTED_BY`, `EXECUTED_BY`, `MEASURED_BY`, `VERIFIED_BY`, `ROLLED_BACK_BY`.
+- **Cycle Prevention:** Enforces DAG acyclicity at edge insertion time using reachability search; raises `GraphIntegrityError` if a cycle is attempted.
+- **Explainability:** `explain_decision()` categorizes full lineage into `facts`, `measurements`, `inferences`, `decision`, `actions`, `results`, and `rejected_alternatives`.
+
+### 2. DecisionMemory
+Contextually indexes verified production decisions (`genre`, `tempo`, `key`, `target`, `domain`):
+- **Fundamental Invariant:** All search results return strictly marked as `is_candidate_only = True` and `auto_executable = False`.
+- Supports invalidation, superseding, and causal linking between decisions.
+
+### 3. ProductionPolicyEngine
+Enforces inviolable guardrails before any mutation occurs:
+- `MASTER_LIMIT`: Rejects Limiter Gain Reduction $> 2.5\text{ dB}$ or True Peak $> -0.3\text{ dBTP}$.
+- `MASTER_EQ`: Rejects master EQ modifying $> 2$ bands or boosts/cuts $> \pm 1.0\text{ dB}$.
+- `MIX_MASTER_BOUNDARY`: Rejects patching diagnosed `MIX_PROBLEM` issues in mastering; redirects to mix domain.
+- `LOCKED_OBJECT`: Prevents mutation of user-locked or engine-locked tracks/clips.
+- `TRANSACTION_REQUIRED`: Requires active transactional unit of work for state mutations.
+- `STALE_PLAN`: Rejects plans whose relevant session fingerprint has drifted.
+- `REGRESSION`: Flags post-execution secondary metric regressions and mandates rollback.
+
+### 4. ProductionPlanner & Executor
+- **Minimum Intervention:** Multi-candidate generation evaluates alternatives and chooses the least intrusive valid action.
+- **Scoped Fingerprinting:** Deterministic SHA-256 session hash scoped strictly to relevant entities (e.g., changes to an unrelated vocal track do not invalidate a master limiter plan).
+- **Atomic Verification & Rollback:** Post-execution verification evaluates expected vs actual deltas. If an acoustic regression occurs (True Peak clipping, phase collapse, LRA squashing), transaction is automatically rolled back and recorded as `ROLLBACK` in the causal DAG.
+
+---
+
+## Tool Catalog Summary (174 FastMCP Tools)
 
 | Category | Tool Count | Core Capabilities |
 | :--- | :---: | :--- |
+| **Governance & Planning (Hito 1)** | **9** | `production_status`, `production_plan`, `production_validate`, `production_execute`, `production_explain`, `production_history`, `production_graph`, `production_rollback`, `production_memory_search` |
 | **Foundation (Fase 1)** | 29 | Session graph, inspect, resolve, diff, transactions, WAL commit/rollback, snapshots |
 | **Music Engine (Fase 2)** | 12 | Harmony, roman numeral parsing, voice leading, rhythm grids, swing, humanize, motifs |
 | **Instrument Engine (Fase 2.5)**| 10 | Instrument inspect, resolve, sound profile mapping, drum rack populate, verify |
@@ -70,55 +143,77 @@
 | **Digital Ear / Mix (Fase 5)** | 21 | Audio capture, ITU-R LUFS, True Peak, masking detector, conflict graph, linter, corrections |
 | **Mastering & QC (Fase 6)** | 14 | Master readiness, chain builder, preview, apply, evaluate, rollback, reference match, translation test, QC, export, report |
 | **Ableton Native / Legacy** | 49 | Clips, tracks, notes, devices, mixer faders, arrangement timeline, browser navigation |
-| **TOTAL** | **165** | **Complete end-to-end music production, mix, and master capability** |
+| **TOTAL** | **174** | **Autonomous, verifiable, causal-governed production operating system** |
 
 ---
 
 ## Verification & Test Suite
 
-All 80 comprehensive unit and acceptance tests execute offline with **100% pass rate**:
+All 331 comprehensive unit, acceptance, integration, forensics, and failure injection tests execute offline with **100% pass rate**:
 
 ```bash
-python -m unittest discover tests
-# Ran 80 tests in 38.070s — OK
+python tests/run_all_tests.py
+# ============================ 331 passed in 45.57s =============================
 ```
 
-- **Fase 1:** Transaction atomicity, rollback, state shadow resolution
-- **Fase 2:** Voice leading distance minimization, polyphony constraints, motif transformations
-- **Fase 3:** Energy continuity, drop differentiation, transition generation
-- **Fase 4:** Preset resolution, device chain building, macro assignment
-- **Fase 5:** Kick/sub conflict detection, mono collapse, causal diagnostics, regression rollback
-- **Fase 6:** DO_NOTHING principle, low-end rejection as MIX_PROBLEM, limiter guardrails (<=2.5 dB), clipping QC fail, 6-condition translation simulation, SHA-256 versioned export, autonomous master pipeline
+### Verified Test Categories (See [INDEX.md](file:///d:/Proyectos/TEST/AbletonEngine/documentation/INDEX.md) for full breakdown)
+- **Hito 1 — Failure Injection & Chaos (22 tests):** `tests/test_failure_injection.py` (Dropped socket, corrupted persistence, double commits, crash recovery, stale plans).
+- **Hito 1 — Integration & Golden Pipeline (21 tests):** `tests/test_production_integration.py` (Full E2E governed workflow with zero internal mocking).
+- **Hito 1 — Rollback Engine (23 tests):** `tests/test_production_rollback.py` (Atomic, non-destructive rollbacks, verified restorations).
+- **Hito 1 — FastMCP Surface (20 tests):** `tests/test_production_mcp.py` (High-level tool boundary validation).
+- **Fase 7 — Audio Forensics Engine (31 tests):** `tests/test_forensics_*.py` (STFT, DC offset, anomalies, clipping, spectral percentiles).
+- **Phases 1 to 6 Baseline Suites (80+ tests):** Music theory, sound design, arrangement, mix conflict graph, and transaction management preserved with zero regressions.
 
 ---
 
-## Setup & Quickstart
+## Quickstart & Example Workflow
 
-1. **Install Remote Script:**
-   Ensure `AbletonMCP` is installed in:
-   `D:\Programs\Ableton\Live 12 Suite\Resources\MIDI Remote Scripts\AbletonMCP`
-   In Ableton Live: `Preferences > Link, Tempo & MIDI > Control Surface = AbletonMCP`.
+### 1. Formulate a Production Plan
+```json
+{
+  "tool": "production_plan",
+  "args": {
+    "intent": "Quiero que el master tenga más volumen",
+    "target": "Master",
+    "target_lufs": -14.0
+  }
+}
+```
 
-2. **Configure MCP Server (`mcp_config.json`):**
-   ```json
-   {
-     "mcpServers": {
-       "AbletonMCP": {
-         "command": "C:/Python314/python.exe",
-         "args": ["-u", "-m", "MCP_Server.server"]
-       }
-     }
-   }
-   ```
+### 2. Validate Against Inviolable Policies
+```json
+{
+  "tool": "production_validate",
+  "args": {
+    "plan_id": "plan_95689104"
+  }
+}
+```
 
-3. **Autonomous Mastering Command:**
-   ```json
-   {
-     "tool": "master_project",
-     "args": {
-       "delivery_target": "STREAMING",
-       "mode": "BALANCED",
-       "auto_apply": true
-     }
-   }
-   ```
+### 3. Execute Transactionally with Acoustic Verification
+```json
+{
+  "tool": "production_execute",
+  "args": {
+    "plan_id": "plan_95689104"
+  }
+}
+```
+
+### 4. Explain Causal Lineage
+```json
+{
+  "tool": "production_explain",
+  "args": {
+    "decision_id": "dec_3439b16e"
+  }
+}
+```
+Outputs categorized causal provenance:
+- **Facts:** Session target and baseline state.
+- **Measurements:** Pre-execution ITU-R BS.1770-5 integrated LUFS and True Peak.
+- **Inferences:** Headroom analysis and candidate simulations.
+- **Decision:** Chosen minimal-intervention limiter adjustment.
+- **Actions:** Discrete Ableton device parameter writes staged within the transaction.
+- **Results:** Post-execution verification confirming target LUFS reached without True Peak clipping.
+- **Rejected Alternatives:** Aggressive EQ boost rejected by `MASTER_EQ`; over-compression rejected by `MASTER_LIMIT`.

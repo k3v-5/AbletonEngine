@@ -1,0 +1,551 @@
+{
+  "actions": [
+    {
+      "device": "Limiter",
+      "op_type": "set_device_parameter",
+      "parameter": "Ceiling",
+      "value": -0.5
+    },
+    {
+      "device": "Limiter",
+      "op_type": "set_device_parameter",
+      "parameter": "Gain",
+      "value": 2.0
+    }
+  ],
+  "candidate_ids": [],
+  "context": null,
+  "created_at": "2026-09-04T18:28:01.677486+00:00",
+  "decision_type": "CORRECT",
+  "domain": "master",
+  "expected_delta": {
+    "integrated_lufs": 2.0,
+    "true_peak_dbtp": 0.2
+  },
+  "historical_evidence": [
+    {
+      "auto_executable": false,
+      "confidence": 1.0,
+      "context": {
+        "conditions": {},
+        "devices": [],
+        "genre": "generic",
+        "key": "C",
+        "measurements": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:13:50.572870+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "profile": "STREAMING",
+        "section": "UNKNOWN",
+        "tempo": 120.0,
+        "time_signature": "4/4",
+        "tracks": []
+      },
+      "created_at": "2026-09-04T17:13:50.575238+00:00",
+      "decision": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "candidate_actions": [],
+        "confidence": 1.0,
+        "constraints": [],
+        "created_at": "2026-09-04T17:13:50.575225+00:00",
+        "decision_id": "dec_a41c3fd8",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "evidence": {},
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "hypothesis": {},
+        "inputs": {},
+        "intent_id": "intent_ceea5878",
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:13:50.572870+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "measurements_before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:13:50.572870+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "policy_result": {},
+        "reason": "Plan executed and verified: PASS",
+        "regression": false,
+        "rollback_available": true,
+        "rollback_id": null,
+        "selected_action": {},
+        "simulation": {},
+        "status": "COMMITTED",
+        "target": "Master",
+        "transaction_id": "tx_b6ccd77d"
+      },
+      "decision_id": "dec_a41c3fd8",
+      "decision_type": "CORRECT",
+      "domain": "master",
+      "invalidation_reason": null,
+      "is_candidate_only": true,
+      "match_score": 1.0,
+      "memory_id": "mem_0d225234dd46",
+      "outcome": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:13:50.572870+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "regression": false,
+        "status": "COMMITTED"
+      },
+      "project_id": "default_project",
+      "reason": "Plan executed and verified: PASS",
+      "regression": false,
+      "status": "VALID",
+      "superseded_by": null,
+      "target": "Master"
+    },
+    {
+      "auto_executable": false,
+      "confidence": 1.0,
+      "context": {
+        "conditions": {},
+        "devices": [],
+        "genre": "generic",
+        "key": "C",
+        "measurements": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:56:34.575647+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "profile": "STREAMING",
+        "section": "UNKNOWN",
+        "tempo": 120.0,
+        "time_signature": "4/4",
+        "tracks": []
+      },
+      "created_at": "2026-09-04T17:56:34.578444+00:00",
+      "decision": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "candidate_actions": [],
+        "category": "MIX_CORRECTION",
+        "confidence": 1.0,
+        "created_at": "2026-09-04T17:56:34.578417+00:00",
+        "decision_id": "dec_63d7eb46",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "evidence": {},
+        "evidence_ids": [
+          "meas_post_d65147b5"
+        ],
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "hypothesis": "Applying CORRECT to Master satisfies acoustic target",
+        "intent_id": "intent_af24959a",
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:56:34.575647+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "measurements_before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:56:34.575647+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "parent_decision_id": null,
+        "project_id": "default_project",
+        "rationale": "Plan executed and verified: PASS",
+        "reason": "Plan executed and verified: PASS",
+        "regression": false,
+        "rollback_available": true,
+        "rollback_id": null,
+        "selected_action": {},
+        "selected_candidate_id": "cand_limiter_minimal",
+        "status": "COMMITTED",
+        "target": "Master",
+        "transaction_id": "tx_88b1579e"
+      },
+      "decision_id": "dec_63d7eb46",
+      "decision_type": "CORRECT",
+      "domain": "master",
+      "invalidation_reason": null,
+      "is_candidate_only": true,
+      "match_score": 1.0,
+      "memory_id": "mem_26e5c81b57d2",
+      "outcome": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:56:34.575647+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "regression": false,
+        "status": "COMMITTED"
+      },
+      "project_id": "default_project",
+      "reason": "Plan executed and verified: PASS",
+      "regression": false,
+      "status": "VALID",
+      "superseded_by": null,
+      "target": "Master"
+    },
+    {
+      "auto_executable": false,
+      "confidence": 1.0,
+      "context": {
+        "conditions": {},
+        "devices": [],
+        "genre": "generic",
+        "key": "C",
+        "measurements": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:38:19.280759+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "profile": "STREAMING",
+        "section": "UNKNOWN",
+        "tempo": 120.0,
+        "time_signature": "4/4",
+        "tracks": []
+      },
+      "created_at": "2026-09-04T17:38:19.283352+00:00",
+      "decision": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "candidate_actions": [],
+        "confidence": 1.0,
+        "constraints": [],
+        "created_at": "2026-09-04T17:38:19.283338+00:00",
+        "decision_id": "dec_ca49b9cb",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "evidence": {},
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "hypothesis": {},
+        "inputs": {},
+        "intent_id": "intent_970d0818",
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:38:19.280759+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "measurements_before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:38:19.280759+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "policy_result": {},
+        "reason": "Plan executed and verified: PASS",
+        "regression": false,
+        "rollback_available": true,
+        "rollback_id": null,
+        "selected_action": {},
+        "simulation": {},
+        "status": "COMMITTED",
+        "target": "Master",
+        "transaction_id": "tx_f9393f80"
+      },
+      "decision_id": "dec_ca49b9cb",
+      "decision_type": "CORRECT",
+      "domain": "master",
+      "invalidation_reason": null,
+      "is_candidate_only": true,
+      "match_score": 1.0,
+      "memory_id": "mem_381d298fb982",
+      "outcome": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T17:38:19.280759+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "regression": false,
+        "status": "COMMITTED"
+      },
+      "project_id": "default_project",
+      "reason": "Plan executed and verified: PASS",
+      "regression": false,
+      "status": "VALID",
+      "superseded_by": null,
+      "target": "Master"
+    }
+  ],
+  "intent_id": "intent_7f41076c",
+  "is_no_op": false,
+  "plan_id": "plan_cf557ff6",
+  "policy_evaluation": null,
+  "policy_result": {
+    "action_fingerprint": "acdde6e35804dfd034e31cbfd30a71b3aa58d027a9f57bd4363d2d1ae76e308c",
+    "allowed": true,
+    "alternatives": [],
+    "context_fingerprint": "a1220429490559beef7a451ea7809e35daa491e39647d51a3cf31e215008efc1",
+    "decision": "ALLOW",
+    "evaluated_policy_ids": [
+      "LOCKED_OBJECT",
+      "MASTER_EQ",
+      "MASTER_LIMIT",
+      "MIX_MASTER_BOUNDARY",
+      "REGRESSION",
+      "STALE_PLAN",
+      "TRANSACTION_REQUIRED"
+    ],
+    "evaluation_fingerprint": "2a66c59cf13fdd6892da6c0aa326a024dabef7f4b8db771800bca532c09ce75b",
+    "policy_id": "AGGREGATED_EVALUATION",
+    "policy_version": "1.0.0",
+    "required_conditions": [
+      "Unlock entity prior to modification",
+      "Max 2 bands",
+      "Max \u00b11.0 dB gain",
+      "Maintain True Peak below ceiling (-0.30 dBTP)",
+      "Limit gain reduction <= 2.50 dB",
+      "Revert changes via atomic rollback",
+      "Re-generate plan against fresh session state"
+    ],
+    "requires_confirmation": false,
+    "result": "ALLOW",
+    "severity": "INFO",
+    "status": "ALLOW",
+    "violations": [],
+    "warnings": []
+  },
+  "project_id": "default_project",
+  "rejected_candidates": [
+    {
+      "alternatives": [
+        {
+          "action": "ADJUST_INDIVIDUAL_TRACK_EQ",
+          "suggested_domain": "mix"
+        }
+      ],
+      "candidate_id": "cand_aggressive_master_eq",
+      "description": "Multi-band high and low shelf boost on master bus (+3.0 dB)",
+      "policy_id": "AGGREGATED_EVALUATION",
+      "violations": [
+        {
+          "actual_value": 3,
+          "code": "MASTER_EQ_BAND_COUNT_EXCEEDED",
+          "decision": "REJECT",
+          "expected_value": 2,
+          "field": "eq_bands_modified",
+          "message": "Master EQ modifies 3 bands, exceeding limit of 2 bands.",
+          "policy_id": "MASTER_EQ",
+          "remediation": "Perform broader tonal shaping in the mix bus, limiting master EQ to <= 2 bands.",
+          "severity": "CRITICAL"
+        },
+        {
+          "actual_value": 3.0,
+          "code": "MASTER_EQ_GAIN_EXCEEDED",
+          "decision": "REJECT",
+          "expected_value": 1.0,
+          "field": "eq_bands_modified[0].gain_db",
+          "message": "Master EQ band delta (3.00 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+          "policy_id": "MASTER_EQ",
+          "remediation": "Reduce master EQ boost/cut to within \u00b11.0 dB and fix spectral balance in the mix.",
+          "severity": "CRITICAL"
+        },
+        {
+          "actual_value": 2.5,
+          "code": "MASTER_EQ_GAIN_EXCEEDED",
+          "decision": "REJECT",
+          "expected_value": 1.0,
+          "field": "eq_bands_modified[1].gain_db",
+          "message": "Master EQ band delta (2.50 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+          "policy_id": "MASTER_EQ",
+          "remediation": "Reduce master EQ boost/cut to within \u00b11.0 dB and fix spectral balance in the mix.",
+          "severity": "CRITICAL"
+        },
+        {
+          "actual_value": 3.0,
+          "code": "MASTER_EQ_GAIN_EXCEEDED",
+          "decision": "REJECT",
+          "expected_value": 1.0,
+          "field": "eq_bands_modified[2].gain_db",
+          "message": "Master EQ band delta (3.00 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+          "policy_id": "MASTER_EQ",
+          "remediation": "Reduce master EQ boost/cut to within \u00b11.0 dB and fix spectral balance in the mix.",
+          "severity": "CRITICAL"
+        }
+      ]
+    },
+    {
+      "alternatives": [
+        {
+          "action": "RESOLVE_HEADROOM_IN_MIX",
+          "suggested_domain": "mix"
+        }
+      ],
+      "candidate_id": "cand_excessive_limiter",
+      "description": "Hard limiter slam (+6.0 dB gain, GR > 4.0 dB)",
+      "policy_id": "AGGREGATED_EVALUATION",
+      "violations": [
+        {
+          "actual_value": 4.5,
+          "code": "LIMITER_GAIN_REDUCTION_EXCEEDED",
+          "decision": "REJECT",
+          "expected_value": 2.5,
+          "field": "gain_reduction_db",
+          "message": "Requested gain reduction exceeds maximum allowed reduction.",
+          "policy_id": "MASTER_LIMIT",
+          "remediation": "Resolve loudness deficit in the mix before increasing master limiting.",
+          "severity": "CRITICAL"
+        },
+        {
+          "actual_value": 0.1,
+          "code": "TRUE_PEAK_CEILING_EXCEEDED",
+          "decision": "REJECT",
+          "expected_value": -0.3,
+          "field": "true_peak_ceiling_dbtp",
+          "message": "True Peak (0.10 dBTP) exceeds maximum platform ceiling (-0.30 dBTP).",
+          "policy_id": "MASTER_LIMIT",
+          "remediation": "Set limiter ceiling strictly <= -0.30 dBTP.",
+          "severity": "CRITICAL"
+        }
+      ]
+    }
+  ],
+  "relevant_entities": [
+    "Master"
+  ],
+  "selected_candidate": {
+    "actions": [
+      {
+        "device": "Limiter",
+        "op_type": "set_device_parameter",
+        "parameter": "Ceiling",
+        "value": -0.5
+      },
+      {
+        "device": "Limiter",
+        "op_type": "set_device_parameter",
+        "parameter": "Gain",
+        "value": 2.0
+      }
+    ],
+    "decision_type": "CORRECT",
+    "description": "Transparent master limiter boost (+2.0 dB gain, ceiling -0.5 dBTP)",
+    "domain": "master",
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "gain_reduction_db": 1.6,
+    "id": "cand_limiter_minimal",
+    "intervention_cost": 1.0,
+    "target": "Master",
+    "true_peak_dbtp": -0.5
+  },
+  "selected_candidate_id": null,
+  "session_fingerprint": "9b6f13efda5adddd8ec54032d43b310187d3700e3f0b48a734919c6641f4784a",
+  "status": "COMMITTED",
+  "target": "Master",
+  "tolerances": {
+    "integrated_lufs": 0.5,
+    "true_peak_dbtp": 0.2
+  }
+}

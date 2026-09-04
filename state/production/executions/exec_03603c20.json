@@ -1,0 +1,582 @@
+{
+  "actions_applied": 2,
+  "actions_attempted": 2,
+  "actions_failed": 0,
+  "actual_delta": {
+    "integrated_lufs": 2.0,
+    "true_peak_dbtp": 0.2
+  },
+  "decision_id": "dec_6f9ade7b",
+  "details": {
+    "actual_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "decision_id": "dec_6f9ade7b",
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "memory_id": null,
+    "message": "Plan executed and verified successfully.",
+    "plan_id": "plan_d33364c4",
+    "status": "COMMITTED",
+    "transaction_id": "tx_9014f231",
+    "verification": {
+      "actual_delta": {
+        "integrated_lufs": 2.0,
+        "true_peak_dbtp": 0.2
+      },
+      "details": {
+        "after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T21:09:23.589985+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T21:09:23.589985+00:00",
+          "true_peak_dbtp": -1.2
+        }
+      },
+      "expected_delta": {
+        "integrated_lufs": 2.0,
+        "true_peak_dbtp": 0.2
+      },
+      "passed": true,
+      "primary_metric": "integrated_lufs",
+      "regressions": [],
+      "report": {
+        "after": {
+          "algorithm_version": "1.0.0",
+          "captured_at": "2026-09-04T21:09:23.591333+00:00",
+          "metadata": {},
+          "metrics": {
+            "integrated_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "integrated_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591312+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -16.5
+            },
+            "lra": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "lra",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591323+00:00",
+              "unit": "LU",
+              "valid": true,
+              "value": 6.5
+            },
+            "momentary_max_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "momentary_max_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591320+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -14.0
+            },
+            "sample_peak_dbfs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "sample_peak_dbfs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591330+00:00",
+              "unit": "dBFS",
+              "valid": true,
+              "value": -1.5
+            },
+            "short_term_max_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "short_term_max_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591316+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -16.0
+            },
+            "true_peak_dbtp": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "true_peak_dbtp",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591326+00:00",
+              "unit": "dBTP",
+              "valid": true,
+              "value": -1.0
+            }
+          },
+          "session_fingerprint": "",
+          "source": "CONTEXT",
+          "valid": true
+        },
+        "before": {
+          "algorithm_version": "1.0.0",
+          "captured_at": "2026-09-04T21:09:23.591307+00:00",
+          "metadata": {},
+          "metrics": {
+            "integrated_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "integrated_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591281+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -18.5
+            },
+            "lra": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "lra",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591294+00:00",
+              "unit": "LU",
+              "valid": true,
+              "value": 6.5
+            },
+            "momentary_max_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "momentary_max_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591291+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -14.0
+            },
+            "sample_peak_dbfs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "sample_peak_dbfs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591301+00:00",
+              "unit": "dBFS",
+              "valid": true,
+              "value": -1.5
+            },
+            "short_term_max_lufs": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "short_term_max_lufs",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591287+00:00",
+              "unit": "LUFS",
+              "valid": true,
+              "value": -16.0
+            },
+            "true_peak_dbtp": {
+              "algorithm_version": "1.0.0",
+              "details": {},
+              "metric_name": "true_peak_dbtp",
+              "source": "CONTEXT",
+              "timestamp": "2026-09-04T21:09:23.591297+00:00",
+              "unit": "dBTP",
+              "valid": true,
+              "value": -1.2
+            }
+          },
+          "session_fingerprint": "",
+          "source": "CONTEXT",
+          "valid": true
+        },
+        "confidence": 1.0,
+        "created_at": "2026-09-04T21:09:23.591349+00:00",
+        "decision_id": "dec_78db9cad",
+        "deltas": {
+          "integrated_lufs": {
+            "after": -16.5,
+            "before": -18.5,
+            "delta": 2.0,
+            "details": {},
+            "expected_delta": 2.0,
+            "metric_name": "integrated_lufs",
+            "tolerance": 0.5,
+            "unit": "LUFS",
+            "within_expectation": true
+          },
+          "lra": {
+            "after": 6.5,
+            "before": 6.5,
+            "delta": 0.0,
+            "details": {},
+            "expected_delta": null,
+            "metric_name": "lra",
+            "tolerance": null,
+            "unit": "LU",
+            "within_expectation": true
+          },
+          "momentary_max_lufs": {
+            "after": -14.0,
+            "before": -14.0,
+            "delta": 0.0,
+            "details": {},
+            "expected_delta": null,
+            "metric_name": "momentary_max_lufs",
+            "tolerance": null,
+            "unit": "LUFS",
+            "within_expectation": true
+          },
+          "sample_peak_dbfs": {
+            "after": -1.5,
+            "before": -1.5,
+            "delta": 0.0,
+            "details": {},
+            "expected_delta": null,
+            "metric_name": "sample_peak_dbfs",
+            "tolerance": null,
+            "unit": "dBFS",
+            "within_expectation": true
+          },
+          "short_term_max_lufs": {
+            "after": -16.0,
+            "before": -16.0,
+            "delta": 0.0,
+            "details": {},
+            "expected_delta": null,
+            "metric_name": "short_term_max_lufs",
+            "tolerance": null,
+            "unit": "LUFS",
+            "within_expectation": true
+          },
+          "true_peak_dbtp": {
+            "after": -1.0,
+            "before": -1.2,
+            "delta": 0.19999999999999996,
+            "details": {},
+            "expected_delta": 0.2,
+            "metric_name": "true_peak_dbtp",
+            "tolerance": 0.5,
+            "unit": "dBTP",
+            "within_expectation": true
+          }
+        },
+        "details": {
+          "has_critical_regression": false,
+          "has_error_regression": false,
+          "profile_max_tp": null
+        },
+        "objective_met": true,
+        "policy_compliant": true,
+        "reasons": [],
+        "regression_free": true,
+        "regressions": [],
+        "report_hash": "857a1a778f1546a4014c40b3e19f869fed0676527ae21a7eb84f940593734081",
+        "unexpected_side_effects": [],
+        "verdict": "VERIFIED",
+        "verification_id": "ver_e2c2772a",
+        "warnings": []
+      },
+      "status": "PASS",
+      "warnings": []
+    }
+  },
+  "errors": [],
+  "execution_id": "exec_03603c20",
+  "expected_delta": {
+    "integrated_lufs": 2.0,
+    "true_peak_dbtp": 0.2
+  },
+  "finished_at": "2026-09-04T21:09:23.593748+00:00",
+  "memory_id": null,
+  "message": "Plan executed and verified successfully.",
+  "plan_id": "plan_d33364c4",
+  "post_fingerprint": "759d2ede97508382fbeaa6b00d7986f7b4bf143489d18fdf6248450ca6b0e7ad",
+  "pre_fingerprint": "759d2ede97508382fbeaa6b00d7986f7b4bf143489d18fdf6248450ca6b0e7ad",
+  "rollback_performed": false,
+  "started_at": "2026-09-04T21:09:23.588419+00:00",
+  "status": "COMMITTED",
+  "transaction_id": "tx_9014f231",
+  "verification": {
+    "actual_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "details": {
+      "after": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T21:09:23.589985+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "before": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T21:09:23.589985+00:00",
+        "true_peak_dbtp": -1.2
+      }
+    },
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "passed": true,
+    "primary_metric": "integrated_lufs",
+    "regressions": [],
+    "report": {
+      "after": {
+        "algorithm_version": "1.0.0",
+        "captured_at": "2026-09-04T21:09:23.591333+00:00",
+        "metadata": {},
+        "metrics": {
+          "integrated_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "integrated_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591312+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -16.5
+          },
+          "lra": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "lra",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591323+00:00",
+            "unit": "LU",
+            "valid": true,
+            "value": 6.5
+          },
+          "momentary_max_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "momentary_max_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591320+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -14.0
+          },
+          "sample_peak_dbfs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "sample_peak_dbfs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591330+00:00",
+            "unit": "dBFS",
+            "valid": true,
+            "value": -1.5
+          },
+          "short_term_max_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "short_term_max_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591316+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -16.0
+          },
+          "true_peak_dbtp": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "true_peak_dbtp",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591326+00:00",
+            "unit": "dBTP",
+            "valid": true,
+            "value": -1.0
+          }
+        },
+        "session_fingerprint": "",
+        "source": "CONTEXT",
+        "valid": true
+      },
+      "before": {
+        "algorithm_version": "1.0.0",
+        "captured_at": "2026-09-04T21:09:23.591307+00:00",
+        "metadata": {},
+        "metrics": {
+          "integrated_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "integrated_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591281+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -18.5
+          },
+          "lra": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "lra",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591294+00:00",
+            "unit": "LU",
+            "valid": true,
+            "value": 6.5
+          },
+          "momentary_max_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "momentary_max_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591291+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -14.0
+          },
+          "sample_peak_dbfs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "sample_peak_dbfs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591301+00:00",
+            "unit": "dBFS",
+            "valid": true,
+            "value": -1.5
+          },
+          "short_term_max_lufs": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "short_term_max_lufs",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591287+00:00",
+            "unit": "LUFS",
+            "valid": true,
+            "value": -16.0
+          },
+          "true_peak_dbtp": {
+            "algorithm_version": "1.0.0",
+            "details": {},
+            "metric_name": "true_peak_dbtp",
+            "source": "CONTEXT",
+            "timestamp": "2026-09-04T21:09:23.591297+00:00",
+            "unit": "dBTP",
+            "valid": true,
+            "value": -1.2
+          }
+        },
+        "session_fingerprint": "",
+        "source": "CONTEXT",
+        "valid": true
+      },
+      "confidence": 1.0,
+      "created_at": "2026-09-04T21:09:23.591349+00:00",
+      "decision_id": "dec_78db9cad",
+      "deltas": {
+        "integrated_lufs": {
+          "after": -16.5,
+          "before": -18.5,
+          "delta": 2.0,
+          "details": {},
+          "expected_delta": 2.0,
+          "metric_name": "integrated_lufs",
+          "tolerance": 0.5,
+          "unit": "LUFS",
+          "within_expectation": true
+        },
+        "lra": {
+          "after": 6.5,
+          "before": 6.5,
+          "delta": 0.0,
+          "details": {},
+          "expected_delta": null,
+          "metric_name": "lra",
+          "tolerance": null,
+          "unit": "LU",
+          "within_expectation": true
+        },
+        "momentary_max_lufs": {
+          "after": -14.0,
+          "before": -14.0,
+          "delta": 0.0,
+          "details": {},
+          "expected_delta": null,
+          "metric_name": "momentary_max_lufs",
+          "tolerance": null,
+          "unit": "LUFS",
+          "within_expectation": true
+        },
+        "sample_peak_dbfs": {
+          "after": -1.5,
+          "before": -1.5,
+          "delta": 0.0,
+          "details": {},
+          "expected_delta": null,
+          "metric_name": "sample_peak_dbfs",
+          "tolerance": null,
+          "unit": "dBFS",
+          "within_expectation": true
+        },
+        "short_term_max_lufs": {
+          "after": -16.0,
+          "before": -16.0,
+          "delta": 0.0,
+          "details": {},
+          "expected_delta": null,
+          "metric_name": "short_term_max_lufs",
+          "tolerance": null,
+          "unit": "LUFS",
+          "within_expectation": true
+        },
+        "true_peak_dbtp": {
+          "after": -1.0,
+          "before": -1.2,
+          "delta": 0.19999999999999996,
+          "details": {},
+          "expected_delta": 0.2,
+          "metric_name": "true_peak_dbtp",
+          "tolerance": 0.5,
+          "unit": "dBTP",
+          "within_expectation": true
+        }
+      },
+      "details": {
+        "has_critical_regression": false,
+        "has_error_regression": false,
+        "profile_max_tp": null
+      },
+      "objective_met": true,
+      "policy_compliant": true,
+      "reasons": [],
+      "regression_free": true,
+      "regressions": [],
+      "report_hash": "857a1a778f1546a4014c40b3e19f869fed0676527ae21a7eb84f940593734081",
+      "unexpected_side_effects": [],
+      "verdict": "VERIFIED",
+      "verification_id": "ver_e2c2772a",
+      "warnings": []
+    },
+    "status": "PASS",
+    "warnings": []
+  },
+  "verification_passed": true,
+  "warnings": []
+}

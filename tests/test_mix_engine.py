@@ -9,22 +9,22 @@ import tempfile
 import os
 from pathlib import Path
 
-from MCP_Server.engine.mix.models import (
+from engine.mix.models import (
     AudioFeatures, MixContext, MixIssue, Severity, HeadroomClassification, DynamicClassification,
     CorrectionPlan
 )
-from MCP_Server.engine.mix.loudness_analyzer import LoudnessAnalyzer
-from MCP_Server.engine.mix.frequency_analyzer import FrequencyAnalyzer
-from MCP_Server.engine.mix.stereo_analyzer import StereoAnalyzer
-from MCP_Server.engine.mix.transient_analyzer import TransientAnalyzer
-from MCP_Server.engine.mix.masking_detector import MaskingDetector
-from MCP_Server.engine.mix.mix_linter import MixLinter
-from MCP_Server.engine.mix.diagnostic_engine import DiagnosticEngine
-from MCP_Server.engine.mix.correction_engine import CorrectionEngine
-from MCP_Server.engine.mix.reference_engine import ReferenceEngine
-from MCP_Server.engine.mix.render_manager import RenderCache, RenderManager
-from MCP_Server.engine.mix.confidence import ConfidenceEvaluator
-from MCP_Server.engine.mix import MixEngine
+from engine.mix.loudness_analyzer import LoudnessAnalyzer
+from engine.mix.frequency_analyzer import FrequencyAnalyzer
+from engine.mix.stereo_analyzer import StereoAnalyzer
+from engine.mix.transient_analyzer import TransientAnalyzer
+from engine.mix.masking_detector import MaskingDetector
+from engine.mix.mix_linter import MixLinter
+from engine.mix.diagnostic_engine import DiagnosticEngine
+from engine.mix.correction_engine import CorrectionEngine
+from engine.mix.reference_engine import ReferenceEngine
+from engine.mix.render_manager import RenderCache, RenderManager
+from engine.mix.confidence import ConfidenceEvaluator
+from engine.mix import MixEngine
 
 
 class TestMixEngine(unittest.TestCase):

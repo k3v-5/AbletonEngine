@@ -1,0 +1,170 @@
+<USER_REQUEST>
+DOCUMENTO 12 — ROLLBACK DE PRIMERA CLASE, RECUPERACIÓN Y CONSISTENCIA CAUSAL
+0. Propósito
+
+Este documento define la implementación completa del Rollback Engine de PIE.
+
+El objetivo es que cualquier modificación ejecutada por el sistema pueda:
+
+revertirse de forma atómica;
+verificarse acústicamente antes y después;
+conservar íntegramente su historial;
+generar una nueva decisión causal de rollback;
+impedir estados parcialmente revertidos;
+sobrevivir a fallos de Ableton Live, socket, proceso o validación;
+distinguir entre rollback solicitado por el usuario, rollback automático por regresión y rollback por recuperación de transacción incompleta;
+mantener sincronizados:
+SessionShadowGraph;
+ProductionGraph;
+DecisionMemory;
+estado transaccional;
+snapshots;
+fingerprint de sesión.
+
+El rollback no debe borrar ni modificar destructivamente el historial anterior.
+
+La regla fundamental es:
+
+Una acción nunca desaparece. Si se revierte, su reversión se convierte en un nuevo hecho causal dentro del Production Graph.
+
+1. Objetivos obligatorios
+
+La implementación deberá garantizar las siguientes propiedades:
+
+Atomicidad
+
+Una operación se revierte completamente o no se revierte.
+No puede existir un estado intermedio presentado como válido.
+
+Idempotencia
+
+Solicitar dos veces el mismo rollback no debe ejecutar dos veces la reversión.
+
+Trazabilidad
+
+Toda reversión debe apuntar inequívocamente a la decisión/acción original.
+
+Causalidad
+
+El rollback debe conservar la relación:
+INTENT
+  ↓
+DECISION
+  ↓
+ACTION
+  ↓
+RESULT
+  ↓
+REGRESSION
+  ↓
+ROLLBACK DECISION
+  ↓
+ROLLBACK ACTION
+  ↓
+ROLLBACK RESULT
+
+
+Verificación
+
+No se considera exitoso un rollback simplemente porque Ableton aceptó los comandos.
+Debe existir verificación posterior.
+
+Protección contra rollback incorrecto
+
+Si el estado actual ya cambió de manera incompatible, no se debe aplicar ciegamente el estado anterior.
+
+Persistencia
+
+El historial deb
+<truncated 27476 bytes>
+ory registra el resultado.
+ Los objetos locked no pueden ser modificados.
+ No existen loops infinitos de rollback.
+ Existen tests de failure injection.
+ La suite anterior continúa verde.
+ No se introducen dependencias externas innecesarias.
+ La implementación es determinista.
+ Los errores son explícitos y serializables.
+ production_rollback() expone el comportamiento de forma segura.
+ production_explain() puede reconstruir causalmente la reversión.
+ La documentación queda actualizada.
+69. Criterio final de aceptación
+
+El escenario definitivo que la IA implementadora debe demostrar es:
+
+Usuario:
+"Sube el volumen del master."
+
+        ↓
+
+ProductionPlanner
+        ↓
+ProductionPolicyEngine
+        ↓
+Plan aprobado
+        ↓
+Snapshot
+        ↓
+Fingerprint F1
+        ↓
+Transaction
+        ↓
+Action
+        ↓
+Ableton Live
+        ↓
+Fingerprint F2
+        ↓
+Audio Verification
+        ↓
+CRITICAL REGRESSION
+        ↓
+RollbackEngine
+        ↓
+Policy Validation
+        ↓
+Restore Snapshot
+        ↓
+Commit
+        ↓
+Fingerprint F3
+        ↓
+Audio Verification
+        ↓
+PASS
+
+
+Y el Production Graph debe conservar:
+
+INTENT
+  ↓
+OBSERVATION
+  ↓
+ANALYSIS
+  ↓
+DECISION
+  ↓
+ACTION
+  ↓
+MEASUREMENT
+  ↓
+REGRESSION
+  ↓
+ROLLBACK_DECISION
+  ↓
+ROLLBACK_ACTION
+  ↓
+ROLLBACK_VERIFICATION
+  ↓
+ROLLBACK_RESULT
+
+
+El resultado final debe permitir responder de manera determinista:
+
+"¿Qué hizo PIE, por qué lo hizo, qué salió mal, qué evidencia demostró el problema, qué restauró exactamente, por qué decidió revertirlo, qué operaciones ejecutó y cómo sabemos que el proyecto quedó nuevamente en un estado seguro?"
+
+Si el sistema no puede responder esas preguntas mediante datos persistidos del Production Graph + Decision Memory + Transaction Journal, el Documento 12 no está terminado.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-04T12:51:01-06:00.
+</ADDITIONAL_METADATA>

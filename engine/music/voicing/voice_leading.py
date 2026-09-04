@@ -1,6 +1,6 @@
 # engine/music/voicing/voice_leading.py
 import itertools
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from ..models import Chord
 from .profiles import apply_voicing_profile
 

@@ -16,8 +16,12 @@ from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, List, Union, Optional
 
-from .telemetry import record_startup
-from .telemetry_decorator import telemetry_tool, rich_telemetry_tool
+try:
+    from .telemetry import record_startup
+    from .telemetry_decorator import telemetry_tool, rich_telemetry_tool
+except (ImportError, ValueError):
+    from telemetry import record_startup
+    from telemetry_decorator import telemetry_tool, rich_telemetry_tool
 
 ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
 ABLETON_PORT = int(os.environ.get("ABLETON_PORT", "9877"))
@@ -2372,11 +2376,18 @@ def clear_automation(
 # Session Shadow Graph + Transaction System + Snapshots + Semantic API
 # ==============================================================================
 
-from .engine import (
-    engine, LiveAbletonAdapter, MockAbletonAdapter,
-    EngineError, ObjectNotFoundError, AmbiguousObjectError,
-    ObjectLockedError, TransactionConflictError, TransactionFailedError
-)
+try:
+    from .engine import (
+        engine, LiveAbletonAdapter, MockAbletonAdapter,
+        EngineError, ObjectNotFoundError, AmbiguousObjectError,
+        ObjectLockedError, TransactionConflictError, TransactionFailedError
+    )
+except (ImportError, ValueError):
+    from engine import (
+        engine, LiveAbletonAdapter, MockAbletonAdapter,
+        EngineError, ObjectNotFoundError, AmbiguousObjectError,
+        ObjectLockedError, TransactionConflictError, TransactionFailedError
+    )
 
 # Connect engine to live socket adapter
 engine.set_adapter(LiveAbletonAdapter(get_ableton_connection))
@@ -2809,13 +2820,22 @@ def graph_unlock(ctx: Context, object_id: str, user_prompt: str = "") -> str:
 # Harmony + Rhythm + Groove + Humanization + Motif System + Semantic Music Tools
 # ==============================================================================
 
-from .engine.music import (
-    MusicalIntent, NoteEvent, Chord, Motif, PartFingerprint,
-    compile_notes_to_ableton_format, compute_part_fingerprint, compare_fingerprints,
-    apply_groove_to_notes, humanize_notes,
-    create_motif_from_notes, transform_motif, realize_motif_as_notes,
-    validate_notes, repair_notes, roman_progression_to_chords
-)
+try:
+    from .engine.music import (
+        MusicalIntent, NoteEvent, Chord, Motif, PartFingerprint,
+        compile_notes_to_ableton_format, compute_part_fingerprint, compare_fingerprints,
+        apply_groove_to_notes, humanize_notes,
+        create_motif_from_notes, transform_motif, realize_motif_as_notes,
+        validate_notes, repair_notes, roman_progression_to_chords
+    )
+except (ImportError, ValueError):
+    from engine.music import (
+        MusicalIntent, NoteEvent, Chord, Motif, PartFingerprint,
+        compile_notes_to_ableton_format, compute_part_fingerprint, compare_fingerprints,
+        apply_groove_to_notes, humanize_notes,
+        create_motif_from_notes, transform_motif, realize_motif_as_notes,
+        validate_notes, repair_notes, roman_progression_to_chords
+    )
 
 def _server_resolve_track(track_id: str):
     """Resolve track by stable ID, numeric Ableton index, role, or fuzzy name"""
@@ -4637,7 +4657,7 @@ def audio_analyze(
     Extracts comprehensive DSP features (LUFS BS.1770-4, True Peak, STFT 12 bands, Mid/Side stereo, Transients).
     """
     try:
-        from MCP_Server.engine.mix.models import MixContext
+        from engine.mix.models import MixContext
         context = MixContext(genre=genre, section=section)
         feats = engine.mix.analyze(file_path_or_target, context=context)
         return json.dumps({"status": "success", "features": feats.to_dict()}, indent=2)
@@ -4716,12 +4736,12 @@ def mix_analyze(
     High-level mix analysis with automatic context and genre profile resolution.
     """
     try:
-        from MCP_Server.engine.mix.models import MixContext
+        from engine.mix.models import MixContext
         context = MixContext(genre=genre, section=section, tempo=tempo)
         feats = engine.mix.analyze(target, context)
         lint_res = engine.mix.lint(feats, context)
         issues = engine.mix.diagnose(feats, context)
-        from MCP_Server.engine.mix.reports import MixReportGenerator
+        from engine.mix.reports import MixReportGenerator
         rep = MixReportGenerator.generate_report(feats, lint_res, context, issues)
         return json.dumps(rep, indent=2)
     except Exception as e:
@@ -4741,7 +4761,7 @@ def mix_lint(
     Audits the current mix against professional production standards (clipping, sub stereo, masking, dynamics).
     """
     try:
-        from MCP_Server.engine.mix.models import MixContext
+        from engine.mix.models import MixContext
         context = MixContext(genre=genre, section=section)
         feats = engine.mix.analyze(target, context)
         lint_res = engine.mix.lint(feats, context)
@@ -4763,7 +4783,7 @@ def mix_diagnose(
     Generates evidence-based causal diagnoses for detected mix problems.
     """
     try:
-        from MCP_Server.engine.mix.models import MixContext
+        from engine.mix.models import MixContext
         context = MixContext(genre=genre, section=section)
         feats = engine.mix.analyze(target, context)
         issues = engine.mix.diagnose(feats, context)
@@ -4817,8 +4837,8 @@ def mix_get_report(
     Generates a full human-readable and machine-readable mix report.
     """
     try:
-        from MCP_Server.engine.mix.models import MixContext
-        from MCP_Server.engine.mix.reports import MixReportGenerator
+        from engine.mix.models import MixContext
+        from engine.mix.reports import MixReportGenerator
         context = MixContext(genre=genre, section=section)
         feats = engine.mix.analyze(target, context)
         lint_res = engine.mix.lint(feats, context)
@@ -4929,7 +4949,7 @@ def mix_suggest_correction(
     Suggests a conservative correction plan respecting musical hierarchy (SAFE mode).
     """
     try:
-        from MCP_Server.engine.mix.models import MixIssue, Severity
+        from engine.mix.models import MixIssue, Severity
         issue = MixIssue(
             issue_id=issue_id,
             category="LOW_END",
@@ -4979,7 +4999,7 @@ def mix_preview_correction(
     Previews the expected acoustic delta and parameter changes of a proposed correction.
     """
     try:
-        from MCP_Server.engine.mix.models import MixIssue, Severity
+        from engine.mix.models import MixIssue, Severity
         issue = MixIssue(
             issue_id=issue_id,
             category="LOW_END",
@@ -5031,7 +5051,7 @@ def mix_evaluate_correction(
     Multiobjective evaluation of a correction: ensures primary issue improved without secondary regression.
     """
     try:
-        from MCP_Server.engine.mix.models import CorrectionPlan
+        from engine.mix.models import CorrectionPlan
         plan = CorrectionPlan(
             plan_id=plan_id,
             mode="AUTONOMOUS",
@@ -5397,7 +5417,596 @@ def master_project(
         return json.dumps({"error": str(e)}, indent=2)
 
 
+# ==============================================================================
+# HITO 1 — GOVERNANCE, CAUSAL MEMORY & PRODUCTION PLANNING MCP TOOLS (9 TOOLS)
+# ==============================================================================
+
+@mcp.tool()
+@rich_telemetry_tool("production_status")
+def production_status(
+    ctx: Context,
+    user_prompt: str = ""
+) -> str:
+    """
+    Returns the operational status of the Production Intelligence Engine (PIE):
+    Graph version, node counts, decision memory stats, BS.1770-5 loudness profile,
+    current session fingerprint, and active policies.
+    """
+    try:
+        fp = engine.production_context.compute_session_fingerprint()
+        status_data = {
+            "status": "ONLINE",
+            "project_id": engine.production_graph.project_id,
+            "graph_version": engine.production_graph.graph_version,
+            "total_graph_nodes": len(engine.production_graph.nodes),
+            "memory_records_count": len(engine.production_memory._records),
+            "loudness_standard": "ITU-R BS.1770-5",
+            "active_loudness_profile": engine.production_context.loudness_profile.name,
+            "session_fingerprint": fp,
+            "active_policies": [p.to_dict() if hasattr(p, "to_dict") else p for p in engine.production_policy_engine.list_policies()]
+        }
+        return json.dumps(status_data, indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_status: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_plan")
+def production_plan(
+    ctx: Context,
+    intent: str,
+    target: str = "Master",
+    target_lufs: Optional[float] = None,
+    diagnosis: Optional[str] = None,
+    genre: str = "generic",
+    user_prompt: str = ""
+) -> str:
+    """
+    Formulates a causal ProductionPlan for a musical intent (e.g. 'Quiero que el master tenga más volumen').
+    Generates multi-candidate interventions, records policy rejections in the graph,
+    and returns a minimal-intervention plan bound by session fingerprint.
+    """
+    try:
+        context_data = {"genre": genre}
+        if target_lufs is not None:
+            context_data["target_lufs"] = float(target_lufs)
+        if diagnosis:
+            context_data["diagnosis"] = diagnosis
+
+        plan = engine.production_planner.plan(
+            intent_description=intent,
+            context=engine.production_context,
+            graph=engine.production_graph,
+            target_override=target,
+            context_data=context_data
+        )
+        engine.production_storage.save_plan(plan)
+        engine.production_storage.save_graph(engine.production_graph)
+        return json.dumps(plan.to_dict(), indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_plan: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_validate")
+def production_validate(
+    ctx: Context,
+    plan_id: Optional[str] = None,
+    candidate_json: Optional[str] = None,
+    context_json: Optional[str] = None,
+    user_prompt: str = ""
+) -> str:
+    """
+    Validates a proposed plan or raw action candidate against the ProductionPolicyEngine.
+    Enforces that CRITICAL policies (Master Limiter GR <= 2.5 dB, True Peak <= -0.3 dBTP, Master EQ max 2 bands)
+    cannot be bypassed.
+    """
+    try:
+        candidate_data = {}
+        if plan_id:
+            plan = engine.production_storage.load_plan(plan_id)
+            if not plan:
+                return json.dumps({"error": f"Plan '{plan_id}' not found."}, indent=2)
+            candidate_data = plan.selected_candidate or plan.to_dict()
+        elif candidate_json:
+            candidate_data = json.loads(candidate_json)
+
+        ctx_data = json.loads(context_json) if context_json else {}
+        if "dry_run" not in ctx_data:
+            ctx_data["dry_run"] = True
+        result = engine.production_policy_engine.evaluate(candidate_data, context=ctx_data)
+        return json.dumps(result.to_dict(), indent=2)
+
+    except Exception as e:
+        logger.error(f"Error in production_validate: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_execute")
+def production_execute(
+    ctx: Context,
+    plan_id: str,
+    simulated: bool = False,
+    user_prompt: str = ""
+) -> str:
+    """
+    Executes a previously formulated ProductionPlan through atomic transactions.
+    Validates plan freshness (fingerprint), runs post-execution acoustic verification,
+    and automatically triggers atomic rollback if acoustic regressions are detected.
+    """
+    try:
+        plan = engine.production_storage.load_plan(plan_id)
+        if not plan:
+            return json.dumps({"error": f"Plan '{plan_id}' not found."}, indent=2)
+
+        result = engine.production_executor.execute(
+            plan=plan,
+            context=engine.production_context,
+            graph=engine.production_graph
+        )
+        engine.production_storage.save_graph(engine.production_graph)
+        engine.production_storage.save_memory(engine.production_memory)
+        res_dict = result.to_dict() if hasattr(result, "to_dict") else result
+        return json.dumps(res_dict, indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_execute: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_explain")
+def production_explain(
+    ctx: Context,
+    decision_id: str,
+    user_prompt: str = ""
+) -> str:
+    """
+    Reconstructs the full causal explanation for a production decision.
+    Strictly categorizes data into:
+    FACTS, MEASUREMENTS, INFERENCES, DECISION, ACTIONS, RESULTS, and REJECTED ALTERNATIVES.
+    """
+    try:
+        explanation = engine.production_graph.explain_decision(decision_id)
+        return json.dumps(explanation, indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_explain: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_history")
+def production_history(
+    ctx: Context,
+    limit: int = 10,
+    domain: Optional[str] = None,
+    user_prompt: str = ""
+) -> str:
+    """
+    Retrieves recent production decisions, actions, and verification outcomes from the causal graph.
+    """
+    try:
+        from engine.production.models import NodeType
+        decisions = []
+        for node in engine.production_graph.nodes.values():
+            if node.node_type in [NodeType.DECISION, NodeType.RESULT, NodeType.ROLLBACK]:
+                if domain and node.payload.get("domain", "").lower() != domain.lower():
+                    continue
+                decisions.append(node.to_dict())
+
+        decisions.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+        return json.dumps({
+            "count": len(decisions[:limit]),
+            "decisions": decisions[:limit]
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_history: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_graph")
+def production_graph(
+    ctx: Context,
+    subgraph_node_id: Optional[str] = None,
+    format: str = "json",
+    user_prompt: str = ""
+) -> str:
+    """
+    Exports the Production Causal DAG in deterministic JSON or Mermaid format.
+    Guarantees byte-for-byte serialization for audit and hashing.
+    """
+    try:
+        if format.lower() == "mermaid":
+            lines = ["graph TD"]
+            for node in engine.production_graph.nodes.values():
+                nt = node.node_type.value if hasattr(node.node_type, "value") else str(node.node_type)
+                lines.append(f'  {node.node_id}["{nt}: {node.node_id}"]')
+            for edge in engine.production_graph._edges:
+                lines.append(f'  {edge["source_id"]} -->|{edge["edge_type"]}| {edge["target_id"]}')
+            return "\n".join(lines)
+
+        return engine.production_graph.serialize_deterministic()
+    except Exception as e:
+        logger.error(f"Error in production_graph: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_rollback")
+def production_rollback(
+    ctx: Context,
+    decision_id: str,
+    user_prompt: str = ""
+) -> str:
+    """
+    Executes an atomic rollback of a previously committed production decision.
+    Reverts session state and registers an explicit ROLLBACK node in the causal graph.
+    """
+    try:
+        res = engine.production_executor.rollback_decision(
+            decision_id=decision_id,
+            context=engine.production_context,
+            graph=engine.production_graph
+        )
+        engine.production_storage.save_graph(engine.production_graph)
+        return json.dumps(res, indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_rollback: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("production_memory_search")
+def production_memory_search(
+    ctx: Context,
+    query: str = "",
+    genre: str = "",
+    target: str = "",
+    domain: Optional[str] = None,
+    min_confidence: float = 0.5,
+    user_prompt: str = ""
+) -> str:
+    """
+    Searches DecisionMemory for historically verified decisions matching the scenario.
+    Fundamental Invariant: All returned matches are strictly CANDIDATE-ONLY and NEVER auto-executable.
+    """
+    try:
+        query_ctx = {"genre": genre, "target": target, "query": query}
+        matches = engine.production_memory.search(
+            query_context=query_ctx,
+            domain=domain,
+            min_confidence=min_confidence
+        )
+        return json.dumps({
+            "query_context": query_ctx,
+            "match_count": len(matches),
+            "candidates": matches
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error in production_memory_search: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+# ==============================================================================
+# PHASE 7 — AUDIO FORENSICS ENGINE MCP TOOLS (4 TOOLS)
+# ==============================================================================
+
+@mcp.tool()
+@rich_telemetry_tool("forensics_analyze")
+def forensics_analyze(
+    ctx: Context,
+    file_path: Optional[str] = None,
+    track_id: str = "Master",
+    preset: str = "default",
+    record_in_graph: bool = True,
+    user_prompt: str = ""
+) -> str:
+    """
+    Executes deep time-frequency forensic audit on an audio file or track buffer.
+    Detects dynamic resonances, sample clipping, True Peak overshoots, DC offset,
+    transient clicks/pops, dropouts, and channel/phase anomalies.
+    Guaranteed strictly READ-ONLY.
+    """
+    try:
+        import numpy as np
+        import soundfile as sf
+        from engine.forensics.config import (
+            DEFAULT_ANALYSIS_CONFIG,
+            VOCAL_FORENSICS_CONFIG,
+            LOW_END_FORENSICS_CONFIG
+        )
+
+
+        preset_map = {
+            "default": DEFAULT_ANALYSIS_CONFIG,
+            "vocal": VOCAL_FORENSICS_CONFIG,
+            "low_end": LOW_END_FORENSICS_CONFIG
+        }
+        cfg = preset_map.get(preset.lower(), DEFAULT_ANALYSIS_CONFIG)
+
+        if file_path:
+            audio_data, sr = sf.read(file_path)
+            if audio_data.ndim == 2 and audio_data.shape[0] > audio_data.shape[1]:
+                audio_data = audio_data.T
+            elif audio_data.ndim == 1:
+                audio_data = audio_data[np.newaxis, :]
+        else:
+            # Fallback test / diagnostic buffer (1 sec silence/test tone)
+            sr = 44100
+            t = np.linspace(0, 1.0, sr, endpoint=False)
+            tone = 0.5 * np.sin(2 * np.pi * 440.0 * t)
+            audio_data = np.stack([tone, tone], axis=0)
+
+        graph_target = engine.production_graph if record_in_graph else None
+        report = engine.forensics.analyze_track(
+            audio=audio_data,
+            sample_rate=sr,
+            track_id=track_id,
+            config=cfg,
+            production_graph=graph_target,
+            save_report=True
+        )
+
+        return json.dumps({
+            "status": "SUCCESS",
+            "report_id": report.report_id,
+            "deterministic_hash": report.deterministic_hash,
+            "duration_seconds": report.duration_seconds,
+            "frames_analyzed": report.frames_analyzed,
+            "total_events_detected": len(report.events),
+            "total_hypotheses_inferred": len(report.hypotheses),
+            "events_by_severity": {
+                "CRITICAL": sum(1 for e in report.events if e.severity == "CRITICAL"),
+                "ERROR": sum(1 for e in report.events if e.severity == "ERROR"),
+                "WARNING": sum(1 for e in report.events if e.severity == "WARNING"),
+                "INFO": sum(1 for e in report.events if e.severity == "INFO")
+            },
+            "processing_time_seconds": report.processing_time_seconds
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error in forensics_analyze: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("forensics_report")
+def forensics_report(
+    ctx: Context,
+    report_id: str,
+    format: str = "json",
+    user_prompt: str = ""
+) -> str:
+    """
+    Retrieves a cryptographically sealed forensic audit report by ID.
+    Supports 'json' format or 'markdown' diagnostic audit summary.
+    """
+    try:
+        from engine.forensics.report import ForensicReportGenerator
+        rep = engine.forensics_storage.load_report(report_id, verify_hash=True)
+
+        if format.lower() == "markdown":
+            return ForensicReportGenerator.generate_markdown_summary(rep)
+
+        return json.dumps(rep.to_dict(), indent=2)
+
+    except Exception as e:
+        logger.error(f"Error in forensics_report: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("forensics_events")
+def forensics_events(
+    ctx: Context,
+    report_id: str,
+    event_type: Optional[str] = None,
+    severity: Optional[str] = None,
+    channel: Optional[str] = None,
+    min_confidence: float = 0.0,
+    user_prompt: str = ""
+) -> str:
+    """
+    Queries and filters acoustic forensic events within an existing report.
+    Enables precise filtering by anomaly type, severity, channel, and confidence.
+    """
+    try:
+        rep = engine.forensics_storage.load_report(report_id, verify_hash=True)
+        filtered = []
+
+        for ev in rep.events:
+            if event_type and ev.event_type.upper() != event_type.upper():
+                continue
+            if severity and ev.severity.upper() != severity.upper():
+                continue
+            if channel and channel.upper() not in [c.upper() for c in ev.channels]:
+                continue
+            if ev.confidence < min_confidence:
+                continue
+            filtered.append(ev.to_dict())
+
+        return json.dumps({
+            "report_id": report_id,
+            "total_matches": len(filtered),
+            "events": filtered
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error in forensics_events: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("forensics_explain")
+def forensics_explain(
+    ctx: Context,
+    report_id: str,
+    event_id: str,
+    user_prompt: str = ""
+) -> str:
+    """
+    Explains the causal hypothesis, acoustic evidence, and competing explanations
+    for a specific detected forensic event.
+    """
+    try:
+        rep = engine.forensics_storage.load_report(report_id, verify_hash=True)
+
+        target_event = None
+        for ev in rep.events:
+            if ev.event_id == event_id:
+                target_event = ev
+                break
+
+        if not target_event:
+            return json.dumps({"error": f"Event '{event_id}' not found in report '{report_id}'"}, indent=2)
+
+        # Find matching hypotheses
+        matching_hypotheses = [
+            h.to_dict() for h in rep.hypotheses if event_id in h.observation_ids
+        ]
+
+        return json.dumps({
+            "event": target_event.to_dict(),
+            "hypotheses_count": len(matching_hypotheses),
+            "hypotheses": matching_hypotheses
+        }, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error in forensics_explain: {e}")
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+# =============================================================================
+# Document 13 — Production Governance MCP Tools (PIE)
+# =============================================================================
+from engine.production.boundary import get_production_boundary
+
+
+@mcp.tool()
+def production_status() -> dict:
+    """
+    Devuelve el estado actual de la infraestructura de Production Governance.
+    No muta estado, no crea nodos, no ejecuta DSP ni modifica Ableton Live.
+    """
+    return get_production_boundary().production_status()
+
+
+@mcp.tool()
+def production_plan(
+    intent: str,
+    domain: str,
+    target: Optional[str] = None,
+    profile: Optional[str] = None
+) -> dict:
+    """
+    Transforma una intención musical en un plan candidato determinista y seguro.
+    No ejecuta cambios en Ableton Live. Requiere validación previa a su ejecución.
+    """
+    return get_production_boundary().production_plan(
+        intent=intent,
+        domain=domain,
+        target=target,
+        profile=profile
+    )
+
+
+@mcp.tool()
+def production_validate(
+    plan_id: str
+) -> dict:
+    """
+    Realiza la validación completa de un plan antes de su ejecución.
+    Verifica frescura de fingerprint, políticas, locks de objetos y transacciones.
+    """
+    return get_production_boundary().production_validate(plan_id=plan_id)
+
+
+@mcp.tool()
+def production_execute(
+    plan_id: str,
+    auto_rollback: bool = True
+) -> dict:
+    """
+    Ejecuta un plan previamente validado dentro de una transacción atómica segura.
+    Incluye verificación acústica multivariable y auto-rollback en caso de regresión.
+    """
+    return get_production_boundary().production_execute(
+        plan_id=plan_id,
+        auto_rollback=auto_rollback
+    )
+
+
+@mcp.tool()
+def production_explain(
+    decision_id: str
+) -> dict:
+    """
+    Reconstruye la causalidad completa de una decisión de producción.
+    Distingue rigurosamente: FACT, MEASUREMENT, INFERENCE, DECISION, ACTION, RESULT.
+    """
+    return get_production_boundary().production_explain(decision_id=decision_id)
+
+
+@mcp.tool()
+def production_history(
+    limit: int = 20,
+    domain: Optional[str] = None
+) -> dict:
+    """
+    Consulta el historial determinista de decisiones de producción.
+    Ordenado estrictamente por timestamp DESC y decision_id ASC.
+    """
+    return get_production_boundary().production_history(
+        limit=limit,
+        domain=domain
+    )
+
+
+@mcp.tool()
+def production_graph(
+    format: str = "summary"
+) -> dict:
+    """
+    Consulta la estructura o estadísticas del Production Graph en modo solo lectura.
+    Formatos soportados: 'summary' (estadísticas compactas) o 'dag' (estructura exportable).
+    """
+    return get_production_boundary().production_graph(format=format)
+
+
+@mcp.tool()
+def production_rollback(
+    decision_id_or_transaction: str
+) -> dict:
+    """
+    Revierte de forma atómica y no destructiva una decisión o transacción de producción.
+    Preserva el historial original y genera nuevos nodos causales de rollback.
+    """
+    return get_production_boundary().production_rollback(
+        decision_id_or_transaction=decision_id_or_transaction
+    )
+
+
+@mcp.tool()
+def production_memory_search(
+    query: str,
+    context: dict
+) -> dict:
+    """
+    Busca precedentes históricos en la memoria de producción para evidencia contextual.
+    Los resultados son evidencia consultiva; nunca se ejecutan automáticamente.
+    """
+    return get_production_boundary().production_memory_search(
+        query=query,
+        context=context
+    )
+
+
 def main():
+
+
     """Run the FastMCP server with all legacy, Phase 1, Phase 2, Phase 3, and Phase 4 sound tools registered"""
     mcp.run()
 

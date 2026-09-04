@@ -1,0 +1,183 @@
+{
+  "baseline_id": "H1-BL-1ddc70d0158c",
+  "timestamp": "2026-09-04T11:30:00-06:00",
+  "git": {
+    "commit": "8ed86c556173555ae2239e8bdeae524f1f94174f",
+    "branch": "main",
+    "working_tree_clean": false,
+    "baseline_worktree": "DIRTY",
+    "modified_files_count": 25,
+    "untracked_items_count": 15
+  },
+  "runtime": {
+    "python_executable": "C:\\Program Files\\Python313\\python.exe",
+    "python_version": "3.13.1 (tags/v3.13.1:0671451, Dec  3 2024, 19:06:28) [MSC v.1942 64 bit (AMD64)]",
+    "python_implementation": "CPython",
+    "os": "Windows",
+    "os_version": "10.0.19045",
+    "architecture": "64bit",
+    "machine": "AMD64",
+    "cwd": "D:\\Proyectos\\TEST\\AbletonEngine"
+  },
+  "tests": {
+    "command": "python tests/run_all_tests.py",
+    "run_1": {
+      "run_id": "RUN-001",
+      "duration_seconds": 44.57,
+      "total": 149,
+      "passed": 149,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    "run_2": {
+      "run_id": "RUN-002",
+      "duration_seconds": 10.65,
+      "total": 149,
+      "passed": 149,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    "flaky_tests_count": 0
+  },
+  "source_fingerprint": {
+    "algorithm": "SHA-256(path + '\\0' + file_sha256 + '\\0' ...)",
+    "files_inventoried": 223,
+    "global_hash": "1ddc70d0158c66fb4bbde156da32317b822158e7f303e45c9961c1c0fe487584",
+    "baseline_id": "H1-BL-1ddc70d0158c"
+  },
+  "mcp_surface": {
+    "total_tools": 174,
+    "by_domain": {
+      "Session Core & Live Adapter": 78,
+      "Shadow Graph & Locking": 6,
+      "Transactions & Snapshots": 3,
+      "Instruments & Racks": 5,
+      "Sound Design & Presets": 19,
+      "Music Theory & Harmony": 12,
+      "Arrangement & Energy": 12,
+      "Mix Engine": 16,
+      "Mastering Engine": 14,
+      "Production Governance": 9
+    }
+  },
+  "dependencies": {
+    "numpy": {
+      "declared": false,
+      "installed_version": "2.5.2",
+      "importable": true,
+      "used": true,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\numpy\\__init__.py"
+    },
+    "soundfile": {
+      "declared": false,
+      "installed_version": "0.14.0",
+      "importable": true,
+      "used": true,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\soundfile.py"
+    },
+    "networkx": {
+      "declared": false,
+      "installed_version": "3.6.1",
+      "importable": true,
+      "used": true,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\networkx\\__init__.py"
+    },
+    "mcp": {
+      "declared": false,
+      "installed_version": "1.29.1",
+      "importable": true,
+      "used": true,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\mcp\\__init__.py"
+    },
+    "pydantic": {
+      "declared": false,
+      "installed_version": "2.13.5",
+      "importable": true,
+      "used": false,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\pydantic\\__init__.py"
+    },
+    "opentelemetry-api": {
+      "declared": false,
+      "installed_version": "1.44.0",
+      "importable": true,
+      "used": true,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\opentelemetry"
+    },
+    "pytest": {
+      "declared": false,
+      "installed_version": "9.0.3",
+      "importable": true,
+      "used": true,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\pytest\\__init__.py"
+    },
+    "uvicorn": {
+      "declared": false,
+      "installed_version": "0.52.4",
+      "importable": true,
+      "used": false,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\uvicorn\\__init__.py"
+    },
+    "starlette": {
+      "declared": false,
+      "installed_version": "1.6.0",
+      "importable": true,
+      "used": false,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\starlette\\__init__.py"
+    },
+    "anyio": {
+      "declared": false,
+      "installed_version": "4.15.0",
+      "importable": true,
+      "used": false,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\anyio\\__init__.py"
+    },
+    "httpx": {
+      "declared": false,
+      "installed_version": "0.28.1",
+      "importable": true,
+      "used": false,
+      "location": "C:\\Users\\kevin.garrido\\AppData\\Roaming\\Python\\Python313\\site-packages\\httpx\\__init__.py"
+    }
+  },
+  "dsp_baseline": {
+    "standard": "ITU-R BS.1770-5",
+    "true_peak_algorithm": "Annex 2 (4x sinc FIR Hann-windowed)",
+    "synthetic_signals": {
+      "silence_2s": {
+        "integrated_lufs": -70.0,
+        "sample_peak_dbfs": -240.0,
+        "true_peak_dbfs": -100.0,
+        "measurement_valid": true
+      },
+      "sine_1khz_2s_minus6dbfs": {
+        "sample_peak_dbfs": -6.02,
+        "true_peak_dbfs": -6.02,
+        "integrated_lufs": -6.27,
+        "crest_factor_db": 3.01,
+        "measurement_valid": true
+      },
+      "stereo_identical": {
+        "integrated_lufs": -6.76
+      },
+      "stereo_different_channels": {
+        "integrated_lufs": -9.77,
+        "measurement_valid": true
+      },
+      "gating_silence_tone_silence": {
+        "integrated_lufs": -7.41,
+        "lra": 5.42,
+        "measurement_valid": true
+      },
+      "inter_sample_overshoot_11025hz": {
+        "sample_peak_dbfs": -3.925,
+        "true_peak_dbfs": -0.818,
+        "delta_db": 3.108,
+        "inter_sample_detected": true
+      }
+    }
+  }
+}

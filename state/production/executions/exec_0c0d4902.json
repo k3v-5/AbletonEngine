@@ -1,0 +1,35 @@
+{
+  "actions_applied": 0,
+  "actions_attempted": 1,
+  "actions_failed": 0,
+  "decision_id": "dec_1505ee01",
+  "details": {
+    "decision_id": "dec_1505ee01",
+    "message": "Session already satisfies target criteria. No actions executed.",
+    "plan_id": "plan_noop",
+    "status": "COMMITTED",
+    "verification": {
+      "passed": true,
+      "regressions": [],
+      "status": "PASS"
+    }
+  },
+  "errors": [],
+  "execution_id": "exec_0c0d4902",
+  "finished_at": "2026-09-04T18:47:27.594712+00:00",
+  "message": "Session already satisfies target criteria. No actions executed.",
+  "plan_id": "plan_noop",
+  "post_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "pre_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "rollback_performed": false,
+  "started_at": "2026-09-04T18:47:27.593090+00:00",
+  "status": "COMMITTED",
+  "transaction_id": null,
+  "verification": {
+    "passed": true,
+    "regressions": [],
+    "status": "PASS"
+  },
+  "verification_passed": true,
+  "warnings": []
+}

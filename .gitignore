@@ -227,3 +227,6 @@ htmlcov/
 *.aiff
 *.mp3
 .mcp_mastering/
+state/snapshots/
+state/transactions/
+state/events/

@@ -3,7 +3,7 @@ AudioBridge abstraction for Level 3 / real-time / M4L integration.
 Allows Mix Engine to interface with either rendered audio files or real-time Max for Live bridges.
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 import numpy as np
 import soundfile as sf
 from pathlib import Path

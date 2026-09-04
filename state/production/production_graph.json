@@ -1,0 +1,1853 @@
+{
+  "edges": [
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "act_09963de8",
+      "target_id": "meas_post_867cd67e"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "act_26f9ba19",
+      "target_id": "meas_post_bd5cbdba"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "act_299e9891",
+      "target_id": "meas_post_13e58ef0"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "act_424a6853",
+      "target_id": "meas_post_f3f93bea"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "act_85f77605",
+      "target_id": "meas_post_413ab4c5"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_1c0affd8",
+      "target_id": "act_3575fe29"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_1c0affd8",
+      "target_id": "act_424a6853"
+    },
+    {
+      "edge_type": "ROLLED_BACK_BY",
+      "source_id": "dec_1c0affd8",
+      "target_id": "rb_manual_a436ccfd"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_1c0affd8",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_1c0affd8",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_3c1adc33",
+      "target_id": "act_09963de8"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_3c1adc33",
+      "target_id": "act_64f8ce46"
+    },
+    {
+      "edge_type": "ROLLED_BACK_BY",
+      "source_id": "dec_3c1adc33",
+      "target_id": "rb_manual_36d0c0cb"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_3c1adc33",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_3c1adc33",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_42c5ebfa",
+      "target_id": "act_26f9ba19"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_42c5ebfa",
+      "target_id": "act_a06c86a8"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_7bcbd3e3",
+      "target_id": "act_299e9891"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_7bcbd3e3",
+      "target_id": "act_2f5ff0af"
+    },
+    {
+      "edge_type": "ROLLED_BACK_BY",
+      "source_id": "dec_7bcbd3e3",
+      "target_id": "rb_manual_f692c204"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_7bcbd3e3",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_7bcbd3e3",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_95ec81c5",
+      "target_id": "act_85f77605"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_95ec81c5",
+      "target_id": "act_89e483f4"
+    },
+    {
+      "edge_type": "ROLLED_BACK_BY",
+      "source_id": "dec_95ec81c5",
+      "target_id": "rb_manual_76fae422"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_95ec81c5",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_95ec81c5",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_17953648",
+      "target_id": "obs_d58d9ce4"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_783ee7b6",
+      "target_id": "obs_8681088e"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_ad2b9a65",
+      "target_id": "obs_ea1c5426"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_ba4e7a4d",
+      "target_id": "obs_59d56593"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_ee06e0aa",
+      "target_id": "obs_b5a5bb84"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_f934acac",
+      "target_id": "obs_12ac3aaf"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_1bdc24e1",
+      "target_id": "dec_1c0affd8"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_1bdc24e1",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_1bdc24e1",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_5e9a08ec",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_5e9a08ec",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_6f27acbe",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_6f27acbe",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_a1a4407b",
+      "target_id": "dec_3c1adc33"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_a1a4407b",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_a1a4407b",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_e00e0f37",
+      "target_id": "dec_95ec81c5"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_e00e0f37",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_e00e0f37",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_f443ffa5",
+      "target_id": "dec_7bcbd3e3"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_f443ffa5",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_f443ffa5",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_13e58ef0",
+      "target_id": "ver_d89928f3"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_413ab4c5",
+      "target_id": "ver_bb9ae4cf"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_867cd67e",
+      "target_id": "ver_19a241dd"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_bd5cbdba",
+      "target_id": "ver_0fb5115c"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_f3f93bea",
+      "target_id": "ver_3dde0c0e"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_12ac3aaf",
+      "target_id": "meas_5e9a08ec"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_59d56593",
+      "target_id": "meas_f443ffa5"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_8681088e",
+      "target_id": "meas_a1a4407b"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_b5a5bb84",
+      "target_id": "meas_6f27acbe"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_d58d9ce4",
+      "target_id": "meas_e00e0f37"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_ea1c5426",
+      "target_id": "meas_1bdc24e1"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "ver_0fb5115c",
+      "target_id": "res_43171a10"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "ver_19a241dd",
+      "target_id": "res_416c6a39"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "ver_3dde0c0e",
+      "target_id": "res_d3e24550"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "ver_bb9ae4cf",
+      "target_id": "res_ce15cc96"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "ver_d89928f3",
+      "target_id": "res_0a23596f"
+    }
+  ],
+  "graph_version": 120,
+  "nodes": {
+    "act_09963de8": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.974401+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_09963de8",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "act_26f9ba19": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.089698+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_26f9ba19",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_8d402f94"
+    },
+    "act_299e9891": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.689927+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_299e9891",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    },
+    "act_2f5ff0af": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.689915+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_2f5ff0af",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    },
+    "act_3575fe29": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.155435+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_3575fe29",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "act_424a6853": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.155444+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_424a6853",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "act_64f8ce46": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.974391+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_64f8ce46",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "act_85f77605": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.604989+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_85f77605",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "act_89e483f4": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.604974+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_89e483f4",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "act_a06c86a8": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.089684+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "act_a06c86a8",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_8d402f94"
+    },
+    "dec_1c0affd8": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.155393+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "dec_1c0affd8",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_1c0affd8",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_ad2b9a65",
+        "plan_id": "plan_33cb6b49",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "dec_3c1adc33": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.974330+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "dec_3c1adc33",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_3c1adc33",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_783ee7b6",
+        "plan_id": "plan_bc30eb21",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "dec_42c5ebfa": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.089668+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "dec_42c5ebfa",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_42c5ebfa",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_ee06e0aa",
+        "plan_id": "plan_0bb32467",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_8d402f94"
+    },
+    "dec_7bcbd3e3": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.689868+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "dec_7bcbd3e3",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_7bcbd3e3",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_ba4e7a4d",
+        "plan_id": "plan_58624063",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    },
+    "dec_95ec81c5": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.604932+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "dec_95ec81c5",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_95ec81c5",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_17953648",
+        "plan_id": "plan_ff4992c2",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "intent_17953648": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.602122+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "intent_17953648",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero que el master tenga m\u00e1s volumen",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "intent_783ee7b6": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.969871+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "intent_783ee7b6",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero que el master tenga m\u00e1s volumen",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "intent_ad2b9a65": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.152230+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "intent_ad2b9a65",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero que el master tenga m\u00e1s volumen",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "intent_ba4e7a4d": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.686557+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "intent_ba4e7a4d",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero que el master tenga m\u00e1s volumen",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "intent_ee06e0aa": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.087043+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "intent_ee06e0aa",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero que el master tenga m\u00e1s volumen",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "intent_f934acac": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:09.630913+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "intent_f934acac",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero que el master tenga m\u00e1s volumen",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_1bdc24e1": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.152240+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_1bdc24e1",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:53:12.152223+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_5e9a08ec": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:09.630928+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_5e9a08ec",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:49:09.630901+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_6f27acbe": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.087058+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_6f27acbe",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:49:58.087031+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_a1a4407b": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.969883+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_a1a4407b",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T17:06:52.969862+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_e00e0f37": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.602136+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_e00e0f37",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:50:58.602110+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_f443ffa5": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.686571+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_f443ffa5",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:51:38.686544+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "meas_post_13e58ef0": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.689942+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_post_13e58ef0",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:51:38.688994+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    },
+    "meas_post_413ab4c5": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.605004+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_post_413ab4c5",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:50:58.604057+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "meas_post_867cd67e": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.974416+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_post_867cd67e",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T17:06:52.973138+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "meas_post_bd5cbdba": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.089714+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_post_bd5cbdba",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:49:58.088808+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_8d402f94"
+    },
+    "meas_post_f3f93bea": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.155456+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "meas_post_f3f93bea",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T15:53:12.154575+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "obs_12ac3aaf": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:09.630922+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "obs_12ac3aaf",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "obs_59d56593": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.686565+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "obs_59d56593",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "obs_8681088e": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.969877+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "obs_8681088e",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "obs_b5a5bb84": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.087051+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "obs_b5a5bb84",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "obs_d58d9ce4": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.602130+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "obs_d58d9ce4",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "obs_ea1c5426": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.152236+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "obs_ea1c5426",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "rb_manual_36d0c0cb": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.981485+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "rb_manual_36d0c0cb",
+      "node_type": "ROLLBACK",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_3c1adc33",
+        "details": {
+          "rollback_details": {
+            "method": "logical_wal",
+            "reversed_operations": [],
+            "reversed_operations_count": 0,
+            "success": true
+          },
+          "status": "ROLLED_BACK",
+          "transaction_id": "tx_db84bad9"
+        },
+        "reason": "Manual rollback of decision dec_3c1adc33"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "rb_manual_76fae422": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.610826+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "rb_manual_76fae422",
+      "node_type": "ROLLBACK",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_95ec81c5",
+        "details": {
+          "rollback_details": {
+            "method": "logical_wal",
+            "reversed_operations": [],
+            "reversed_operations_count": 0,
+            "success": true
+          },
+          "status": "ROLLED_BACK",
+          "transaction_id": "tx_9214c6ab"
+        },
+        "reason": "Manual rollback of decision dec_95ec81c5"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "rb_manual_a436ccfd": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.162259+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "rb_manual_a436ccfd",
+      "node_type": "ROLLBACK",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_1c0affd8",
+        "details": {
+          "rollback_details": {
+            "method": "logical_wal",
+            "reversed_operations": [],
+            "reversed_operations_count": 0,
+            "success": true
+          },
+          "status": "ROLLED_BACK",
+          "transaction_id": "tx_6be8d3d7"
+        },
+        "reason": "Manual rollback of decision dec_1c0affd8"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "rb_manual_f692c204": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.696071+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "rb_manual_f692c204",
+      "node_type": "ROLLBACK",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_7bcbd3e3",
+        "details": {
+          "rollback_details": {
+            "method": "logical_wal",
+            "reversed_operations": [],
+            "reversed_operations_count": 0,
+            "success": true
+          },
+          "status": "ROLLED_BACK",
+          "transaction_id": "tx_f6b0235b"
+        },
+        "reason": "Manual rollback of decision dec_7bcbd3e3"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    },
+    "rej_cand_aggressive_master_eq": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:09.631021+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "rej_cand_aggressive_master_eq",
+      "node_type": "REJECTION",
+      "parent_nodes": [],
+      "payload": {
+        "alternatives": [
+          {
+            "action": "ADJUST_INDIVIDUAL_TRACK_EQ",
+            "suggested_domain": "mix"
+          }
+        ],
+        "candidate_id": "cand_aggressive_master_eq",
+        "description": "Multi-band high and low shelf boost on master bus (+3.0 dB)",
+        "policy_id": "AGGREGATED_EVALUATION",
+        "violations": [
+          "Master EQ modifies 3 bands, exceeding limit of 2 bands.",
+          "Master EQ band delta (3.00 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+          "Master EQ band delta (2.50 dB) exceeds maximum allowed change (\u00b11.00 dB).",
+          "Master EQ band delta (3.00 dB) exceeds maximum allowed change (\u00b11.00 dB)."
+        ]
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "rej_cand_excessive_limiter": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:09.631046+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "rej_cand_excessive_limiter",
+      "node_type": "REJECTION",
+      "parent_nodes": [],
+      "payload": {
+        "alternatives": [
+          {
+            "action": "RESOLVE_HEADROOM_IN_MIX",
+            "suggested_domain": "mix"
+          }
+        ],
+        "candidate_id": "cand_excessive_limiter",
+        "description": "Hard limiter slam (+6.0 dB gain, GR > 4.0 dB)",
+        "policy_id": "AGGREGATED_EVALUATION",
+        "violations": [
+          "Limiter gain reduction (4.50 dB) exceeds maximum safe ceiling (2.50 dB).",
+          "True Peak (0.10 dBTP) exceeds maximum platform ceiling (-0.30 dBTP)."
+        ]
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "res_0a23596f": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.691656+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "res_0a23596f",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    },
+    "res_416c6a39": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.976034+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "res_416c6a39",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "res_43171a10": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.091468+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "res_43171a10",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_8d402f94"
+    },
+    "res_ce15cc96": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.606741+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "res_ce15cc96",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "res_d3e24550": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.156726+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "res_d3e24550",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "ver_0fb5115c": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:49:58.089735+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "ver_0fb5115c",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:49:58.088808+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:49:58.088808+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_8d402f94"
+    },
+    "ver_19a241dd": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T17:06:52.974432+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "ver_19a241dd",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T17:06:52.973138+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T17:06:52.973138+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_db84bad9"
+    },
+    "ver_3dde0c0e": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:53:12.155469+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "ver_3dde0c0e",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:53:12.154575+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:53:12.154575+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_6be8d3d7"
+    },
+    "ver_bb9ae4cf": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:50:58.605023+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "ver_bb9ae4cf",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:50:58.604057+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:50:58.604057+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_9214c6ab"
+    },
+    "ver_d89928f3": {
+      "confidence": 1.0,
+      "created_at": "2026-09-04T15:51:38.689961+00:00",
+      "engine": "production_intelligence_engine",
+      "engine_version": "1.0.0",
+      "metadata": {},
+      "node_id": "ver_d89928f3",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:51:38.688994+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-04T15:51:38.688994+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "related_entities": {},
+      "session_id": "default_session",
+      "source": "engine",
+      "status": "ACTIVE",
+      "transaction_id": "tx_f6b0235b"
+    }
+  },
+  "project_id": "default_project",
+  "schema_version": "1.0"
+}

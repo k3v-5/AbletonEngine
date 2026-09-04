@@ -1,0 +1,32 @@
+{
+  "active_transaction_id": null,
+  "captured_at": "2026-09-04T18:47:27.597955+00:00",
+  "devices": [],
+  "genre": null,
+  "key": null,
+  "locks": {},
+  "project_id": "default_project",
+  "relevant_object_ids": [
+    "Master"
+  ],
+  "sample_rate": 48000,
+  "session_fingerprint": "759d2ede97508382fbeaa6b00d7986f7b4bf143489d18fdf6248450ca6b0e7ad",
+  "session_id": "default_project",
+  "tempo": 120.0,
+  "timestamp": "2026-09-04T18:47:27.597955+00:00",
+  "tracks": [
+    {
+      "devices": [],
+      "index": 0,
+      "locked": false,
+      "mute": false,
+      "name": "Master",
+      "pan": 0.0,
+      "role": null,
+      "solo": false,
+      "track_id": "track_master",
+      "track_type": "master",
+      "volume": 0.92
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 # tests/test_session_graph.py
 import unittest
-from MCP_Server.engine.session.graph import SessionShadowGraph
-from MCP_Server.engine.models import TrackNode, generate_id
-from MCP_Server.engine.adapters.mock_adapter import MockAbletonAdapter
-from MCP_Server.engine.session.synchronizer import SessionSynchronizer
-from MCP_Server.engine.errors import ObjectLockedError
+from engine.session.graph import SessionShadowGraph
+from engine.models import TrackNode, generate_id
+from engine.adapters.mock_adapter import MockAbletonAdapter
+from engine.session.synchronizer import SessionSynchronizer
+from engine.errors import ObjectLockedError
 
 class TestSessionGraph(unittest.TestCase):
     def setUp(self):

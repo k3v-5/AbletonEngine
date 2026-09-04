@@ -1,13 +1,13 @@
 # tests/test_instrument_engine.py
 import unittest
-from MCP_Server.engine.adapters.mock_adapter import MockAbletonAdapter
-from MCP_Server.engine.instruments import (
+from engine.adapters.mock_adapter import MockAbletonAdapter
+from engine.instruments import (
     InstrumentEngine, DrumMap, InstrumentRole,
     DrumRackInspector, DrumRackBuilder, DrumRackVerifier,
     SampleLibraryResolver
 )
-from MCP_Server.engine.music.rhythm.templates import GM_DRUM_MAP
-from MCP_Server.engine.music.rhythm.generator import generate_drums
+from engine.music.rhythm.templates import GM_DRUM_MAP
+from engine.music.rhythm.generator import generate_drums
 
 class TestInstrumentEngine(unittest.TestCase):
     def setUp(self):

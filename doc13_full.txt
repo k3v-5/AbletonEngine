@@ -1,0 +1,1535 @@
+<USER_REQUEST>
+DOCUMENTO 13 — INTEGRACIÓN MCP DE LA CAPA DE PRODUCCIÓN
+0. Propósito
+
+Este documento especifica la implementación completa de la superficie MCP de Production Governance, correspondiente al paso 13 del Hito 1.
+
+El objetivo es exponer las capacidades de:
+
+Production Graph.
+Decision Memory.
+Production Policy Engine.
+Production Planner.
+Plan validation.
+Ejecución segura.
+Verificación.
+Rollback.
+Estado de producción.
+
+a través de una superficie MCP mínima, determinista, segura y de alto nivel.
+
+La implementación debe evitar convertir server.py en un contenedor de lógica de negocio. El servidor MCP debe actuar únicamente como adaptador de transporte y validación de entrada/salida.
+
+La lógica real debe permanecer dentro de:
+
+engine/production/
+
+1. Objetivos obligatorios
+
+La implementación debe cumplir simultáneamente:
+
+Exponer exactamente las herramientas MCP definidas en este documento.
+No duplicar lógica de ProductionPlanner, ProductionPolicyEngine, ProductionGraph, DecisionMemory o ProductionExecutor.
+Validar todos los argumentos antes de invocar motores internos.
+Nunca permitir que una herramienta MCP ejecute una mutación fuera del flujo transaccional existente.
+Mantener trazabilidad completa de cada operación.
+Devolver errores estructurados y deterministas.
+No exponer excepciones internas sin procesar al LLM.
+No permitir que el LLM modifique directamente el ProductionGraph.
+No permitir que el LLM modifique directamente SessionShadowGraph.
+No permitir ejecución automática de memoria histórica.
+Mantener compatibilidad completa con las herramientas MCP existentes.
+Mantener los tests anteriores 100 % verdes.
+2. Principio arquitectónico
+
+La arquitectura final será:
+
+                  MCP CLIENT / LLM
+                         │
+                         ▼
+                ┌─────────────────┐
+                │    server.py    │
+                │   MCP Adapter   │
+                └────────┬────────┘
+                         │
+                         ▼
+                ┌─────────────────┐
+                │ Production API  │
+                │   Boundary      │
+                └────────┬────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+      Planner         Policies       Executor
+          │              │              │
+          └──────────────┼──────────────┘
+                         ▼
+                Production Context
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+       SessionShadowGraph      ProductionGraph
+                                    │
+                                    ▼
+                              DecisionMemory
+
+
+El LLM nunca debe saltarse la capa de producción.
+
+3. Herramientas MCP definitivas
+
+Se implementarán únicamente estas nueve:
+
+production_status
+production_plan
+production_validate
+production_execute
+production_explain
+production_history
+production_graph
+production_rollback
+production_memory_search
+
+
+No crear aliases ni versiones duplicadas.
+
+Por ejemplo, NO crear:
+
+production_create_plan
+production_run_plan
+production_get_status
+production_get_history
+
+
+La superficie debe permanecer pequeña.
+
+4. Convenciones generales MCP
+
+Todas las herramientas deberán:
+
+recibir argumentos JSON compatibles con FastMCP;
+utilizar type hints;
+tener docstrings completos;
+devolver estructuras serializables;
+no devolver objetos Python internos;
+no depender de representación textual para transmitir información crítica.
+
+La respuesta debe seguir esta forma conceptual:
+
+{
+  "success": true,
+  "status": "OK",
+  "data": {},
+  "errors": [],
+  "warnings": [],
+  "trace": {
+    "request_id": "...",
+    "timestamp": "...",
+    "engine_version": "..."
+  }
+}
+
+5. Request ID
+
+Cada llamada MCP debe recibir o generar un:
+
+request_id
+
+
+Si el cliente no lo proporciona:
+
+request_id = UUID4
+
+
+Debe almacenarse dentro de la traza de la operación.
+
+Nunca utilizar timestamps como identificadores únicos.
+
+6. production_status()
+6.1 Firma
+production_status() -> dict
+
+
+No recibe argumentos.
+
+6.2 Propósito
+
+Devuelve el estado actual de la infraestructura de Production Governance.
+
+Debe informar:
+
+{
+  "success": true,
+  "status": "READY",
+  "data": {
+    "production_graph": {},
+    "decision_memory": {},
+    "policy_engine": {},
+    "planner": {},
+    "executor": {},
+    "active_transaction": null,
+    "session_fingerprint": "...",
+    "pending_plans": 0,
+    "last_decision_id": "...",
+    "last_transaction_id": "..."
+  }
+}
+
+6.3 Estados
+
+Debe soportar como mínimo:
+
+READY
+DEGRADED
+TRANSACTION_ACTIVE
+EXECUTION_BLOCKED
+RECOVERY_REQUIRED
+ERROR
+
+6.4 Reglas
+
+production_status():
+
+no muta nada;
+no crea nodos;
+no registra decisiones;
+no ejecuta análisis DSP;
+no ejecuta Ableton.
+7. production_plan()
+7.1 Firma
+production_plan(
+    intent: str,
+    domain: str,
+    target: str | None = None,
+    profile: str | None = None
+) -> dict
+
+7.2 Propósito
+
+Transformar una intención musical en un plan candidato, pero sin ejecutar ningún cambio.
+
+Ejemplo:
+
+"Quiero que el master tenga más volumen"
+
+
+Nunca debe modificar Live.
+
+8. Validación de intent
+
+intent:
+
+obligatorio;
+no vacío;
+máximo 2000 caracteres;
+debe ser string;
+debe eliminar whitespace exterior;
+no debe interpretarse como código.
+
+Ejemplos válidos:
+
+"Quiero más claridad en la voz"
+"Quiero aumentar el volumen percibido del master"
+"Quiero que el bajo tenga más peso"
+
+9. Dominios permitidos
+
+El argumento domain debe utilizar un enum.
+
+Como mínimo:
+
+MUSIC
+ARRANGEMENT
+SOUND
+MIX
+MASTER
+PERFORMANCE
+SESSION
+
+
+No aceptar valores arbitrarios.
+
+Si se recibe:
+
+"whatever"
+
+
+la herramienta debe devolver:
+
+INVALID_ARGUMENT
+
+
+sin invocar el planner.
+
+10. Profile
+
+profile es opcional.
+
+Ejemplos:
+
+EBU_R128
+STREAMING
+CLUB
+
+
+Si el dominio no es MASTER, el planner debe decidir si el perfil es relevante.
+
+Nunca asumir silenciosamente que un profile desconocido significa STREAMING.
+
+11. Resultado de production_plan
+
+Debe incluir:
+
+{
+  "success": true,
+  "status": "PLAN_CREATED",
+  "data": {
+    "plan_id": "plan_...",
+    "intent_id": "intent_...",
+    "session_fingerprint": "...",
+    "created_at": "...",
+    "domain": "MASTER",
+    "target": "...",
+    "profile": "STREAMING",
+    "candidates": [],
+    "selected_candidate": null,
+    "policy_status": "ALLOW",
+    "requires_confirmation": false,
+    "estimated_risk": 0.12,
+    "estimated_impact": 0.34,
+    "reversible": true,
+    "expires_at": "...",
+    "execution_allowed": false
+  }
+}
+
+
+Importante:
+
+execution_allowed = false
+
+
+hasta que el plan pase explícitamente por production_validate().
+
+12. Persistencia del plan
+
+Todo plan generado debe poder recuperarse mediante:
+
+plan_id
+
+
+El plan debe conservar:
+
+fingerprint;
+contexto;
+candidatos;
+políticas evaluadas;
+candidato elegido;
+hipótesis;
+acciones;
+expected_delta;
+riesgo;
+reversibilidad;
+timestamps;
+versión del planner;
+versión de políticas.
+
+No guardar únicamente el candidato final.
+
+13. Candidatos rechazados
+
+Todos los candidatos descartados deben permanecer registrados.
+
+Ejemplo:
+
+{
+  "candidate_id": "cand_03",
+  "status": "REJECTED",
+  "rejected_by": [
+    "MASTER_LIMIT"
+  ],
+  "reason": "Gain reduction exceeds policy maximum",
+  "policy_severity": "CRITICAL"
+}
+
+
+Esto es necesario para explicar posteriormente:
+
+"¿Por qué no utilizaste la alternativa más agresiva?"
+
+14. production_validate()
+14.1 Firma
+production_validate(
+    plan_id: str
+) -> dict
+
+14.2 Propósito
+
+Realiza la validación completa de un plan antes de ejecución.
+
+Debe comprobar:
+
+existencia;
+integridad;
+fingerprint;
+políticas;
+locks;
+transacción;
+estado de Live;
+acciones;
+expected delta;
+riesgos;
+compatibilidad del contexto.
+15. Plan inexistente
+
+Si:
+
+plan_id = "plan_invalid"
+
+
+respuesta:
+
+{
+  "success": false,
+  "status": "PLAN_NOT_FOUND",
+  "errors": [
+    {
+      "code": "PLAN_NOT_FOUND",
+      "message": "Production plan does not exist."
+    }
+  ]
+}
+
+
+Nunca crear un plan automáticamente.
+
+16. Stale Plan
+
+Debe recalcularse el fingerprint actual.
+
+Comparar:
+
+plan.session_fingerprint
+
+
+contra:
+
+current.session_fingerprint
+
+
+Pero no basta con comparar un hash global si la arquitectura ya soporta dependencias parciales.
+
+La validación debe distinguir:
+
+RELEVANT_CHANGE
+IRRELEVANT_CHANGE
+
+
+Si cambió una pista involucrada:
+
+STALE
+
+
+Si cambió una pista no relacionada:
+
+VALID
+
+17. Resultado de validación
+
+Ejemplo:
+
+{
+  "success": true,
+  "status": "VALID",
+  "data": {
+    "plan_id": "plan_123",
+    "execution_allowed": true,
+    "policy_status": "ALLOW",
+    "fingerprint_status": "MATCH",
+    "transaction_required": true,
+    "requires_confirmation": false,
+    "checks": [
+      {
+        "name": "FINGERPRINT",
+        "status": "PASS"
+      },
+      {
+        "name": "POLICY",
+        "status": "PASS"
+      },
+      {
+        "name": "LOCKS",
+        "status": "PASS"
+      }
+    ]
+  }
+}
+
+18. production_execute()
+18.1 Firma
+production_execute(
+    plan_id: str,
+    auto_rollback: bool = True
+) -> dict
+
+18.2 Regla crítica
+
+Esta es la única herramienta de las nueve que puede provocar mutaciones en Ableton.
+
+Incluso aquí:
+
+MCP
+ ↓
+Executor
+ ↓
+Transaction
+ ↓
+Ableton
+
+
+Nunca:
+
+MCP
+ ↓
+Ableton directamente
+
+19. Precondiciones obligatorias
+
+Antes de ejecutar:
+
+1. Plan existe.
+2. Plan está validado.
+3. Fingerprint sigue siendo válido.
+4. Policy Engine permite ejecución.
+5. No existen locks violados.
+6. Transaction manager disponible.
+7. Ableton disponible.
+8. Action list íntegra.
+9. Plan no está expirado.
+
+
+Si cualquiera falla:
+
+NO EXECUTAR
+
+20. auto_rollback
+
+Por defecto:
+
+auto_rollback=True
+
+
+Si se detecta regresión crítica:
+
+execute
+   ↓
+verification
+   ↓
+REGRESSION
+   ↓
+rollback
+
+
+Si:
+
+auto_rollback=False
+
+
+no significa que se pueda ignorar una política crítica.
+
+Significa únicamente que el executor no debe efectuar rollback automático.
+
+La ejecución debe quedar:
+
+EXECUTED_WITH_REGRESSION
+
+
+o:
+
+RECOVERY_REQUIRED
+
+
+según la gravedad.
+
+21. Resultado exitoso
+{
+  "success": true,
+  "status": "COMMITTED",
+  "data": {
+    "plan_id": "plan_123",
+    "decision_id": "dec_456",
+    "transaction_id": "tx_789",
+    "verification_id": "ver_001",
+    "rollback_performed": false,
+    "expected_delta": {},
+    "actual_delta": {},
+    "regressions": [],
+    "session_fingerprint_before": "...",
+    "session_fingerprint_after": "..."
+  }
+}
+
+22. Ejecución con rollback
+
+Debe devolver explícitamente:
+
+{
+  "success": false,
+  "status": "ROLLED_BACK",
+  "data": {
+    "original_decision_id": "dec_123",
+    "rollback_decision_id": "dec_124",
+    "transaction_id": "tx_456",
+    "rollback_reason": "...",
+    "regressions": []
+  }
+}
+
+
+El rollback no borra la acción original.
+
+23. production_explain()
+Firma
+production_explain(
+    decision_id: str
+) -> dict
+
+Propósito
+
+Reconstruir la causalidad completa de una decisión.
+
+Debe utilizar:
+
+ProductionGraph.explain_decision()
+
+
+y no reconstruir la explicación directamente desde server.py.
+
+24. Estructura de explicación
+
+Debe devolver:
+
+{
+  "success": true,
+  "status": "OK",
+  "data": {
+    "decision_id": "dec_123",
+    "summary": "...",
+    "causal_chain": [],
+    "facts": [],
+    "measurements": [],
+    "inferences": [],
+    "decision": {},
+    "actions": [],
+    "results": [],
+    "policies": [],
+    "alternatives_rejected": [],
+    "rollback": null
+  }
+}
+
+25. Regla de evidencia
+
+La explicación debe distinguir inequívocamente:
+
+FACT
+MEASUREMENT
+INFERENCE
+DECISION
+ACTION
+RESULT
+
+
+No mezclar:
+
+"El motor detectó..."
+
+
+cuando en realidad fue una inferencia del LLM.
+
+Debe quedar registrado quién produjo cada información:
+
+source = ENGINE
+source = LLM
+source = ABLETON
+source = USER
+
+26. production_history()
+Firma
+production_history(
+    limit: int = 20,
+    domain: str | None = None
+) -> dict
+
+Límites
+limit mínimo = 1
+limit máximo = 100
+default = 20
+
+
+Nunca permitir:
+
+limit = 1000000
+
+27. Orden histórico
+
+Debe ser:
+
+timestamp DESC
+
+
+Es decir:
+
+más reciente → más antiguo
+
+
+En empate:
+
+decision_id ASC
+
+
+para garantizar determinismo.
+
+28. Filtro por dominio
+
+Si:
+
+domain = MIX
+
+
+devolver solamente decisiones relacionadas con MIX.
+
+No filtrar simplemente por texto libre.
+
+29. production_graph()
+Firma
+production_graph(
+    format: str = "summary"
+) -> dict
+
+
+Valores:
+
+summary
+dag
+
+
+No aceptar otros formatos.
+
+30. summary
+
+Debe devolver estadísticas:
+
+{
+  "node_count": 123,
+  "edge_count": 167,
+  "node_types": {},
+  "edge_types": {},
+  "decisions": 20,
+  "rollbacks": 2,
+  "rejections": 15,
+  "no_ops": 4,
+  "graph_version": 17
+}
+
+
+No devolver el grafo completo por defecto.
+
+Esto reduce consumo de contexto del LLM.
+
+31. dag
+
+Cuando:
+
+format = "dag"
+
+
+devolver estructura serializable:
+
+{
+  "nodes": [],
+  "edges": [],
+  "graph_version": 17
+}
+
+
+Los nodos deben incluir únicamente información necesaria para reconstrucción.
+
+No incluir objetos internos Python.
+
+32. Seguridad del Production Graph
+
+El LLM puede:
+
+READ
+EXPLAIN
+QUERY
+
+
+pero nunca:
+
+CREATE NODE
+DELETE NODE
+MODIFY EDGE
+
+
+directamente mediante MCP.
+
+Los cambios al grafo ocurren exclusivamente como consecuencia de operaciones válidas del Production Engine.
+
+33. production_rollback()
+Firma
+production_rollback(
+    decision_id_or_transaction: str
+) -> dict
+
+
+Debe aceptar:
+
+decision_id
+
+
+o:
+
+transaction_id
+
+
+El sistema debe detectar el tipo de identificador.
+
+34. Reglas de rollback
+
+Antes del rollback:
+
+verificar existencia;
+verificar reversibilidad;
+comprobar estado actual;
+comprobar que el rollback sea seguro;
+abrir transacción;
+ejecutar operaciones inversas;
+verificar;
+registrar decisión de rollback.
+35. Rollback no destructivo
+
+Nunca eliminar:
+
+original decision
+original action
+original measurement
+
+
+Se agrega:
+
+ROLLBACK decision
+
+
+con relación:
+
+original action
+      │
+      ▼
+rollback decision
+
+36. Rollback imposible
+
+Si la acción no es reversible:
+
+{
+  "success": false,
+  "status": "ROLLBACK_UNAVAILABLE",
+  "errors": [
+    {
+      "code": "NON_REVERSIBLE_ACTION",
+      "severity": "CRITICAL"
+    }
+  ]
+}
+
+
+No intentar una aproximación.
+
+37. production_memory_search()
+Firma
+production_memory_search(
+    query: str,
+    context: dict
+) -> dict
+
+38. Regla fundamental
+
+La memoria histórica nunca ejecuta acciones.
+
+Su función es únicamente:
+
+retrieve
+rank
+provide evidence
+
+
+Nunca:
+
+retrieve → execute
+
+39. Contexto obligatorio
+
+El contexto debe soportar:
+
+{
+  "project_id": "...",
+  "genre": "...",
+  "tempo": 128,
+  "key": "F# minor",
+  "domain": "MIX",
+  "target": "VOCAL",
+  "conditions": {}
+}
+
+
+project_id debe ser obligatorio.
+
+Si falta:
+
+INVALID_CONTEXT
+
+40. Ranking de memoria
+
+El ranking debe ser determinista.
+
+Orden recomendado:
+
+1. mismo proyecto
+2. mismo dominio
+3. mismo target
+4. condiciones similares
+5. género
+6. tempo
+7. tonalidad
+8. antigüedad
+
+
+No utilizar random.
+
+41. Resultado de memoria
+{
+  "success": true,
+  "status": "OK",
+  "data": {
+    "query": "...",
+    "matches": [
+      {
+        "decision_id": "...",
+        "similarity_score": 0.87,
+        "evidence_only": true,
+        "historical_action": {},
+        "historical_result": {},
+        "current_validation_required": true
+      }
+    ]
+  }
+}
+
+
+Debe ser imposible que el resultado indique:
+
+execute = true
+
+42. Gestión de errores
+
+Todos los errores MCP deben mapearse a códigos estables.
+
+Crear una tabla equivalente a:
+
+Código	Significado
+INVALID_ARGUMENT	Argumento inválido
+INVALID_DOMAIN	Dominio desconocido
+INVALID_PROFILE	Perfil desconocido
+PLAN_NOT_FOUND	Plan inexistente
+PLAN_EXPIRED	Plan expirado
+STALE_PLAN	Fingerprint obsoleto
+POLICY_REJECTED	Política rechazó acción
+CONFIRMATION_REQUIRED	Requiere confirmación
+TRANSACTION_REQUIRED	Falta transacción
+TRANSACTION_FAILED	Falló transacción
+ABLETON_UNAVAILABLE	Live no disponible
+VERIFICATION_FAILED	Falló verificación
+REGRESSION_DETECTED	Se detectó regresión
+ROLLED_BACK	Se ejecutó rollback
+ROLLBACK_UNAVAILABLE	No reversible
+GRAPH_INTEGRITY_ERROR	DAG inválido
+MEMORY_ERROR	Error de memoria
+INTERNAL_ERROR	Error interno
+43. Nunca exponer traceback
+
+No devolver:
+
+Traceback...
+File "server.py", line 123...
+
+
+al LLM.
+
+El traceback debe registrarse internamente mediante logging.
+
+La respuesta MCP solamente debe contener:
+
+code
+message
+severity
+request_id
+
+44. Logging
+
+Cada herramienta debe producir logs estructurados:
+
+{
+  "request_id": "...",
+  "tool": "production_execute",
+  "plan_id": "...",
+  "decision_id": "...",
+  "transaction_id": "...",
+  "status": "COMMITTED",
+  "duration_ms": 123
+}
+
+
+Nunca registrar:
+
+secretos;
+credenciales;
+tokens;
+información innecesaria del usuario.
+45. Idempotencia
+
+production_execute(plan_id) debe proteger contra doble ejecución.
+
+Si el mismo plan ya fue:
+
+COMMITTED
+
+
+una segunda llamada no debe volver a ejecutar las acciones.
+
+Debe devolver:
+
+ALREADY_EXECUTED
+
+
+junto con el decision_id original.
+
+Esto es obligatorio para evitar dobles modificaciones si el cliente MCP reintenta una petición.
+
+46. Protección contra ejecución concurrente
+
+No permitir:
+
+execute(plan_A)
+execute(plan_A)
+
+
+simultáneamente.
+
+Debe existir un mecanismo de locking por:
+
+plan_id
+
+
+y, cuando corresponda, por:
+
+transaction/session
+
+47. Confirmaciones
+
+Una política puede devolver:
+
+REQUIRE_CONFIRMATION
+
+
+En ese caso:
+
+production_execute()
+
+
+no debe modificar Live.
+
+Debe devolver:
+
+{
+  "success": false,
+  "status": "CONFIRMATION_REQUIRED",
+  "data": {
+    "plan_id": "...",
+    "reason": "...",
+    "required_confirmation": true
+  }
+}
+
+48. Regla CRITICAL
+
+Una política:
+
+CRITICAL
+
+
+nunca puede convertirse en:
+
+WARNING
+
+
+por parámetros MCP.
+
+No crear:
+
+force=True
+ignore_policy=True
+unsafe=True
+
+
+en ninguna herramienta.
+
+49. Inicialización
+
+La integración MCP debe obtener una única instancia controlada de:
+
+ProductionGraph
+DecisionMemory
+ProductionPolicyEngine
+ProductionPlanner
+ProductionExecutor
+ProductionContext
+
+
+No crear una instancia nueva por cada llamada.
+
+De lo contrario se perdería memoria.
+
+50. Lifecycle
+
+El servidor debe inicializar:
+
+1. Config
+2. StorageManager
+3. SessionShadowGraph
+4. ProductionGraph
+5. DecisionMemory
+6. PolicyEngine
+7. ProductionContext
+8. Planner
+9. Executor
+10. MCP tools
+
+
+En ese orden lógico.
+
+51. Recuperación al reiniciar
+
+Al arrancar nuevamente el servidor:
+
+state/production/
+
+
+debe cargarse.
+
+Debe recuperarse:
+
+Production Graph.
+Decision Memory.
+planes pendientes;
+decisiones;
+versiones;
+metadatos.
+
+Las transacciones activas que no puedan verificarse deben marcarse:
+
+RECOVERY_REQUIRED
+
+
+Nunca asumir automáticamente que fueron exitosas.
+
+52. Compatibilidad con server.py
+
+No refactorizar masivamente server.py.
+
+La implementación debe:
+
+import engine.production...
+
+
+y registrar las nueve herramientas.
+
+Toda lógica debe permanecer fuera del servidor.
+
+53. Tests MCP obligatorios
+
+Crear:
+
+tests/test_production_mcp.py
+
+
+Debe probar como mínimo:
+
+Test 1
+
+Las nueve herramientas existen.
+
+Test 2
+
+Los nombres son exactamente los definidos.
+
+Test 3
+
+production_status() no muta estado.
+
+Test 4
+
+production_plan() genera plan pero no ejecuta.
+
+Test 5
+
+production_plan() rechaza domain inválido.
+
+Test 6
+
+production_validate() rechaza plan inexistente.
+
+Test 7
+
+production_validate() detecta stale fingerprint.
+
+Test 8
+
+production_execute() requiere plan válido.
+
+Test 9
+
+production_execute() es idempotente.
+
+Test 10
+
+production_execute() crea transaction.
+
+Test 11
+
+Una política CRITICAL impide ejecución.
+
+Test 12
+
+Una regresión provoca rollback cuando:
+
+auto_rollback=True
+
+Test 13
+
+production_explain() devuelve la cadena causal.
+
+Test 14
+
+production_history() respeta limit.
+
+Test 15
+
+production_graph(summary) no devuelve nodos completos.
+
+Test 16
+
+production_graph(dag) devuelve DAG válido.
+
+Test 17
+
+production_rollback() crea una nueva decisión.
+
+Test 18
+
+production_memory_search() nunca ejecuta una acción.
+
+Test 19
+
+Las excepciones internas se transforman en errores MCP.
+
+Test 20
+
+No se filtran tracebacks.
+
+54. Test de aislamiento
+
+Debe verificarse explícitamente:
+
+production_plan()
+
+
+no cambia:
+
+SessionShadowGraph
+ProductionGraph
+Ableton
+
+
+excepto por los nodos mínimos de auditoría necesarios para registrar la generación del plan.
+
+55. Test de doble ejecución
+
+Escenario:
+
+plan()
+validate()
+execute()
+execute()
+
+
+Resultado esperado:
+
+primera ejecución = COMMITTED
+segunda ejecución = ALREADY_EXECUTED
+
+
+Nunca deben duplicarse:
+
+dispositivos;
+cambios de volumen;
+EQ;
+automatizaciones;
+transacciones.
+56. Test de stale plan
+
+Escenario:
+
+plan()
+↓
+cambio externo en pista objetivo
+↓
+validate()
+
+
+Resultado:
+
+STALE_PLAN
+
+
+Y:
+
+execution_allowed = false
+
+57. Test de cambio irrelevante
+
+Escenario:
+
+plan para Vocal
+↓
+modificación de pista desconectada
+↓
+validate()
+
+
+Debe permanecer:
+
+VALID
+
+
+si el sistema determina formalmente que el cambio no afecta las dependencias del plan.
+
+58. Test de política
+
+Crear plan que implique:
+
+limiter_gain_reduction = 4.0 dB
+
+
+Resultado:
+
+REJECT
+CRITICAL
+
+
+Debe ser imposible ejecutar.
+
+59. Test de memoria
+
+Registrar:
+
+decision A
+
+
+y posteriormente buscarla.
+
+Debe aparecer como:
+
+historical evidence
+
+
+pero jamás como:
+
+automatic action
+
+60. Test de rollback
+
+Simular:
+
+execute
+↓
+verification
+↓
+critical regression
+↓
+rollback
+
+
+Verificar:
+
+original decision exists
+rollback decision exists
+transaction restored
+graph remains acyclic
+memory contains both events
+
+61. Test de reinicio
+
+Simular:
+
+create graph
+record decision
+save
+destroy engine
+reload
+
+
+Debe recuperarse:
+
+same graph
+same decision IDs
+same relationships
+same graph version
+
+62. Determinismo
+
+Ejecutar la misma operación sobre el mismo estado diez veces.
+
+Debe producir:
+
+same candidate ordering
+same policy results
+same selected candidate
+same expected delta
+
+
+Los únicos valores que pueden cambiar son identificadores temporales generados específicamente como IDs de instancia, no el contenido lógico.
+
+63. Definition of Done
+
+El Documento 13 estará terminado únicamente cuando:
+
+ Existan exactamente las 9 herramientas MCP.
+ Todas utilicen el Production Engine.
+ Ninguna contenga lógica DSP.
+ Ninguna modifique Live directamente.
+ production_plan() sea no destructivo.
+ production_validate() bloquee planes stale.
+ production_execute() requiera validación.
+ La ejecución sea idempotente.
+ Exista protección concurrente.
+ CRITICAL no pueda ignorarse.
+ Rollback sea auditable.
+ production_explain() reconstruya causalidad.
+ Memory sea evidence-only.
+ Graph sea read-only desde MCP.
+ Existan errores estructurados.
+ No se expongan tracebacks.
+ Existan tests MCP completos.
+ Existan tests de stale plans.
+ Existan tests de doble ejecución.
+ Existan tests de rollback.
+ Existan tests de reinicio.
+ Existan tests de determinismo.
+ Las fases 1–6 continúen pasando.
+ El servidor MCP arranque correctamente.
+ La documentación de las 9 herramientas esté actualizada.
+64. Resultado arquitectónico esperado
+
+Al terminar este documento, PIE debe poder recibir:
+
+"Quiero que el master tenga más volumen."
+
+
+y recorrer obligatoriamente:
+
+LLM
+ ↓
+production_plan()
+ ↓
+Intent
+ ↓
+Context
+ ↓
+Candidates
+ ↓
+Simulation
+ ↓
+Policy Engine
+ ↓
+Plan
+ ↓
+production_validate()
+ ↓
+Fingerprint
+ ↓
+Policies
+ ↓
+Transaction
+ ↓
+production_execute()
+ ↓
+Ableton
+ ↓
+Measurement
+ ↓
+Verification
+ ↓
+Result
+ ↓
+Production Graph
+ ↓
+Decision Memory
+
+
+Si algo falla:
+
+                    ┌── REGRESSION ──► ROLLBACK
+                    │
+EXECUTE ─► VERIFY ──┤
+                    │
+                    └── PASS ────────► COMMIT
+
+
+Y posteriormente el usuario podrá preguntar:
+
+"¿Por qué cambiaste el master?"
+
+y production_explain() deberá poder reconstruir:
+
+INTENT
+  ↓
+OBSERVATION
+  ↓
+ANALYSIS
+  ↓
+HYPOTHESIS
+  ↓
+CANDIDATES
+  ↓
+POLICY CHECK
+  ↓
+DECISION
+  ↓
+ACTION
+  ↓
+MEASUREMENT
+  ↓
+VERIFICATION
+  ↓
+RESULT
+
+
+con evidencia suficiente para distinguir qué ocurrió, qué se midió, qué se infirió, qué decidió PIE, qué se modificó realmente y qué resultado produjo.
+
+El siguiente documento es el 14 — INTEGRATION TESTS, donde se especificará el escenario end-to-end completo, incluyendo fixtures, mocks de Ableton, transacciones, fingerprints, mediciones antes/después, criterios exactos de aprobación y todos los casos positivos y negativos que la IA deberá implementar y pasar.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-04T12:36:54-06:00.
+</ADDITIONAL_METADATA>

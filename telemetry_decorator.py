@@ -14,7 +14,10 @@ import sys
 import time
 from typing import Callable, Any
 
-from .telemetry import get_telemetry, EventType
+try:
+    from .telemetry import get_telemetry, EventType
+except (ImportError, ValueError):
+    from telemetry import get_telemetry, EventType
 
 logger = logging.getLogger("ableton-mcp-telemetry")
 

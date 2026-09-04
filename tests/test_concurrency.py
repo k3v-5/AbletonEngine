@@ -1,10 +1,10 @@
 # tests/test_concurrency.py
 import unittest
-from MCP_Server.engine.session.graph import SessionShadowGraph
-from MCP_Server.engine.adapters.mock_adapter import MockAbletonAdapter
-from MCP_Server.engine.session.synchronizer import SessionSynchronizer
-from MCP_Server.engine.transactions.manager import TransactionManager
-from MCP_Server.engine.errors import TransactionConflictError
+from engine.session.graph import SessionShadowGraph
+from engine.adapters.mock_adapter import MockAbletonAdapter
+from engine.session.synchronizer import SessionSynchronizer
+from engine.transactions.manager import TransactionManager
+from engine.errors import TransactionConflictError
 
 class TestConcurrency(unittest.TestCase):
     def setUp(self):

@@ -1,0 +1,126 @@
+{
+  "actions_applied": 2,
+  "actions_attempted": 2,
+  "actions_failed": 0,
+  "actual_delta": {
+    "integrated_lufs": 2.0,
+    "true_peak_dbtp": 0.2
+  },
+  "decision_id": "dec_9aac3136",
+  "details": {
+    "actual_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "decision_id": "dec_9aac3136",
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "memory_id": null,
+    "message": "Plan executed and verified successfully.",
+    "plan_id": "plan_7c3a4352",
+    "status": "COMMITTED",
+    "transaction_id": "tx_75833a80",
+    "verification": {
+      "actual_delta": {
+        "integrated_lufs": 2.0,
+        "true_peak_dbtp": 0.2
+      },
+      "details": {
+        "after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T18:41:34.774568+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T18:41:34.774568+00:00",
+          "true_peak_dbtp": -1.2
+        }
+      },
+      "expected_delta": {
+        "integrated_lufs": 2.0,
+        "true_peak_dbtp": 0.2
+      },
+      "passed": true,
+      "primary_metric": "integrated_lufs",
+      "regressions": [],
+      "status": "PASS",
+      "warnings": []
+    }
+  },
+  "errors": [],
+  "execution_id": "exec_28ec790c",
+  "expected_delta": {
+    "integrated_lufs": 2.0,
+    "true_peak_dbtp": 0.2
+  },
+  "finished_at": "2026-09-04T18:41:34.777330+00:00",
+  "memory_id": null,
+  "message": "Plan executed and verified successfully.",
+  "plan_id": "plan_7c3a4352",
+  "post_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "pre_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "rollback_performed": false,
+  "started_at": "2026-09-04T18:41:34.772712+00:00",
+  "status": "COMMITTED",
+  "transaction_id": "tx_75833a80",
+  "verification": {
+    "actual_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "details": {
+      "after": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T18:41:34.774568+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "before": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T18:41:34.774568+00:00",
+        "true_peak_dbtp": -1.2
+      }
+    },
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "passed": true,
+    "primary_metric": "integrated_lufs",
+    "regressions": [],
+    "status": "PASS",
+    "warnings": []
+  },
+  "verification_passed": true,
+  "warnings": []
+}

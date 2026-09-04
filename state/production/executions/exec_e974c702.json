@@ -1,0 +1,113 @@
+{
+  "actions_applied": 2,
+  "actions_attempted": 2,
+  "actions_failed": 0,
+  "decision_id": "dec_07290c5e",
+  "details": {
+    "decision_id": "dec_07290c5e",
+    "rollback_id": "rb_c1209c88",
+    "status": "ROLLED_BACK",
+    "verification": {
+      "actual_delta": {
+        "integrated_lufs": 4.5,
+        "true_peak_dbtp": 1.7
+      },
+      "details": {
+        "after": {
+          "integrated_lufs": -14.0,
+          "limiter_gr_db": 3.8,
+          "lra": 1.5,
+          "true_peak_dbtp": 0.5
+        },
+        "before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-04T18:44:50.815104+00:00",
+          "true_peak_dbtp": -1.2
+        }
+      },
+      "expected_delta": {
+        "integrated_lufs": 2.0,
+        "true_peak_dbtp": 0.2
+      },
+      "passed": false,
+      "primary_metric": "integrated_lufs",
+      "regressions": [
+        "Primary metric failed to achieve target: expected +2.00, got +4.50",
+        "True Peak regression: measured 0.50 dBTP exceeds ceiling (-0.30 dBTP).",
+        "Limiter GR regression: measured 3.80 dB exceeds maximum allowed (2.50 dB).",
+        "Dynamic range collapse: LRA dropped from 6.5 LU to 1.5 LU."
+      ],
+      "status": "REGRESSION",
+      "warnings": [
+        "Primary metric 'integrated_lufs' delta (+4.50) deviated from expected (+2.00) by 2.50 (tolerance \u00b10.50)."
+      ]
+    }
+  },
+  "errors": [
+    "Primary metric failed to achieve target: expected +2.00, got +4.50",
+    "True Peak regression: measured 0.50 dBTP exceeds ceiling (-0.30 dBTP).",
+    "Limiter GR regression: measured 3.80 dB exceeds maximum allowed (2.50 dB).",
+    "Dynamic range collapse: LRA dropped from 6.5 LU to 1.5 LU."
+  ],
+  "execution_id": "exec_e974c702",
+  "finished_at": "2026-09-04T18:44:50.818940+00:00",
+  "plan_id": "plan_51bfe6a3",
+  "post_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "pre_fingerprint": "de9b86f7f20de2c16d3cdf3885abc2c99b35930a46ba382130a5ae844af2b8a9",
+  "rollback_id": "rb_c1209c88",
+  "rollback_performed": true,
+  "started_at": "2026-09-04T18:44:50.813369+00:00",
+  "status": "ROLLED_BACK",
+  "transaction_id": "tx_e533c26e",
+  "verification": {
+    "actual_delta": {
+      "integrated_lufs": 4.5,
+      "true_peak_dbtp": 1.7
+    },
+    "details": {
+      "after": {
+        "integrated_lufs": -14.0,
+        "limiter_gr_db": 3.8,
+        "lra": 1.5,
+        "true_peak_dbtp": 0.5
+      },
+      "before": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-04T18:44:50.815104+00:00",
+        "true_peak_dbtp": -1.2
+      }
+    },
+    "expected_delta": {
+      "integrated_lufs": 2.0,
+      "true_peak_dbtp": 0.2
+    },
+    "passed": false,
+    "primary_metric": "integrated_lufs",
+    "regressions": [
+      "Primary metric failed to achieve target: expected +2.00, got +4.50",
+      "True Peak regression: measured 0.50 dBTP exceeds ceiling (-0.30 dBTP).",
+      "Limiter GR regression: measured 3.80 dB exceeds maximum allowed (2.50 dB).",
+      "Dynamic range collapse: LRA dropped from 6.5 LU to 1.5 LU."
+    ],
+    "status": "REGRESSION",
+    "warnings": [
+      "Primary metric 'integrated_lufs' delta (+4.50) deviated from expected (+2.00) by 2.50 (tolerance \u00b10.50)."
+    ]
+  },
+  "verification_passed": false,
+  "warnings": []
+}
