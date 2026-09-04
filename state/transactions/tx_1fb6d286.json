@@ -1,0 +1,13 @@
+{
+  "id": "tx_1fb6d286",
+  "name": "compile_song_Live Song Build",
+  "description": "",
+  "status": "COMMITTED",
+  "started_at": "2026-09-03T23:37:52.543113",
+  "completed_at": "2026-09-03T23:37:52.544446",
+  "base_version": 1,
+  "snapshot_id": "snap_40a36c42",
+  "operations": [],
+  "is_reversible": true,
+  "error_message": null
+}

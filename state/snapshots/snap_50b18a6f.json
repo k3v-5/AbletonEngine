@@ -1,0 +1,116 @@
+{
+  "id": "snap_50b18a6f",
+  "name": "Baseline for tx_3d9376b5",
+  "description": "Auto snapshot prior to transaction 'Add HiHat and Adjust Kick'",
+  "timestamp": "2026-09-03T22:51:27.988458",
+  "version": 2,
+  "project_state": {
+    "tempo": 128.0,
+    "time_signature": "4/4",
+    "current_scene": null,
+    "current_song_time": 0.0,
+    "is_playing": false,
+    "track_count": 2,
+    "version": 2,
+    "sync_status": "SYNCHRONIZED"
+  },
+  "tracks": {
+    "track_fe40d1ae": {
+      "id": "track_fe40d1ae",
+      "ableton_index": 0,
+      "name": "Kick",
+      "type": "midi",
+      "parent_id": null,
+      "children_ids": [],
+      "metadata": {
+        "role": null,
+        "tags": [],
+        "priority": 0.5,
+        "locked": false,
+        "lock_reason": null,
+        "generated_by_engine": false
+      },
+      "is_foldable": false,
+      "is_grouped": false,
+      "volume": 0.85,
+      "panning": 0.0,
+      "mute": false,
+      "solo": false,
+      "arm": false,
+      "clips": {
+        "clip_1c7092ac": {
+          "id": "clip_1c7092ac",
+          "track_id": "track_fe40d1ae",
+          "ableton_track_index": 0,
+          "ableton_slot_index": 0,
+          "name": "Kick 4x4",
+          "length": 4.0,
+          "is_playing": false,
+          "is_recording": false,
+          "notes_count": 0
+        }
+      },
+      "devices": {
+        "device_40aa1da2": {
+          "id": "device_40aa1da2",
+          "track_id": "track_fe40d1ae",
+          "ableton_track_index": 0,
+          "ableton_device_index": 0,
+          "name": "Drum Buss",
+          "class_name": "DrumBuss",
+          "type": "audio_effect",
+          "parameters_cache": {}
+        }
+      }
+    },
+    "track_36f214a7": {
+      "id": "track_36f214a7",
+      "ableton_index": 1,
+      "name": "Bass",
+      "type": "midi",
+      "parent_id": null,
+      "children_ids": [],
+      "metadata": {
+        "role": null,
+        "tags": [],
+        "priority": 0.5,
+        "locked": false,
+        "lock_reason": null,
+        "generated_by_engine": false
+      },
+      "is_foldable": false,
+      "is_grouped": false,
+      "volume": 0.75,
+      "panning": 0.0,
+      "mute": false,
+      "solo": false,
+      "arm": false,
+      "clips": {
+        "clip_42ab1a5c": {
+          "id": "clip_42ab1a5c",
+          "track_id": "track_36f214a7",
+          "ableton_track_index": 1,
+          "ableton_slot_index": 0,
+          "name": "Rolling Sub",
+          "length": 8.0,
+          "is_playing": false,
+          "is_recording": false,
+          "notes_count": 0
+        }
+      },
+      "devices": {
+        "device_a19688c2": {
+          "id": "device_a19688c2",
+          "track_id": "track_36f214a7",
+          "ableton_track_index": 1,
+          "ableton_device_index": 0,
+          "name": "Drift",
+          "class_name": "Drift",
+          "type": "instrument",
+          "parameters_cache": {}
+        }
+      }
+    }
+  },
+  "sections": {}
+}

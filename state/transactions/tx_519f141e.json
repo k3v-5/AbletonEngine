@@ -1,0 +1,13 @@
+{
+  "id": "tx_519f141e",
+  "name": "update_bass_notes",
+  "description": "",
+  "status": "OPEN",
+  "started_at": "2026-09-03T23:01:11.387749",
+  "completed_at": null,
+  "base_version": 2,
+  "snapshot_id": "snap_3d2a9624",
+  "operations": [],
+  "is_reversible": true,
+  "error_message": null
+}

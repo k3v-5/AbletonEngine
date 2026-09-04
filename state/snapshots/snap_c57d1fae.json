@@ -1,0 +1,29 @@
+{
+  "id": "snap_c57d1fae",
+  "name": "Initial Intro Snapshot",
+  "description": "",
+  "timestamp": "2026-09-03T23:04:38.109223",
+  "version": 2,
+  "project_state": {
+    "tempo": 120.0,
+    "time_signature": "4/4",
+    "current_scene": null,
+    "current_song_time": 0.0,
+    "is_playing": false,
+    "track_count": 0,
+    "version": 2,
+    "sync_status": "OFFLINE"
+  },
+  "tracks": {},
+  "sections": {
+    "section_742fa580": {
+      "id": "section_742fa580",
+      "name": "Intro",
+      "start_bar": 1,
+      "end_bar": 16,
+      "section_type": "INTRO",
+      "energy": 0.25,
+      "tags": []
+    }
+  }
+}

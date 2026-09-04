@@ -1,0 +1,36 @@
+{
+  "id": "tx_e854a0f6",
+  "name": "Conflicting Transaction",
+  "description": "",
+  "status": "OPEN",
+  "started_at": "2026-09-04T07:16:43.044865",
+  "completed_at": null,
+  "base_version": 2,
+  "snapshot_id": "snap_08acaa3f",
+  "operations": [
+    {
+      "id": "op_2e250e44",
+      "op_type": "create_track",
+      "target_id": "track_b24ac6b6",
+      "parameters": {
+        "name": "Concurrent Synth",
+        "type": "midi",
+        "role": null,
+        "assigned_id": "track_b24ac6b6",
+        "target_index": 2
+      },
+      "inverse_op": {
+        "op_type": "delete_track",
+        "parameters": {
+          "track_id": "track_b24ac6b6",
+          "ableton_index": 2
+        }
+      },
+      "is_reversible": true,
+      "executed": false,
+      "timestamp": "2026-09-04T07:16:43.046193"
+    }
+  ],
+  "is_reversible": true,
+  "error_message": null
+}

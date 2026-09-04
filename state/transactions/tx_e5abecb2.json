@@ -1,0 +1,56 @@
+{
+  "id": "tx_e5abecb2",
+  "name": "Add HiHat and Adjust Kick",
+  "description": "",
+  "status": "COMMITTED",
+  "started_at": "2026-09-03T23:58:02.158596",
+  "completed_at": "2026-09-03T23:58:02.161789",
+  "base_version": 2,
+  "snapshot_id": "snap_b421d708",
+  "operations": [
+    {
+      "id": "op_fb4db7d7",
+      "op_type": "create_track",
+      "target_id": "track_a5b6de40",
+      "parameters": {
+        "name": "HiHat Closed",
+        "type": "midi",
+        "role": "HIHAT",
+        "assigned_id": "track_a5b6de40",
+        "target_index": 2
+      },
+      "inverse_op": {
+        "op_type": "delete_track",
+        "parameters": {
+          "track_id": "track_a5b6de40",
+          "ableton_index": 2
+        }
+      },
+      "is_reversible": true,
+      "executed": true,
+      "timestamp": "2026-09-03T23:58:02.159648"
+    },
+    {
+      "id": "op_bd3cfc39",
+      "op_type": "set_volume",
+      "target_id": "track_7006fb95",
+      "parameters": {
+        "volume": 0.9,
+        "ableton_index": 0
+      },
+      "inverse_op": {
+        "op_type": "set_volume",
+        "parameters": {
+          "track_id": "track_7006fb95",
+          "volume": 0.85,
+          "ableton_index": 0
+        }
+      },
+      "is_reversible": true,
+      "executed": true,
+      "timestamp": "2026-09-03T23:58:02.160744"
+    }
+  ],
+  "is_reversible": true,
+  "error_message": null
+}

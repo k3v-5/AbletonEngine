@@ -1,0 +1,93 @@
+{
+  "id": "tx_fe3967f3",
+  "name": "update_bass_notes",
+  "description": "",
+  "status": "ROLLED_BACK",
+  "started_at": "2026-09-03T23:04:38.027785",
+  "completed_at": "2026-09-03T23:04:38.033802",
+  "base_version": 2,
+  "snapshot_id": "snap_ac277abf",
+  "operations": [
+    {
+      "id": "op_6fbd2e0b",
+      "op_type": "add_notes",
+      "target_id": "track_bass_01",
+      "parameters": {
+        "clip_index": 0,
+        "notes": [
+          {
+            "pitch": 41,
+            "start_time": 0.0,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 0.25,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 0.5,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 0.75,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 1.0,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 1.25,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 1.5,
+            "duration": 0.2,
+            "velocity": 90
+          },
+          {
+            "pitch": 41,
+            "start_time": 1.75,
+            "duration": 0.2,
+            "velocity": 90
+          }
+        ],
+        "mode": "replace",
+        "ableton_index": 0
+      },
+      "inverse_op": {
+        "op_type": "restore_notes",
+        "parameters": {
+          "track_id": "track_bass_01",
+          "clip_index": 0,
+          "previous_notes": [
+            {
+              "pitch": 36,
+              "start_time": 0.0,
+              "duration": 1.0,
+              "velocity": 100
+            }
+          ],
+          "ableton_index": 0
+        }
+      },
+      "is_reversible": true,
+      "executed": true,
+      "timestamp": "2026-09-03T23:04:38.028987"
+    }
+  ],
+  "is_reversible": true,
+  "error_message": null
+}

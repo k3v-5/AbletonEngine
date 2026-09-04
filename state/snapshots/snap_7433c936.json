@@ -1,0 +1,29 @@
+{
+  "id": "snap_7433c936",
+  "name": "List Test Snapshot",
+  "description": "",
+  "timestamp": "2026-09-03T22:50:25.312145",
+  "version": 2,
+  "project_state": {
+    "tempo": 120.0,
+    "time_signature": "4/4",
+    "current_scene": null,
+    "current_song_time": 0.0,
+    "is_playing": false,
+    "track_count": 0,
+    "version": 2,
+    "sync_status": "OFFLINE"
+  },
+  "tracks": {},
+  "sections": {
+    "section_67e37252": {
+      "id": "section_67e37252",
+      "name": "Intro",
+      "start_bar": 1,
+      "end_bar": 16,
+      "section_type": "INTRO",
+      "energy": 0.25,
+      "tags": []
+    }
+  }
+}

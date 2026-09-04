@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ableton Engine & Audio Cache
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+*.wav
+*.aif
+*.aiff
+*.mp3
+.mcp_mastering/

@@ -1,0 +1,56 @@
+{
+  "id": "tx_0a910994",
+  "name": "Faulty Transaction",
+  "description": "",
+  "status": "ROLLED_BACK",
+  "started_at": "2026-09-03T23:10:24.444829",
+  "completed_at": null,
+  "base_version": 2,
+  "snapshot_id": "snap_76c0b4f2",
+  "operations": [
+    {
+      "id": "op_db06dde4",
+      "op_type": "create_track",
+      "target_id": "track_427bd67b",
+      "parameters": {
+        "name": "Temporary Lead",
+        "type": "midi",
+        "role": "LEAD",
+        "assigned_id": "track_427bd67b",
+        "target_index": 2
+      },
+      "inverse_op": {
+        "op_type": "delete_track",
+        "parameters": {
+          "track_id": "track_427bd67b",
+          "ableton_index": 2
+        }
+      },
+      "is_reversible": true,
+      "executed": true,
+      "timestamp": "2026-09-03T23:10:24.446029"
+    },
+    {
+      "id": "op_e9d7541d",
+      "op_type": "set_volume",
+      "target_id": "track_75311221",
+      "parameters": {
+        "volume": 0.35,
+        "ableton_index": 0
+      },
+      "inverse_op": {
+        "op_type": "set_volume",
+        "parameters": {
+          "track_id": "track_75311221",
+          "volume": 0.85,
+          "ableton_index": 0
+        }
+      },
+      "is_reversible": true,
+      "executed": false,
+      "timestamp": "2026-09-03T23:10:24.446812"
+    }
+  ],
+  "is_reversible": true,
+  "error_message": "Hardware/Ableton communication crash during volume write"
+}

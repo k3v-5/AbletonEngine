@@ -1,0 +1,36 @@
+{
+  "id": "tx_3ba93287",
+  "name": "Dry Run Test",
+  "description": "",
+  "status": "OPEN",
+  "started_at": "2026-09-03T22:50:12.209743",
+  "completed_at": null,
+  "base_version": 2,
+  "snapshot_id": "snap_6b11a615",
+  "operations": [
+    {
+      "id": "op_a8594789",
+      "op_type": "create_track",
+      "target_id": "track_99dcb94d",
+      "parameters": {
+        "name": "Ghost Track",
+        "type": "midi",
+        "role": null,
+        "assigned_id": "track_99dcb94d",
+        "target_index": 2
+      },
+      "inverse_op": {
+        "op_type": "delete_track",
+        "parameters": {
+          "track_id": "track_99dcb94d",
+          "ableton_index": 2
+        }
+      },
+      "is_reversible": true,
+      "executed": false,
+      "timestamp": "2026-09-03T22:50:12.210888"
+    }
+  ],
+  "is_reversible": true,
+  "error_message": null
+}

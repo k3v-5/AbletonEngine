@@ -1,0 +1,19 @@
+{
+  "id": "snap_40a36c42",
+  "name": "Baseline for tx_1fb6d286",
+  "description": "Auto snapshot prior to transaction 'compile_song_Live Song Build'",
+  "timestamp": "2026-09-03T23:37:52.542081",
+  "version": 1,
+  "project_state": {
+    "tempo": 120.0,
+    "time_signature": "4/4",
+    "current_scene": null,
+    "current_song_time": 0.0,
+    "is_playing": false,
+    "track_count": 0,
+    "version": 1,
+    "sync_status": "OFFLINE"
+  },
+  "tracks": {},
+  "sections": {}
+}
