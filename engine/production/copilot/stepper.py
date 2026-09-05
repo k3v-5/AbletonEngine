@@ -184,6 +184,108 @@ class ExecutiveCopilotEngine:
                     target_track=v_idx
                 ))
 
+        # --- PHASE 3: INSTRUMENTATION, VSTS & SOUND DESIGN DECISIONS ---
+        dec_vst_scan_id = "DEC-P3-01-HOST-VST-SCAN"
+        if dec_vst_scan_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_vst_scan_id,
+                phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                title="Scan Host System for Installed VST3 / Native Plugins",
+                description="Audit user's installed plugin ecosystem (Arturia Analog Lab, Serum, Kontakt 8, Omnisphere, Bloom) and categorize by role.",
+                recommendation="YES, scan host VST3 plugins and present structured choices.",
+                action_tool="instrument_scan_host_vsts",
+                action_args={},
+                target_track=None
+            ))
+
+        if drum_tracks or (effective_kick is not None):
+            d_target = drum_tracks[0] if drum_tracks else effective_kick
+            dec_id = f"DEC-P3-02-AUTHENTIC-DRUM-RACK-T{d_target}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title=f"Load Authentic Sample Drum Rack for Track {d_target}",
+                    description="Populate Drum Rack with verified local .wav samples from FL Studio / Cymatics / ASAN Essentials library (Kick, Snare, Clap, Hats, Foley).",
+                    recommendation="YES, load verified local samples into Drum Rack pads.",
+                    action_tool="drum_rack_load_authentic_library",
+                    action_args={"track_index": d_target, "kit_name": "Tyler_JID_Authentic_Kit", "genre": "neo_soul_trap"},
+                    target_track=d_target
+                ))
+
+        if effective_bass is not None:
+            dec_id = f"DEC-P3-03-BASS-INSTRUMENT-LOAD-T{effective_bass}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title=f"Load Elite Sub-Bass Instrument for Track {effective_bass}",
+                    description="Instantiate high-definition bass engine (Serum 808 sub / Bloom Bass / Drift 808) with sub-bass acoustic profile.",
+                    recommendation="YES, load Serum/Drift sub-bass instrument.",
+                    action_tool="sound_load_role_instrument",
+                    action_args={"track_index": effective_bass, "role": "BASS", "instrument_id": "vst3_serum2"},
+                    target_track=effective_bass
+                ))
+
+        if chord_tracks:
+            c_idx = chord_tracks[0]
+            dec_id = f"DEC-P3-04-KEYS-INSTRUMENT-LOAD-T{c_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title=f"Load Expressive Vintage Keys Instrument for Track {c_idx}",
+                    description="Instantiate premier keyboard engine (Arturia Analog Lab V Rhodes / Keyscape / Drift) with warm harmonic profile.",
+                    recommendation="YES, load Analog Lab V / Drift warm keys.",
+                    action_tool="sound_load_role_instrument",
+                    action_args={"track_index": c_idx, "role": "KEYS", "instrument_id": "vst3_analog_lab"},
+                    target_track=c_idx
+                ))
+
+        if lead_tracks:
+            l_idx = lead_tracks[0]
+            dec_id = f"DEC-P3-05-LEAD-INSTRUMENT-LOAD-T{l_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title=f"Load Melodic Lead Synthesizer for Track {l_idx}",
+                    description="Instantiate expressive lead synth (Serum Glide Lead / Drift Lead) with resonant filter and glide.",
+                    recommendation="YES, load Serum/Drift lead synth.",
+                    action_tool="sound_load_role_instrument",
+                    action_args={"track_index": l_idx, "role": "LEAD", "instrument_id": "vst3_serum2"},
+                    target_track=l_idx
+                ))
+
+        if vocal_tracks:
+            v_idx = vocal_tracks[0]
+            dec_id = f"DEC-P3-06-VOCAL-SAMPLER-LOAD-T{v_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title=f"Load Vocal Engine / Sampler for Track {v_idx}",
+                    description="Instantiate Bloom Vocal Aether or Sampler with formant shift and space reverb.",
+                    recommendation="YES, load Bloom Vocal / Simpler vocal engine.",
+                    action_tool="sound_load_role_instrument",
+                    action_args={"track_index": v_idx, "role": "VOCALS", "instrument_id": "vst3_bloom_vocal"},
+                    target_track=v_idx
+                ))
+
+        dec_morph_id = "DEC-P3-07-ENERGY-TIMBRE-MORPH"
+        if dec_morph_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_morph_id,
+                phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                title="Apply Section-Based Dynamic Timbre Morphing (96 Bars)",
+                description="Inject 96-bar dynamic parameter automation (LPF cutoff sweeps, saturation drive, space expansion) across all 8 song sections.",
+                recommendation="YES, apply section-based timbre morphing automation.",
+                action_tool="sound_apply_timbre_morph",
+                action_args={},
+                target_track=None
+            ))
+
+
         # 1. SIDECHAIN CHECK (Kick + 808 present)
         if effective_kick is not None and effective_bass is not None:
             dec_id = f"DEC-P6-SIDECHAIN-T{effective_kick}-T{effective_bass}"

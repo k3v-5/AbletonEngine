@@ -8375,6 +8375,93 @@ def music_compose_vocal_hook(
         return {"status": "error", "message": str(e)}
 
 
+
+
+@mcp.tool()
+def instrument_scan_host_vsts() -> dict:
+    """
+    Phase 3: Scans the user's host system (VST3 and VST directories), indexes installed plugins
+    (Arturia Analog Lab, Xfer Serum, NI Kontakt 8, Omnisphere, Bloom Suite, FabFilter, Valhalla),
+    and classifies them into musical roles (KEYS, BASS, LEAD, DRUMS, VOCALS, FX, MASTER).
+    """
+    try:
+        from engine.instruments.installed_scanner import InstalledPluginScanner
+        scanner = InstalledPluginScanner()
+        return scanner.get_catalog_summary()
+    except Exception as e:
+        logger.error(f"Error in instrument_scan_host_vsts: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def drum_rack_load_authentic_library(
+    track_index: int,
+    kit_name: str = "Tyler_JID_Authentic_Kit",
+    genre: str = "neo_soul_trap"
+) -> dict:
+    """
+    Phase 3: Scans the user's local sample libraries (D:\Documentos\Librerias FL Studio, Cymatics, ASAN Essentials)
+    and constructs a fully verified 8-pad Drum Rack with authentic, punchy .wav drum samples.
+    """
+    try:
+        from engine.sound.drum_rack.authentic_builder import AuthenticSampleDrumRackEngine
+        conn = get_ableton_connection()
+        engine = AuthenticSampleDrumRackEngine(adapter=conn)
+        return engine.load_kit_into_live(track_index=track_index)
+    except Exception as e:
+        logger.error(f"Error in drum_rack_load_authentic_library: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def sound_load_role_instrument(
+    track_index: int,
+    role: str = "KEYS",
+    instrument_id: str = "vst3_analog_lab",
+    style: str = "neo_soul_trap"
+) -> dict:
+    """
+    Phase 3: Loads a premier VST3 plugin (Analog Lab V, Serum, Kontakt 8) or native instrument
+    tailored to a musical role onto the specified track.
+    """
+    try:
+        from engine.instruments.installed_scanner import InstalledPluginScanner
+        conn = get_ableton_connection()
+        scanner = InstalledPluginScanner()
+        plug = scanner.recommend_for_role(role=role, style=style)
+        if conn:
+            conn.send_command("load_browser_item", {
+                "track_index": track_index,
+                "item_uri": plug.uri
+            })
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "role": role,
+            "instrument": plug.to_dict()
+        }
+    except Exception as e:
+        logger.error(f"Error in sound_load_role_instrument: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def sound_apply_timbre_morph(track_role: str = "CHORDS") -> dict:
+    """
+    Phase 3: Generates and formats section-by-section dynamic timbre macro automations
+    (LPF cutoff sweeps, saturation warmth, space expansion) across the 96-bar timeline.
+    """
+    try:
+        from engine.sound.macros.semantic_morph import SemanticTimbreMorphEngine
+        manifest = SemanticTimbreMorphEngine.generate_full_automation_manifest()
+        envelope_points = SemanticTimbreMorphEngine.generate_brightness_envelope(track_role=track_role)
+        manifest["brightness_envelope_points"] = envelope_points
+        return manifest
+    except Exception as e:
+        logger.error(f"Error in sound_apply_timbre_morph: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

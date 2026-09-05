@@ -35,7 +35,14 @@ from .engine import SoundEngine
 
 from .foley import TextureType, OrganicTextureProfile, OrganicTextureGenerator
 
+
+from .drum_rack.authentic_builder import AuthenticSampleDrumRackEngine, AuthenticDrumKitSpec, AuthenticDrumPad
+from .macros.semantic_morph import SemanticTimbreMorphEngine, TimbreMacroState, SectionMorphPoint
+
 __all__ = [
+    "AuthenticSampleDrumRackEngine", "AuthenticDrumKitSpec", "AuthenticDrumPad",
+    "SemanticTimbreMorphEngine", "TimbreMacroState", "SectionMorphPoint",
+
     "SoundProfile", "SOUND_PROFILES", "get_sound_profile",
     "SemanticParameter", "UNIVERSAL_SEMANTIC_PARAMETERS",
     "ParameterCurve", "ParameterMapper",

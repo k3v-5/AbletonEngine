@@ -193,3 +193,5 @@ from .browser_catalog import (
     LiveBrowserCatalogEngine,
     CURATED_SOURCES,
 )
+
+from .installed_scanner import InstalledPluginScanner, ScannedPlugin, PluginCategory
