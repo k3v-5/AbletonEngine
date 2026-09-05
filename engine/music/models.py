@@ -7,14 +7,19 @@ from ..models.ids import generate_id
 class NoteEvent:
     """Internal high-fidelity representation of a musical note event"""
     pitch: int                          # MIDI note number (0 - 127)
-    pitch_class: int                    # Pitch class 0-11 (C=0, C#=1, etc.)
-    octave: int                         # Octave index (e.g. 1, 2, 3, 4)
-    start: float                        # Start time in musical beats (0.0 = bar 1 beat 1)
-    duration: float                     # Duration in musical beats
+    start: float = 0.0                  # Start time in musical beats (0.0 = bar 1 beat 1)
+    duration: float = 1.0               # Duration in musical beats
+    pitch_class: int = 0                # Pitch class 0-11 (C=0, C#=1, etc.)
+    octave: int = 0                     # Octave index (e.g. 1, 2, 3, 4)
     velocity: int = 90                  # MIDI velocity (1 - 127)
     channel: int = 0                    # MIDI channel (0 - 15)
     probability: float = 1.0            # Trigger probability (0.0 to 1.0)
     accent: float = 0.0                 # Accent strength (-1.0 to 1.0)
+
+    def __post_init__(self):
+        if self.pitch_class == 0 and self.octave == 0 and self.pitch != 0:
+            self.pitch_class = self.pitch % 12
+            self.octave = (self.pitch // 12) - 1
 
     def to_dict(self) -> Dict[str, Any]:
         return {

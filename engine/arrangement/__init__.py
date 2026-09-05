@@ -25,6 +25,7 @@ from .scoring import ArrangementScorer
 from .locking import ArrangementLockManager
 from .compiler import ArrangementCompiler
 from .generator import ArrangementGenerator
+from .automation.weaver import ArrangementAutomationWeaver, TransitionAutomationType
 
 __all__ = [
     "Section", "SectionType", "Song",
@@ -34,6 +35,7 @@ __all__ = [
     "RoleOrchestrator",
     "TransitionDescriptor", "TransitionType", "PreDropGenerator", "TransitionEngine",
     "TransitionAutomationEngine", "AutomationCurveType",
+    "ArrangementAutomationWeaver", "TransitionAutomationType",
     "DropDifferentiationEngine", "NarrativeArc",
     "VariationPlanner", "VariationDirective", "MotifEvolutionManager",
     "DensityController",

@@ -6703,6 +6703,305 @@ def reference_reconstruct_in_live(
     return result
 
 
+@mcp.tool()
+def humanize_track_clip(
+    track_index: int,
+    clip_index: int = 0,
+    pocket_style: str = "atlanta_trap",
+    strength: float = 1.0,
+    apply_strum: bool = True,
+    role: str = "auto"
+) -> dict:
+    """
+    Applies genre-specific micro-timing, organic swing, velocity contour,
+    and chord strumming to a MIDI clip in Ableton Live.
+    """
+    try:
+        from engine.music.groove.pocket import GroovePocketEngine, PocketStyle
+        from engine.music.models import NoteEvent
+        import math
+
+        conn = get_ableton_connection()
+        raw = conn.send_command("get_clip_notes", {"track_index": track_index, "clip_index": clip_index})
+        raw_notes = raw.get("notes", raw) if isinstance(raw, dict) else raw
+        if not raw_notes:
+            return {"status": "error", "message": f"No notes found in track {track_index} clip {clip_index}"}
+
+        detected_role = role
+        if detected_role == "auto":
+            try:
+                t_info = conn.send_command("get_track_info", {"track_index": track_index})
+                t_name = str(t_info.get("name", "")).lower()
+                if any(w in t_name for w in ["drum", "kit", "perc"]):
+                    detected_role = "drums"
+                elif any(w in t_name for w in ["808", "bass", "sub"]):
+                    detected_role = "sub_bass"
+                elif any(w in t_name for w in ["piano", "chord", "key", "rhodes"]):
+                    detected_role = "piano"
+                elif any(w in t_name for w in ["lead", "synth", "hook"]):
+                    detected_role = "lead"
+                else:
+                    detected_role = "lead"
+            except Exception:
+                detected_role = "lead"
+
+        note_events = [
+            NoteEvent(
+                pitch=int(n["pitch"]),
+                start=float(n.get("start_time", n.get("start", 0.0))),
+                duration=float(n["duration"]),
+                velocity=int(n["velocity"]),
+                mute=bool(n.get("mute", False))
+            )
+            for n in raw_notes
+        ]
+
+        if apply_strum and detected_role in ["piano", "chords", "keys", "guitar", "lead"]:
+            note_events = GroovePocketEngine.apply_chord_strum(
+                notes=note_events,
+                tempo=120.0,
+                strum_ms=12.0 * strength
+            )
+
+        pocketed = GroovePocketEngine.apply_pocket_to_notes(
+            notes=note_events,
+            role=detected_role,
+            pocket_style=pocket_style,
+            strength=strength
+        )
+
+        formatted_notes = [
+            {
+                "pitch": n.pitch,
+                "start_time": n.start,
+                "duration": n.duration,
+                "velocity": n.velocity,
+                "mute": n.mute
+            }
+            for n in pocketed
+        ]
+
+        max_end = max((n["start_time"] + n["duration"] for n in formatted_notes), default=4.0)
+        clip_len = max(4.0, math.ceil(max_end / 4.0) * 4.0)
+
+        conn.send_command("delete_clip", {"track_index": track_index, "clip_index": clip_index})
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_index, "length": clip_len})
+        conn.send_command("add_notes_to_clip", {
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "notes": formatted_notes
+        })
+
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "pocket_style": pocket_style,
+            "applied_role": detected_role,
+            "strum_applied": apply_strum and detected_role in ["piano", "chords", "keys", "guitar", "lead"],
+            "note_count": len(formatted_notes),
+            "strength": strength
+        }
+    except Exception as e:
+        logger.error(f"Error in humanize_track_clip: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def evolve_arrangement_phrase(
+    track_index: int,
+    clip_index: int = 0,
+    phrase_index: int = 1,
+    role: str = "drums",
+    genre: str = "trap",
+    key: str = "F",
+    scale: str = "natural_minor",
+    destination_clip_index: Optional[int] = None
+) -> dict:
+    """
+    Evolves a musical phrase using formal A -> A' -> B -> A'' arrangement variation logic.
+    Prevents loop fatigue by generating fills, staccato contrast, ghost notes, and dropouts.
+    """
+    try:
+        from engine.music.variation.phrase_evolver import PhraseEvolver, PhraseFunction
+        from engine.music.models import NoteEvent
+        import math
+
+        conn = get_ableton_connection()
+        raw = conn.send_command("get_clip_notes", {"track_index": track_index, "clip_index": clip_index})
+        raw_notes = raw.get("notes", raw) if isinstance(raw, dict) else raw
+        if not raw_notes:
+            return {"status": "error", "message": f"No notes found in track {track_index} clip {clip_index}"}
+
+        note_events = [
+            NoteEvent(
+                pitch=int(n["pitch"]),
+                start=float(n.get("start_time", n.get("start", 0.0))),
+                duration=float(n["duration"]),
+                velocity=int(n["velocity"]),
+                mute=bool(n.get("mute", False))
+            )
+            for n in raw_notes
+        ]
+
+        evolved_events = PhraseEvolver.evolve_phrase(
+            notes=note_events,
+            phrase_index=phrase_index,
+            role=role,
+            genre=genre,
+            key=key,
+            scale=scale
+        )
+
+        formatted_notes = [
+            {
+                "pitch": n.pitch,
+                "start_time": n.start,
+                "duration": n.duration,
+                "velocity": n.velocity,
+                "mute": n.mute
+            }
+            for n in evolved_events
+        ]
+
+        target_slot = destination_clip_index if destination_clip_index is not None else phrase_index
+        max_end = max((n["start_time"] + n["duration"] for n in formatted_notes), default=16.0)
+        clip_len = max(4.0, math.ceil(max_end / 4.0) * 4.0)
+
+        conn.send_command("delete_clip", {"track_index": track_index, "clip_index": target_slot})
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": target_slot, "length": clip_len})
+        conn.send_command("add_notes_to_clip", {
+            "track_index": track_index,
+            "clip_index": target_slot,
+            "notes": formatted_notes
+        })
+
+        func_map = {0: "STATEMENT_A", 1: "VARIATION_A_PRIME", 2: "DEPARTURE_B", 3: "CLIMAX_A_DOUBLE_PRIME"}
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "source_clip_index": clip_index,
+            "destination_clip_index": target_slot,
+            "phrase_index": phrase_index,
+            "phrase_function": func_map.get(phrase_index % 4, "STATEMENT_A"),
+            "role": role,
+            "original_note_count": len(note_events),
+            "evolved_note_count": len(formatted_notes)
+        }
+    except Exception as e:
+        logger.error(f"Error in evolve_arrangement_phrase: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_transition_automation_weaver(
+    track_index: int,
+    transition_type: str = "filter_sweep_up",
+    start_bar: float = 25.0,
+    duration_bars: float = 8.0,
+    parameter_name: str = "Filter Cutoff"
+) -> dict:
+    """
+    Weaves continuous parameter automation breakpoint curves into Ableton Live
+    for dynamic builds, drops, sweeps, washouts, and sub cleanups.
+    """
+    try:
+        from engine.arrangement.automation.weaver import ArrangementAutomationWeaver, TransitionAutomationType
+        conn = get_ableton_connection()
+
+        zero_based_bar = max(0.0, start_bar - 1.0)
+        res = ArrangementAutomationWeaver.apply_transition_automation(
+            adapter=conn,
+            track_index=track_index,
+            transition_type=transition_type,
+            start_bar=zero_based_bar,
+            duration_bars=duration_bars,
+            parameter_name=parameter_name
+        )
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "transition_type": transition_type,
+            "parameter": res.get("parameter", parameter_name),
+            "start_bar": start_bar,
+            "start_beat": zero_based_bar * 4.0,
+            "duration_bars": duration_bars,
+            "points_count": res.get("points_count", 0),
+            "points_sample": res.get("points", [])[:5]
+        }
+    except Exception as e:
+        logger.error(f"Error in apply_transition_automation_weaver: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_kick_sidechain_to_bass(
+    kick_track_index: int = 13,
+    bass_track_index: int = 6,
+    kick_clip_index: int = 0,
+    ducking_depth_db: float = -10.0,
+    release_ms: float = 110.0,
+    total_duration_beats: Optional[float] = None
+) -> dict:
+    """
+    Applies closed-loop volume sidechain ducking to an 808 or sub-bass track
+    keyed to the exact kick drum transient timestamps.
+    """
+    try:
+        from engine.mix.sidechain import AutoSidechainDucker
+        conn = get_ableton_connection()
+
+        raw = conn.send_command("get_clip_notes", {"track_index": kick_track_index, "clip_index": kick_clip_index})
+        raw_notes = raw.get("notes", raw) if isinstance(raw, dict) else raw
+        if not raw_notes:
+            return {"status": "error", "message": f"No kick notes found in track {kick_track_index} clip {kick_clip_index}"}
+
+        kick_times = []
+        for n in raw_notes:
+            p = int(n.get("pitch", 0))
+            if p == 36 or len(raw_notes) < 16:
+                st = float(n.get("start_time", n.get("start", 0.0)))
+                kick_times.append(st)
+
+        if not kick_times:
+            kick_times = [float(n.get("start_time", n.get("start", 0.0))) for n in raw_notes]
+
+        tempo = 120.0
+        try:
+            s_info = conn.send_command("get_session_info", {})
+            tempo = float(s_info.get("tempo", 120.0))
+        except Exception:
+            pass
+
+        points = AutoSidechainDucker.calculate_ducking_envelope(
+            kick_strike_beats=kick_times,
+            ducking_depth_db=ducking_depth_db,
+            release_ms=release_ms,
+            tempo=tempo,
+            total_duration_beats=total_duration_beats
+        )
+
+        conn.send_command("create_arrangement_automation_envelope", {
+            "track_index": bass_track_index,
+            "parameter": "Volume",
+            "points": points
+        })
+
+        return {
+            "status": "success",
+            "kick_track_index": kick_track_index,
+            "bass_track_index": bass_track_index,
+            "kick_strikes_detected": len(kick_times),
+            "points_generated": len(points),
+            "ducking_depth_db": ducking_depth_db,
+            "release_ms": release_ms,
+            "tempo": tempo
+        }
+    except Exception as e:
+        logger.error(f"Error in apply_kick_sidechain_to_bass: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

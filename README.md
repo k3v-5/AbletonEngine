@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 187 specialized tools and 376 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 191 specialized tools and 397 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -284,3 +284,37 @@ Generador nativo de sintetizadores que produce directamente archivos `.vital` en
 - **Asignación de Macros y Modulación:** Todos los patches configuran los 4 macros estándar (ej. CUTOFF, DRIVE, DETUNE, SUB LVL) con enrutamiento automático a los parámetros de síntesis.
 - **Despliegue Directo:** Los presets se guardan automáticamente en la librería local de Vital del usuario (`D:\Documentos\Vital\User\Presets\PIE_Presets\`) para que aparezcan de inmediato en el navegador del sintetizador, y se sincronizan en `presets/vital/`.
 - **Herramientas FastMCP:** `vital_create_preset` y `vital_list_user_presets`.
+
+---
+
+## 💎 Producción de Élite: Opciones A y B (Anti-Loop & Acoustic Physics)
+
+### 🥁 Opción A.1: Groove Pocket Engine & Humanización de Pistas (`engine/music/groove/pocket.py`)
+Reemplaza la cuantización robótica al 100% por micro-tiempos basados en la física y hábitos interpretativos de cada género:
+- **Estilos de Pocket Disponibles:** `atlanta_trap` (kicks con timing cerrado, 808s arrastrados, snares laid-back con snap retrasado), `neo_soul_dilla` (kicks empujando hacia adelante, bajo borracho y swing desfasado), `boom_bap`, `dark_rage` y `organic_human`.
+- **Jitter Correlacionado con Velocidad:** Notas con velocidades altas (acentos fuertes) se tocan con precisión milimétrica, mientras que notas débiles (ghost notes, rellenos) tienen mayor varianza temporal y dinámica.
+- **Chord Strumming Físico:** Dispersa acordes polifónicos con arpegio manual natural ($\Delta t$ escalonado por voz) y curvatura dinámica (*velocity tilt*) para teclados, pianos y guitarras.
+- **Herramienta FastMCP:** `humanize_track_clip(track_index, clip_index, pocket_style, strength, apply_strum, role)`.
+
+### 🔄 Opción A.2: Phrase Evolver Anti-Loop (`engine/music/variation/phrase_evolver.py`)
+Erradica la fatiga auditiva de bucles estáticos de 4 compases implementando la estructura formal clásica y moderna de evolución temática:
+- **Arquetipo $A \to A' \to B \to A''$:**
+  - $A$ (Compases 1-4): Establecimiento del tema principal con máxima nitidez.
+  - $A'$ (Compases 5-8): Variación sutil, adornos, rolls de hi-hats 1/32 y ghost notes en redoblante.
+  - $B$ (Compases 9-12): Contraste rítmico, silencios intencionales de bombo (*kick dropouts*) para respiración y bajo en staccato.
+  - $A''$ (Compases 13-16): Clímax de energía, redobles de transición de 4 golpes (*turnaround roll*) y corte de silencio pre-drop.
+- **Herramienta FastMCP:** `evolve_arrangement_phrase(track_index, clip_index, phrase_index, role, genre, key, scale)`.
+
+### 📈 Opción B.1: Arrangement Automation Weaver (`engine/arrangement/automation/weaver.py`)
+Traduce curvas de energía abstractas en envolventes continuas de parámetros en Ableton Live:
+- **Barridos de Filtro Paramétricos:** Curvas exponenciales/logarítmicas de apertura y cierre de filtro calculadas paso a paso.
+- **Reverb Washouts Dramáticos:** Subida exponencial del *Dry/Wet* durante el build con restablecimiento instantáneo a cero (*snap reset*) en el downbeat exacto del drop.
+- **Sub-Bass Cleanup Pre-Drop:** Atenuación progresiva de graves antes del impacto para maximizar la sorpresa y pegada del drop.
+- **Herramienta FastMCP:** `apply_transition_automation_weaver(track_index, transition_type, start_bar, duration_bars, parameter_name)`.
+
+### 🦆 Opción B.2: Auto-Sidechain Kick-to-Bass Ducker (`engine/mix/sidechain.py`)
+Resuelve quirúrgicamente el enmascaramiento y colisión de fase en frecuencias sub-graves (20-90 Hz):
+- **Modelado Closed-Loop:** Sincroniza la curva de atenuación de volumen del 808/sub-bass con los timestamps exactos de los golpes de bombo (*kick strikes*).
+- **Geometría de Respuesta Quirúrgica:** Ataque inmediato (0 ms) para liberar el impacto del transiente del bombo, retención (*hold*) configurable (20-30 ms) y relajación (*exponential release*) que devuelve el 100% del sustain del bajo sin distorsión ni clics.
+- **Herramienta FastMCP:** `apply_kick_sidechain_to_bass(kick_track_index, bass_track_index, kick_clip_index, ducking_depth_db, release_ms)`.
+

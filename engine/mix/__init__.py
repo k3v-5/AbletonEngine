@@ -31,6 +31,7 @@ from .correction_engine import CorrectionEngine
 from .reference_engine import ReferenceEngine
 from .reports import MixReportGenerator
 from .confidence import ConfidenceEvaluator, AUTO_CORRECTION_MIN_CONFIDENCE
+from .sidechain import AutoSidechainDucker
 
 
 class MixEngine:

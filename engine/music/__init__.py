@@ -13,9 +13,11 @@ from .harmony import (
 from .voicing import apply_voicing_profile, optimize_voice_leading, voice_leading_cost
 from .rhythm import SUBDIVISION_BEATS, get_subdivision_duration, generate_drums
 from .groove import apply_groove_to_notes
+from .groove.pocket import GroovePocketEngine, PocketStyle
 from .humanizer import humanize_notes, apply_velocity_curve
 from .motifs import create_motif_from_notes, transform_motif, realize_motif_as_notes, motif_memory
 from .variation import apply_variation
+from .variation.phrase_evolver import PhraseEvolver, PhraseFunction
 from .validation import validate_notes, repair_notes, ROLE_REGISTER_BOUNDS
 from .midi import compile_notes_to_ableton_format, compute_part_fingerprint, compare_fingerprints
 from .generators import generate_bassline, generate_chords, generate_melody
