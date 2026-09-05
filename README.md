@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 235 specialized tools and 474 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 239 specialized tools and 486 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -9,7 +9,7 @@
 - 🎛️ [**Playbook de Prompting y Recetas de Producción (PROMPTING_PLAYBOOK.md)**](docs/PROMPTING_PLAYBOOK.md)
 - 🔌 [**Catálogo del Navegador y URIs de Plugins VST3 (ABLETON_BROWSER_CATALOG.md)**](docs/ABLETON_BROWSER_CATALOG.md)
 - 📋 [**Matriz Integral de Capacidades y Herramientas API (API_CAPABILITIES_MATRIX.md)**](docs/API_CAPABILITIES_MATRIX.md)
-- 🚀 [**Hoja de Ruta y Pasos Siguientes (NEXT_STEPS.md)**](docs/NEXT_STEPS.md)
+- 🚀 [**Hoja de Roadmap y Nuevas Herramientas (NEXT_STEPS.md)**](docs/NEXT_STEPS.md)
 - 🛡️ [**Documento 15: Failure Injection & Chaos Resilience**](docs/production_failure_injection.md)
 - 🔬 [**Documento 14: Integration Tests & Golden Pipeline**](docs/production_integration.md)
 - 🔌 [**Documento 13: Superficie FastMCP de Gobernanza**](docs/production_mcp.md)
@@ -29,14 +29,14 @@
 
 ---
 
-## Architecture Overview (Phases 1 to 6 + Hito 1 Governance)
+## Architecture Overview (Phases 1 to 7 Executive Copilot)
 
 ```
                        ┌─────────────────────────────────────┐
                        │        LLM Cognitive Client         │
                        │    (Antigravity / Claude Desktop)   │
                        └──────────────────┬──────────────────┘
-                                          │ FastMCP (235 Tools)
+                                          │ FastMCP (239 Tools)
                                           ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │                 Production Intelligence Engine (PIE)                  │

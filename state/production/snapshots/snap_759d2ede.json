@@ -1,6 +1,6 @@
 {
   "active_transaction_id": null,
-  "captured_at": "2026-09-05T06:08:09.958111+00:00",
+  "captured_at": "2026-09-05T15:18:11.579246+00:00",
   "devices": [],
   "genre": null,
   "key": null,
@@ -13,7 +13,7 @@
   "session_fingerprint": "759d2ede97508382fbeaa6b00d7986f7b4bf143489d18fdf6248450ca6b0e7ad",
   "session_id": "default_project",
   "tempo": 120.0,
-  "timestamp": "2026-09-05T06:08:09.958111+00:00",
+  "timestamp": "2026-09-05T15:18:11.579246+00:00",
   "tracks": [
     {
       "devices": [],

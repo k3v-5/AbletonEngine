@@ -15,6 +15,8 @@ from .rack.builder import DrumRackBuilder
 from .rack.verifier import DrumRackVerifier
 from .execution.planner import InstrumentPlanner
 from .library.preset_catalog import PresetCatalog, PresetEntry, PRESET_CATALOG
+from .browser_catalog import BrowserCatalogEngine, LiveBrowserCatalogEngine, SoundSourceOption, InstrumentSourceCategory
+
 
 class InstrumentEngine:
     """Production Intelligence Engine — Instrument & Drum Rack Engine (Fase 2.5).
@@ -184,3 +186,10 @@ class InstrumentEngine:
 
 # Export singleton
 instrument_engine = InstrumentEngine()
+
+from .browser_catalog import (
+    InstrumentSourceCategory,
+    SoundSourceOption,
+    LiveBrowserCatalogEngine,
+    CURATED_SOURCES,
+)

@@ -32,6 +32,7 @@ from .reference_engine import ReferenceEngine
 from .reports import MixReportGenerator
 from .confidence import ConfidenceEvaluator, AUTO_CORRECTION_MIN_CONFIDENCE
 from .sidechain import AutoSidechainDucker
+from .sidechain_manager import SidechainManager
 from .spatial.depth import DepthStagingEngine, DepthPlane, SpatialProfile
 from .eq.resonance import ResonanceHunter, ResonantPeak
 

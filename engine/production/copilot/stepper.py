@@ -333,6 +333,70 @@ class ExecutiveCopilotEngine:
                 action_args={"check_phase_correlation": True}
             ))
 
+        # 7. MULTI-TRACK DRUM SETUP CHECK
+        if drum_tracks or kick_tracks:
+            dec_drum_multi_id = "DEC-P3-MULTITRACK-DRUM-SETUP"
+            if dec_drum_multi_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_drum_multi_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title="Scaffold Multi-Track Drum Architecture (Kick, Snare, Clap, Hats, Crash)",
+                    description="Consolidating all drums on a single stereo track prevents individual transient processing, sidechain routing, and stem export. Scaffolds dedicated tracks with loaded 808/Boom Bap kit.",
+                    recommendation="YES, separate drum layers across dedicated tracks.",
+                    action_tool="setup_multitrack_drums",
+                    action_args={"kit_name": "808 Core Kit"}
+                ))
+
+        # 8. BROWSER CATALOG & VST3 DISCOVERY CHECK
+        dec_catalog_id = "DEC-P3-BROWSER-CATALOG-INSTRUMENT"
+        if dec_catalog_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_catalog_id,
+                phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                title="Audit Installed VST3 / Native Presets & Curate Realistic Sound Selection",
+                description="Avoid blank default devices (empty Drift/default patches). Scans browser catalog to select authentic VSTs (Arturia, Vital, Serum, Spectrasonics) or native packs.",
+                recommendation="YES, query browser catalog for role-appropriate instruments.",
+                action_tool="get_available_vst_and_presets",
+                action_args={}
+            ))
+
+        # 9. PHYSICAL SIDECHAIN COMPRESSOR CHECK
+        if effective_kick is not None and effective_bass is not None:
+            dec_sc_phys_id = f"DEC-P6-PHYSICAL-SIDECHAIN-T{effective_kick}-T{effective_bass}"
+            if dec_sc_phys_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_sc_phys_id,
+                    phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                    title="Configure Physical Compressor Device Sidechain on 808 Bass",
+                    description=f"Configures physical Compressor device on track {effective_bass} with S/C On, fast attack (0.01ms), and 50ms release keyed to kick track {effective_kick}.",
+                    recommendation="YES, configure physical compressor sidechain.",
+                    action_tool="configure_physical_sidechain",
+                    action_args={
+                        "kick_track_index": effective_kick,
+                        "bass_track_index": effective_bass,
+                        "threshold": 0.55,
+                        "ratio": 0.75
+                    },
+                    target_track=effective_bass
+                ))
+
+        # 10. PHYSICAL ARRANGEMENT AUTOMATIONS CHECK
+        dec_auto_phys_id = "DEC-P5-PHYSICAL-ARRANGEMENT-AUTOMATIONS"
+        if dec_auto_phys_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_auto_phys_id,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Inject Physical Arrangement Filter Sweeps & Pre-Drop Vacuum Silences",
+                description="Applies automated low-pass filter opening builds into transitions and injects pre-drop negative space vacuums at the end of the pre-chorus.",
+                recommendation="YES, inject physical filter sweeps and drop silence.",
+                action_tool="apply_physical_arrangement_automations",
+                action_args={
+                    "track_indices": [t for t in (drum_tracks + bass_tracks + chord_tracks + lead_tracks)],
+                    "drop_bar": 33.0,
+                    "vacuum_beats": 2.0
+                }
+            ))
+
         return self._build_state()
 
     def _register_pending(self, dec: ProductionDecision):
@@ -490,6 +554,40 @@ class ExecutiveCopilotEngine:
                         track_indices=args.get("track_indices", [0]),
                         groove_preset=preset,
                         swing_percentage=args.get("swing_percentage", 58.0)
+                    )
+                elif dec.action_tool == "setup_multitrack_drums":
+                    from engine.music.drums.multitrack import MultiTrackDrumEngine
+                    MultiTrackDrumEngine.scaffold_drum_tracks(
+                        conn=conn,
+                        kit_type=args.get("kit_type", "808_core")
+                    )
+                elif dec.action_tool == "get_available_vst_and_presets":
+                    from engine.instruments.browser_catalog import BrowserCatalogEngine
+                    BrowserCatalogEngine.list_all_available_instruments(conn=conn)
+                elif dec.action_tool == "configure_physical_sidechain":
+                    from engine.mix.sidechain_manager import SidechainManager
+                    SidechainManager.configure_sidechain(
+                        conn=conn,
+                        bass_track_index=args.get("bass_track_index", 7),
+                        kick_track_index=args.get("kick_track_index", 2),
+                        threshold=args.get("threshold", 0.55),
+                        ratio=args.get("ratio", 0.75)
+                    )
+                elif dec.action_tool == "apply_physical_arrangement_automations":
+                    from engine.arrangement.automation.live_automation import LiveAutomationEngine
+                    t_indices = args.get("track_indices", [4])
+                    lead_t = t_indices[0] if t_indices else 4
+                    LiveAutomationEngine.apply_filter_sweep(
+                        conn=conn,
+                        track_index=lead_t,
+                        start_bar=args.get("start_bar", 29.0),
+                        duration_bars=args.get("duration_bars", 4.0)
+                    )
+                    LiveAutomationEngine.apply_pre_drop_vacuum(
+                        conn=conn,
+                        track_indices=t_indices,
+                        drop_bar=args.get("drop_bar", 33.0),
+                        vacuum_beats=args.get("vacuum_beats", 2.0)
                     )
                 execution_res["live_result"] = "executed_via_adapter"
             except Exception as e:

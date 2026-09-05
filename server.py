@@ -7897,6 +7897,115 @@ def apply_groove_pool_template(
         )
     except Exception as e:
         logger.error(f"Error in apply_groove_pool_template: {e}")
+@mcp.tool()
+def get_available_vst_and_presets(
+    role: Optional[str] = None
+) -> dict:
+    """
+    Scans the Ableton Live browser catalog and system VST3 folders for installed synths and presets:
+    - Lists discovered VST3 plugins (Arturia, Vital, Serum, Spectrasonics, Native Instruments, FabFilter).
+    - Lists native Ableton Instrument and Drum Kit presets (.adg, .adv).
+    - Maps available instruments by musical role (drums, bass, keys, lead, pad, strings, fx).
+    """
+    try:
+        from engine.instruments.browser_catalog import BrowserCatalogEngine
+        conn = get_ableton_connection()
+        return BrowserCatalogEngine.list_all_available_instruments(conn=conn, role=role)
+    except Exception as e:
+        logger.error(f"Error in get_available_vst_and_presets: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def setup_multitrack_drums(
+    kit_type: str = "808_core",
+    bpm: float = 142.0
+) -> dict:
+    """
+    Sets up multi-track drum architecture in Ableton Live:
+    - Scaffolds separate, dedicated tracks for Kick, Snare, Clap, Hi-Hats, and Crash.
+    - Loads authentic sample-populated Drum Kits (e.g. 808 Core Kit, Boom Bap Kit).
+    - Establishes independent track gain staging (-6 dB to -10 dB) and individual FX processing.
+    """
+    try:
+        from engine.music.drums.multitrack import MultiTrackDrumEngine
+        conn = get_ableton_connection()
+        return MultiTrackDrumEngine.scaffold_drum_tracks(conn=conn, kit_type=kit_type)
+    except Exception as e:
+        logger.error(f"Error in setup_multitrack_drums: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def configure_physical_sidechain(
+    bass_track_index: int = 7,
+    kick_track_index: int = 2,
+    threshold: float = 0.55,
+    ratio: float = 0.75,
+    attack: float = 0.0,
+    release: float = 0.16
+) -> dict:
+    """
+    Configures physical sidechain compression in Ableton Live:
+    - Locates or loads native Compressor device on target Bass or Synth track.
+    - Enables 'S/C On' (param 20) and sets 'Device On' (param 0) = 1.0.
+    - Calibrates 0.01 ms instantaneous transient clamp and tight 50 ms release.
+    - Eliminates low-end masking between Kick and 808 Sub Bass.
+    """
+    try:
+        from engine.mix.sidechain_manager import SidechainManager
+        conn = get_ableton_connection()
+        return SidechainManager.configure_sidechain(
+            conn=conn,
+            bass_track_index=bass_track_index,
+            kick_track_index=kick_track_index,
+            threshold=threshold,
+            ratio=ratio,
+            attack=attack,
+            release=release
+        )
+    except Exception as e:
+        logger.error(f"Error in configure_physical_sidechain: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_physical_arrangement_automations(
+    lead_track_index: int = 4,
+    vacuum_track_indices: Optional[List[int]] = None,
+    drop_bar: float = 33.0,
+    vacuum_beats: float = 2.0
+) -> dict:
+    """
+    Applies physical arrangement automation envelopes and transition cuts in Ableton Live:
+    - Detects filter cutoff on lead/synth track and executes smooth exponential filter sweep into the drop.
+    - Injects pre-drop vacuum silence (-60 dB volume cut / mute) during the final beats before the drop downbeat.
+    - Maximizes perceived impact, dynamics, and explosive drop release.
+    """
+    try:
+        from engine.arrangement.automation.live_automation import LiveAutomationEngine
+        conn = get_ableton_connection()
+        v_tracks = vacuum_track_indices if vacuum_track_indices is not None else [2, 3, 4, 7]
+        sweep_res = LiveAutomationEngine.apply_filter_sweep(
+            conn=conn,
+            track_index=lead_track_index,
+            start_bar=drop_bar - 4.0,
+            duration_bars=4.0,
+            direction="up"
+        )
+        vacuum_res = LiveAutomationEngine.apply_pre_drop_vacuum(
+            conn=conn,
+            track_indices=v_tracks,
+            drop_bar=drop_bar,
+            vacuum_beats=vacuum_beats
+        )
+        return {
+            "status": "SUCCESS",
+            "filter_sweep": sweep_res,
+            "pre_drop_vacuum": vacuum_res
+        }
+    except Exception as e:
+        logger.error(f"Error in apply_physical_arrangement_automations: {e}")
         return {"status": "error", "message": str(e)}
 
 

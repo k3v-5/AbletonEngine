@@ -1,18 +1,18 @@
 {
-  "version": 7,
+  "version": 4,
   "project_state": {
     "tempo": 128.0,
     "time_signature": "4/4",
     "current_scene": null,
     "current_song_time": 0.0,
     "is_playing": false,
-    "track_count": 2,
-    "version": 7,
+    "track_count": 3,
+    "version": 4,
     "sync_status": "SYNCHRONIZED"
   },
   "tracks": {
-    "track_ba688247": {
-      "id": "track_ba688247",
+    "track_d340b5bf": {
+      "id": "track_d340b5bf",
       "ableton_index": 0,
       "name": "Kick",
       "type": "midi",
@@ -28,15 +28,15 @@
       },
       "is_foldable": false,
       "is_grouped": false,
-      "volume": 0.85,
+      "volume": 0.9,
       "panning": 0.0,
       "mute": false,
       "solo": false,
       "arm": false,
       "clips": {
-        "clip_7f210fa3": {
-          "id": "clip_7f210fa3",
-          "track_id": "track_ba688247",
+        "clip_36ea531b": {
+          "id": "clip_36ea531b",
+          "track_id": "track_d340b5bf",
           "ableton_track_index": 0,
           "ableton_slot_index": 0,
           "name": "Kick 4x4",
@@ -47,9 +47,9 @@
         }
       },
       "devices": {
-        "device_f1ad8310": {
-          "id": "device_f1ad8310",
-          "track_id": "track_ba688247",
+        "device_7a92d93b": {
+          "id": "device_7a92d93b",
+          "track_id": "track_d340b5bf",
           "ableton_track_index": 0,
           "ableton_device_index": 0,
           "name": "Drum Buss",
@@ -59,8 +59,8 @@
         }
       }
     },
-    "track_18719399": {
-      "id": "track_18719399",
+    "track_c63428a5": {
+      "id": "track_c63428a5",
       "ableton_index": 1,
       "name": "Bass",
       "type": "midi",
@@ -82,9 +82,9 @@
       "solo": false,
       "arm": false,
       "clips": {
-        "clip_dc57846c": {
-          "id": "clip_dc57846c",
-          "track_id": "track_18719399",
+        "clip_204b1c2d": {
+          "id": "clip_204b1c2d",
+          "track_id": "track_c63428a5",
           "ableton_track_index": 1,
           "ableton_slot_index": 0,
           "name": "Rolling Sub",
@@ -95,9 +95,9 @@
         }
       },
       "devices": {
-        "device_5f1e1370": {
-          "id": "device_5f1e1370",
-          "track_id": "track_18719399",
+        "device_b605893b": {
+          "id": "device_b605893b",
+          "track_id": "track_c63428a5",
           "ableton_track_index": 1,
           "ableton_device_index": 0,
           "name": "Drift",
@@ -106,6 +106,31 @@
           "parameters_cache": {}
         }
       }
+    },
+    "track_631a7246": {
+      "id": "track_631a7246",
+      "ableton_index": 2,
+      "name": "HiHat Closed",
+      "type": "midi",
+      "parent_id": null,
+      "children_ids": [],
+      "metadata": {
+        "role": "HIHAT",
+        "tags": [],
+        "priority": 0.5,
+        "locked": false,
+        "lock_reason": null,
+        "generated_by_engine": false
+      },
+      "is_foldable": false,
+      "is_grouped": false,
+      "volume": 0.85,
+      "panning": 0.0,
+      "mute": false,
+      "solo": false,
+      "arm": false,
+      "clips": {},
+      "devices": {}
     }
   },
   "sections": {}
