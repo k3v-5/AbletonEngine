@@ -110,3 +110,44 @@ def test_compiler_ensure_sound_sources():
     loaded_idx = res["instruments_loaded"][0]["track_index"]
     # Check that the track now has devices loaded
     assert len(adapter.tracks[loaded_idx]["devices"]) >= 1
+
+
+def test_detect_timeline_dead_air():
+    adapter = MockAbletonAdapter()
+    # Add an arrangement clip on track 0 from beat 0 to 32 (bars 1 to 8)
+    adapter.tracks[0]["arrangement_clips"] = [
+        {"name": "Intro_Clip", "start_time": 0.0, "end_time": 32.0, "length": 32.0}
+    ]
+    # And a clip from beat 64 to 96 (bars 17 to 24), leaving bars 9 to 16 (beat 32 to 64) EMPTY (Dead air!)
+    adapter.tracks[1]["arrangement_clips"] = [
+        {"name": "Drop_Clip", "start_time": 64.0, "end_time": 96.0, "length": 32.0}
+    ]
+
+    report = ProductionCompletenessGate.audit_session(adapter, auto_remediate=False, target_genre="trap")
+    assert report.timeline_gaps_detected >= 1
+    assert any(v.violation_type == CompletenessViolationType.TIMELINE_DEAD_AIR for v in report.violations)
+    assert report.status == "FAIL"
+
+
+def test_auto_remediate_timeline_dead_air():
+    adapter = MockAbletonAdapter()
+    adapter.tracks[0]["name"] = "Piano"
+    adapter.tracks[0]["clip_slots"][0] = {
+        "index": 0,
+        "has_clip": True,
+        "clip": {"name": "Neo_Chords", "length": 16.0, "is_playing": False, "is_recording": False}
+    }
+    adapter.tracks[0]["arrangement_clips"] = [
+        {"name": "Neo_Chords", "start_time": 0.0, "end_time": 32.0, "length": 32.0}
+    ]
+    adapter.tracks[1]["arrangement_clips"] = [
+        {"name": "Drop_Clip", "start_time": 64.0, "end_time": 96.0, "length": 32.0}
+    ]
+
+    report = ProductionCompletenessGate.audit_session(adapter, auto_remediate=True, target_genre="trap")
+    # Verify the gap was bridged by auto-remediation
+    assert len(report.remediations) >= 1
+    rem = [r for r in report.remediations if r.role == "HARMONY_GAP_FILL"]
+    assert len(rem) >= 1
+    assert rem[0].success is True
+

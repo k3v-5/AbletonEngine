@@ -277,6 +277,56 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             target_pad["devices"] = [{"name": "Simpler", "class_name": "OriginalSimpler", "sample": item_uri}]
         return {"loaded": True, "pad_note": pad_note, "uri": item_uri}
 
+    def get_arrangement_clips(self, track_index: int) -> Dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("Mock Ableton is disconnected")
+        track = self.tracks[track_index]
+        clips = track.get("arrangement_clips", [])
+        return {
+            "track_index": track_index,
+            "track_name": track.get("name", ""),
+            "clip_count": len(clips),
+            "clips": clips
+        }
+
+    def duplicate_to_arrangement(self, track_index: int, clip_index: int, destination_time: float) -> Dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("Mock Ableton is disconnected")
+        track = self.tracks[track_index]
+        if "arrangement_clips" not in track:
+            track["arrangement_clips"] = []
+        clip_slots = track.get("clip_slots", [])
+        c_name = f"Clip_{clip_index}"
+        c_len = 16.0
+        if clip_index < len(clip_slots) and clip_slots[clip_index].get("has_clip"):
+            c = clip_slots[clip_index]["clip"]
+            c_name = c.get("name", c_name)
+            c_len = c.get("length", 16.0)
+        new_arr_clip = {
+            "name": c_name,
+            "start_time": float(destination_time),
+            "end_time": float(destination_time + c_len),
+            "length": c_len,
+            "is_midi_clip": track.get("is_midi_track", True),
+            "is_audio_clip": track.get("is_audio_track", False),
+        }
+        track["arrangement_clips"].append(new_arr_clip)
+        return {"status": "success", "track_index": track_index, "destination_time": destination_time}
+
+    def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        params = params or {}
+        if command_type == "get_arrangement_clips":
+            return self.get_arrangement_clips(params.get("track_index", 0))
+        elif command_type in ("duplicate_to_arrangement", "duplicate_session_clip_to_arrangement"):
+            return self.duplicate_to_arrangement(
+                params.get("track_index", 0),
+                params.get("clip_index", 0),
+                params.get("destination_time", 0.0)
+            )
+        elif command_type == "get_cue_points":
+            return getattr(self, "_cue_points", {"cue_points": []})
+        return self._send(command_type, params)
+
     def _send(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         params = params or {}
         if command_type == "get_drum_rack_pads":
