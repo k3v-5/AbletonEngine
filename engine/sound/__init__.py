@@ -33,6 +33,8 @@ from .snapshots.snapshots import SoundSnapshot, SoundSnapshotManager
 from .linter import SoundLinter, SoundLintIssue
 from .engine import SoundEngine
 
+from .foley import TextureType, OrganicTextureProfile, OrganicTextureGenerator
+
 __all__ = [
     "SoundProfile", "SOUND_PROFILES", "get_sound_profile",
     "SemanticParameter", "UNIVERSAL_SEMANTIC_PARAMETERS",
@@ -52,5 +54,6 @@ __all__ = [
     "PatchIdentity", "SoundEvolutionManager",
     "SoundSnapshot", "SoundSnapshotManager",
     "SoundLinter", "SoundLintIssue",
-    "SoundEngine"
+    "SoundEngine",
+    "TextureType", "OrganicTextureProfile", "OrganicTextureGenerator"
 ]

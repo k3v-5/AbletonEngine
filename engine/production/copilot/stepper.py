@@ -59,6 +59,8 @@ class ExecutiveCopilotEngine:
         drum_tracks = []
         chord_tracks = []
         lead_tracks = []
+        foley_tracks = []
+        vocal_tracks = []
 
         for idx, trk in enumerate(session_tracks):
             t_name = str(trk.get("name", "")).lower()
@@ -68,12 +70,16 @@ class ExecutiveCopilotEngine:
                 kick_tracks.append(t_idx)
             if "808" in t_name or "bass" in t_name or "sub" in t_name:
                 bass_tracks.append(t_idx)
-            if any(w in t_name for w in ["drum", "kit", "perc"]):
+            if any(w in t_name for w in ["drum", "kit", "perc", "break"]):
                 drum_tracks.append(t_idx)
             if any(w in t_name for w in ["piano", "chord", "key", "rhodes"]):
                 chord_tracks.append(t_idx)
-            if any(w in t_name for w in ["lead", "synth", "hook", "vocal"]):
+            if any(w in t_name for w in ["lead", "synth"]):
                 lead_tracks.append(t_idx)
+            if any(w in t_name for w in ["foley", "texture", "rain", "vinyl", "ambient", "ambience"]):
+                foley_tracks.append(t_idx)
+            if any(w in t_name for w in ["vocal", "vox", "chop", "hook"]):
+                vocal_tracks.append(t_idx)
 
         effective_kick = kick_tracks[0] if kick_tracks else (drum_tracks[0] if drum_tracks else None)
         effective_bass = bass_tracks[0] if bass_tracks else None
@@ -156,6 +162,51 @@ class ExecutiveCopilotEngine:
                     action_tool="configure_depth_staging",
                     action_args={"track_index": l_idx, "plane": "foreground", "ducked_reverb": True},
                     target_track=l_idx
+                ))
+
+        # 5b. VOCAL HOOK CHOP CHECK
+        if (chord_tracks or lead_tracks) and not vocal_tracks:
+            dec_id = "DEC-P2-VOCAL-HOOK-CHOPS"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_2_COMPOSITION,
+                    title="Generate Scale-Quantized Melodic Vocal Chops Hook",
+                    description="Session has harmonic foundation but lacks a signature vocal hook motif. Injecting in-key vocal chops creates an instant memorable identity.",
+                    recommendation="YES, generate melodic hook chops with ping-pong stereo motion.",
+                    action_tool="generate_vocal_hook_chops",
+                    action_args={"track_index": 4, "root": "F", "scale": "minor", "style": "melodic_hook"},
+                    target_track=4
+                ))
+
+        # 5c. ORGANIC FOLEY BED CHECK
+        if not foley_tracks:
+            dec_id = "DEC-P3-ORGANIC-FOLEY-BED"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title="Generate Organic Foley & Atmospheric Texture Bed",
+                    description="Session lacks environmental ambience. Adding a tempo-synced organic foley bed (vinyl/rain/tape) eliminates sterile digital silence.",
+                    recommendation="YES, generate vinyl crackle bed with gentle breathing envelope.",
+                    action_tool="generate_organic_foley_bed",
+                    action_args={"track_index": 15, "texture_type": "vinyl_crackle", "apply_breathing": True},
+                    target_track=15
+                ))
+
+        # 5d. DRUM BREAK CHOPPING CHECK
+        for d_idx in drum_tracks:
+            dec_id = f"DEC-P4-BREAK-CHOPPER-T{d_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title=f"Chop and Resequence Drum Break on Track {d_idx}",
+                    description="Drum track can be enriched with classic syncopated transient slicing (Amen Shuffle/Half-Time).",
+                    recommendation="YES, chop and resequence with Amen Shuffle style.",
+                    action_tool="chop_drum_loop_transients",
+                    action_args={"track_index": d_idx, "style": "amen_shuffle", "bars_out": 4.0},
+                    target_track=d_idx
                 ))
 
         # 6. MASTER DELIVERY CHECK
@@ -245,6 +296,33 @@ class ExecutiveCopilotEngine:
                         adapter=conn,
                         bass_track_index=args.get("bass_track_index", 6),
                         kick_strike_beats=[0.0, 1.75, 2.5, 4.0, 5.75]
+                    )
+                elif dec.action_tool == "generate_organic_foley_bed":
+                    from engine.sound.foley.texture import OrganicTextureGenerator
+                    OrganicTextureGenerator.configure_foley_bed(
+                        conn=conn,
+                        track_index=args.get("track_index", 15),
+                        texture_type=args.get("texture_type", "vinyl_crackle"),
+                        bpm=args.get("bpm", 120.0),
+                        apply_breathing=args.get("apply_breathing", True)
+                    )
+                elif dec.action_tool == "chop_drum_loop_transients":
+                    from engine.audio.chopper.transient import TransientBreakChopper
+                    TransientBreakChopper.chop_and_resequence(
+                        conn=conn,
+                        track_index=args.get("track_index", 13),
+                        style=args.get("style", "amen_shuffle"),
+                        bars_out=args.get("bars_out", 4.0)
+                    )
+                elif dec.action_tool == "generate_vocal_hook_chops":
+                    from engine.vocal.chopper import VocalChopperEngine
+                    VocalChopperEngine.generate_and_apply_vocal_chops(
+                        conn=conn,
+                        track_index=args.get("track_index", 4),
+                        root=args.get("root", "F"),
+                        scale=args.get("scale", "minor"),
+                        style=args.get("style", "melodic_hook"),
+                        total_bars=args.get("total_bars", 4.0)
                     )
                 execution_res["live_result"] = "executed_via_adapter"
             except Exception as e:

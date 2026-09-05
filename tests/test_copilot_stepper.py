@@ -63,6 +63,12 @@ def test_copilot_session_inspection_tracks():
     assert "DEC-P6-DEPTH-STAGING-T3" in pending_ids
     # Master delivery decision
     assert "DEC-P7-MASTER-CHAIN-DELIVERY" in pending_ids
+    # Vocal hook chops decision
+    assert "DEC-P2-VOCAL-HOOK-CHOPS" in pending_ids
+    # Organic foley bed decision
+    assert "DEC-P3-ORGANIC-FOLEY-BED" in pending_ids
+    # Drum break chopper decision
+    assert "DEC-P4-BREAK-CHOPPER-T0" in pending_ids
 
 
 def test_copilot_execute_decision_yes():

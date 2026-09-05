@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 204 specialized tools and 423 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 207 specialized tools and 438 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -36,7 +36,7 @@
                        │        LLM Cognitive Client         │
                        │    (Antigravity / Claude Desktop)   │
                        └──────────────────┬──────────────────┘
-                                          │ FastMCP (204 Tools)
+                                          │ FastMCP (207 Tools)
                                           ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │                 Production Intelligence Engine (PIE)                  │

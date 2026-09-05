@@ -5,10 +5,18 @@ from .pipeline import (
     VocalProductionProfile,
     VocalProductionEngine
 )
+from .chopper import (
+    VocalChopStyle,
+    VocalChopNote,
+    VocalChopperEngine
+)
 
 __all__ = [
     "VocalStyle",
     "VocalChainStage",
     "VocalProductionProfile",
-    "VocalProductionEngine"
+    "VocalProductionEngine",
+    "VocalChopStyle",
+    "VocalChopNote",
+    "VocalChopperEngine"
 ]

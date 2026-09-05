@@ -7571,6 +7571,90 @@ def macro_finalize_song(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def generate_organic_foley_bed(
+    track_index: int = 15,
+    texture_type: str = "vinyl_crackle",
+    total_bars: float = 32.0,
+    bpm: float = 120.0,
+    apply_breathing: bool = True
+) -> dict:
+    """
+    Generates tempo-synced organic foley and environmental texture beds (vinyl, rain, tape hiss, room tone)
+    with protective band-pass EQ filtering and rhythmic breathing amplitude envelopes.
+    """
+    try:
+        from engine.sound.foley import OrganicTextureGenerator
+        conn = get_ableton_connection()
+        return OrganicTextureGenerator.configure_foley_bed(
+            conn=conn,
+            track_index=track_index,
+            texture_type=texture_type,
+            total_bars=total_bars,
+            bpm=bpm,
+            apply_breathing=apply_breathing
+        )
+    except Exception as e:
+        logger.error(f"Error in generate_organic_foley_bed: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def chop_drum_loop_transients(
+    track_index: int = 13,
+    style: str = "amen_shuffle",
+    bars_out: float = 4.0,
+    bpm: float = 160.0
+) -> dict:
+    """
+    Slices drum breaks and acoustic loops by transients and resequences them into classic
+    syncopated patterns (Amen Shuffle, Half-Time Bounce, Jungle DnB) mapped to Drum Rack cells.
+    """
+    try:
+        from engine.audio.chopper import TransientBreakChopper
+        conn = get_ableton_connection()
+        return TransientBreakChopper.chop_and_resequence(
+            conn=conn,
+            track_index=track_index,
+            style=style,
+            bars_out=bars_out,
+            bpm=bpm
+        )
+    except Exception as e:
+        logger.error(f"Error in chop_drum_loop_transients: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def generate_vocal_hook_chops(
+    track_index: int = 4,
+    root: str = "F",
+    scale: str = "minor",
+    style: str = "melodic_hook",
+    total_bars: float = 4.0,
+    bpm: float = 120.0
+) -> dict:
+    """
+    Generates scale-quantized, in-key melodic vocal chops and hook motifs with alternating
+    stereo ping-pong panning envelopes and delay send throws for Ableton Live.
+    """
+    try:
+        from engine.vocal.chopper import VocalChopperEngine
+        conn = get_ableton_connection()
+        return VocalChopperEngine.generate_and_apply_vocal_chops(
+            conn=conn,
+            track_index=track_index,
+            root=root,
+            scale=scale,
+            style=style,
+            total_bars=total_bars,
+            bpm=bpm
+        )
+    except Exception as e:
+        logger.error(f"Error in generate_vocal_hook_chops: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 
