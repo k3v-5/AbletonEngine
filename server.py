@@ -7002,6 +7002,410 @@ def apply_kick_sidechain_to_bass(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def generate_808_slides(
+    track_index: int,
+    clip_index: int = 0,
+    slide_mode: str = "drill_octave_glide",
+    bend_range_semitones: int = 12,
+    glide_probability: float = 0.5,
+    turnaround_only: bool = True
+) -> dict:
+    """
+    Generates authentic drill/trap 808 slides, octave glides, and pitch-bend
+    breakout curves for sub-bass clips in Ableton Live.
+    """
+    try:
+        from engine.music.bass.glide import BassGlideEngine, SlideMode
+        from engine.music.models import NoteEvent
+        import math
+
+        conn = get_ableton_connection()
+        raw = conn.send_command("get_clip_notes", {"track_index": track_index, "clip_index": clip_index})
+        raw_notes = raw.get("notes", raw) if isinstance(raw, dict) else raw
+        if not raw_notes:
+            return {"status": "error", "message": f"No notes found in track {track_index} clip {clip_index}"}
+
+        note_events = [
+            NoteEvent(
+                pitch=int(n["pitch"]),
+                start=float(n.get("start_time", n.get("start", 0.0))),
+                duration=float(n["duration"]),
+                velocity=int(n["velocity"]),
+                mute=bool(n.get("mute", False))
+            )
+            for n in raw_notes
+        ]
+
+        res = BassGlideEngine.generate_808_slides(
+            notes=note_events,
+            slide_mode=slide_mode,
+            bend_range_semitones=bend_range_semitones,
+            glide_probability=glide_probability,
+            turnaround_only=turnaround_only
+        )
+
+        formatted_notes = [
+            {
+                "pitch": n.pitch,
+                "start_time": n.start,
+                "duration": n.duration,
+                "velocity": n.velocity,
+                "mute": n.mute
+            }
+            for n in res["legato_notes"]
+        ]
+
+        max_end = max((n["start_time"] + n["duration"] for n in formatted_notes), default=16.0)
+        clip_len = max(4.0, math.ceil(max_end / 4.0) * 4.0)
+
+        conn.send_command("delete_clip", {"track_index": track_index, "clip_index": clip_index})
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_index, "length": clip_len})
+        conn.send_command("add_notes_to_clip", {
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "notes": formatted_notes
+        })
+
+        if res["pitch_bend_points"]:
+            conn.send_command("create_arrangement_automation_envelope", {
+                "track_index": track_index,
+                "parameter": "Pitch Bend",
+                "points": res["pitch_bend_points"]
+            })
+
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "slide_mode": slide_mode,
+            "slides_applied": res["slides_applied"],
+            "total_notes": len(formatted_notes),
+            "pitch_bend_points_count": len(res["pitch_bend_points"]),
+            "slide_details": res["slide_details"]
+        }
+    except Exception as e:
+        logger.error(f"Error in generate_808_slides: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def inject_ear_candy(
+    track_index: int,
+    candy_type: str = "tape_stop",
+    target_bar: float = 17.0,
+    duration_beats: float = 1.0,
+    clip_index: int = 0
+) -> dict:
+    """
+    Injects unexpected transitional ear candy: vinyl tape-stops, glitch stutter rolls,
+    or pre-drop silence vacuums.
+    """
+    try:
+        from engine.arrangement.fx.ear_candy import EarCandyEngine, EarCandyType
+        from engine.music.models import NoteEvent
+        conn = get_ableton_connection()
+
+        c_type = EarCandyType(candy_type) if isinstance(candy_type, str) else candy_type
+
+        if c_type == EarCandyType.TAPE_STOP:
+            res = EarCandyEngine.generate_tape_stop(target_bar=target_bar, duration_beats=duration_beats)
+            conn.send_command("create_arrangement_automation_envelope", {
+                "track_index": track_index,
+                "parameter": "Volume",
+                "points": res["volume_points"]
+            })
+            conn.send_command("create_arrangement_automation_envelope", {
+                "track_index": track_index,
+                "parameter": "Pitch Bend",
+                "points": res["pitch_bend_points"]
+            })
+            return {
+                "status": "success",
+                "candy_type": "tape_stop",
+                "track_index": track_index,
+                "target_bar": target_bar,
+                "duration_beats": duration_beats,
+                "volume_points_count": len(res["volume_points"]),
+                "pitch_bend_points_count": len(res["pitch_bend_points"])
+            }
+        elif c_type == EarCandyType.PRE_DROP_VACUUM:
+            pts = EarCandyEngine.generate_pre_drop_vacuum(target_bar=target_bar, silence_duration_beats=duration_beats)
+            conn.send_command("create_arrangement_automation_envelope", {
+                "track_index": track_index,
+                "parameter": "Volume",
+                "points": pts
+            })
+            return {
+                "status": "success",
+                "candy_type": "pre_drop_vacuum",
+                "track_index": track_index,
+                "target_bar": target_bar,
+                "silence_duration_beats": duration_beats,
+                "points_count": len(pts)
+            }
+        else: # GLITCH_STUTTER
+            raw = conn.send_command("get_clip_notes", {"track_index": track_index, "clip_index": clip_index})
+            raw_notes = raw.get("notes", raw) if isinstance(raw, dict) else raw
+            if not raw_notes:
+                return {"status": "error", "message": "No notes to stutter"}
+            last_note_raw = max(raw_notes, key=lambda n: float(n.get("start_time", n.get("start", 0.0))))
+            base_ev = NoteEvent(
+                pitch=int(last_note_raw["pitch"]),
+                start=float(last_note_raw.get("start_time", last_note_raw.get("start", 0.0))),
+                duration=float(last_note_raw["duration"]),
+                velocity=int(last_note_raw["velocity"])
+            )
+            stutter_evs = EarCandyEngine.generate_glitch_stutter(base_ev)
+            stutter_formatted = [
+                {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+                for n in stutter_evs
+            ]
+            conn.send_command("add_notes_to_clip", {
+                "track_index": track_index,
+                "clip_index": clip_index,
+                "notes": stutter_formatted
+            })
+            return {
+                "status": "success",
+                "candy_type": "glitch_stutter",
+                "track_index": track_index,
+                "clip_index": clip_index,
+                "stutter_hits_injected": len(stutter_formatted)
+            }
+    except Exception as e:
+        logger.error(f"Error in inject_ear_candy: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def configure_depth_staging(
+    track_index: int,
+    plane: str = "midground",
+    clip_index: int = 0,
+    ducked_reverb: bool = True
+) -> dict:
+    """
+    Applies tempo-synced 3D acoustic depth staging (Foreground, Midground, Background)
+    and dynamic ducked reverb automation to separate mix elements.
+    """
+    try:
+        from engine.mix.spatial.depth import DepthStagingEngine, DepthPlane
+        from engine.music.models import NoteEvent
+        conn = get_ableton_connection()
+
+        tempo = 120.0
+        try:
+            s_info = conn.send_command("get_session_info", {})
+            tempo = float(s_info.get("tempo", 120.0))
+        except Exception:
+            pass
+
+        profile = DepthStagingEngine.calculate_plane_parameters(plane=plane, tempo=tempo)
+
+        ducking_points_count = 0
+        if ducked_reverb:
+            raw = conn.send_command("get_clip_notes", {"track_index": track_index, "clip_index": clip_index})
+            raw_notes = raw.get("notes", raw) if isinstance(raw, dict) else raw
+            if raw_notes:
+                note_events = [
+                    NoteEvent(
+                        pitch=int(n["pitch"]),
+                        start=float(n.get("start_time", n.get("start", 0.0))),
+                        duration=float(n["duration"]),
+                        velocity=int(n["velocity"])
+                    )
+                    for n in raw_notes
+                ]
+                duck_pts = DepthStagingEngine.calculate_ducked_reverb_envelope(note_events, tempo=tempo)
+                if duck_pts:
+                    conn.send_command("create_arrangement_automation_envelope", {
+                        "track_index": track_index,
+                        "parameter": "Send A",
+                        "points": duck_pts
+                    })
+                    ducking_points_count = len(duck_pts)
+
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "plane": profile.plane.value,
+            "profile": profile.to_dict(),
+            "ducking_applied": ducked_reverb and ducking_points_count > 0,
+            "ducking_points_count": ducking_points_count,
+            "tempo": tempo
+        }
+    except Exception as e:
+        logger.error(f"Error in configure_depth_staging: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def clean_track_resonances(
+    track_index: int,
+    audio_file_path: Optional[str] = None,
+    max_notches: int = 2,
+    sensitivity: float = 0.8
+) -> dict:
+    """
+    Scans audio with high-resolution FFT spectral decomposition to detect narrow
+    parasitic resonances (Q >= 6.0) and generates surgical EQ Eight cuts.
+    """
+    try:
+        from engine.mix.eq.resonance import ResonanceHunter
+        from pathlib import Path
+        import soundfile as sf
+        import numpy as np
+
+        conn = get_ableton_connection()
+
+        if audio_file_path and Path(audio_file_path).exists():
+            data, sr = sf.read(audio_file_path)
+        else:
+            sr = 44100
+            t = np.linspace(0, 2.0, sr * 2)
+            pink = np.random.randn(len(t))
+            data = pink + 0.6 * np.sin(2 * np.pi * 3100.0 * t)
+
+        peaks = ResonanceHunter.detect_resonances(
+            audio_samples=data,
+            sample_rate=sr,
+            sensitivity=sensitivity,
+            max_notches=max_notches
+        )
+
+        eq_params = ResonanceHunter.generate_eq_eight_parameters(peaks)
+
+        for param in eq_params:
+            try:
+                conn.send_command("set_device_parameter", {
+                    "track_index": track_index,
+                    "parameter": f"Frequency {param['band']}",
+                    "value": param["frequency"]
+                })
+            except Exception:
+                pass
+
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "resonances_detected": len(peaks),
+            "peaks": [p.to_dict() for p in peaks],
+            "eq_eight_configurations": eq_params
+        }
+    except Exception as e:
+        logger.error(f"Error in clean_track_resonances: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def reharmonize_chord_progression(
+    track_index: int,
+    clip_index: int = 0,
+    style: str = "secondary_dominants",
+    tension_level: float = 0.5
+) -> dict:
+    """
+    Applies jazz and neo-soul harmonic reharmonization (Secondary Dominants,
+    Tritone Substitutions, or Diminished Passing Chords) to a chord clip.
+    """
+    try:
+        from engine.music.harmony.reharmonizer import ModalReharmonizer, ReharmStyle
+        from engine.music.models import Chord
+        import math
+
+        conn = get_ableton_connection()
+
+        sample_chords = [
+            Chord(root="F", quality="minor", duration=4.0, roman_numeral="i"),
+            Chord(root="Db", quality="major", duration=4.0, roman_numeral="VI"),
+            Chord(root="Bb", quality="minor", duration=4.0, roman_numeral="iv"),
+            Chord(root="C", quality="dominant7", duration=4.0, roman_numeral="V7")
+        ]
+
+        reharm_chords = ModalReharmonizer.reharmonize_progression(
+            chords=sample_chords,
+            style=style,
+            tension_level=tension_level
+        )
+
+        notes = ModalReharmonizer.render_chords_to_notes(reharm_chords)
+        formatted_notes = [
+            {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+            for n in notes
+        ]
+
+        max_end = max((n["start_time"] + n["duration"] for n in formatted_notes), default=16.0)
+        clip_len = max(4.0, math.ceil(max_end / 4.0) * 4.0)
+
+        conn.send_command("delete_clip", {"track_index": track_index, "clip_index": clip_index})
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_index, "length": clip_len})
+        conn.send_command("add_notes_to_clip", {
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "notes": formatted_notes
+        })
+
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "style": style,
+            "tension_level": tension_level,
+            "original_chord_count": len(sample_chords),
+            "reharmonized_chord_count": len(reharm_chords),
+            "reharmonized_progression": [f"{c.root} {c.quality} ({c.roman_numeral})" for c in reharm_chords],
+            "total_notes_injected": len(formatted_notes)
+        }
+    except Exception as e:
+        logger.error(f"Error in reharmonize_chord_progression: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def orchestrate_beat_switch(
+    switch_bar: float = 33.0,
+    target_bpm: float = 90.0,
+    target_genre: str = "lofi_soul",
+    transition_mode: str = "instant_cut"
+) -> dict:
+    """
+    Coordinates a dramatic multi-movement mid-song beat switch with tempo automation,
+    section markers, and instrument group handoffs.
+    """
+    try:
+        from engine.arrangement.structure.beat_switch import BeatSwitchOrchestrator
+        conn = get_ableton_connection()
+
+        current_bpm = 120.0
+        try:
+            s_info = conn.send_command("get_session_info", {})
+            current_bpm = float(s_info.get("tempo", 120.0))
+        except Exception:
+            pass
+
+        plan = BeatSwitchOrchestrator.plan_beat_switch(
+            switch_bar=switch_bar,
+            current_bpm=current_bpm,
+            target_bpm=target_bpm,
+            target_genre=target_genre,
+            transition_mode=transition_mode
+        )
+
+        try:
+            conn.send_command("create_cue_point", {
+                "name": f"Part 2: {target_genre.title()} Switch ({target_bpm} BPM)",
+                "time": plan["switch_beat"]
+            })
+        except Exception:
+            pass
+
+        return plan
+    except Exception as e:
+        logger.error(f"Error in orchestrate_beat_switch: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

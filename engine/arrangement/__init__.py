@@ -26,6 +26,8 @@ from .locking import ArrangementLockManager
 from .compiler import ArrangementCompiler
 from .generator import ArrangementGenerator
 from .automation.weaver import ArrangementAutomationWeaver, TransitionAutomationType
+from .fx.ear_candy import EarCandyEngine, EarCandyType
+from .structure.beat_switch import BeatSwitchOrchestrator
 
 __all__ = [
     "Section", "SectionType", "Song",
@@ -36,6 +38,7 @@ __all__ = [
     "TransitionDescriptor", "TransitionType", "PreDropGenerator", "TransitionEngine",
     "TransitionAutomationEngine", "AutomationCurveType",
     "ArrangementAutomationWeaver", "TransitionAutomationType",
+    "EarCandyEngine", "EarCandyType", "BeatSwitchOrchestrator",
     "DropDifferentiationEngine", "NarrativeArc",
     "VariationPlanner", "VariationDirective", "MotifEvolutionManager",
     "DensityController",

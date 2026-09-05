@@ -14,6 +14,8 @@ from .voicing import apply_voicing_profile, optimize_voice_leading, voice_leadin
 from .rhythm import SUBDIVISION_BEATS, get_subdivision_duration, generate_drums
 from .groove import apply_groove_to_notes
 from .groove.pocket import GroovePocketEngine, PocketStyle
+from .bass.glide import BassGlideEngine, SlideMode
+from .harmony.reharmonizer import ModalReharmonizer, ReharmStyle
 from .humanizer import humanize_notes, apply_velocity_curve
 from .motifs import create_motif_from_notes, transform_motif, realize_motif_as_notes, motif_memory
 from .variation import apply_variation

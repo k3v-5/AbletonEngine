@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 191 specialized tools and 397 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 197 specialized tools and 411 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -317,4 +317,49 @@ Resuelve quirúrgicamente el enmascaramiento y colisión de fase en frecuencias 
 - **Modelado Closed-Loop:** Sincroniza la curva de atenuación de volumen del 808/sub-bass con los timestamps exactos de los golpes de bombo (*kick strikes*).
 - **Geometría de Respuesta Quirúrgica:** Ataque inmediato (0 ms) para liberar el impacto del transiente del bombo, retención (*hold*) configurable (20-30 ms) y relajación (*exponential release*) que devuelve el 100% del sustain del bajo sin distorsión ni clics.
 - **Herramienta FastMCP:** `apply_kick_sidechain_to_bass(kick_track_index, bass_track_index, kick_clip_index, ducking_depth_db, release_ms)`.
+
+---
+
+## 🏆 Producción de Élite: Las 5 Dimensiones Avanzadas (Opciones 1 a 5)
+
+### 🛝 Opción 1: 808 Slide & Pitch-Bend Glide Engine (`engine/music/bass/glide.py`)
+Genera articulaciones de bajo y 808s dinámicos para trap, drill y rage:
+- **Modos:** `drill_octave_glide` (+12 semitonos con resolución rápida en notas de remate), `pitch_drop` (-12 a -24 semitonos al final de transiciones), `chord_fifth_glide` (+7 semitonos) y `vibrato_tail`.
+- **Doble Capa de Articulación:** Puntos de Pitch Bend precisos en rango $[-8192, 8191]$ y notas legato superpuestas ($\Delta t = 0.04$ pulsos) para sintetizadores monofónicos con portamento activo.
+- **Herramienta FastMCP:** `generate_808_slides(track_index, clip_index, slide_mode, bend_range_semitones, glide_probability, turnaround_only)`.
+
+### 🍬 Opción 2: "Ear Candy" & Micro-FX Engine (`engine/arrangement/fx/ear_candy.py`)
+Inyecta micro-eventos impredecibles en transiciones:
+- **Tape-Stop / Vinyl Slowdown:** Desaceleración exponencial de pitch ($0 \to -8192$) y volumen ($0.85 \to 0.0$) en el último tiempo del compás previo al drop.
+- **Glitch Stutter:** Subdivisión rítmica geométrica acelerada ($1/8 \to 1/16 \to 1/32 \to 1/64$) con rampa de velocidad dinámica de acento.
+- **Pre-Drop Vacuum:** Silencio quirúrgico de 0.5 a 1.0 pulsos en todas las pistas rítmicas para maximizar la sorpresa e impacto del drop.
+- **Herramienta FastMCP:** `inject_ear_candy(track_index, candy_type, target_bar, duration_beats, clip_index)`.
+
+### 🌌 Opción 3: 3D Depth & Ducked Reverb/Delay Staging (`engine/mix/spatial/depth.py`)
+Crea separación tridimensional y profundidad acústica profesional:
+- **Planos de Profundidad Acústica:**
+  - *Foreground:* Pre-delay a 0 ms, reverberación ultracorta ($T_{60} \le 0.75\text{ s}$), Dry/Wet 8%, agudos transparentes (16 kHz).
+  - *Midground:* Pre-delay a 1/32 sincronizado a BPM, Dry/Wet 22%, corte en 9.5 kHz.
+  - *Background:* Pre-delay a 1/16, Dry/Wet 45%, simulación de absorción de aire con filtro paso-bajos en 5.2 kHz y apertura estéreo ultra-ancha (140%).
+- **Ducked Reverb Automático ("Breathing Space"):** Atenúa los envíos de reverb a $-8.0\text{ dB}$ durante la presencia de notas y los devuelve suavemente a $0.0\text{ dB}$ en las pausas vocales/leads.
+- **Herramienta FastMCP:** `configure_depth_staging(track_index, plane, clip_index, ducked_reverb)`.
+
+### 🎯 Opción 4: Resonance Hunter & Surgical Dynamic EQ (`engine/mix/eq/resonance.py`)
+Detector automático de resonancias parásitas mediante descomposición espectral FFT:
+- **Detección Quirúrgica:** Identifica frecuencias con prominencia $\ge 5.0\text{ dB}$ por encima del declive natural $1/f$ con factor $Q \ge 6.0$.
+- **Prioridad de Bandas:** 2.2 kHz – 4.8 kHz (aspereza metálica), 250 Hz – 500 Hz (sonido hueco/caja) y 80 Hz – 180 Hz (retumbo de graves).
+- **Inyección de EQ Eight:** Configura filtros Notch estrechos ($Q = 6.0 \text{ a } 9.0$, $-2.5 \text{ a } -4.5\text{ dB}$) con guardarraíl estricto de máximo 2 muescas por pista.
+- **Herramienta FastMCP:** `clean_track_resonances(track_index, audio_file_path, max_notches, sensitivity)`.
+
+### 🔀 Opción 5: Beat-Switch & Modal Reharmonization Engine
+Composición armónica avanzada y estructuras multi-movimiento:
+- **Modal Reharmonizer (`engine/music/harmony/reharmonizer.py`):**
+  - *Dominantes Secundarias ($V^7/X$):* Inyecta acordes dominantes en el pulso 4 antes del acorde destino.
+  - *Sustituciones Tritónicas ($\text{Sub}V^7$):* Resolución cromática descendente a medio tono de la tónica.
+  - *Acordes de Paso Disminuidos ($vii^{\circ 7}$) y Préstamo Modal.*
+  - **Herramienta FastMCP:** `reharmonize_chord_progression(track_index, clip_index, style, tension_level)`.
+- **Beat-Switch Orchestrator (`engine/arrangement/structure/beat_switch.py`):**
+  - Planifica cambios radicales de tempo y género en compases de quiebre (ej. compás 33: de 138 BPM a 90 BPM), automatizaciones de tempo escalonadas (*instant cut* o *ritardando*) y marcadores de sección en Ableton Live.
+  - **Herramienta FastMCP:** `orchestrate_beat_switch(switch_bar, target_bpm, target_genre, transition_mode)`.
+
 
