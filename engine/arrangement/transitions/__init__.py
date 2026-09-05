@@ -1,3 +1,5 @@
+from .impacts import SectionImpactEngine, SectionImpactEvent
+from .pre_drop import PreDropVacuumEngine
 from .models import TransitionType, TransitionDescriptor
 from .pre_drop import PreDropGenerator
 from .engine import TransitionEngine
@@ -12,5 +14,8 @@ __all__ = [
     "TransitionAutomationEngine",
     "AutomationCurveType",
     "SweepFilterType",
-    "TransitionRisersEngine"
+    "TransitionRisersEngine",
+    "SectionImpactEngine",
+    "SectionImpactEvent",
+    "PreDropVacuumEngine"
 ]

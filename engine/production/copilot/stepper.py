@@ -344,6 +344,60 @@ class ExecutiveCopilotEngine:
                     target_track=l_idx
                 ))
 
+        # --- PHASE 5: TRANSITIONS, FX & MACRO NARRATIVE DECISIONS ---
+        dec_sec_impacts = "DEC-P5-01-SECTION-IMPACTS"
+        if dec_sec_impacts not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_sec_impacts,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Deploy Sub-Booms, Crashes & Downlifters Across All Section Arrivals",
+                description="Injects 40Hz sub-booms, atmospheric crashes, and downlifters at section boundaries (bars 0, 8, 32, 48, 64, 72, 88).",
+                recommendation="YES, inject section arrival impacts and sub-booms.",
+                action_tool="transitions_inject_section_impacts",
+                action_args={"track_index": 3},
+                target_track=3
+            ))
+
+        dec_ten_risers = "DEC-P5-02-TENSION-RISERS"
+        if dec_ten_risers not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_ten_risers,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Build 2-Bar Tension Risers & Accelerating Snare Builds (Pre-Drops)",
+                description="Generates continuous exponential filter sweeps, pitch-bend noise risers, and snare rolls in bars 30-32 and 70-72.",
+                recommendation="YES, build tension risers before Drop 1 and Final Chorus.",
+                action_tool="transitions_build_tension_risers",
+                action_args={"track_index": 3},
+                target_track=3
+            ))
+
+        dec_vac_silence = "DEC-P5-03-PRE-DROP-VACUUM"
+        if dec_vac_silence not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_vac_silence,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Inject 1-Beat Pre-Drop Acoustic Vacuum Silences (Bars 31 & 71)",
+                description="Cuts low-end and rhythm tracks for 1 beat at bars 31.4 and 71.4, creating dramatic contrast before the drop hits.",
+                recommendation="YES, apply pre-drop vacuum silences.",
+                action_tool="transitions_apply_pre_drop_vacuum",
+                action_args={},
+                target_track=None
+            ))
+
+        dec_ear_candy = "DEC-P5-04-EAR-CANDY-TRANSITIONS"
+        if dec_ear_candy not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_ear_candy,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Inject Analog Tape Stop, Reverse Vocal Swells & Reverb Freeze",
+                description="Deploys micro-production ear candy: tape stop slowdown in bar 31, reverse vocal swell into chorus, and reverb freeze wash.",
+                recommendation="YES, inject ear candy transitions.",
+                action_tool="transitions_inject_ear_candy_fx",
+                action_args={},
+                target_track=None
+            ))
+
+
 
 
         # 1. SIDECHAIN CHECK (Kick + 808 present)

@@ -8608,6 +8608,103 @@ def drums_inject_ghost_notes(
         return {"status": "error", "message": str(e)}
 
 
+
+
+@mcp.tool()
+def transitions_inject_section_impacts(
+    track_index: int = 3,
+    clip_slot: int = 0
+) -> dict:
+    """
+    Phase 5: Injects sub-booms (40 Hz) and arrival crashes on the Foley/FX track
+    at all 8 section boundaries across 96 bars.
+    """
+    try:
+        from engine.arrangement.transitions.impacts import SectionImpactEngine
+        conn = get_ableton_connection()
+        manifest = SectionImpactEngine.get_section_impact_manifest()
+        notes = SectionImpactEngine.generate_impact_notes()
+        if conn and hasattr(conn, "add_notes_to_clip"):
+            formatted = [{"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False} for n in notes]
+            conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_slot, "length": 384.0})
+            conn.send_command("add_notes_to_clip", {"track_index": track_index, "clip_index": clip_slot, "notes": formatted})
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "clip_slot": clip_slot,
+            "manifest": manifest,
+            "total_impact_notes": len(notes)
+        }
+    except Exception as e:
+        logger.error(f"Error in transitions_inject_section_impacts: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def transitions_build_tension_risers(
+    track_index: int = 3,
+    clip_slot: int = 0
+) -> dict:
+    """
+    Phase 5: Generates exponential filter sweeps, pitch risers, and accelerating snare rolls
+    in bars 30-32 (pre-Drop 1) and bars 70-72 (pre-Final Chorus).
+    """
+    try:
+        from engine.arrangement.transitions.risers import TransitionRisersEngine
+        sweep1 = TransitionRisersEngine.generate_filter_sweep(target_bar=33.0, duration_bars=2.0)
+        sweep2 = TransitionRisersEngine.generate_filter_sweep(target_bar=73.0, duration_bars=2.0)
+        noise_riser = TransitionRisersEngine.generate_noise_pitch_riser(target_bar=33.0, duration_bars=2.0)
+        rolls1 = TransitionRisersEngine.generate_procedural_snare_roll(target_bar=33.0, duration_bars=1.0)
+        return {
+            "status": "SUCCESS",
+            "drop1_filter_sweep_points": len(sweep1),
+            "climax_filter_sweep_points": len(sweep2),
+            "noise_pitch_envelope_points": len(noise_riser["pitch_bend_envelope"]),
+            "snare_roll_notes_count": len(rolls1),
+            "snare_roll_notes": [{"pitch": n.pitch, "start_time": n.start, "velocity": n.velocity} for n in rolls1]
+        }
+    except Exception as e:
+        logger.error(f"Error in transitions_build_tension_risers: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def transitions_apply_pre_drop_vacuum() -> dict:
+    """
+    Phase 5: Generates acoustic vacuum silence windows (bars 31.4 and 71.4) and low-end cut
+    mute automation envelopes preceding the main drops.
+    """
+    try:
+        from engine.arrangement.transitions.pre_drop import PreDropVacuumEngine
+        windows = PreDropVacuumEngine.get_vacuum_windows()
+        env1 = PreDropVacuumEngine.generate_vacuum_mute_envelope(drop_beat=128.0)
+        env2 = PreDropVacuumEngine.generate_vacuum_mute_envelope(drop_beat=288.0)
+        return {
+            "status": "SUCCESS",
+            "vacuum_windows": windows,
+            "drop1_mute_envelope": env1,
+            "climax_mute_envelope": env2
+        }
+    except Exception as e:
+        logger.error(f"Error in transitions_apply_pre_drop_vacuum: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def transitions_inject_ear_candy_fx() -> dict:
+    """
+    Phase 5: Generates analog vinyl tape stops, reverse vocal swells, and freeze washes
+    for micro-production ear candy across song transitions.
+    """
+    try:
+        from engine.arrangement.fx.ear_candy_transitions import EarCandyTransitionEngine
+        manifest = EarCandyTransitionEngine.get_full_ear_candy_manifest()
+        return manifest
+    except Exception as e:
+        logger.error(f"Error in transitions_inject_ear_candy_fx: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 
