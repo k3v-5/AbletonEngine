@@ -230,3 +230,7 @@ htmlcov/
 state/snapshots/
 state/transactions/
 state/events/
+
+state/production/
+state/*.json
+exports/

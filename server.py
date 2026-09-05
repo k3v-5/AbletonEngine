@@ -135,7 +135,8 @@ class AbletonConnection:
                 "start_playback", "stop_playback", "load_instrument_or_effect",
                 # Arrangement view commands
                 "switch_to_arrangement_view", "set_current_song_time",
-                "duplicate_session_clip_to_arrangement"
+                "duplicate_session_clip_to_arrangement",
+                "create_arrangement_automation_envelope"
             ]
     
             # Commands whose work on Live's main thread can take noticeably longer
@@ -2162,17 +2163,26 @@ def create_automation(
         # Generate deterministic curve points
         points = _server_gen_curve(start, duration, start_value, end_value, curve, resolution)
         
-        # Write to Live
-        if d_idx is not None:
-            try:
-                ableton.send_command("set_device_parameter", {
-                    "track_index": t_idx,
-                    "device_index": d_idx,
-                    "parameter": p_name,
-                    "value": points[0]["value"]
-                })
-            except:
-                pass
+        # Write to Live via arrangement automation envelope
+        try:
+            ableton.send_command("create_arrangement_automation_envelope", {
+                "track_index": t_idx,
+                "device_index": d_idx,
+                "parameter": p_name,
+                "points": points,
+                "clip_index": clip_index
+            })
+        except Exception:
+            if d_idx is not None:
+                try:
+                    ableton.send_command("set_device_parameter", {
+                        "track_index": t_idx,
+                        "device_index": d_idx,
+                        "parameter": p_name,
+                        "value": points[0]["value"]
+                    })
+                except Exception:
+                    pass
         
         # Read-After-Write Verification
         return json.dumps({
@@ -2241,16 +2251,25 @@ def add_automation_points(
                 return json.dumps({"error": f"Value {v_val} in point {pt} is out of allowed range [{p_min}, {p_max}] for parameter '{p_name}'. Clamping is prohibited."})
 
         sorted_pts = sorted(points, key=lambda x: float(x["time"]))
-        if d_idx is not None and sorted_pts:
-            try:
-                ableton.send_command("set_device_parameter", {
-                    "track_index": t_idx,
-                    "device_index": d_idx,
-                    "parameter": p_name,
-                    "value": sorted_pts[0]["value"]
-                })
-            except:
-                pass
+        try:
+            ableton.send_command("create_arrangement_automation_envelope", {
+                "track_index": t_idx,
+                "device_index": d_idx,
+                "parameter": p_name,
+                "points": sorted_pts,
+                "clip_index": clip_index
+            })
+        except Exception:
+            if d_idx is not None and sorted_pts:
+                try:
+                    ableton.send_command("set_device_parameter", {
+                        "track_index": t_idx,
+                        "device_index": d_idx,
+                        "parameter": p_name,
+                        "value": sorted_pts[0]["value"]
+                    })
+                except Exception:
+                    pass
 
         return json.dumps({
             "track_index": t_idx,
@@ -6230,6 +6249,303 @@ def production_memory_search(
         query=query,
         context=context
     )
+
+
+from engine.instruments.plugins import (
+    VSTParameterNormalizer,
+    PluginSemanticRole,
+    PluginRegistry
+)
+from engine.instruments.library.crawler import LibraryCrawler
+from engine.vocal import (
+    VocalStyle,
+    VocalProductionEngine
+)
+from engine.audio.stem_bouncer import (
+    StemBouncer
+)
+
+_vst_normalizer = VSTParameterNormalizer()
+_library_crawler = LibraryCrawler()
+_vocal_engine = VocalProductionEngine()
+_stem_bouncer = StemBouncer()
+
+
+@mcp.tool()
+def plugin_inspect_parameters(
+    track: Union[int, str],
+    device: Union[int, str] = 0
+) -> dict:
+    """
+    Inspecciona y clasifica semánticamente los parámetros de un dispositivo VST3 o nativo.
+    Devuelve los parámetros normalizados [0.0, 1.0] mapeados a roles como CUTOFF, DRIVE, MACRO_1..8.
+    """
+    conn = get_ableton_connection()
+    t_idx, t_name, d_idx, d_name = _server_resolve_track_and_device(conn, track, device)
+    
+    dev_info = conn.send_command("get_device_parameters", {
+        "track_index": t_idx,
+        "device_index": d_idx if d_idx is not None else 0
+    })
+    device_name = dev_info.get("device_name", d_name)
+    parameters = dev_info.get("parameters", [])
+    
+    semantic_summary = {}
+    for role in [
+        PluginSemanticRole.CUTOFF, PluginSemanticRole.RESONANCE,
+        PluginSemanticRole.DRIVE, PluginSemanticRole.DRY_WET,
+        PluginSemanticRole.VOLUME, PluginSemanticRole.FATNESS,
+        PluginSemanticRole.COLOR, PluginSemanticRole.LIMITER_CEILING,
+        PluginSemanticRole.ATTACK, PluginSemanticRole.DECAY,
+        PluginSemanticRole.MACRO_1, PluginSemanticRole.MACRO_2,
+        PluginSemanticRole.MACRO_3, PluginSemanticRole.MACRO_4
+    ]:
+        res = _vst_normalizer.resolve_parameter(device_name, parameters, role)
+        if res.found:
+            semantic_summary[role.value] = res.to_dict()
+
+    return {
+        "track_index": t_idx,
+        "track_name": t_name,
+        "device_index": d_idx,
+        "device_name": device_name,
+        "parameter_count": len(parameters),
+        "semantic_mappings": semantic_summary,
+        "parameters": parameters
+    }
+
+
+@mcp.tool()
+def plugin_set_semantic_parameter(
+    track: Union[int, str],
+    semantic_role: str,
+    value: float,
+    device: Union[int, str] = 0
+) -> dict:
+    """
+    Ajusta un parámetro de un plugin VST3 o dispositivo nativo usando un rol semántico ('cutoff', 'drive', 'fatness', etc.).
+    Soporta valores normalizados [0.0, 1.0] o valores nativos con validación estricta de rangos.
+    """
+    conn = get_ableton_connection()
+    t_idx, t_name, d_idx, d_name = _server_resolve_track_and_device(conn, track, device)
+    
+    dev_info = conn.send_command("get_device_parameters", {
+        "track_index": t_idx,
+        "device_index": d_idx if d_idx is not None else 0
+    })
+    device_name = dev_info.get("device_name", d_name)
+    parameters = dev_info.get("parameters", [])
+    
+    res = _vst_normalizer.resolve_parameter(device_name, parameters, semantic_role)
+    if not res.found:
+        raise ValueError(f"No se pudo resolver el rol semántico '{semantic_role}' en el dispositivo '{device_name}'")
+
+    target_raw_value = value
+    if 0.0 <= value <= 1.0 and (res.min_value != 0.0 or res.max_value != 1.0):
+        target_raw_value = _vst_normalizer.denormalize_value(value, res.min_value, res.max_value)
+
+    set_res = conn.send_command("set_device_parameter", {
+        "track_index": t_idx,
+        "device_index": d_idx if d_idx is not None else 0,
+        "parameter": res.parameter_index,
+        "value": target_raw_value
+    })
+    
+    return {
+        "status": "success",
+        "track_index": t_idx,
+        "device_name": device_name,
+        "semantic_role": semantic_role,
+        "resolved_parameter_name": res.parameter_name,
+        "parameter_index": res.parameter_index,
+        "set_value": target_raw_value,
+        "normalized_value": _vst_normalizer.normalize_value(target_raw_value, res.min_value, res.max_value),
+        "source": res.source
+    }
+
+
+@mcp.tool()
+def browser_crawl_library(
+    category: str = "plugins/VST3",
+    max_depth: int = 2
+) -> dict:
+    """
+    Rastrea e indexa de forma asíncrona una categoría de la librería o plugins de Ableton Live.
+    Guarda los resultados en state/browser_index.json.
+    """
+    conn = get_ableton_connection()
+    def query_browser(p):
+        return conn.send_command("get_browser_items_at_path", {"path": p})
+
+    return _library_crawler.crawl_category(category, query_browser, max_depth=max_depth)
+
+
+@mcp.tool()
+def browser_search_library(
+    query: str,
+    category: Optional[str] = None,
+    max_results: int = 20
+) -> dict:
+    """
+    Busca presets, sintetizadores, efectos y librerías en el catálogo indexado de Ableton Live.
+    """
+    matches = _library_crawler.search(query, category=category, max_results=max_results)
+    return {
+        "query": query,
+        "count": len(matches),
+        "results": matches
+    }
+
+
+@mcp.tool()
+def arrangement_inject_automation_envelope(
+    track: Union[int, str],
+    parameter: Union[int, str],
+    points: List[Dict[str, float]],
+    device: Union[int, str, None] = None,
+    clip_index: Optional[int] = None
+) -> dict:
+    """
+    Inyecta una envolvente de automatización en la pista y clips del Arrangement de Ableton Live (LOM).
+    points: Lista de breakpoints [{'time': beat, 'value': float}]
+    """
+    conn = get_ableton_connection()
+    t_idx, t_name, d_idx, d_name = _server_resolve_track_and_device(conn, track, device)
+    
+    return conn.send_command("create_arrangement_automation_envelope", {
+        "track_index": t_idx,
+        "device_index": d_idx,
+        "parameter": parameter,
+        "points": points,
+        "clip_index": clip_index
+    })
+
+
+@mcp.tool()
+def vocal_get_profile(
+    style: str = "modern_rap"
+) -> dict:
+    """
+    Devuelve la especificación de cadena DSP y parámetros de compresión, ecualización y ducking
+    para estilos vocales ('modern_rap', 'rnb_soul', 'trap', 'indie_alt').
+    """
+    profile = _vocal_engine.get_vocal_profile(style)
+    return {
+        "style": profile.style.value,
+        "high_pass_hz": profile.high_pass_hz,
+        "boxiness_cut_hz": profile.boxiness_cut_hz,
+        "boxiness_cut_db": profile.boxiness_cut_db,
+        "presence_boost_hz": profile.presence_boost_hz,
+        "presence_boost_db": profile.presence_boost_db,
+        "compressor_ratio": profile.compressor_ratio,
+        "compressor_attack_ms": profile.compressor_attack_ms,
+        "compressor_release_ms": profile.compressor_release_ms,
+        "recommended_ducking_db": profile.recommended_ducking_db,
+        "chain_stages": [
+            {
+                "stage": s.stage_name,
+                "type": s.device_type,
+                "native_device": s.suggested_native,
+                "vst_plugin": s.suggested_vst,
+                "parameters": s.parameters,
+                "rationale": s.rationale
+            }
+            for s in profile.chain
+        ]
+    }
+
+
+@mcp.tool()
+def vocal_calculate_ducking(
+    vocal_ranges_beats: List[List[float]],
+    song_length_beats: float = 128.0,
+    duck_amount_db: float = -2.5,
+    attack_beats: float = 0.5,
+    release_beats: float = 1.0,
+    baseline_volume: float = 0.85
+) -> dict:
+    """
+    Calcula la curva de atenuación (ducking) instrumental ante la presencia de frases vocales.
+    Retorna la lista de breakpoints de automatización de volumen lista para inyectar en Chords/Keys/Leads.
+    """
+    ranges = [(r[0], r[1]) for r in vocal_ranges_beats]
+    points = _vocal_engine.calculate_ducking_envelope(
+        vocal_ranges_beats=ranges,
+        song_length_beats=song_length_beats,
+        duck_amount_db=duck_amount_db,
+        attack_beats=attack_beats,
+        release_beats=release_beats,
+        baseline_volume=baseline_volume
+    )
+    return {
+        "points_count": len(points),
+        "duck_amount_db": duck_amount_db,
+        "baseline_volume": baseline_volume,
+        "points": points
+    }
+
+
+@mcp.tool()
+def stem_create_export_plan(
+    bpm: float = 142.0,
+    start_bar: float = 1.0,
+    end_bar: float = 65.0
+) -> dict:
+    """
+    Agrupa automáticamente las pistas del proyecto en grupos de stems estándar
+    (Drums, Bass, Vocals, Keys, Leads, FX, Master) y calcula tiempos de exportación.
+    """
+    conn = get_ableton_connection()
+    track_count_res = conn.send_command("get_track_info", {"track_index": 0})
+    tracks = []
+    for idx in range(16):
+        try:
+            ti = conn.send_command("get_track_info", {"track_index": idx})
+            if ti and "name" in ti:
+                tracks.append(ti)
+        except Exception:
+            break
+
+    plan = _stem_bouncer.create_export_plan(
+        tracks=tracks,
+        bpm=bpm,
+        start_bar=start_bar,
+        end_bar=end_bar
+    )
+    return plan.to_dict()
+
+
+@mcp.tool()
+def stem_generate_manifest(
+    bpm: float = 142.0,
+    start_bar: float = 1.0,
+    end_bar: float = 65.0
+) -> dict:
+    """
+    Genera y guarda el manifiesto técnico de exportación de stems en exports/stems/manifest.json.
+    """
+    conn = get_ableton_connection()
+    tracks = []
+    for idx in range(16):
+        try:
+            ti = conn.send_command("get_track_info", {"track_index": idx})
+            if ti and "name" in ti:
+                tracks.append(ti)
+        except Exception:
+            break
+
+    plan = _stem_bouncer.create_export_plan(
+        tracks=tracks,
+        bpm=bpm,
+        start_bar=start_bar,
+        end_bar=end_bar
+    )
+    manifest_path = _stem_bouncer.generate_manifest(plan)
+    return {
+        "status": "success",
+        "manifest_path": manifest_path,
+        "plan": plan.to_dict()
+    }
 
 
 def main():
