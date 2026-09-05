@@ -60,6 +60,10 @@
 | | `vocal_calculate_ducking` | `vocal_ranges_beats`, `song_length_beats`, `duck_amount_db` | Pure DSP/Math | Verified Live |
 | **Stem Resampler (Fase C)** | `stem_create_export_plan` | `bpm`, `start_bar`, `end_bar` | Read-Only | Verified Live |
 | | `stem_generate_manifest` | `bpm`, `start_bar`, `end_bar` | Read/Write File | Verified Live |
+| **Vital Synthesis (Horizonte 2)** | `vital_create_preset` | `name`, `preset_type`, `sub_weight`, `detune`, `cutoff`, `drive`, `author` | Procedural / JSON | Verified Live |
+| | `vital_list_user_presets` | `category`, `search` | Read-Only | Verified Live |
+| **Reference Deconstruction (Horizonte 1)** | `reference_deconstruct` | `audio_path`, `output_dir`, `target_tempo`, `target_key` | Pure DSP / FFT | Verified Live |
+| | `reference_reconstruct_in_live` | `audio_path`, `set_tempo`, `arrangement` | Read/Write Live | Verified Live |
 
 ---
 

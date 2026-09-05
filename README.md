@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 183 specialized tools and 366 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 187 specialized tools and 376 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -260,3 +260,27 @@ Suite VST3 & Presets         Automatización Gráfica        Vocal Pipeline &
 python -m pytest
 # ============================ 366 passed in 59.78s =============================
 ```
+
+---
+
+## 🚀 Fronteras de Producción Inteligente: Horizontes 1 y 2
+
+### 🎛️ Horizonte 1: Deconstructor de Referencias (Audio-to-MIDI & Stem Separation)
+Transforma cualquier archivo de audio de referencia comercial en material de producción editable dentro de Ableton Live:
+- **Separación de 4 Stems vía DSP Crossover & Mid-Side:** Aísla `drums` (transient dynamics & high-crest factor), `bass` (20-220 Hz sub fundamental centrado en mono), `vocals` (aislamiento mid-channel en formantes 300-3800 Hz) y `other` (residuos armónicos y reverberación estéreo).
+- **Detección Acústica de Tempo y Tonalidad:** Autocorrelación de energía de transientes para BPM exacto y correlación cromagrama Krumhansl-Schmuckler para tonalidad mayor/menor.
+- **Transcripción de Baterías a MIDI:** Clasificación multi-banda en Kick (MIDI 36), Snare/Clap (MIDI 38) y Closed Hat (MIDI 42) cuantizados a la grilla rítmica.
+- **Pitch Tracking F0 de Bajo:** Detección frame-a-frame de fundamentales entre 35 Hz y 260 Hz mediante autocorrelación segmentada en notas continuas con duración y velocidad dinámicas.
+- **Transcripción Armónica:** Análisis de cromagramas de 12 semitonos por bloques de compás para acordes.
+- **Reconstrucción en Ableton Live:** Herramientas `reference_deconstruct` y `reference_reconstruct_in_live`.
+
+### 🎹 Horizonte 2: Generador Procedural de Patches para Vital (.vital Synthesis)
+Generador nativo de sintetizadores que produce directamente archivos `.vital` en formato JSON auto-contenidos, listos para reproducirse en Vital VST3:
+- **Recetas Procedurales:**
+  - `PIE Heavy Reese Bass`: Osciladores duales con detune unison estéreo (5 y 7 voces), sub oscilador puro directo en mono, filtro analógico 24dB con drive y modulación LFO.
+  - `PIE Carnage 808`: Oscilador sub a -24 semitonos con envolvente de pitch ultra-rápida para pegada transient, distorsión Hard Clip y portamento glide.
+  - `PIE Warm Rhodes Keys`: Envolvente suave, filtro analógico cálido, LFO de trémolo senoidal, chorus exuberante y delay ping-pong.
+  - `PIE Euphoric Lead`: 7 voces supersaw, filtro Ladder 24dB, portamento y reverb con delay estéreo.
+- **Asignación de Macros y Modulación:** Todos los patches configuran los 4 macros estándar (ej. CUTOFF, DRIVE, DETUNE, SUB LVL) con enrutamiento automático a los parámetros de síntesis.
+- **Despliegue Directo:** Los presets se guardan automáticamente en la librería local de Vital del usuario (`D:\Documentos\Vital\User\Presets\PIE_Presets\`) para que aparezcan de inmediato en el navegador del sintetizador, y se sincronizan en `presets/vital/`.
+- **Herramientas FastMCP:** `vital_create_preset` y `vital_list_user_presets`.

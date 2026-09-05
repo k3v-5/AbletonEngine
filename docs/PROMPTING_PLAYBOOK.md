@@ -160,3 +160,38 @@ graph TD
 2. **Export Technical Manifest**:
    - `stem_generate_manifest(bpm=142.0, start_bar=1.0, end_bar=65.0)`
    - Writes `exports/stems/manifest.json` with duration (seconds), sample rate (48 kHz), bit depth (24 bit), and track assignments.
+
+---
+
+## 9. Playbook 8: Generación Nativa de Patches para Vital (.vital Synthesis)
+
+### User Prompt Example
+> *"Sintetízame un Reese Bass agresivo para Vital con mucho sub mono, unison abierto y saturación analógica, y asígname los 4 macros para directo."*
+
+### Step-by-Step Tool Calls:
+1. **Synthesize & Save Native Preset**:
+   - `vital_create_preset(name="PIE_Heavy_Reese", preset_type="reese", sub_weight=0.85, detune=4.0, cutoff=70.0, drive=8.0)`
+   - Output: Guarda de inmediato en `D:\Documentos\Vital\User\Presets\PIE_Presets\PIE_Heavy_Reese.vital` y en `presets/vital/PIE_Heavy_Reese.vital`.
+   - Configura osciladores (saws estéreo + sub mono directo al master), filtro analógico 24dB con drive, chorus estéreo, distorsión soft-clip y macros `['CUTOFF', 'DRIVE', 'DETUNE', 'SUB LVL']`.
+2. **List / Search Presets**:
+   - `vital_list_user_presets(category="Bass", search="Reese")`
+   - Devuelve los parches disponibles y sus macros mapeados.
+
+---
+
+## 10. Playbook 9: Deconstrucción de Referencias (Audio-to-MIDI & Stems)
+
+### User Prompt Example
+> *"Deconstruye este beat de referencia en 'D:\Music\Reference.wav', separa los stems de batería, bajo y vocales, y sácame el MIDI del ritmo y del bajo para recrearlo en Ableton Live."*
+
+### Step-by-Step Tool Calls:
+1. **Deconstruct Reference Track**:
+   - `reference_deconstruct(audio_path="D:\\Music\\Reference.wav")`
+   - Separa 4 stems en disco (`drums`, `bass`, `vocals`, `other`).
+   - Detecta tempo (ej. 140.0 BPM) y tonalidad (ej. "D Minor").
+   - Transcribe patrones de batería a Kick (36), Snare (38) y Hat (42).
+   - Transcribe línea de bajo con fundamental F0 frame-a-frame a notas MIDI con velocidad.
+   - Transcribe acordes cromagrama a notas armónicas.
+2. **Reconstruct Directly into Live Session / Arrangement**:
+   - `reference_reconstruct_in_live(audio_path="D:\\Music\\Reference.wav", set_tempo=True, arrangement=True)`
+   - Ajusta el tempo del proyecto en Ableton Live y genera las pistas `Ref_Drums_MIDI`, `Ref_Bass_MIDI` y `Ref_Chords_MIDI` con sus clips ya programados.

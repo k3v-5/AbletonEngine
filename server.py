@@ -6264,11 +6264,20 @@ from engine.vocal import (
 from engine.audio.stem_bouncer import (
     StemBouncer
 )
+from engine.sound.vital.builder import VitalPatchBuilder
+from engine.sound.vital.file_manager import VitalPresetManager
+from engine.audio.deconstruction.separator import AudioStemSeparator
+from engine.audio.deconstruction.transcriber import ReferenceTranscriber
+from engine.audio.deconstruction.reconstructor import ReferenceReconstructor
 
 _vst_normalizer = VSTParameterNormalizer()
 _library_crawler = LibraryCrawler()
 _vocal_engine = VocalProductionEngine()
 _stem_bouncer = StemBouncer()
+_vital_manager = VitalPresetManager()
+_audio_separator = AudioStemSeparator()
+_ref_transcriber = ReferenceTranscriber(separator=_audio_separator)
+_ref_reconstructor = ReferenceReconstructor()
 
 
 @mcp.tool()
@@ -6546,6 +6555,120 @@ def stem_generate_manifest(
         "manifest_path": manifest_path,
         "plan": plan.to_dict()
     }
+
+
+@mcp.tool()
+def vital_create_preset(
+    name: str,
+    preset_type: str = "reese",
+    sub_weight: float = 0.8,
+    detune: float = 3.5,
+    cutoff: float = 72.0,
+    drive: float = 6.0,
+    author: str = "Ableton PIE Engine"
+) -> dict:
+    """
+    Sintetiza un preset nativo de Vital (.vital) con ruteo de osciladores,
+    filtros analógicos, envolventes, LFOs, efectos y 4 macros asignados.
+    Guarda automáticamente en la librería local de Vital del usuario y en el motor.
+    """
+    pt = preset_type.lower()
+    if "808" in pt or "sub" in pt:
+        spec = VitalPatchBuilder.build_hard_808(distortion_drive=drive * 2.0, name=name)
+    elif "key" in pt or "rhodes" in pt or "piano" in pt:
+        spec = VitalPatchBuilder.build_neo_soul_keys(name=name)
+    elif "lead" in pt or "pluck" in pt:
+        spec = VitalPatchBuilder.build_lead_hook(name=name)
+    else:
+        spec = VitalPatchBuilder.build_reese_bass(
+            sub_weight=sub_weight,
+            detune_amount=detune,
+            filter_cutoff=cutoff,
+            drive=drive,
+            name=name
+        )
+    spec.author = author
+    saved = _vital_manager.save_preset(spec)
+    return {
+        "status": "success",
+        "preset_name": saved["preset_name"],
+        "filename": saved["filename"],
+        "engine_path": saved["engine_path"],
+        "user_path": saved["user_path"],
+        "style": saved["style"],
+        "macros": [spec.macro1, spec.macro2, spec.macro3, spec.macro4]
+    }
+
+
+@mcp.tool()
+def vital_list_user_presets(
+    category: str = "",
+    search: str = ""
+) -> dict:
+    """
+    Lista presets de Vital (.vital) disponibles en la librería del usuario y en el motor.
+    """
+    presets = _vital_manager.list_presets(
+        category=category if category else None,
+        search=search if search else None
+    )
+    return {
+        "status": "success",
+        "count": len(presets),
+        "presets": presets
+    }
+
+
+@mcp.tool()
+def reference_deconstruct(
+    audio_path: str,
+    output_dir: str = "",
+    target_tempo: float = 0.0,
+    target_key: str = ""
+) -> dict:
+    """
+    Deconstruye una pista de referencia de audio:
+    1. Separa en 4 stems (drums, bass, vocals, other) con DSP crossover y Mid-Side.
+    2. Detecta tempo (BPM) y tonalidad musical.
+    3. Transcribe patrones rítmicos de batería (Kick, Snare, Hi-Hat) a MIDI.
+    4. Transcribe la línea de bajo con tracking de pitch F0 a MIDI.
+    5. Transcribe progresión armónica de acordes a MIDI.
+    """
+    sep = AudioStemSeparator(output_dir=output_dir) if output_dir else _audio_separator
+    transcriber = ReferenceTranscriber(separator=sep)
+    res = transcriber.transcribe(
+        audio_input=audio_path,
+        tempo=target_tempo if target_tempo > 0 else None,
+        key=target_key if target_key else None
+    )
+    return {
+        "status": "success",
+        "source_path": res.source_path,
+        "detected_tempo": res.detected_tempo,
+        "detected_key": res.detected_key,
+        "duration_seconds": round(res.duration_seconds, 2),
+        "stems": {k: s.audio_path for k, s in res.stems.items()},
+        "drum_notes_count": len(res.drum_notes),
+        "bass_notes_count": len(res.bass_notes),
+        "chord_notes_count": len(res.chord_notes)
+    }
+
+
+@mcp.tool()
+def reference_reconstruct_in_live(
+    audio_path: str,
+    set_tempo: bool = True,
+    arrangement: bool = True
+) -> dict:
+    """
+    Deconstruye un archivo de audio y genera el plan de reconstrucción
+    completo de pistas MIDI y stems de audio para Ableton Live.
+    """
+    res = _ref_transcriber.transcribe(audio_path)
+    conn = get_ableton_connection()
+    reconstructor = ReferenceReconstructor(client=conn)
+    result = reconstructor.reconstruct(res, set_tempo=set_tempo)
+    return result
 
 
 def main():
