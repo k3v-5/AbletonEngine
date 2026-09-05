@@ -20,7 +20,8 @@ class ArrangementCompiler:
         self,
         song: Song,
         preview: bool = False,
-        compile_to_arrangement: bool = True
+        compile_to_arrangement: bool = True,
+        ensure_sound_sources: bool = True
     ) -> Dict[str, Any]:
         """
         Compiles the entire song arrangement.
@@ -171,7 +172,49 @@ class ArrangementCompiler:
                     }
                 slot_notes_map[key]["notes"].extend(role_data["notes"])
 
-        # 2. Stage clip creation and note insertion per unique track slot
+        # 2. Ensure sound sources (instruments) on tracks receiving notes
+        loaded_instruments = []
+        if ensure_sound_sources and hasattr(self.engine, "adapter") and self.engine.adapter and not preview:
+            tracks_checked = set()
+            for (track_idx, track_id, sec_idx), slot_data in slot_notes_map.items():
+                if track_idx in tracks_checked:
+                    continue
+                tracks_checked.add(track_idx)
+                try:
+                    track_info = None
+                    if hasattr(self.engine.adapter, "get_track_info"):
+                        track_info = self.engine.adapter.get_track_info(track_idx)
+                    elif hasattr(self.engine.adapter, "send_command"):
+                        track_info = self.engine.adapter.send_command("get_track_info", {"track_index": track_idx})
+                    
+                    devices = track_info.get("devices", []) if track_info else []
+                    if len(devices) == 0:
+                        # Find musical role for track
+                        t_role = "KEYS"
+                        for r_name, t_meta in role_to_track.items():
+                            if t_meta.get("index") == track_idx:
+                                t_role = r_name
+                                break
+                        from engine.instruments.library.preset_catalog import PresetCatalog
+                        preset = PresetCatalog.resolve_preset(t_role, genre=song.genre)
+                        if preset:
+                            if hasattr(self.engine.adapter, "load_instrument_or_effect"):
+                                self.engine.adapter.load_instrument_or_effect(track_idx, preset.uri)
+                            elif hasattr(self.engine.adapter, "send_command"):
+                                self.engine.adapter.send_command("load_instrument_or_effect", {
+                                    "track_index": track_idx,
+                                    "uri": preset.uri
+                                })
+                            loaded_instruments.append({
+                                "track_index": track_idx,
+                                "role": t_role,
+                                "preset": preset.name,
+                                "uri": preset.uri
+                            })
+                except Exception:
+                    pass
+
+        # 3. Stage clip creation and note insertion per unique track slot
         for (track_idx, track_id, sec_idx), slot_data in slot_notes_map.items():
             # Ensure clip slot exists in Ableton
             if hasattr(self.engine, "adapter") and self.engine.adapter:
@@ -225,7 +268,8 @@ class ArrangementCompiler:
             "transaction": commit_res,
             "total_notes": total_notes_generated,
             "total_sections": len(song.sections),
-            "timeline_clips_placed": duplicated_to_arrangement
+            "timeline_clips_placed": duplicated_to_arrangement,
+            "instruments_loaded": loaded_instruments
         }
 
     def _map_roles_to_tracks(self, preview: bool = False) -> Dict[str, Dict[str, Any]]:

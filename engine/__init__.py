@@ -39,7 +39,8 @@ from .mastering import MasteringEngine
 from .production import (
     ProductionGraph, DecisionMemory, ProductionPolicyEngine,
     ProductionContext, ProductionPlanner, ProductionExecutor,
-    ProductionStorage, production_storage, ProductionPlan
+    ProductionStorage, production_storage, ProductionPlan,
+    ProductionCompletenessGate
 )
 from .forensics import (
     AudioForensicsEngine, ForensicsStorage,
@@ -100,6 +101,14 @@ class ProductionEngine:
         self.mix = MixEngine(self)
         self.mastering = MasteringEngine(self)
 
+    def audit_completeness(self, auto_remediate: bool = True, target_genre: str = "trap") -> Dict[str, Any]:
+        """Audits session completeness and auto-remediates missing instruments."""
+        report = ProductionCompletenessGate.audit_session(
+            adapter=self.adapter,
+            auto_remediate=auto_remediate,
+            target_genre=target_genre
+        )
+        return report.to_dict()
 
     def initialize(self):
         """Startup bootstrap: load persisted state, connect to Ableton, reconcile"""

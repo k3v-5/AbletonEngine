@@ -117,3 +117,13 @@ class LiveAbletonAdapter(BaseAbletonAdapter):
             "device_index": device_index
         })
 
+    def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        return self._send(command_type, params)
+
+    def get_cue_points(self) -> Dict[str, Any]:
+        return self._send("get_cue_points")
+
+    def get_arrangement_clips(self, track_index: int) -> Dict[str, Any]:
+        return self._send("get_arrangement_clips", {"track_index": track_index})
+
+

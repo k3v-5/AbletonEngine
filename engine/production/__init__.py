@@ -205,6 +205,12 @@ __all__ = [
     "RollbackVerificationError",
     # Subsystems
     "RollbackEngine",
+    # Completeness Gate
+    "ProductionCompletenessGate",
+    "CompletenessReport",
+    "CompletenessViolation",
+    "CompletenessViolationType",
+    "RemediationResult",
 ]
 
 
@@ -214,7 +220,13 @@ def __getattr__(name: str):
     Preserves strict module isolation for `import engine.production` while supporting
     downstream subsystem consumers.
     """
-    if name == "ProductionGraph":
+    if name in (
+        "ProductionCompletenessGate", "CompletenessReport",
+        "CompletenessViolation", "CompletenessViolationType", "RemediationResult"
+    ):
+        from . import completeness
+        return getattr(completeness, name)
+    elif name == "ProductionGraph":
         from .graph import ProductionGraph
         return ProductionGraph
     elif name in ("DecisionMemory", "MemoryStatus"):

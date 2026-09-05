@@ -151,7 +151,8 @@ class ArrangementGenerator:
         key: str = "F",
         scale: str = "natural_minor",
         seed: int = 2026,
-        compile_to_arrangement: bool = True
+        compile_to_arrangement: bool = True,
+        ensure_sound_sources: bool = True
     ) -> Dict[str, Any]:
         """Builds and executes full song into Ableton Live."""
         song = self.create_song_arrangement(
@@ -168,7 +169,8 @@ class ArrangementGenerator:
         compile_res = self.compiler.compile(
             song,
             preview=False,
-            compile_to_arrangement=compile_to_arrangement
+            compile_to_arrangement=compile_to_arrangement,
+            ensure_sound_sources=ensure_sound_sources
         )
         
         compile_res["lint_report"] = self.linter.lint(song.sections)

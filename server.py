@@ -5340,6 +5340,38 @@ def production_audit(
         return json.dumps({"error": str(e)}, indent=2)
 
 
+@mcp.tool()
+@rich_telemetry_tool("validate_production_completeness")
+def validate_production_completeness(
+    ctx: Context,
+    auto_remediate: bool = True,
+    target_genre: str = "trap",
+    user_prompt: str = ""
+) -> str:
+    """
+    Formal Quality Gate: audits the Ableton session to ensure no production is left
+    incomplete, silent, or structurally deficient.
+    Enforces:
+      - INV-SOUND-01: No MIDI track with clips may have 0 devices (No Silent Tracks).
+      - INV-STRUCT-02: Foundational acoustic roles (Drums, Bass, Harmony, Lead) must exist.
+      - INV-TIMELINE-03: Arrangement timeline coverage.
+      - INV-NAV-04: Cue points / Section locators.
+      - Auto-Remediation: Automatically resolves and loads verified native Live 12 or Vital presets
+        onto silent tracks when auto_remediate=True.
+    """
+    try:
+        from engine.production.completeness import ProductionCompletenessGate
+        adapter = engine.adapter if hasattr(engine, "adapter") else None
+        report = ProductionCompletenessGate.audit_session(
+            adapter=adapter,
+            auto_remediate=auto_remediate,
+            target_genre=target_genre
+        )
+        return json.dumps(report.to_dict(), indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+
 
 
 # ==============================================================================
