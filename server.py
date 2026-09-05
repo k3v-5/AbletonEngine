@@ -65,6 +65,10 @@ class AbletonConnection:
             finally:
                 self.sock = None
 
+    def is_connected(self) -> bool:
+        """Check if connection socket is active"""
+        return self.sock is not None
+
     def receive_full_response(self, sock, buffer_size=8192):
         """Receive the complete response, potentially in multiple chunks"""
         chunks = []
@@ -4229,12 +4233,18 @@ def arrangement_apply_transition(
         sent_live = False
         if ableton and ableton.is_connected():
             try:
-                ableton.send_command("set_device_parameter", {
-                    "track_index": t_idx,
-                    "device_index": 0,
-                    "parameter": target_param,
-                    "value": points[0]["value"]
-                })
+                if target_param.lower() in ["volume", "track_volume", "vol"]:
+                    ableton.send_command("set_track_volume", {
+                        "track_index": t_idx,
+                        "volume": float(points[0]["value"])
+                    })
+                else:
+                    ableton.send_command("set_device_parameter", {
+                        "track_index": t_idx,
+                        "device_index": 0,
+                        "parameter": target_param,
+                        "value": points[0]["value"]
+                    })
                 sent_live = True
             except Exception:
                 pass
