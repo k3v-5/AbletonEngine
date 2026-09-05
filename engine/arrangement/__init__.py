@@ -13,6 +13,7 @@ from .roles.orchestrator import RoleOrchestrator
 from .transitions.models import TransitionDescriptor, TransitionType
 from .transitions.pre_drop import PreDropGenerator
 from .transitions.engine import TransitionEngine
+from .transitions.automation import TransitionAutomationEngine, AutomationCurveType
 from .drops.engine import DropDifferentiationEngine
 from .narrative.arc import NarrativeArc
 from .variation.planner import VariationPlanner, VariationDirective
@@ -32,6 +33,7 @@ __all__ = [
     "RoleMatrix", "SectionRoleMap", "RoleSlot", "STANDARD_ROLES",
     "RoleOrchestrator",
     "TransitionDescriptor", "TransitionType", "PreDropGenerator", "TransitionEngine",
+    "TransitionAutomationEngine", "AutomationCurveType",
     "DropDifferentiationEngine", "NarrativeArc",
     "VariationPlanner", "VariationDirective", "MotifEvolutionManager",
     "DensityController",

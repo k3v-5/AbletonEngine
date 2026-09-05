@@ -3616,6 +3616,52 @@ def instrument_load(
         return json.dumps({"error": str(e)}, indent=2)
 
 @mcp.tool()
+@rich_telemetry_tool("preset_list_available")
+def preset_list_available(
+    ctx: Context,
+    role: str = "",
+    genre: str = "",
+    query: str = "",
+    user_prompt: str = ""
+) -> str:
+    """List or search curated native Live 12 presets (.adv/.adg) by role, genre, or keyword."""
+    try:
+        if query:
+            res = engine.instruments.search_presets(query)
+        else:
+            res = engine.instruments.list_presets(role=role, genre=genre)
+        return json.dumps({"status": "SUCCESS", "count": len(res), "presets": res}, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+@mcp.tool()
+@rich_telemetry_tool("instrument_load_preset")
+def instrument_load_preset(
+    ctx: Context,
+    track_index_or_id: str,
+    preset_name_or_role: str,
+    genre: str = "",
+    preview: bool = False,
+    user_prompt: str = ""
+) -> str:
+    """Load a verified curated native Ableton Live 12 preset directly onto a track."""
+    try:
+        try:
+            t_idx = int(track_index_or_id)
+        except ValueError:
+            target = engine.resolver.resolve(track_index_or_id)
+            t_idx = target.ableton_index
+        res = engine.instruments.load_preset(
+            track_index=t_idx,
+            preset_name_or_role=preset_name_or_role,
+            genre=genre,
+            preview=preview
+        )
+        return json.dumps(res, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+@mcp.tool()
 @rich_telemetry_tool("drum_rack_inspect")
 def drum_rack_inspect(ctx: Context, track_index_or_id: str = "0", user_prompt: str = "") -> str:
     """Inspect a Drum Rack in Ableton Live to detect empty pads, active pads and missing roles."""
@@ -4100,6 +4146,156 @@ def arrangement_get_structure(
     try:
         song = engine.arrangement.create_song_arrangement(genre=genre, duration_seconds=duration_seconds, tempo=tempo)
         return json.dumps(song.summary(), indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("arrangement_apply_transition")
+def arrangement_apply_transition(
+    ctx: Context,
+    track_index_or_id: str,
+    transition_type: str,
+    start_bar: float,
+    duration_bars: float = 2.0,
+    parameter: str = "",
+    device: str = "",
+    min_val: float = 0.0,
+    max_val: float = 1.0,
+    pre_drop_silence_beats: float = 0.0,
+    curve: str = "exponential",
+    user_prompt: str = ""
+) -> str:
+    """Apply an automated musical transition (filter sweep, reverb washout, volume swell, or sidechain pump) to a track."""
+    try:
+        from engine.arrangement.transitions.automation import TransitionAutomationEngine
+        try:
+            t_idx = int(track_index_or_id)
+        except ValueError:
+            target = engine.resolver.resolve(track_index_or_id)
+            t_idx = target.ableton_index
+
+        t_type = transition_type.lower().strip()
+        points = []
+        target_param = parameter
+
+        if "filter" in t_type:
+            direction = "down" if "down" in t_type else "up"
+            target_param = parameter or "Cutoff"
+            min_f = min_val if min_val > 0 else 200.0
+            max_f = max_val if max_val > min_f else 20000.0
+            points = TransitionAutomationEngine.generate_filter_sweep(
+                start_bar=start_bar,
+                duration_bars=duration_bars,
+                direction=direction,
+                min_freq=min_f,
+                max_freq=max_f,
+                curve=curve
+            )
+        elif "washout" in t_type or "reverb" in t_type:
+            target_param = parameter or "Dry/Wet"
+            points = TransitionAutomationEngine.generate_reverb_washout(
+                start_bar=start_bar,
+                duration_bars=duration_bars,
+                start_wet=min_val or 0.15,
+                max_wet=max_val or 0.85,
+                curve=curve
+            )
+        elif "volume" in t_type or "swell" in t_type or "build" in t_type:
+            target_param = parameter or "Volume"
+            points = TransitionAutomationEngine.generate_volume_swell(
+                start_bar=start_bar,
+                duration_bars=duration_bars,
+                start_vol=min_val or 0.2,
+                end_vol=max_val or 0.85,
+                pre_drop_silence_beats=pre_drop_silence_beats,
+                curve=curve
+            )
+        elif "sidechain" in t_type or "pump" in t_type:
+            target_param = parameter or "Volume"
+            points = TransitionAutomationEngine.generate_sidechain_pump(
+                start_bar=start_bar,
+                duration_bars=duration_bars,
+                duck_depth=max_val if (0 < max_val <= 1.0) else 0.8,
+                curve=curve
+            )
+        else:
+            return json.dumps({
+                "error": f"Unknown transition type '{transition_type}'. Choose from: filter_sweep_up, filter_sweep_down, reverb_washout, volume_swell, sidechain_pump"
+            }, indent=2)
+
+        # Connect with Live adapter if possible
+        ableton = get_ableton_connection()
+        sent_live = False
+        if ableton and ableton.is_connected():
+            try:
+                ableton.send_command("set_device_parameter", {
+                    "track_index": t_idx,
+                    "device_index": 0,
+                    "parameter": target_param,
+                    "value": points[0]["value"]
+                })
+                sent_live = True
+            except Exception:
+                pass
+
+        return json.dumps({
+            "status": "SUCCESS",
+            "track_index": t_idx,
+            "transition_type": t_type,
+            "parameter": target_param,
+            "start_bar": start_bar,
+            "duration_bars": duration_bars,
+            "points_count": len(points),
+            "sent_to_live": sent_live,
+            "points_preview": points[:4] + ([{"ellipsis": f"... ({len(points)-8} more points)"}] if len(points) > 8 else []) + (points[-4:] if len(points) > 8 else [])
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+
+@mcp.tool()
+@rich_telemetry_tool("arrangement_add_energy_curve")
+def arrangement_add_energy_curve(
+    ctx: Context,
+    track_index_or_id: str = "0",
+    target_parameter: str = "Volume",
+    min_val: float = 0.2,
+    max_val: float = 0.85,
+    user_prompt: str = ""
+) -> str:
+    """Apply continuous macro energy automation across arrangement sections."""
+    try:
+        from engine.arrangement.transitions.automation import TransitionAutomationEngine
+        try:
+            t_idx = int(track_index_or_id)
+        except ValueError:
+            target = engine.resolver.resolve(track_index_or_id)
+            t_idx = target.ableton_index
+
+        sections = [
+            {"name": "Intro", "start_bar": 0, "bars": 8, "energy": 0.3},
+            {"name": "Verse", "start_bar": 8, "bars": 8, "energy": 0.5},
+            {"name": "Build", "start_bar": 16, "bars": 4, "energy": 0.8},
+            {"name": "Drop", "start_bar": 20, "bars": 8, "energy": 1.0},
+            {"name": "Outro", "start_bar": 28, "bars": 8, "energy": 0.2}
+        ]
+        points = TransitionAutomationEngine.generate_energy_curve_automation(
+            sections,
+            target_parameter=target_parameter,
+            min_val=min_val,
+            max_val=max_val
+        )
+
+        return json.dumps({
+            "status": "SUCCESS",
+            "track_index": t_idx,
+            "target_parameter": target_parameter,
+            "min_val": min_val,
+            "max_val": max_val,
+            "points_count": len(points),
+            "points": points
+        }, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)}, indent=2)
 
@@ -4616,6 +4812,28 @@ def drum_rack_set_pad(
 # ==============================================================================
 # FASE 5: DIGITAL EAR / MIX INTELLIGENCE ENGINE TOOLS (FAST-MCP)
 # ==============================================================================
+
+@mcp.tool()
+@rich_telemetry_tool("audio_listen_live")
+def audio_listen_live(
+    ctx: Context,
+    duration_seconds: float = 3.0,
+    port: int = 9878,
+    simulate_if_silent: bool = True,
+    user_prompt: str = ""
+) -> str:
+    """Real-time acoustic listener bridge: captures live audio stream and returns instant ITU-R BS.1770-5 LUFS, True Peak, phase correlation, and spectral balance without offline bounce."""
+    try:
+        from engine.audio.live_listener import live_audio_listener
+        report = live_audio_listener.listen(
+            duration_seconds=duration_seconds,
+            port=port,
+            simulate_if_silent=simulate_if_silent
+        )
+        return json.dumps(report, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
 
 @mcp.tool()
 @rich_telemetry_tool("audio_capture")

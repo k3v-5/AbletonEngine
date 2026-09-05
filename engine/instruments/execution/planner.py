@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from ..models import InstrumentDescriptor, InstrumentSource, InstrumentExecutionPlan
 from ..roles import InstrumentRole
 from ..profiles.sound_profiles import get_sound_profile
+from ..library.preset_catalog import PresetCatalog
 
 class InstrumentPlanner:
     """Resolves and plans instrumentation for both melodic instruments and drum kits."""
@@ -57,10 +58,22 @@ class InstrumentPlanner:
     def resolve_instrument(cls, role: str, sound_profile: str = "") -> InstrumentDescriptor:
         role_clean = role.strip().upper()
         profile = get_sound_profile(sound_profile) if sound_profile else None
-        
         target_role = InstrumentRole.from_str(role_clean)
-        
-        # Check native mapping
+
+        # 1. Check Curated Native Live 12 Preset Catalog
+        preset = PresetCatalog.resolve_preset(role_clean, genre=sound_profile, mood=sound_profile)
+        if preset:
+            src = InstrumentSource.DRUM_RACK if preset.role == "DRUM_KIT" else InstrumentSource.INSTRUMENT
+            return InstrumentDescriptor(
+                role=target_role,
+                sound_profile=sound_profile or preset.character or role_clean.lower(),
+                source=src,
+                uri=preset.uri,
+                device_name=preset.name,
+                parameters={}
+            )
+
+        # 2. Check native mapping fallback
         if role_clean in cls.NATIVE_INSTRUMENT_MAP:
             info = cls.NATIVE_INSTRUMENT_MAP[role_clean]
             return InstrumentDescriptor(
@@ -72,7 +85,7 @@ class InstrumentPlanner:
                 parameters=info["parameters"]
             )
 
-        # Fallback to Drift
+        # 3. Fallback to Drift
         return InstrumentDescriptor(
             role=target_role,
             sound_profile=sound_profile or "generic",

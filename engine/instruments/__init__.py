@@ -14,6 +14,7 @@ from .rack.inspector import DrumRackInspector
 from .rack.builder import DrumRackBuilder
 from .rack.verifier import DrumRackVerifier
 from .execution.planner import InstrumentPlanner
+from .library.preset_catalog import PresetCatalog, PresetEntry, PRESET_CATALOG
 
 class InstrumentEngine:
     """Production Intelligence Engine — Instrument & Drum Rack Engine (Fase 2.5).
@@ -131,6 +132,55 @@ class InstrumentEngine:
                 "descriptor": desc.to_dict(),
                 "load_result": load_res
             }
+
+    def list_presets(self, role: str = "", genre: str = "") -> List[Dict[str, Any]]:
+        """List curated presets matching an optional role and genre."""
+        presets = PresetCatalog.list_presets(role=role, genre=genre)
+        return [p.to_dict() for p in presets]
+
+    def search_presets(self, query: str) -> List[Dict[str, Any]]:
+        """Search curated presets by text query."""
+        presets = PresetCatalog.search(query)
+        return [p.to_dict() for p in presets]
+
+    def load_preset(
+        self,
+        track_index: int,
+        preset_name_or_role: str,
+        genre: str = "",
+        preview: bool = False
+    ) -> Dict[str, Any]:
+        """Load a curated preset by name or musical role directly onto a track."""
+        # Check direct search by name
+        matched = [p for p in PRESET_CATALOG if p.name.lower() == preset_name_or_role.strip().lower()]
+        preset = matched[0] if matched else PresetCatalog.resolve_preset(preset_name_or_role, genre=genre)
+
+        if not preset:
+            return {
+                "status": "error",
+                "message": f"Could not find curated preset for '{preset_name_or_role}'"
+            }
+
+        if preview:
+            return {
+                "status": "PREVIEW",
+                "track_index": track_index,
+                "preset": preset.to_dict()
+            }
+
+        load_res = None
+        if self.adapter and self.adapter.is_connected():
+            try:
+                load_res = self.adapter.load_instrument_or_effect(track_index, preset.uri)
+            except Exception as e:
+                load_res = {"error": str(e)}
+
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "preset": preset.to_dict(),
+            "load_result": load_res
+        }
 
 # Export singleton
 instrument_engine = InstrumentEngine()
