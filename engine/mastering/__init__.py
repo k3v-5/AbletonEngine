@@ -28,6 +28,8 @@ from .reports import MasteringReportGenerator
 from .mastering_chain import MasterChainBuilder
 from .mastering_analyzer import MasteringAnalyzer
 from .mastering_engine import MasteringEngine
+from .live_master_chain import LiveMasterChainEngine
+from .release_package import CommercialReleasePackager
 
 __all__ = [
     "DeliveryTarget",
@@ -63,5 +65,7 @@ __all__ = [
     "MasteringReportGenerator",
     "MasterChainBuilder",
     "MasteringAnalyzer",
-    "MasteringEngine"
+    "MasteringEngine",
+    "LiveMasterChainEngine",
+    "CommercialReleasePackager"
 ]

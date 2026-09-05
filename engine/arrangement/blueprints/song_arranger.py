@@ -410,6 +410,33 @@ class FullSongArrangerEngine:
                 except Exception:
                     pass
 
+                # 8. Automatically apply track channel strips (EQ Eight per role)
+                try:
+                    from engine.mix.channel_strip import ChannelStripEngine
+                    for r_name, r_idx in effective_map.items():
+                        if r_name in ["kick", "snare", "hats", "crash", "bass", "piano", "lead", "foley"]:
+                            ChannelStripEngine.apply_channel_strip(conn, track_index=r_idx, role=r_name)
+                            commands_dispatched += 1
+                except Exception:
+                    pass
+
+                # 9. Automatically apply group bus processing (Drum Buss on Track 0, Glue on Track 3)
+                try:
+                    from engine.mix.channel_strip import ChannelStripEngine
+                    ChannelStripEngine.apply_bus_processing(conn, group_track_index=0, bus_type="drums")
+                    ChannelStripEngine.apply_bus_processing(conn, group_track_index=3, bus_type="synths")
+                    commands_dispatched += 2
+                except Exception:
+                    pass
+
+                # 10. Automatically configure 5-device live mastering chain
+                try:
+                    from engine.mastering.live_master_chain import LiveMasterChainEngine
+                    LiveMasterChainEngine.setup_live_mastering_chain(conn, track_index=12, target_profile="STREAMING")
+                    commands_dispatched += 5
+                except Exception:
+                    pass
+
             except Exception:
                 pass
 

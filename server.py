@@ -8017,6 +8017,136 @@ def apply_physical_arrangement_automations(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def apply_track_channel_strip(
+    track_index: int,
+    role: str = "lead"
+) -> dict:
+    """
+    Applies surgical channel strip EQ processing to an individual track:
+    - Loads EQ Eight on the target track.
+    - Configures high-pass filter (HPF) tailored to instrument role (e.g. 25-30 Hz for 808/Kick, 100-120 Hz for Keys/Lead/Vox, 350 Hz for Hats).
+    - Removes boxy mud frequencies (200-350 Hz) and injects air band sheen (10-12 kHz).
+    """
+    try:
+        from engine.mix.channel_strip import ChannelStripEngine
+        conn = get_ableton_connection()
+        res = ChannelStripEngine.apply_channel_strip(conn, track_index=track_index, role=role)
+        return res
+    except Exception as e:
+        logger.error(f"Error in apply_track_channel_strip: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_group_bus_processing(
+    group_track_index: int,
+    bus_type: str = "drums"
+) -> dict:
+    """
+    Applies group bus processing to glue stems together:
+    - Drum Bus: Loads Drum Buss with warm analog drive, crunch, transient punch, and parallel compression.
+    - Synth/Instrument Bus: Loads Glue Compressor (2:1 ratio, 30ms attack, Auto release, soft clip) and carving EQ Eight.
+    """
+    try:
+        from engine.mix.channel_strip import ChannelStripEngine
+        conn = get_ableton_connection()
+        res = ChannelStripEngine.apply_bus_processing(conn, group_track_index=group_track_index, bus_type=bus_type)
+        return res
+    except Exception as e:
+        logger.error(f"Error in apply_group_bus_processing: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def setup_full_mastering_chain(
+    track_index: int = 12,
+    target_profile: str = "STREAMING"
+) -> dict:
+    """
+    Deploys the complete 5-device native mastering chain in Ableton Live:
+    1. Master EQ Eight (25Hz high-pass, surgical resonance dip, 12kHz high shelf)
+    2. Master Glue Compressor (2:1 ratio, 30ms attack, auto release, soft peak clip)
+    3. Master Saturator (analog clip warm tape/tube harmonic excitation)
+    4. Master Utility (Bass Mono below 120Hz, stereo width 100%)
+    5. Master Limiter (-1.0 dBTP true peak ceiling, lookahead 5ms, profile-calibrated gain)
+    Strictly conforms to ITU-R BS.1770-5 and streaming delivery standards (-14 LUFS / -1.0 dBTP).
+    """
+    try:
+        from engine.mastering.live_master_chain import LiveMasterChainEngine
+        conn = get_ableton_connection()
+        res = LiveMasterChainEngine.setup_live_mastering_chain(conn, track_index=track_index, target_profile=target_profile)
+        return res
+    except Exception as e:
+        logger.error(f"Error in setup_full_mastering_chain: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_adaptive_deesser(
+    track_index: int,
+    target_sibilance_freq: float = 6800.0,
+    threshold: float = 0.65
+) -> dict:
+    """
+    Deploys a surgical adaptive De-Esser on a track in Ableton Live:
+    - Sets native Compressor into S/C EQ Bandpass mode centered around 5.5 - 8.5 kHz.
+    - Suppresses harsh vocal sibilance ('S', 'T', 'CH') and brittle cymbal splash dynamically.
+    - Preserves high-end air without dulling or darkening the mix.
+    """
+    try:
+        from engine.mix.eq.dynamic_eq import DynamicEQEngine
+        conn = get_ableton_connection()
+        res = DynamicEQEngine.apply_adaptive_deesser(
+            conn=conn,
+            track_index=track_index,
+            target_sibilance_freq=target_sibilance_freq,
+            threshold=threshold
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in apply_adaptive_deesser: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def export_commercial_release_package(
+    song_title: str = "Master Track",
+    artist_name: str = "Producer",
+    genre: str = "atlanta_trap",
+    bpm: float = 138.0,
+    key: str = "F minor",
+    target_profile: str = "STREAMING",
+    output_directory: Optional[str] = None
+) -> dict:
+    """
+    Exports the complete market-ready commercial release package:
+    1. 24-bit / 48kHz Hi-Res Lossless Master WAV
+    2. 16-bit / 44.1kHz Red Book CD Master WAV (with TPDF dither)
+    3. 320 kbps Commercial Reference MP3
+    4. Clean Instrumental Master WAV
+    5. Acapella / Vocal Stem WAV
+    6. Full 5-Stem Multi-Track Archive (Drums, Bass, Instruments, Vocals, FX)
+    7. release_manifest.json with ISRC, UPC, BS.1770-5 metrics, and SHA-256 file checksums.
+    """
+    try:
+        from engine.mastering.release_package import CommercialReleasePackager
+        out_dir = output_directory or str(Path.home() / "Music" / "Mastered_Releases")
+        res = CommercialReleasePackager.create_release_package(
+            output_directory=out_dir,
+            song_title=song_title,
+            artist_name=artist_name,
+            genre=genre,
+            bpm=bpm,
+            key=key,
+            target_profile=target_profile
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in export_commercial_release_package: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

@@ -35,6 +35,8 @@ from .sidechain import AutoSidechainDucker
 from .sidechain_manager import SidechainManager
 from .spatial.depth import DepthStagingEngine, DepthPlane, SpatialProfile
 from .eq.resonance import ResonanceHunter, ResonantPeak
+from .channel_strip import ChannelStripEngine
+from .eq.dynamic_eq import DynamicEQEngine, DynamicEQBand
 
 
 class MixEngine:

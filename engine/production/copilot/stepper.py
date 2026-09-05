@@ -380,6 +380,94 @@ class ExecutiveCopilotEngine:
                     target_track=effective_bass
                 ))
 
+        # 10. CHANNEL STRIP FREQUENCY CONTROL CHECK
+        for idx, trk in enumerate(session_tracks):
+            t_idx = int(trk.get("track_index", idx))
+            t_name = str(trk.get("name", "")).lower()
+            dec_id = f"DEC-P6-CHANNEL-STRIP-T{t_idx}"
+            if dec_id not in self.resolved_decisions:
+                r_label = "keys"
+                if "kick" in t_name:
+                    r_label = "kick"
+                elif "808" in t_name or "bass" in t_name or "sub" in t_name:
+                    r_label = "bass"
+                elif "snare" in t_name or "clap" in t_name:
+                    r_label = "snare"
+                elif "hat" in t_name or "perc" in t_name or "crash" in t_name:
+                    r_label = "hats"
+                elif "lead" in t_name or "synth" in t_name:
+                    r_label = "lead"
+                elif "vocal" in t_name or "vox" in t_name or "chop" in t_name:
+                    r_label = "vocal"
+                elif "foley" in t_name or "texture" in t_name:
+                    r_label = "foley"
+
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                    title=f"Apply Surgical Channel Strip & HPF to Track {t_idx} ({t_name or r_label})",
+                    description=f"Carves out sub-rumble and mud, shaping {r_label} frequencies with calibrated EQ Eight filter curves.",
+                    recommendation=f"YES, apply {r_label} channel strip with high-pass filtering.",
+                    action_tool="apply_track_channel_strip",
+                    action_args={"track_index": t_idx, "role": r_label},
+                    target_track=t_idx
+                ))
+
+        # 11. GROUP BUS PROCESSING CHECK
+        dec_bus_id = "DEC-P6-BUS-PROCESSING"
+        if dec_bus_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_bus_id,
+                phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                title="Apply Group Bus Processing (Drum Buss & Synth Glue)",
+                description="Processes Drum Bus with Drum Buss (Drive, Transients, Glue) and Synth Bus with Glue Compressor and harmonic EQ carving.",
+                recommendation="YES, apply group bus processing across drums and instrument stems.",
+                action_tool="apply_group_bus_processing",
+                action_args={"group_track_index": 0, "bus_type": "drums"}
+            ))
+
+        # 12. PHYSICAL LIVE MASTERING CHAIN CHECK
+        dec_master_live_id = "DEC-P7-LIVE-MASTERING-CHAIN"
+        if dec_master_live_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_master_live_id,
+                phase=ProductionPhase.PHASE_7_MASTER_DELIVERY,
+                title="Deploy Physical 5-Device Native Mastering Chain in Live",
+                description="Installs physical EQ Eight, Glue Compressor, Saturator, Utility (Bass Mono <120Hz), and Limiter (-1.0 dBTP) on Pre-Master / Master bus.",
+                recommendation="YES, deploy 5-device chain targeting Streaming (-14 LUFS, -1.0 dBTP).",
+                action_tool="setup_full_mastering_chain",
+                action_args={"track_index": 12, "target_profile": "STREAMING"}
+            ))
+
+        # 13. ADAPTIVE DE-ESSER & SIBILANCE CONTROL CHECK
+        if vocal_tracks or lead_tracks:
+            v_target = vocal_tracks[0] if vocal_tracks else lead_tracks[0]
+            dec_deess_id = f"DEC-P6-ADAPTIVE-DEESSER-T{v_target}"
+            if dec_deess_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_deess_id,
+                    phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                    title=f"Deploy Adaptive De-Esser on Track {v_target}",
+                    description="Vocal/Lead high frequencies contain harsh sibilance ('S', 'T', 'CH'). De-Esser suppresses harshness dynamically at 6.8 kHz without dulling high-end air.",
+                    recommendation="YES, deploy adaptive bandpass de-esser at 6.8 kHz.",
+                    action_tool="apply_adaptive_deesser",
+                    action_args={"track_index": v_target, "target_sibilance_freq": 6800.0, "threshold": 0.65},
+                    target_track=v_target
+                ))
+
+        # 14. COMMERCIAL RELEASE PACKAGE BUNDLER CHECK
+        dec_release_id = "DEC-P7-COMMERCIAL-RELEASE-PACKAGE"
+        if dec_release_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_release_id,
+                phase=ProductionPhase.PHASE_7_MASTER_DELIVERY,
+                title="Generate Full Commercial Release Package & Distribution Manifest",
+                description="Builds production release bundle: 24-bit Lossless Master, 16-bit CD Dithered Master, 320k MP3, Instrumental, Acapella, Multi-Stems, and release_manifest.json with ISRC/UPC.",
+                recommendation="YES, export complete market-ready commercial release package.",
+                action_tool="export_commercial_release_package",
+                action_args={"song_title": "Master Track", "target_profile": "STREAMING"}
+            ))
+
         # 10. PHYSICAL ARRANGEMENT AUTOMATIONS CHECK
         dec_auto_phys_id = "DEC-P5-PHYSICAL-ARRANGEMENT-AUTOMATIONS"
         if dec_auto_phys_id not in self.resolved_decisions:
@@ -588,6 +676,43 @@ class ExecutiveCopilotEngine:
                         track_indices=t_indices,
                         drop_bar=args.get("drop_bar", 33.0),
                         vacuum_beats=args.get("vacuum_beats", 2.0)
+                    )
+                elif dec.action_tool == "apply_track_channel_strip":
+                    from engine.mix.channel_strip import ChannelStripEngine
+                    ChannelStripEngine.apply_channel_strip(
+                        conn=conn,
+                        track_index=args.get("track_index", 0),
+                        role=args.get("role", "lead")
+                    )
+                elif dec.action_tool == "apply_group_bus_processing":
+                    from engine.mix.channel_strip import ChannelStripEngine
+                    ChannelStripEngine.apply_bus_processing(
+                        conn=conn,
+                        group_track_index=args.get("group_track_index", 0),
+                        bus_type=args.get("bus_type", "drums")
+                    )
+                elif dec.action_tool == "setup_full_mastering_chain":
+                    from engine.mastering.live_master_chain import LiveMasterChainEngine
+                    LiveMasterChainEngine.setup_live_mastering_chain(
+                        conn=conn,
+                        track_index=args.get("track_index", 12),
+                        target_profile=args.get("target_profile", "STREAMING")
+                    )
+                elif dec.action_tool == "apply_adaptive_deesser":
+                    from engine.mix.eq.dynamic_eq import DynamicEQEngine
+                    DynamicEQEngine.apply_adaptive_deesser(
+                        conn=conn,
+                        track_index=args.get("track_index", 4),
+                        target_sibilance_freq=args.get("target_sibilance_freq", 6800.0),
+                        threshold=args.get("threshold", 0.65)
+                    )
+                elif dec.action_tool == "export_commercial_release_package":
+                    from engine.mastering.release_package import CommercialReleasePackager
+                    CommercialReleasePackager.create_release_package(
+                        output_directory=args.get("output_directory") or str(Path.home() / "Music" / "Mastered_Releases"),
+                        song_title=args.get("song_title", "Master Track"),
+                        artist_name=args.get("artist_name", "Producer"),
+                        target_profile=args.get("target_profile", "STREAMING")
                     )
                 execution_res["live_result"] = "executed_via_adapter"
             except Exception as e:
