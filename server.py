@@ -7406,6 +7406,171 @@ def orchestrate_beat_switch(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def copilot_get_status() -> dict:
+    """
+    Returns current executive copilot production phase, overall progress percentage,
+    and a summary of pending decisions requiring producer resolution.
+    """
+    try:
+        from engine.production.copilot import executive_copilot
+        conn = get_ableton_connection()
+        state = executive_copilot.inspect_session(conn=conn)
+        return state.to_dict()
+    except Exception as e:
+        logger.error(f"Error in copilot_get_status: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def copilot_review_decisions(phase: Optional[str] = None) -> dict:
+    """
+    Returns the interactive checklist of pending production decisions, including
+    technical justifications, recommended actions, and execution options (YES/NO/CUSTOM).
+    """
+    try:
+        from engine.production.copilot import executive_copilot
+        conn = get_ableton_connection()
+        state = executive_copilot.inspect_session(conn=conn)
+        pending = state.pending_decisions
+        if phase:
+            pending = [d for d in pending if d.phase == phase]
+
+        return {
+            "pending_count": len(pending),
+            "decisions": [d.to_dict() for d in pending],
+            "guidance": "Review each decision. To accept recommended action, call copilot_execute_decision(decision_id, choice='YES'). To consciously omit, call with choice='NO' and your justification."
+        }
+    except Exception as e:
+        logger.error(f"Error in copilot_review_decisions: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def copilot_execute_decision(
+    decision_id: str,
+    choice: str = "YES",
+    justification: Optional[str] = None,
+    custom_args: Optional[dict] = None
+) -> dict:
+    """
+    Resolves an interactive copilot decision:
+    - choice='YES': automatically executes the recommended action and marks APPLIED.
+    - choice='NO': records conscious producer opt-out with justification and marks REJECTED.
+    - choice='CUSTOM': executes with custom parameter overrides.
+    """
+    try:
+        from engine.production.copilot import executive_copilot
+        conn = get_ableton_connection()
+        res = executive_copilot.execute_decision(
+            decision_id=decision_id,
+            choice=choice,
+            justification=justification,
+            custom_args=custom_args,
+            conn=conn
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in copilot_execute_decision: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def copilot_preflight_check() -> dict:
+    """
+    Performs a strict pre-flight audit validating that zero unreviewed technical
+    steps or pending decisions remain before final mastering and delivery.
+    """
+    try:
+        from engine.production.copilot import executive_copilot
+        conn = get_ableton_connection()
+        executive_copilot.inspect_session(conn=conn)
+        report = executive_copilot.preflight_check()
+        return report
+    except Exception as e:
+        logger.error(f"Error in copilot_preflight_check: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def macro_produce_rhythm(
+    genre: str = "atlanta_trap",
+    bpm: float = 138.0,
+    drum_track: int = 13,
+    bass_track: int = 6,
+    humanize: bool = True,
+    auto_sidechain: bool = True,
+    add_slides: bool = True
+) -> dict:
+    """
+    All-in-one macro recipe producing a complete rhythm section: drums + 808 + pocket micro-timing + turnaround slides + closed-loop sidechain + timeline duplication.
+    """
+    try:
+        from engine.production.copilot import MacroProductionRecipes
+        conn = get_ableton_connection()
+        return MacroProductionRecipes.produce_complete_rhythm_section(
+            conn=conn,
+            genre=genre,
+            bpm=bpm,
+            drum_track=drum_track,
+            bass_track=bass_track,
+            humanize=humanize,
+            auto_sidechain=auto_sidechain,
+            add_slides=add_slides
+        )
+    except Exception as e:
+        logger.error(f"Error in macro_produce_rhythm: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def macro_produce_harmony(
+    piano_track: int = 9,
+    lead_track: int = 4,
+    bpm: float = 138.0,
+    apply_strum: bool = True,
+    reharmonize: bool = True
+) -> dict:
+    """
+    All-in-one macro recipe producing harmony and lead layers: chords + secondary dominants + physical strumming + 3D depth staging.
+    """
+    try:
+        from engine.production.copilot import MacroProductionRecipes
+        conn = get_ableton_connection()
+        return MacroProductionRecipes.produce_complete_harmony_and_lead(
+            conn=conn,
+            piano_track=piano_track,
+            lead_track=lead_track,
+            bpm=bpm,
+            apply_strum=apply_strum,
+            reharmonize=reharmonize
+        )
+    except Exception as e:
+        logger.error(f"Error in macro_produce_harmony: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def macro_finalize_song(
+    target_profile: str = "STREAMING",
+    pre_drop_bar: float = 33.0
+) -> dict:
+    """
+    All-in-one macro recipe finalizing the song: pre-drop ear candy vacuum + 5-device mastering chain + technical readiness validation.
+    """
+    try:
+        from engine.production.copilot import MacroProductionRecipes
+        conn = get_ableton_connection()
+        return MacroProductionRecipes.finalize_mix_and_master(
+            conn=conn,
+            target_profile=target_profile,
+            pre_drop_bar=pre_drop_bar
+        )
+    except Exception as e:
+        logger.error(f"Error in macro_finalize_song: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

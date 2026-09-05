@@ -258,6 +258,12 @@ def __getattr__(name: str):
         from . import rollback
         return getattr(rollback, name)
     elif name in (
+        "ProductionPhase", "CopilotState", "ExecutiveCopilotEngine",
+        "executive_copilot", "MacroProductionRecipes"
+    ):
+        from . import copilot
+        return getattr(copilot, name)
+    elif name in (
         "ProductionAPIBoundary", "get_production_boundary", "reset_production_boundary",
         "production_status", "production_plan", "production_validate",
         "production_execute", "production_explain", "production_history",
