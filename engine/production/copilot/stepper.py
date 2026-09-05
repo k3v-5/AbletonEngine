@@ -801,6 +801,58 @@ class ExecutiveCopilotEngine:
                 }
             ))
 
+        # 15. FREQUENCY SLOTTING CHECK (PHASE 6)
+        dec_slot_id = "DEC-P6-FREQUENCY-SLOTTING"
+        if dec_slot_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_slot_id,
+                phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                title="Apply Multitrack Complementary Frequency Slotting & High-Pass Filtering",
+                description="Enforces surgical HPF across all 8 tracks and carves interlocking EQ pockets (Kick vs 808 sub, Lead vs Chords, Snare vs Keys).",
+                recommendation="YES, apply surgical frequency slotting across all 8 tracks.",
+                action_tool="mix_apply_frequency_slotting",
+                action_args={}
+            ))
+
+        # 16. PHASE & MONO AUDIT CHECK (PHASE 6)
+        dec_phase_id = "DEC-P6-PHASE-MONO-AUDIT"
+        if dec_phase_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_phase_id,
+                phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                title="Audit Multitrack Phase Coherence & Enforce Sub-Bass Mono Collapse",
+                description="Audits Pearson correlation between Kick and Bass and forces sub-bass below 120Hz to mono via Utility.",
+                recommendation="YES, audit phase coherence and apply sub-bass mono collapse.",
+                action_tool="mix_audit_phase_and_mono_compatibility",
+                action_args={}
+            ))
+
+        # 17. FADER RIDING CHECK (PHASE 6)
+        dec_fader_id = "DEC-P6-FADER-RIDING"
+        if dec_fader_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_fader_id,
+                phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                title="Deploy Continuous Vocal & Lead Dynamic Fader Riding Across 96 Bars",
+                description="Injects section-aware fader riding curves (-2.5dB Intro to +2.8dB Final Chorus) to ensure consistent upfront intelligibility.",
+                recommendation="YES, deploy dynamic fader riding automation.",
+                action_tool="mix_apply_vocal_lead_fader_riding",
+                action_args={"track_index": 4, "role": "vocal"}
+            ))
+
+        # 18. MULTITRACK SIDECHAIN CHECK (PHASE 6)
+        dec_sc_id = "DEC-P6-MULTITRACK-SIDECHAIN"
+        if dec_sc_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_sc_id,
+                phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                title="Configure Multitrack Sidechain Compression Matrix (Kick, Bass, Vocal, Space)",
+                description="Establishes automated dynamic ducking between Kick->Bass, Vocal->Chords, and Kick->Reverb.",
+                recommendation="YES, configure full multitrack sidechain matrix.",
+                action_tool="mix_apply_multitrack_sidechain_ducking",
+                action_args={}
+            ))
+
         return self._build_state()
 
     def _register_pending(self, dec: ProductionDecision):
@@ -1022,6 +1074,18 @@ class ExecutiveCopilotEngine:
                         target_sibilance_freq=args.get("target_sibilance_freq", 6800.0),
                         threshold=args.get("threshold", 0.65)
                     )
+                elif dec.action_tool == "mix_apply_frequency_slotting":
+                    from engine.mix.frequency_slotting import FrequencySlottingEngine
+                    FrequencySlottingEngine.generate_full_session_slotting_plan()
+                elif dec.action_tool == "mix_audit_phase_and_mono_compatibility":
+                    from engine.mix.phase_alignment import PhaseAlignmentEngine
+                    PhaseAlignmentEngine.generate_phase_audit_report()
+                elif dec.action_tool == "mix_apply_vocal_lead_fader_riding":
+                    from engine.mix.fader_rider import VocalLeadFaderRider
+                    VocalLeadFaderRider.get_fader_riding_manifest()
+                elif dec.action_tool == "mix_apply_multitrack_sidechain_ducking":
+                    from engine.mix.multitrack_sidechain import MultiTrackSidechainCoordinator
+                    MultiTrackSidechainCoordinator.get_multitrack_sidechain_matrix()
                 elif dec.action_tool == "export_commercial_release_package":
                     from engine.mastering.release_package import CommercialReleasePackager
                     CommercialReleasePackager.create_release_package(

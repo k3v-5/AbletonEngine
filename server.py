@@ -8705,6 +8705,67 @@ def transitions_inject_ear_candy_fx() -> dict:
         return {"status": "error", "message": str(e)}
 
 
+
+@mcp.tool()
+def mix_apply_frequency_slotting() -> dict:
+    """
+    Phase 6: Applies multitrack complementary frequency slotting and surgical High-Pass Filtering
+    across all 8 session tracks to eliminate acoustic masking.
+    """
+    try:
+        from engine.mix.frequency_slotting import FrequencySlottingEngine
+        plan = FrequencySlottingEngine.generate_full_session_slotting_plan()
+        return plan
+    except Exception as e:
+        logger.error(f"Error in mix_apply_frequency_slotting: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def mix_audit_phase_and_mono_compatibility() -> dict:
+    """
+    Phase 6: Audits Pearson phase correlation coefficients between interacting stems (Kick vs 808)
+    and enforces strict sub-bass mono collapse (< 120 Hz) for club/vinyl compatibility.
+    """
+    try:
+        from engine.mix.phase_alignment import PhaseAlignmentEngine
+        report = PhaseAlignmentEngine.generate_phase_audit_report()
+        return report
+    except Exception as e:
+        logger.error(f"Error in mix_audit_phase_and_mono_compatibility: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def mix_apply_vocal_lead_fader_riding(role: str = "vocal", crossfade_beats: float = 2.0) -> dict:
+    """
+    Phase 6: Computes section-aware dynamic fader riding automation curves across 96 bars
+    for vocal hooks and lead melodies (-2.5 dB to +2.8 dB).
+    """
+    try:
+        from engine.mix.fader_rider import VocalLeadFaderRider
+        manifest = VocalLeadFaderRider.get_fader_riding_manifest()
+        return manifest
+    except Exception as e:
+        logger.error(f"Error in mix_apply_vocal_lead_fader_riding: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def mix_apply_multitrack_sidechain_ducking() -> dict:
+    """
+    Phase 6: Coordinates physical sidechain compression routing and envelope ducking
+    across Kick-to-Bass, Vocal-to-Chords, and Kick-to-Reverb buses.
+    """
+    try:
+        from engine.mix.multitrack_sidechain import MultiTrackSidechainCoordinator
+        matrix = MultiTrackSidechainCoordinator.get_multitrack_sidechain_matrix()
+        return matrix
+    except Exception as e:
+        logger.error(f"Error in mix_apply_multitrack_sidechain_ducking: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

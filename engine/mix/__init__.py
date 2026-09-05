@@ -37,6 +37,10 @@ from .spatial.depth import DepthStagingEngine, DepthPlane, SpatialProfile
 from .eq.resonance import ResonanceHunter, ResonantPeak
 from .channel_strip import ChannelStripEngine
 from .eq.dynamic_eq import DynamicEQEngine, DynamicEQBand
+from .frequency_slotting import FrequencySlottingEngine
+from .phase_alignment import PhaseAlignmentEngine
+from .fader_rider import VocalLeadFaderRider
+from .multitrack_sidechain import MultiTrackSidechainCoordinator
 
 
 class MixEngine:
