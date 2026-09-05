@@ -109,7 +109,7 @@ class ExecutiveCopilotEngine:
                 kick_tracks.append(t_idx)
             elif "808" in t_name or "bass" in t_name or "sub" in t_name:
                 bass_tracks.append(t_idx)
-            if any(w in t_name for w in ["drum", "kit", "perc", "break"]):
+            if any(w in t_name for w in ["drum", "kit", "perc", "break", "snare", "clap", "hat"]):
                 drum_tracks.append(t_idx)
             if any(w in t_name for w in ["piano", "chord", "key", "rhodes"]):
                 chord_tracks.append(t_idx)
@@ -284,6 +284,66 @@ class ExecutiveCopilotEngine:
                 action_args={},
                 target_track=None
             ))
+
+        # --- PHASE 4: INTERPRETATION, DYNAMICS & GROOVE DECISIONS ---
+        if drum_tracks:
+            d_idx = drum_tracks[0]
+            dec_id = f"DEC-P4-01-MPC-GROOVE-POOL-T{d_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title=f"Apply MPC 60 Hardware Groove Pool & Swing to Track {d_idx}",
+                    description="Applies Roger Linn MPC 60 58% swing timing and velocity multipliers to eradicate mechanical rigidity.",
+                    recommendation="YES, apply MPC 60 58% swing groove.",
+                    action_tool="groove_apply_hardware_pocket",
+                    action_args={"track_index": d_idx, "preset": "mpc_60", "swing_percentage": 58.0},
+                    target_track=d_idx
+                ))
+
+            dec_ghost_id = f"DEC-P4-04-DRUM-GHOST-NOTES-T{d_idx}"
+            if dec_ghost_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_ghost_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title=f"Inject Dynamic Ghost Notes & Hi-Hat Velocity Waves to Track {d_idx}",
+                    description="Injects low-velocity ghost snares on turnaround bars and 4-step wave velocity shaping on hi-hats.",
+                    recommendation="YES, inject ghost snares and hat velocity waves.",
+                    action_tool="drums_inject_ghost_notes",
+                    action_args={"track_index": d_idx},
+                    target_track=d_idx
+                ))
+
+        if chord_tracks:
+            c_idx = chord_tracks[0]
+            dec_id = f"DEC-P4-02-CHORD-STRUMMING-T{c_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title=f"Apply Physical Keyboard Strumming Stagger to Track {c_idx}",
+                    description="Applies 14 ms finger-roll staggering and tactile velocity tilt across polyphonic Rhodes chords.",
+                    recommendation="YES, apply natural chord strumming with alternating direction.",
+                    action_tool="harmony_apply_chord_strum",
+                    action_args={"track_index": c_idx, "strum_ms": 14.0, "direction": "alternating"},
+                    target_track=c_idx
+                ))
+
+        if lead_tracks:
+            l_idx = lead_tracks[0]
+            dec_id = f"DEC-P4-03-LEAD-MPE-EXPRESSION-T{l_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title=f"Inject Continuous MPE Expression & Vibrato to Track {l_idx}",
+                    description="Injects initial pitch scoops on phrase attacks and 5.2 Hz sinusoidal vibrato on sustained notes.",
+                    recommendation="YES, inject MPE scoops and vibrato curves.",
+                    action_tool="expression_apply_mpe_vibrato",
+                    action_args={"track_index": l_idx},
+                    target_track=l_idx
+                ))
+
 
 
         # 1. SIDECHAIN CHECK (Kick + 808 present)

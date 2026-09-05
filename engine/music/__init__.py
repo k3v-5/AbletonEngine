@@ -27,6 +27,11 @@ from .harmony.full_song import FullSongHarmonyEngine
 from .bass.intelligent_808 import Intelligent808BassEngine
 from .melody.topline import TopLineMelodyEngine
 from .melody.vocal_hook import VocalHookChopEngine
+from .groove.humanizer import DynamicGrooveHumanizer
+from .harmony.strum import PhysicalChordStrummer
+from .expression.mpe import MPEExpressionEngine, ExpressiveNoteModifier, PitchBendPoint
+from .drums.ghost_notes import DrumGhostNoteInjector
+
 
 class MusicEngine:
     """The algorithmic and deterministic Musical Intelligence Engine (PIE Fase 2)"""

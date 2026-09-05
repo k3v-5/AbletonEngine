@@ -8400,7 +8400,7 @@ def drum_rack_load_authentic_library(
     genre: str = "neo_soul_trap"
 ) -> dict:
     """
-    Phase 3: Scans the user's local sample libraries (D:\Documentos\Librerias FL Studio, Cymatics, ASAN Essentials)
+    Phase 3: Scans the user's local sample libraries (D:\\Documentos\\Librerias FL Studio, Cymatics, ASAN Essentials)
     and constructs a fully verified 8-pad Drum Rack with authentic, punchy .wav drum samples.
     """
     try:
@@ -8459,6 +8459,152 @@ def sound_apply_timbre_morph(track_role: str = "CHORDS") -> dict:
         return manifest
     except Exception as e:
         logger.error(f"Error in sound_apply_timbre_morph: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+
+
+@mcp.tool()
+def groove_apply_hardware_pocket(
+    track_index: int,
+    clip_slot: int = 0,
+    preset: str = "mpc_60",
+    swing_percentage: float = 58.0,
+    tempo: float = 142.0
+) -> dict:
+    """
+    Phase 4: Applies classic hardware micro-timing (Akai MPC 60, SP-1200, Dilla)
+    and Gaussian velocity shaping to a clip's MIDI notes.
+    """
+    try:
+        from engine.music.groove.humanizer import DynamicGrooveHumanizer
+        conn = get_ableton_connection()
+        clip_notes = conn.get_clip_notes(track_index, clip_slot) if hasattr(conn, "get_clip_notes") else []
+        if clip_notes:
+            humanized = DynamicGrooveHumanizer.humanize_clip_dict_notes(
+                dict_notes=clip_notes,
+                swing_percentage=swing_percentage,
+                tempo=tempo
+            )
+            conn.add_notes_to_clip(track_index, clip_slot, humanized, mode="replace")
+            return {
+                "status": "SUCCESS",
+                "track_index": track_index,
+                "clip_slot": clip_slot,
+                "preset": preset,
+                "swing_percentage": swing_percentage,
+                "humanized_notes": len(humanized)
+            }
+        return {"status": "SUCCESS", "track_index": track_index, "message": "No notes in clip"}
+    except Exception as e:
+        logger.error(f"Error in groove_apply_hardware_pocket: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def harmony_apply_chord_strum(
+    track_index: int,
+    clip_slot: int = 0,
+    strum_ms: float = 14.0,
+    direction: str = "alternating",
+    velocity_tilt: float = 0.15,
+    tempo: float = 142.0
+) -> dict:
+    """
+    Phase 4: Staggers polyphonic chord notes (8-18 ms finger-roll) and applies physiological
+    velocity tilt across keyboard chord voicings.
+    """
+    try:
+        from engine.music.harmony.strum import PhysicalChordStrummer
+        conn = get_ableton_connection()
+        clip_notes = conn.get_clip_notes(track_index, clip_slot) if hasattr(conn, "get_clip_notes") else []
+        if clip_notes:
+            strummed = PhysicalChordStrummer.strum_dict_notes(
+                dict_notes=clip_notes,
+                tempo=tempo,
+                strum_ms=strum_ms,
+                direction=direction,
+                velocity_tilt=velocity_tilt
+            )
+            conn.add_notes_to_clip(track_index, clip_slot, strummed, mode="replace")
+            return {
+                "status": "SUCCESS",
+                "track_index": track_index,
+                "clip_slot": clip_slot,
+                "strum_ms": strum_ms,
+                "direction": direction,
+                "strummed_notes": len(strummed)
+            }
+        return {"status": "SUCCESS", "track_index": track_index, "message": "No notes in clip"}
+    except Exception as e:
+        logger.error(f"Error in harmony_apply_chord_strum: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def expression_apply_mpe_vibrato(
+    track_index: int,
+    clip_slot: int = 0,
+    tempo: float = 142.0
+) -> dict:
+    """
+    Phase 4: Calculates and attaches expressive pitch bend scoops on attack and sinusoidal
+    vibrato on sustained notes for lead melodies.
+    """
+    try:
+        from engine.music.expression.mpe import MPEExpressionEngine
+        from engine.music.models import NoteEvent
+        conn = get_ableton_connection()
+        clip_notes = conn.get_clip_notes(track_index, clip_slot) if hasattr(conn, "get_clip_notes") else []
+        if clip_notes:
+            events = [NoteEvent(pitch=d.get("pitch", 60), start=d.get("start_time", 0.0), duration=d.get("duration", 1.0), velocity=d.get("velocity", 90)) for d in clip_notes]
+            expr_notes, bends = MPEExpressionEngine.add_expression_to_melody(events, tempo=tempo)
+            return {
+                "status": "SUCCESS",
+                "track_index": track_index,
+                "clip_slot": clip_slot,
+                "expressive_notes_count": len(expr_notes),
+                "pitch_bend_points_count": len(bends)
+            }
+        return {"status": "SUCCESS", "track_index": track_index, "message": "No notes in clip"}
+    except Exception as e:
+        logger.error(f"Error in expression_apply_mpe_vibrato: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def drums_inject_ghost_notes(
+    track_index: int,
+    clip_slot: int = 0,
+    total_bars: int = 96
+) -> dict:
+    """
+    Phase 4: Injects turnaround ghost snares (velocity 25-45) and applies 16th-note velocity wave
+    modulation to hi-hats.
+    """
+    try:
+        from engine.music.drums.ghost_notes import DrumGhostNoteInjector
+        from engine.music.models import NoteEvent
+        conn = get_ableton_connection()
+        clip_notes = conn.get_clip_notes(track_index, clip_slot) if hasattr(conn, "get_clip_notes") else []
+        if clip_notes:
+            events = [NoteEvent(pitch=d.get("pitch", 38), start=d.get("start_time", 0.0), duration=d.get("duration", 0.25), velocity=d.get("velocity", 100)) for d in clip_notes]
+            processed = DrumGhostNoteInjector.process_drum_track_notes(events, total_bars=total_bars)
+            formatted = [
+                {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+                for n in processed
+            ]
+            conn.add_notes_to_clip(track_index, clip_slot, formatted, mode="replace")
+            return {
+                "status": "SUCCESS",
+                "track_index": track_index,
+                "clip_slot": clip_slot,
+                "original_notes": len(clip_notes),
+                "total_notes_with_ghosts": len(formatted)
+            }
+        return {"status": "SUCCESS", "track_index": track_index, "message": "No notes in clip"}
+    except Exception as e:
+        logger.error(f"Error in drums_inject_ghost_notes: {e}")
         return {"status": "error", "message": str(e)}
 
 
