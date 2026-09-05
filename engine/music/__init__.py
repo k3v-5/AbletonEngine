@@ -23,6 +23,10 @@ from .variation.phrase_evolver import PhraseEvolver, PhraseFunction
 from .validation import validate_notes, repair_notes, ROLE_REGISTER_BOUNDS
 from .midi import compile_notes_to_ableton_format, compute_part_fingerprint, compare_fingerprints
 from .generators import generate_bassline, generate_chords, generate_melody
+from .harmony.full_song import FullSongHarmonyEngine
+from .bass.intelligent_808 import Intelligent808BassEngine
+from .melody.topline import TopLineMelodyEngine
+from .melody.vocal_hook import VocalHookChopEngine
 
 class MusicEngine:
     """The algorithmic and deterministic Musical Intelligence Engine (PIE Fase 2)"""

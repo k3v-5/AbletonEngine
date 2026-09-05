@@ -107,7 +107,7 @@ class ExecutiveCopilotEngine:
 
             if "kick" in t_name:
                 kick_tracks.append(t_idx)
-            if "808" in t_name or "bass" in t_name or "sub" in t_name:
+            elif "808" in t_name or "bass" in t_name or "sub" in t_name:
                 bass_tracks.append(t_idx)
             if any(w in t_name for w in ["drum", "kit", "perc", "break"]):
                 drum_tracks.append(t_idx)
@@ -122,6 +122,67 @@ class ExecutiveCopilotEngine:
 
         effective_kick = kick_tracks[0] if kick_tracks else (drum_tracks[0] if drum_tracks else None)
         effective_bass = bass_tracks[0] if bass_tracks else None
+
+        # --- PHASE 2: COMPOSITION & HARMONY DECISIONS ---
+        if chord_tracks:
+            c_idx = chord_tracks[0]
+            dec_id = f"DEC-P2-01-HARMONY-T{c_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_2_COMPOSITION,
+                    title=f"Compose 96-Bar Harmonic Progression for Track {c_idx}",
+                    description="Deploy progressive Drop-2 voicings with smooth conjunct voice leading across all 8 song sections.",
+                    recommendation="YES, compose full harmony in F minor with modal interchange.",
+                    action_tool="music_compose_full_harmony",
+                    action_args={"track_index": c_idx, "key_root": "F", "scale": "natural_minor"},
+                    target_track=c_idx
+                ))
+
+        if bass_tracks:
+            b_idx = bass_tracks[0]
+            dec_id = f"DEC-P2-02-BASS-808-T{b_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_2_COMPOSITION,
+                    title=f"Compose Interlocking 808 Bassline for Track {b_idx}",
+                    description="Interlock 808 with kick downbeats, add chromatic leading tones on turnaround beats, and inject octave leaps on bars 4/8.",
+                    recommendation="YES, compose 808 bassline with chromatic approaches.",
+                    action_tool="music_compose_808_bassline",
+                    action_args={"track_index": b_idx, "key_root": "F", "scale": "natural_minor"},
+                    target_track=b_idx
+                ))
+
+        if lead_tracks:
+            l_idx = lead_tracks[0]
+            dec_id = f"DEC-P2-03-TOPLINE-T{l_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_2_COMPOSITION,
+                    title=f"Compose Call-and-Response Top-Line Melody for Track {l_idx}",
+                    description="Structure melody in 2-bar Call and 2-bar Response phrases with natural vocal respiration and apex climax.",
+                    recommendation="YES, compose top-line melody in F minor.",
+                    action_tool="music_compose_topline_melody",
+                    action_args={"track_index": l_idx, "key_root": "F", "scale": "natural_minor"},
+                    target_track=l_idx
+                ))
+
+        if vocal_tracks:
+            v_idx = vocal_tracks[0]
+            dec_id = f"DEC-P2-04-VOCAL-HOOK-T{v_idx}"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_2_COMPOSITION,
+                    title=f"Generate Syncopated Vocal Hook Chops for Track {v_idx}",
+                    description="Deploy infectious 2-bar syncopated hook motifs across Intro, Chorus 1, Bridge, and Final Chorus.",
+                    recommendation="YES, generate vocal hook chops.",
+                    action_tool="music_compose_vocal_hook",
+                    action_args={"track_index": v_idx, "key_root": "F", "scale": "natural_minor"},
+                    target_track=v_idx
+                ))
 
         # 1. SIDECHAIN CHECK (Kick + 808 present)
         if effective_kick is not None and effective_bass is not None:

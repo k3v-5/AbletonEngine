@@ -8228,6 +8228,153 @@ def dna_get_reference_profiles() -> dict:
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def music_compose_full_harmony(
+    track_index: int,
+    key_root: str = "F",
+    scale: str = "natural_minor",
+    clip_slot: int = 0
+) -> dict:
+    """
+    Phase 2: Composes and injects the progressive 96-bar harmonic chord progression
+    with Drop-2 voicings, smooth conjunct voice leading, and section-specific tensions.
+    """
+    try:
+        from engine.music.harmony.full_song import FullSongHarmonyEngine
+        conn = get_ableton_connection()
+        notes = FullSongHarmonyEngine.generate_harmony_notes(key_root=key_root, scale=scale)
+        formatted_notes = [
+            {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+            for n in notes
+        ]
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_slot, "length": 384.0})
+        conn.send_command("set_clip_name", {"track_index": track_index, "clip_index": clip_slot, "name": f"Harmony_{key_root}_{scale}_Drop2"})
+        conn.send_command("add_notes_to_clip", {"track_index": track_index, "clip_index": clip_slot, "notes": formatted_notes})
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "clip_slot": clip_slot,
+            "notes_count": len(formatted_notes),
+            "bars": 96,
+            "key": f"{key_root} {scale}"
+        }
+    except Exception as e:
+        logger.error(f"Error in music_compose_full_harmony: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def music_compose_808_bassline(
+    track_index: int,
+    key_root: str = "F",
+    scale: str = "natural_minor",
+    clip_slot: int = 0,
+    enable_slides: bool = True,
+    enable_chromatic_approach: bool = True
+) -> dict:
+    """
+    Phase 2: Composes and injects the interlocking 808 sub-bassline across 96 bars,
+    featuring kick-lock syncopation, chromatic approach leading tones, octave leaps, and pre-drop silence.
+    """
+    try:
+        from engine.music.bass.intelligent_808 import Intelligent808BassEngine
+        conn = get_ableton_connection()
+        notes = Intelligent808BassEngine.generate_808_bassline(
+            key_root=key_root,
+            scale=scale,
+            enable_slides=enable_slides,
+            enable_chromatic_approach=enable_chromatic_approach
+        )
+        formatted_notes = [
+            {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+            for n in notes
+        ]
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_slot, "length": 384.0})
+        conn.send_command("set_clip_name", {"track_index": track_index, "clip_index": clip_slot, "name": "808_Bass_Interlocking"})
+        conn.send_command("add_notes_to_clip", {"track_index": track_index, "clip_index": clip_slot, "notes": formatted_notes})
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "clip_slot": clip_slot,
+            "notes_count": len(formatted_notes),
+            "bars": 96,
+            "slides_enabled": enable_slides
+        }
+    except Exception as e:
+        logger.error(f"Error in music_compose_808_bassline: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def music_compose_topline_melody(
+    track_index: int,
+    key_root: str = "F",
+    scale: str = "natural_minor",
+    clip_slot: int = 0
+) -> dict:
+    """
+    Phase 2: Composes and injects the conversational Call-and-Response top-line melody
+    with vocal respiration, melodic arc, and emotional apex climaxes across 96 bars.
+    """
+    try:
+        from engine.music.melody.topline import TopLineMelodyEngine
+        conn = get_ableton_connection()
+        notes = TopLineMelodyEngine.generate_full_song_melody(key_root=key_root, scale=scale)
+        formatted_notes = [
+            {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+            for n in notes
+        ]
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_slot, "length": 384.0})
+        conn.send_command("set_clip_name", {"track_index": track_index, "clip_index": clip_slot, "name": "TopLine_CallResponse"})
+        conn.send_command("add_notes_to_clip", {"track_index": track_index, "clip_index": clip_slot, "notes": formatted_notes})
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "clip_slot": clip_slot,
+            "notes_count": len(formatted_notes),
+            "bars": 96,
+            "key": f"{key_root} {scale}"
+        }
+    except Exception as e:
+        logger.error(f"Error in music_compose_topline_melody: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def music_compose_vocal_hook(
+    track_index: int,
+    key_root: str = "F",
+    scale: str = "natural_minor",
+    clip_slot: int = 0
+) -> dict:
+    """
+    Phase 2: Generates and injects infectious, syncopated vocal chop hook motifs
+    tuned to the active harmony across Intro, Chorus 1, Bridge, and Final Chorus.
+    """
+    try:
+        from engine.music.melody.vocal_hook import VocalHookChopEngine
+        conn = get_ableton_connection()
+        notes = VocalHookChopEngine.generate_full_song_vocal_hook(key_root=key_root, scale=scale)
+        formatted_notes = [
+            {"pitch": n.pitch, "start_time": n.start, "duration": n.duration, "velocity": n.velocity, "mute": False}
+            for n in notes
+        ]
+        conn.send_command("create_clip", {"track_index": track_index, "clip_index": clip_slot, "length": 384.0})
+        conn.send_command("set_clip_name", {"track_index": track_index, "clip_index": clip_slot, "name": "Vocal_Chop_Hook"})
+        conn.send_command("add_notes_to_clip", {"track_index": track_index, "clip_index": clip_slot, "notes": formatted_notes})
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "clip_slot": clip_slot,
+            "notes_count": len(formatted_notes),
+            "bars": 96,
+            "key": f"{key_root} {scale}"
+        }
+    except Exception as e:
+        logger.error(f"Error in music_compose_vocal_hook: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 
