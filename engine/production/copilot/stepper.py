@@ -252,6 +252,22 @@ class ExecutiveCopilotEngine:
                     target_track=drum_tracks[0]
                 ))
 
+        # 5g2. GROOVE POOL & POCKET LOCK CHECK
+        if drum_tracks or bass_tracks:
+            dec_id = "DEC-P4-GROOVE-POOL"
+            if dec_id not in self.resolved_decisions:
+                ref_tracks = [t for t in (drum_tracks + bass_tracks)]
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title="Apply Iconic Groove Template & Multitrack Pocket Locking",
+                    description="Robotic quantization lacks human breathe. Injects iconic hardware swing (MPC 60 / SP-1200 / Dilla) and locks bass micro-timing to the kick pocket.",
+                    recommendation="YES, apply MPC 60 58% swing template and lock bass to drum pocket.",
+                    action_tool="apply_groove_pool_template",
+                    action_args={"track_indices": ref_tracks, "groove_preset": "mpc_60", "swing_percentage": 58.0},
+                    target_track=ref_tracks[0]
+                ))
+
         # 5h. TRANSITION RISERS & SWEEPS CHECK
         dec_risers_id = "DEC-P5-TRANSITION-RISERS"
         if dec_risers_id not in self.resolved_decisions:
@@ -263,6 +279,19 @@ class ExecutiveCopilotEngine:
                 recommendation="YES, generate filter sweep and accelerating snare roll into drop.",
                 action_tool="generate_transition_risers",
                 action_args={"target_bar": 33.0, "duration_bars": 2.0}
+            ))
+
+        # 5h2. IMPACTS & DOWNLIFTERS CHECK
+        dec_impact_id = "DEC-P5-IMPACTS-DOWNLIFTERS"
+        if dec_impact_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_impact_id,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Inject Dynamic Downlifter & Sub-Boom Impact on Drop Downbeat",
+                description="Arrival at drop downbeat requires dynamic release. Injects exponential downlifter sweep (20kHz -> 150Hz) and sub-boom drop.",
+                recommendation="YES, generate downlifter and sub-boom on drop downbeat.",
+                action_tool="generate_impact_and_downlifters",
+                action_args={"track_index": 13, "impact_type": "downlifter_noise", "target_bar": 33.0}
             ))
 
         # 5i. AUTO GAIN STAGING & HEADROOM CHECK
@@ -289,6 +318,19 @@ class ExecutiveCopilotEngine:
                 recommendation="YES, construct chain targeting Streaming (-14.0 LUFS, -0.5 dBTP).",
                 action_tool="master_create_chain",
                 action_args={"target": "STREAMING"}
+            ))
+
+        # 6b. STEM PHASE FORENSICS CHECK
+        dec_stem_id = "DEC-P7-STEM-PHASE-AUDIT"
+        if dec_stem_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_stem_id,
+                phase=ProductionPhase.PHASE_7_MASTER_DELIVERY,
+                title="Perform Deep Multi-Stem Export & Sub-Bass Phase Correlation Audit",
+                description="Audits phase correlation between Kick and Bass stems (detecting destructive phase cancellation rho < -0.30) and validates stem True Peak headroom <= -1.0 dBTP.",
+                recommendation="YES, audit stem phase alignment and loudness compliance.",
+                action_tool="export_and_audit_stems",
+                action_args={"check_phase_correlation": True}
             ))
 
         return self._build_state()
@@ -423,6 +465,31 @@ class ExecutiveCopilotEngine:
                     AutoGainStagingEngine.apply_gain_staging(
                         conn=conn,
                         target_master_headroom_db=args.get("target_master_headroom_db", -6.0)
+                    )
+                elif dec.action_tool == "generate_impact_and_downlifters":
+                    from engine.arrangement.impacts.downlifters import ImpactEngine, ImpactType
+                    imp_type = ImpactType(args.get("impact_type", "downlifter_noise"))
+                    ImpactEngine.apply_impact_to_live(
+                        conn=conn,
+                        track_index=args.get("track_index", 13),
+                        impact_type=imp_type,
+                        target_bar=args.get("target_bar", 33.0),
+                        duration_bars=args.get("duration_bars", 2.0)
+                    )
+                elif dec.action_tool == "export_and_audit_stems":
+                    from engine.audio.stem_audit import StemAuditor
+                    StemAuditor.apply_stem_audit_adapter(
+                        conn=conn,
+                        export_dir=args.get("export_dir")
+                    )
+                elif dec.action_tool == "apply_groove_pool_template":
+                    from engine.music.groove.pool import GroovePoolEngine, GroovePreset
+                    preset = GroovePreset(args.get("groove_preset", "mpc_60"))
+                    GroovePoolEngine.apply_groove_to_live_clip(
+                        conn=conn,
+                        track_indices=args.get("track_indices", [0]),
+                        groove_preset=preset,
+                        swing_percentage=args.get("swing_percentage", 58.0)
                     )
                 execution_res["live_result"] = "executed_via_adapter"
             except Exception as e:

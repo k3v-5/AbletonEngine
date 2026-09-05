@@ -7805,6 +7805,101 @@ def auto_gain_stage_session(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def generate_impact_and_downlifters(
+    track_index: int = 13,
+    impact_type: str = "downlifter_noise",
+    target_bar: float = 33.0,
+    duration_bars: float = 2.0,
+    cutoff_start: float = 20000.0,
+    cutoff_end: float = 150.0,
+    root_pitch: int = 36
+) -> dict:
+    """
+    Generates dynamic transitional impact releases and post-drop sweeps:
+    - Downlifter white noise / tonal sweep with exponential filter decay (20 kHz -> 150 Hz).
+    - Sub-boom drop with analog sine downward pitch modulation (140 Hz -> 32 Hz).
+    - Reverse cymbal swell with surgical pre-impact silence gap (0.05 beats).
+    """
+    try:
+        from engine.arrangement.impacts.downlifters import ImpactEngine, ImpactType
+        conn = get_ableton_connection()
+        imp_t = ImpactType(impact_type)
+        return ImpactEngine.apply_impact_to_live(
+            conn=conn,
+            track_index=track_index,
+            impact_type=imp_t,
+            target_bar=target_bar,
+            duration_bars=duration_bars,
+            cutoff_start=cutoff_start,
+            cutoff_end=cutoff_end,
+            root_pitch=root_pitch,
+        )
+    except Exception as e:
+        logger.error(f"Error in generate_impact_and_downlifters: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def export_and_audit_stems(
+    export_dir: str = "",
+    bpm: float = 120.0,
+    start_bar: float = 1.0,
+    end_bar: float = 65.0,
+    check_phase_correlation: bool = True
+) -> dict:
+    """
+    Multi-stem export coordinator and deep forensic phase auditor:
+    - Partitions session into standard commercial stems (Drums, Bass, Keys, Leads, Vocals, FX, Master).
+    - Calculates Pearson cross-correlation in sub-bass (20-150 Hz) between Kick and Bass to detect destructive phase cancellation (rho < -0.30).
+    - Audits Integrated LUFS, True Peak (dBTP), and Crest Factor headroom compliance (<= -1.0 dBTP).
+    """
+    try:
+        from engine.audio.stem_audit import StemAuditor
+        conn = get_ableton_connection()
+        dir_val = export_dir if export_dir else None
+        return StemAuditor.apply_stem_audit_adapter(
+            conn=conn,
+            export_dir=dir_val,
+            start_bar=start_bar,
+            end_bar=end_bar,
+        )
+    except Exception as e:
+        logger.error(f"Error in export_and_audit_stems: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_groove_pool_template(
+    track_indices: list = [0],
+    groove_preset: str = "mpc_60",
+    swing_percentage: float = 58.0,
+    clip_index: int = 0
+) -> dict:
+    """
+    Applies iconic hardware groove templates and multitrack pocket locking:
+    - Akai MPC 60 (mathematical 16th swing 54-71%).
+    - E-mu SP-1200 gritty boom bap ahead/behind offsets.
+    - J Dilla / Questlove quintuplet lazy backbeat swing (+20 ms snare).
+    - UK Garage 2-step skippy syncopation.
+    Locks target tracks (e.g. Bass and Arp) to breathe in unison with the rhythmic pocket.
+    """
+    try:
+        from engine.music.groove.pool import GroovePoolEngine, GroovePreset
+        conn = get_ableton_connection()
+        preset = GroovePreset(groove_preset)
+        return GroovePoolEngine.apply_groove_to_live_clip(
+            conn=conn,
+            track_indices=track_indices,
+            clip_index=clip_index,
+            groove_preset=preset,
+            swing_percentage=swing_percentage,
+        )
+    except Exception as e:
+        logger.error(f"Error in apply_groove_pool_template: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

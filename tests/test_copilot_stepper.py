@@ -75,6 +75,10 @@ def test_copilot_session_inspection_tracks():
     assert "DEC-P4-DRUM-EVOLVER" in pending_ids
     assert "DEC-P5-TRANSITION-RISERS" in pending_ids
     assert "DEC-P6-GAIN-STAGING" in pending_ids
+    # 3 New Production Frontiers (Impacts, Stems Phase, Groove Pool)
+    assert "DEC-P4-GROOVE-POOL" in pending_ids
+    assert "DEC-P5-IMPACTS-DOWNLIFTERS" in pending_ids
+    assert "DEC-P7-STEM-PHASE-AUDIT" in pending_ids
 
 
 def test_copilot_execute_decision_yes():

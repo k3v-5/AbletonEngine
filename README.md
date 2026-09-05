@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 232 specialized tools and 462 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 235 specialized tools and 474 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -36,7 +36,7 @@
                        │        LLM Cognitive Client         │
                        │    (Antigravity / Claude Desktop)   │
                        └──────────────────┬──────────────────┘
-                                          │ FastMCP (232 Tools)
+                                          │ FastMCP (235 Tools)
                                           ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │                 Production Intelligence Engine (PIE)                  │
@@ -424,5 +424,33 @@ Resuelve el problema de parálisis de decisión y olvidos del modelo guiando el 
 - **Subfase 5.2 - Matriz Jerárquica de Calibración:** Ajusta faders relativos según rol acústico (KICK/BASS a 0 dB relativo, LEADS a -3 dB, CHORDS/PADS a -6 dB, FX a -9 dB).
 - **Subfase 5.3 - Bloqueo de Headroom Limpio a -6.0 dBFS:** Escala la ganancia de todas las pistas para garantizar exactamente $-6.0\text{ dBFS}$ de margen dinámico antes del bus master.
 - **Herramienta FastMCP:** `auto_gain_stage_session(target_headroom_db, protect_leads)`.
+
+---
+
+## ⚡ Fronteras Avanzadas de Producción & Acústica Forense (235 Herramientas)
+
+### 💥 Impacts, Downlifters & Sub-Boom Engine (`engine/arrangement/impacts/downlifters.py`)
+Generación procedural de resoluciones de tensión y caídas dinámicas post-drop:
+- **Subfase 2.1 - Downlifters & Filter Falls:** Curvas de filtro paso-bajos exponenciales/logarítmicas ($20\text{ kHz} \to 150\text{ Hz}$) y atenuación de volumen ($0\text{ dB} \to -24\text{ dB}$) a lo largo de 2 a 4 compases.
+- **Subfase 2.2 - Sub-Boom & 808 Pitch Drops:** Envolventes de pitch bend descendente ($+8191 \to -8192$, barrido de senoide $140\text{ Hz} \to 32\text{ Hz}$) disparadas en el tiempo 1 compás 1 del drop.
+- **Subfase 2.3 - Reverse Cymbal Swells:** Swells exponenciales con corte quirúrgico de silencio pre-impacto ($\approx 0.05$ pulsos) para maximizar la sorpresa auditiva.
+- **Herramienta FastMCP:** `generate_impact_and_downlifters(track_index, impact_type, target_bar, duration_bars, cutoff_start, cutoff_end, root_pitch)`.
+- **Decisión Copilot:** `DEC-P5-IMPACTS-DOWNLIFTERS`.
+
+### 🎚️ Multi-Stem Bouncer & Deep Phase Forensics (`engine/audio/stem_audit.py`)
+Exportación estructurada y auditoría de coherencia de fase para entrega discográfica:
+- **Subfase 3.1 - Partición de Stems Comerciales:** Agrupación automática de pistas en 7 stems (`01_Drums`, `02_Bass`, `03_Keys`, `04_Lead`, `05_Vocals`, `06_FX`, `00_Master`).
+- **Subfase 3.2 - Auditoría de Cancelación de Fase:** Coeficiente de correlación de Pearson ($\rho$) en sub-graves ($20\text{--}150\text{ Hz}$) entre Kick y Bass; alerta de riesgo crítico de cancelación destructiva si $\rho < -0.30$.
+- **Subfase 3.3 - Manifiesto de Sonoridad & Headroom:** Cálculo de LUFS integrado, True Peak (dBTP), Crest Factor y validación de margen dinámico ($\le -1.0\text{ dBTP}$).
+- **Herramienta FastMCP:** `export_and_audit_stems(export_dir, bpm, start_bar, end_bar, check_phase_correlation)`.
+- **Decisión Copilot:** `DEC-P7-STEM-PHASE-AUDIT`.
+
+### 🥁 Groove Pool & Micro-Timing Matcher (`engine/music/groove/pool.py`)
+Humanización analógica mediante plantillas de hardware clásico y sincronización de bolsillo:
+- **Subfase 4.1 - Catálogo de Swing Legendario:** Akai MPC 60 (50% a 75% swing en semicorcheas), E-mu SP-1200 (retraso de contratiempos de +6 a +8 ms con empuje en downbeats), J Dilla Quintuplet (redoblantes rezagados en +20 ms) y UK Garage 2-Step.
+- **Subfase 4.2 - Groove DNA Extractor:** Análisis de clips MIDI existentes para extraer desplazamientos $\Delta t$ y mapa dinámico de velocidades por subdivisión.
+- **Subfase 4.3 - Multitrack Pocket Locking:** Bloquea pistas melódicas o de bajo al mismo patrón de micro-timing de la batería para una interacción rítmica unificada.
+- **Herramienta FastMCP:** `apply_groove_pool_template(track_indices, groove_preset, swing_percentage, clip_index)`.
+- **Decisión Copilot:** `DEC-P4-GROOVE-POOL`.
 
 
