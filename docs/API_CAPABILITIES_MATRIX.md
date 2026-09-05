@@ -49,6 +49,17 @@
 | | `master_create_chain` | `target`, `ceiling_dbtp`, `target_lufs` | Preview/Write | Verified Live |
 | | `master_apply` | `preset_name` | Read/Write | Verified Live |
 | | `master_evaluate` | *none* | Read-Only | Verified Live |
+| **VST3 & Plugins (Fase A)** | `plugin_inspect_parameters` | `track`, `device` | Read-Only | Verified Live |
+| | `plugin_set_semantic_parameter` | `track`, `semantic_role`, `value`, `device` | Read/Write | Verified Live |
+| | `browser_crawl_library` | `category`, `max_depth` | Async Indexer | Verified Live |
+| | `browser_search_library` | `query`, `category`, `max_results` | Cache Query | Verified Live |
+| **Arrangement Automation (Fase B)** | `arrangement_inject_automation_envelope` | `track`, `parameter`, `points`, `device`, `clip_index` | Read/Write LOM | Verified Live |
+| | `create_automation` | `track`, `parameter`, `start`, `duration`, `start_value`, `end_value`, `curve` | Read/Write LOM | Verified Live |
+| | `add_automation_points` | `track`, `parameter`, `points`, `device` | Read/Write LOM | Verified Live |
+| **Vocal Pipeline (Fase C)** | `vocal_get_profile` | `style` | Read-Only | Verified Live |
+| | `vocal_calculate_ducking` | `vocal_ranges_beats`, `song_length_beats`, `duck_amount_db` | Pure DSP/Math | Verified Live |
+| **Stem Resampler (Fase C)** | `stem_create_export_plan` | `bpm`, `start_bar`, `end_bar` | Read-Only | Verified Live |
+| | `stem_generate_manifest` | `bpm`, `start_bar`, `end_bar` | Read/Write File | Verified Live |
 
 ---
 

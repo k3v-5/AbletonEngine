@@ -109,3 +109,35 @@ result = instrument_engine.load_preset(track_index=3, preset_name_or_role="808 P
   }
 }
 ```
+
+---
+
+## 3. Installed 3rd-Party VST3 Plugins & Verified Live 12 URIs
+
+The engine auto-indexes and natively communicates with installed external VST3 plugins:
+
+| Plugin Name | Manufacturer | Category | Verified Ableton Live 12 URI |
+|---|---|---|---|
+| **Vital** | Vital Audio | Spectral Synth | `query:Plugins#VST3:Vital%20Audio:Vital` |
+| **Omnisphere** | Spectrasonics | Flagship Synth / Sample Engine | `query:Plugins#VST3:Spectrasonics:Omnisphere` |
+| **Analog Lab V** | Arturia | Vintage Keyboards & Synths | `query:Plugins#VST3:Arturia:Analog%20Lab%20V` |
+| **Kontakt 8** | Native Instruments | Advanced Sampler Engine | `query:Plugins#VST3:Native%20Instruments:Kontakt%208` |
+| **Thermal** | Output | Interactive Distortion Engine | `query:Plugins#VST3:Output:Thermal` |
+| **Portal** | Output | Granular Audio FX | `query:Plugins#VST3:Output:Portal` |
+| **Sausage Fattener** | Dada Life | Punch & Fatness Saturator | `query:Plugins#VST3:Dada%20Life:SausageFattener` |
+| **The God Particle** | Cradle / Jaycen Joshua | Dynamic Mix/Mastering Finisher | `query:Plugins#VST3:Cradle:The%20God%20Particle` |
+| **Efx REFRACT** | Arturia | Stereo Refraction & Modulation | `query:Plugins#VST3:Arturia:Efx%20REFRACT` |
+| **Efx MOTIONS** | Arturia | Rhythmic Motion & Tape Saturator | `query:Plugins#VST3:Arturia:Efx%20MOTIONS` |
+| **VintageVerb** | Valhalla DSP | Algorithmic Reverb | `query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb` |
+| **ShaperBox 3** | Cableguys | Multiband Rhythmic Modulation | `query:Plugins#VST3:Cableguys:ShaperBox%203` |
+
+### Loading VST3 Plugins via FastMCP
+```json
+{
+  "name": "load_instrument_or_effect",
+  "arguments": {
+    "track_index": 4,
+    "uri": "query:Plugins#VST3:Vital%20Audio:Vital"
+  }
+}
+```

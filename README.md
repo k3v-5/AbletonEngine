@@ -1,16 +1,19 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 174 specialized tools and 331 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 183 specialized tools and 366 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
-- 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/USER_GUIDE.md)
-- 🗺️ [**Índice Maestro de Módulos, Herramientas y Sitemap (INDEX.md)**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/INDEX.md)
-- 🚀 [**Hoja de Ruta y Pasos Siguientes (NEXT_STEPS.md)**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/NEXT_STEPS.md)
-- 🛡️ [**Documento 15: Failure Injection & Chaos Resilience**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_failure_injection.md)
-- 🔬 [**Documento 14: Integration Tests & Golden Pipeline**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_integration.md)
-- 🔌 [**Documento 13: Superficie FastMCP de Gobernanza**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_mcp.md)
-- ⏪ [**Documento 12: Rollback de Primera Clase**](file:///d:/Proyectos/TEST/AbletonEngine/documentation/production_rollback.md)
+- 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
+- 🗺️ [**Índice Maestro de Módulos, Herramientas y Sitemap (INDEX.md)**](docs/INDEX.md)
+- 🎛️ [**Playbook de Prompting y Recetas de Producción (PROMPTING_PLAYBOOK.md)**](docs/PROMPTING_PLAYBOOK.md)
+- 🔌 [**Catálogo del Navegador y URIs de Plugins VST3 (ABLETON_BROWSER_CATALOG.md)**](docs/ABLETON_BROWSER_CATALOG.md)
+- 📋 [**Matriz Integral de Capacidades y Herramientas API (API_CAPABILITIES_MATRIX.md)**](docs/API_CAPABILITIES_MATRIX.md)
+- 🚀 [**Hoja de Ruta y Pasos Siguientes (NEXT_STEPS.md)**](docs/NEXT_STEPS.md)
+- 🛡️ [**Documento 15: Failure Injection & Chaos Resilience**](docs/production_failure_injection.md)
+- 🔬 [**Documento 14: Integration Tests & Golden Pipeline**](docs/production_integration.md)
+- 🔌 [**Documento 13: Superficie FastMCP de Gobernanza**](docs/production_mcp.md)
+- ⏪ [**Documento 12: Rollback de Primera Clase**](docs/production_rollback.md)
 
 ---
 
@@ -217,3 +220,43 @@ Outputs categorized causal provenance:
 - **Actions:** Discrete Ableton device parameter writes staged within the transaction.
 - **Results:** Post-execution verification confirming target LUFS reached without True Peak clipping.
 - **Rejected Alternatives:** Aggressive EQ boost rejected by `MASTER_EQ`; over-compression rejected by `MASTER_LIMIT`.
+
+---
+
+## Evolución Avanzada PIE v3.5 (Fases A, B y C)
+
+El motor integra una capa integral de normalización de instrumentos de terceros, inyección física de automatización y producción vocal:
+
+```
+                      ARQUITECTURA DE INTEGRACIÓN PIE v3.5
+                                        │
+          ┌─────────────────────────────┼─────────────────────────────┐
+          ▼                             ▼                             ▼
+     [FASE A]                       [FASE B]                      [FASE C]
+Suite VST3 & Presets         Automatización Gráfica        Vocal Pipeline &
+(Vital, Omni, Kontakt,       en Línea de Tiempo LOM         Stem Resampler
+ Analog Lab, Thermal...)     (Envolventes Físicas)          (Ducking & Bouncer)
+```
+
+### 1. Fase A: Suite VST3 & Parameter Normalizer (`engine/instruments/plugins/`)
+- **Plugins Mapeados:** `Vital`, `Spectrasonics Omnisphere`, `Arturia Analog Lab V`, `Native Instruments Kontakt 8`, `Output Thermal`, `Dada Life Sausage Fattener`, `The God Particle`, `Arturia Efx REFRACT/MOTIONS` + nativos de Ableton.
+- **Fuzzy Fallback Universal:** Identifica automáticamente parámetros de cualquier plugin de terceros no catalogado mediante tokenización difusa.
+- **Auto-Crawler:** `LibraryCrawler` indexa de forma recursiva la librería y plugins de Live en `state/browser_index.json`.
+
+### 2. Fase B: Automatización Física en Arrangement LOM (`AbletonMCP/__init__.py`)
+- Inyección directa de curvas matemáticas (`insert_step`) en envolventes de clips y parámetros de pista mediante el comando `create_arrangement_automation_envelope`.
+- Soporta barridos de filtro, washouts de reverb con snap reset y crescendos con silencios pre-drop.
+
+### 3. Fase C: Vocal Production Pipeline & Stem Resampler (`engine/vocal/`, `engine/audio/`)
+- **Cadena Vocal Óptima:** High-Pass en 100 Hz, Dynamic Notch en 340 Hz (limpieza de resonancias), Glue Compressor 4:1 y saturación cálida (+2 dB drive).
+- **Smart Ducking Matrix:** Atenuación matemática continua ($10^{dB/20}$) en instrumentos de medios (Keys, Synths, Leads) ante la presencia de voces, protegiendo bajo y batería.
+- **Stem Resampler Autónomo:** Agrupa la sesión en stems (`01_Drums`, `02_Bass`, `05_Vocals`, `03_Keys`, `04_Lead`, `06_FX`, `00_Master`) y genera `exports/stems/manifest.json`.
+
+---
+
+## Verificación de Tests (100% Pass Rate)
+
+```bash
+python -m pytest
+# ============================ 366 passed in 59.78s =============================
+```

@@ -111,3 +111,52 @@ graph TD
    - `audio_listen_live(duration_seconds=3.0)`
    - Confirm `readiness["spotify_apple_streaming"]["status"] == "OPTIMAL"`.
    - Confirm `loudness["true_peak_dbtp"] <= -1.0`.
+
+---
+
+## 6. Playbook 5: 3rd-Party VST3 Parameter Normalization & Sound Shaping
+
+### User Prompt Example
+> *"Ajusta el corte de filtro del Vital en la pista de Lead al 70%, dale más punch con Sausage Fattener al 40% y revisa los parámetros mapeados."*
+
+### Step-by-Step Tool Calls:
+1. **Inspect VST3 Parameters Semantically**:
+   - `plugin_inspect_parameters(track="Lead 1", device=0)`
+   - Returns mapped roles: `cutoff` (`filter_1_cutoff`), `drive` (`distortion_drive`), `macro_1`..`macro_4`.
+2. **Set Parameter by Semantic Intent**:
+   - `plugin_set_semantic_parameter(track="Lead 1", semantic_role="cutoff", value=0.70)`
+   - Denormalizes [0.0, 1.0] to plugin's native parameter range automatically.
+3. **Crawl & Search Browser Presets**:
+   - `browser_search_library(query="Omnisphere", category="plugins")`
+
+---
+
+## 7. Playbook 6: Vocal Production & Dynamic Smart Ducking Matrix
+
+### User Prompt Example
+> *"Prepara una cadena vocal estilo rap moderno (estilo JID/Tyler) y calcula una curva de ducking suave de -2.5 dB en los teclados y acordes durante las estrofas vocales."*
+
+### Step-by-Step Tool Calls:
+1. **Fetch Vocal DSP Architecture**:
+   - `vocal_get_profile(style="modern_rap")`
+   - Returns High-pass 100 Hz, notch in 340 Hz, optical Glue Compressor (4:1, 15ms attack, 60ms release) and saturation drive (+2 dB).
+2. **Calculate Instrumental Ducking Envelope**:
+   - `vocal_calculate_ducking(vocal_ranges_beats=[[16.0, 32.0], [48.0, 64.0]], song_length_beats=128.0, duck_amount_db=-2.5)`
+   - Computes linear amplitude factor ($10^{-2.5/20} pprox 0.749$) with 0.5 beat pre-attack and 1.0 beat release recovery.
+3. **Inject Automation Envelopes into Accompaniment**:
+   - `arrangement_inject_automation_envelope(track="Chords Keys", parameter="Volume", points=[...])`
+
+---
+
+## 8. Playbook 7: Multi-Track Stem Resampling & Export
+
+### User Prompt Example
+> *"Prepara la exportación de stems del arreglo completo (compás 1 al 65 a 142 BPM) y genera el manifiesto técnico en exports/stems."*
+
+### Step-by-Step Tool Calls:
+1. **Generate Stem Partitioning Plan**:
+   - `stem_create_export_plan(bpm=142.0, start_bar=1.0, end_bar=65.0)`
+   - Auto-groups session tracks into `01_Drums`, `02_Bass`, `05_Vocals`, `03_Keys`, `04_Lead`, `06_FX` and `00_Master`.
+2. **Export Technical Manifest**:
+   - `stem_generate_manifest(bpm=142.0, start_bar=1.0, end_bar=65.0)`
+   - Writes `exports/stems/manifest.json` with duration (seconds), sample rate (48 kHz), bit depth (24 bit), and track assignments.
