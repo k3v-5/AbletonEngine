@@ -159,10 +159,12 @@ class LiveMasterChainEngine:
 
         # 1. Parameterize EQ Eight
         if eq_idx is not None:
+            # P0: Device On
             # Filter 1: HPF 25Hz (Type 0 = HP 48dB)
             # Filter 2: Bell 250Hz (-0.8 dB) anti-mud
             # Filter 4: High Shelf 12kHz (+0.8 dB) air
             eq_params = [
+                (0, 1.0),
                 (4, 1.0), (5, 0.0), (6, cls.freq_to_normalized(25.0)), (7, 0.0), (8, 0.38),
                 (14, 1.0), (15, 3.0), (16, cls.freq_to_normalized(250.0)), (17, -0.8), (18, 0.40),
                 (34, 1.0), (35, 5.0), (36, cls.freq_to_normalized(12000.0)), (37, 0.8), (38, 0.38)
@@ -181,8 +183,9 @@ class LiveMasterChainEngine:
 
         # 2. Parameterize Glue Compressor
         if glue_idx is not None:
-            # P1: Threshold, P4: Attack (6.0 = 30ms), P5: Ratio (0.0 = 2:1), P6: Release (6.0 = Auto), P8: Peak Clip In (1.0)
+            # P0: Device On, P1: Threshold, P4: Attack (6.0 = 30ms), P5: Ratio (0.0 = 2:1), P6: Release (6.0 = Auto), P8: Peak Clip In (1.0)
             glue_params = [
+                (0, 1.0),
                 (1, float(specs["glue_threshold"])),
                 (4, 6.0),
                 (5, 0.0),
@@ -203,8 +206,9 @@ class LiveMasterChainEngine:
 
         # 3. Parameterize Saturator
         if sat_idx is not None:
-            # P1: Drive, P3: Type (0.0 = Analog Clip)
+            # P0: Device On, P1: Drive, P3: Type (0.0 = Analog Clip)
             sat_params = [
+                (0, 1.0),
                 (1, float(specs["saturator_drive_norm"])),
                 (3, 0.0)
             ]
@@ -222,8 +226,9 @@ class LiveMasterChainEngine:
 
         # 4. Parameterize Utility
         if util_idx is not None:
-            # P4: Stereo Width (1.0 = 100%), P6: Bass Mono (1.0 = On), P7: Bass Freq (0.3802 = 120 Hz)
+            # P0: Device On, P4: Stereo Width (1.0 = 100%), P6: Bass Mono (1.0 = On), P7: Bass Freq (0.3802 = 120 Hz)
             util_params = [
+                (0, 1.0),
                 (4, 1.0),
                 (6, 1.0),
                 (7, 0.380211)
@@ -242,8 +247,9 @@ class LiveMasterChainEngine:
 
         # 5. Parameterize Limiter
         if lim_idx is not None:
-            # P1: Gain, P2: Ceiling, P7: LookAhead (1.0 = 5ms)
+            # P0: Device On, P1: Gain, P2: Ceiling, P7: LookAhead (1.0 = 5ms)
             lim_params = [
+                (0, 1.0),
                 (1, float(specs["limiter_gain_norm"])),
                 (2, float(specs["ceiling_norm"])),
                 (7, 1.0)

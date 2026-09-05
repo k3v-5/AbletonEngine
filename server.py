@@ -8147,6 +8147,87 @@ def export_commercial_release_package(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def dna_create_creative_brief(
+    title: str = "Bones Groove Pt 3",
+    artist: str = "Tyler & JID Tribute",
+    genre: str = "hip_hop_neo_soul",
+    reference_preset: str = "tyler_jid_neo_soul_trap",
+    tempo_bpm: float = 142.0,
+    key_root: str = "F",
+    scale: str = "natural_minor",
+    mood: str = "neo_soul_groove"
+) -> dict:
+    """
+    Phase 1: Generates the master Creative Direction and Song DNA brief.
+    Synthesizes aesthetic world-building, acoustic reference profiling, harmonic/modal DNA,
+    frequency-reserved track scaffolding, and arrangement energy blueprints.
+    """
+    try:
+        from engine.creative import CreativeDirectionEngine, AestheticMood
+        try:
+            m = AestheticMood(mood)
+        except Exception:
+            m = AestheticMood.NEO_SOUL_GROOVE
+        dna = CreativeDirectionEngine.formulate_creative_brief(
+            title=title,
+            artist=artist,
+            genre=genre,
+            reference_preset=reference_preset,
+            tempo_bpm=tempo_bpm,
+            key_root=key_root,
+            scale=scale,
+            mood=m
+        )
+        return {"status": "SUCCESS", "creative_dna": dna.to_dict()}
+    except Exception as e:
+        logger.error(f"Error in dna_create_creative_brief: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def dna_scaffold_live_project(
+    title: str = "Bones Groove Pt 3",
+    artist: str = "Tyler & JID Tribute",
+    genre: str = "hip_hop_neo_soul",
+    reference_preset: str = "tyler_jid_neo_soul_trap",
+    tempo_bpm: float = 142.0,
+    create_cues: bool = True
+) -> dict:
+    """
+    Phase 1: Physically instantiates the 8-track frequency-reserved scaffolding,
+    tempo, colors, Session Graph roles, and arrangement section Cue Points directly in Ableton Live.
+    """
+    try:
+        from engine.creative import CreativeDirectionEngine
+        conn = get_ableton_connection()
+        dna = CreativeDirectionEngine.formulate_creative_brief(
+            title=title,
+            artist=artist,
+            genre=genre,
+            reference_preset=reference_preset,
+            tempo_bpm=tempo_bpm
+        )
+        res = CreativeDirectionEngine.scaffold_live_project(conn=conn, dna=dna, create_cues=create_cues)
+        return res
+    except Exception as e:
+        logger.error(f"Error in dna_scaffold_live_project: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def dna_get_reference_profiles() -> dict:
+    """
+    Phase 1: Returns available acoustic and stylistic reference profiles (Tyler/JID, Atlanta Trap, Dilla Neo-Soul, West Coast).
+    """
+    try:
+        from engine.creative import CreativeDirectionEngine
+        return {"status": "SUCCESS", "profiles": CreativeDirectionEngine.get_available_reference_profiles()}
+    except Exception as e:
+        logger.error(f"Error in dna_get_reference_profiles: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

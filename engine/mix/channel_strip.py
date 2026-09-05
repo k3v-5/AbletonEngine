@@ -145,6 +145,7 @@ class ChannelStripEngine:
 
         if eq_dev_idx is not None:
             param_updates = [
+                (0, 1.0),  # Device On: Always ensure device is activated
                 (4, settings["f1_on"]),
                 (5, settings["f1_type"]),
                 (6, settings["f1_freq"]),
@@ -225,7 +226,7 @@ class ChannelStripEngine:
                     db_idx = idx
 
             if db_idx is not None:
-                for p_idx, val in [(1, 1.0), (2, 0.20), (3, 0.0), (4, 0.15), (6, 0.10)]:
+                for p_idx, val in [(0, 1.0), (1, 1.0), (2, 0.20), (3, 0.0), (4, 0.15), (6, 0.10)]:
                     try:
                         conn.send_command("set_device_parameter", {
                             "track_index": group_track_index,
@@ -254,7 +255,7 @@ class ChannelStripEngine:
                     glue_idx = idx
 
             if glue_idx is not None:
-                for p_idx, val in [(1, -12.0), (4, 6.0), (5, 0.0), (6, 6.0), (8, 1.0)]:
+                for p_idx, val in [(0, 1.0), (1, -12.0), (4, 6.0), (5, 0.0), (6, 6.0), (8, 1.0)]:
                     try:
                         conn.send_command("set_device_parameter", {
                             "track_index": group_track_index,
@@ -283,6 +284,7 @@ class ChannelStripEngine:
 
             if eq_idx is not None:
                 bus_params = [
+                    (0, 1.0),
                     (4, 1.0), (5, 0.0), (6, cls.freq_to_normalized(40.0)), (7, 0.0),
                     (14, 1.0), (15, 3.0), (16, cls.freq_to_normalized(2500.0)), (17, -1.2), (18, 0.45),
                     (34, 1.0), (35, 5.0), (36, cls.freq_to_normalized(12000.0)), (37, 0.8), (38, 0.38)

@@ -32,11 +32,14 @@ def test_copilot_empty_session():
     state = copilot.inspect_session(tracks=[])
 
     assert state.current_phase == ProductionPhase.PHASE_1_DNA
-    assert len(state.pending_decisions) == 1
-    dna_dec = state.pending_decisions[0]
-    assert dna_dec.id == "DEC-P1-SONG-DNA"
-    assert dna_dec.phase == ProductionPhase.PHASE_1_DNA
-    assert dna_dec.status == DecisionStatus.PENDING
+    assert len(state.pending_decisions) >= 4
+    dec_ids = [d.id for d in state.pending_decisions]
+    assert "DEC-P1-01-CREATIVE-MOOD" in dec_ids
+    assert "DEC-P1-02-HARMONIC-DNA" in dec_ids
+    assert "DEC-P1-03-TRACK-SCAFFOLD" in dec_ids
+    assert "DEC-P1-04-ENERGY-ROADMAP" in dec_ids
+    assert state.pending_decisions[0].phase == ProductionPhase.PHASE_1_DNA
+    assert state.pending_decisions[0].status == DecisionStatus.PENDING
 
 
 def test_copilot_session_inspection_tracks():

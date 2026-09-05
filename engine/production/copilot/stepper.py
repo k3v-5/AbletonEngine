@@ -39,19 +39,58 @@ class ExecutiveCopilotEngine:
             except Exception:
                 pass
 
-        # If no tracks found, provide baseline DNA setup decisions
-        if not session_tracks:
-            dec_dna = ProductionDecision(
-                id="DEC-P1-SONG-DNA",
+        # If no tracks found or session uninitialized, provide full Phase 1 DNA decisions
+        if not session_tracks or len(session_tracks) < 4:
+            # 1. Sonic Identity & Mood
+            dec_mood = ProductionDecision(
+                id="DEC-P1-01-CREATIVE-MOOD",
                 phase=ProductionPhase.PHASE_1_DNA,
-                title="Initialize Song DNA & Harmonic Foundation",
-                description="The project has no active tracks. Define tempo, key, scale, and genre identity.",
-                recommendation="YES, set 138.0 BPM in F Natural Minor (Trap/Hip-Hop).",
-                action_tool="set_tempo",
-                action_args={"tempo": 138.0}
+                title="Define Aesthetic Identity, Mood & World-Building",
+                description="Establish sonic world: Neo-Soul Groove, warm tape character, intimate dry room space, and vinyl foley texture.",
+                recommendation="YES, formulate creative brief with Neo-Soul Groove and Tyler/JID acoustic reference.",
+                action_tool="dna_create_creative_brief",
+                action_args={"title": "Bones Groove Pt 3", "artist": "Tyler & JID Tribute", "genre": "hip_hop_neo_soul", "reference_preset": "tyler_jid_neo_soul_trap"}
             )
-            self._register_pending(dec_dna)
-            return self._build_state()
+            self._register_pending(dec_mood)
+
+            # 2. Harmonic DNA & Modal Tension
+            dec_harm = ProductionDecision(
+                id="DEC-P1-02-HARMONIC-DNA",
+                phase=ProductionPhase.PHASE_1_DNA,
+                title="Establish Harmonic DNA, Modal Borrowing & Tension Level",
+                description="Configure root key in F Natural Minor with Dorian/Phrygian modal interchange and 7th/9th extended chord tension.",
+                recommendation="YES, configure F minor with Dorian modal borrowing and Drop-2 voicing spread.",
+                action_tool="dna_create_creative_brief",
+                action_args={"key_root": "F", "scale": "natural_minor", "chord_tension_level": 0.70}
+            )
+            self._register_pending(dec_harm)
+
+            # 3. Frequency-Reserved Acoustic Scaffolding
+            dec_scaffold = ProductionDecision(
+                id="DEC-P1-03-TRACK-SCAFFOLD",
+                phase=ProductionPhase.PHASE_1_DNA,
+                title="Deploy 8-Track Frequency-Reserved Acoustic Scaffolding",
+                description="Instantiate Kick, 808 Sub, Snare/Clap, Hi-Hats, Foley Bed, Rhodes Keys, Lead Synth, and Vocal Chops with assigned frequency slots.",
+                recommendation="YES, scaffold 8 tracks with DAW colors and Session Graph role tagging.",
+                action_tool="dna_scaffold_live_project",
+                action_args={"create_cues": True}
+            )
+            self._register_pending(dec_scaffold)
+
+            # 4. Energy Blueprint & Section Locators
+            dec_energy = ProductionDecision(
+                id="DEC-P1-04-ENERGY-ROADMAP",
+                phase=ProductionPhase.PHASE_1_DNA,
+                title="Layout 96-Bar Dynamic Energy Blueprint & Section Locators",
+                description="Map Intro (8) -> Verse 1 (16) -> Pre-Chorus (8) -> Chorus (16) -> Verse 2 (16) -> Bridge (8) -> Climax (16) -> Outro (8).",
+                recommendation="YES, place arrangement section cue markers and dynamic energy profile.",
+                action_tool="dna_scaffold_live_project",
+                action_args={"create_cues": True}
+            )
+            self._register_pending(dec_energy)
+
+            if not session_tracks:
+                return self._build_state()
 
         # Track classification by role
         kick_tracks = []
