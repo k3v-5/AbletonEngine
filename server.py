@@ -7694,6 +7694,117 @@ def macro_orchestrate_full_song(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def generate_transition_risers(
+    target_bar: float = 33.0,
+    duration_bars: float = 2.0,
+    track_index: int = 13,
+    include_filter_sweep: bool = True,
+    include_snare_roll: bool = True
+) -> dict:
+    """
+    Generates continuous transition risers leading into a drop or section transition:
+    exponential Auto Filter frequency sweeps, pitch risers, and accelerating snare rolls.
+    """
+    try:
+        from engine.arrangement.transitions.risers import TransitionRisersEngine
+        conn = get_ableton_connection()
+        return TransitionRisersEngine.apply_transition_riser(
+            conn=conn,
+            track_index=track_index,
+            target_bar=target_bar,
+            duration_bars=duration_bars,
+            include_filter_sweep=include_filter_sweep,
+            include_snare_roll=include_snare_roll
+        )
+    except Exception as e:
+        logger.error(f"Error in generate_transition_risers: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def evolve_drum_patterns(
+    track_index: int = 13,
+    total_bars: float = 16.0
+) -> dict:
+    """
+    Evolves drum sequences to eradicate loop monotony:
+    injects Bar 4 ghost snares and hat rolls, Bar 8 tom/snare fills, and section crash accents.
+    """
+    try:
+        from engine.music.drums.evolver import DrumPatternEvolver
+        conn = get_ableton_connection()
+        return DrumPatternEvolver.apply_drum_evolution(
+            conn=conn,
+            track_index=track_index,
+            total_bars=total_bars
+        )
+    except Exception as e:
+        logger.error(f"Error in evolve_drum_patterns: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def session_auto_curate() -> dict:
+    """
+    1-click session rescue and auto-curation:
+    scans all tracks in Ableton Live, detects empty or unassigned channels,
+    and automatically scaffolds suitable instruments (Vital, Drum Rack, Grand Piano) and safety channel strips.
+    """
+    try:
+        from engine.sound.curator.auto_curate import SessionAutoCuratorEngine
+        conn = get_ableton_connection()
+        return SessionAutoCuratorEngine.auto_curate_session(conn=conn)
+    except Exception as e:
+        logger.error(f"Error in session_auto_curate: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def generate_counter_melody_and_arp(
+    track_index: int = 4,
+    style: str = "counter_melody",
+    bpm: float = 120.0
+) -> dict:
+    """
+    Composes soaring guide-tone counter-melodies (focusing on 3rds and 7ths in upper registers C5-C7)
+    or modal polyphonic arpeggios (Up, Down, Converge) synchronized to the harmonic progression.
+    """
+    try:
+        from engine.music.melody.counterpoint import CounterpointEngine
+        conn = get_ableton_connection()
+        return CounterpointEngine.apply_counterpoint(
+            conn=conn,
+            track_index=track_index,
+            style=style,
+            bpm=bpm
+        )
+    except Exception as e:
+        logger.error(f"Error in generate_counter_melody_and_arp: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def auto_gain_stage_session(
+    target_master_headroom_db: float = -6.0
+) -> dict:
+    """
+    Calculates and applies hierarchical acoustic gain staging across all session track faders
+    (Kick anchor at -6dBFS, Bass at -8.5dBFS, Snare at -7dBFS, etc.),
+    guaranteeing a clean -6.0 dB headroom margin on the Master bus before mastering.
+    """
+    try:
+        from engine.mix.gain_staging.auto_stager import AutoGainStagingEngine
+        conn = get_ableton_connection()
+        return AutoGainStagingEngine.apply_gain_staging(
+            conn=conn,
+            target_master_headroom_db=target_master_headroom_db
+        )
+    except Exception as e:
+        logger.error(f"Error in auto_gain_stage_session: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

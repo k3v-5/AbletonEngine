@@ -69,6 +69,12 @@ def test_copilot_session_inspection_tracks():
     assert "DEC-P3-ORGANIC-FOLEY-BED" in pending_ids
     # Drum break chopper decision
     assert "DEC-P4-BREAK-CHOPPER-T0" in pending_ids
+    # 5 New Advanced Dimensions
+    assert "DEC-P2-COUNTER-MELODY" in pending_ids
+    assert "DEC-P3-AUTO-CURATE-TRACKS" in pending_ids
+    assert "DEC-P4-DRUM-EVOLVER" in pending_ids
+    assert "DEC-P5-TRANSITION-RISERS" in pending_ids
+    assert "DEC-P6-GAIN-STAGING" in pending_ids
 
 
 def test_copilot_execute_decision_yes():

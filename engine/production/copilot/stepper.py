@@ -209,6 +209,75 @@ class ExecutiveCopilotEngine:
                     target_track=d_idx
                 ))
 
+        # 5e. COUNTER-MELODY & ARPEGGIATOR CHECK
+        if chord_tracks:
+            dec_id = "DEC-P2-COUNTER-MELODY"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_2_COMPOSITION,
+                    title="Generate Guide-Tone Counter-Melody & Arpeggiator Layer",
+                    description="Session has harmonic chords. Adding a guide-tone counter-melody in off-beats creates harmonic richness and depth.",
+                    recommendation="YES, compose guide-tone counter-melody on track 4.",
+                    action_tool="generate_counter_melody_and_arp",
+                    action_args={"track_index": 4, "style": "counter_melody"},
+                    target_track=4
+                ))
+
+        # 5f. AUTO-CURATE UNASSIGNED TRACKS CHECK
+        dec_curate_id = "DEC-P3-AUTO-CURATE-TRACKS"
+        if dec_curate_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_curate_id,
+                phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                title="Audit and Auto-Curate Unassigned / Empty Session Tracks",
+                description="Scans session to detect any uninstrumented tracks, scaffolding Vital/Drum Rack/Grand Piano and safety channel strips.",
+                recommendation="YES, auto-curate all session tracks to ensure zero silent channels.",
+                action_tool="session_auto_curate",
+                action_args={}
+            ))
+
+        # 5g. DRUM PATTERN EVOLVER CHECK
+        if drum_tracks:
+            dec_id = "DEC-P4-DRUM-EVOLVER"
+            if dec_id not in self.resolved_decisions:
+                self._register_pending(ProductionDecision(
+                    id=dec_id,
+                    phase=ProductionPhase.PHASE_4_HUMANIZATION_GROOVE,
+                    title="Evolve Drum Pattern Monotony with Turnarounds and Fills",
+                    description="Static drum loops cause listening fatigue. Injects ghost snares in bar 4 and cascading tom/flam fills in bar 8.",
+                    recommendation="YES, evolve drums with bar 4 turnarounds and bar 8 fills.",
+                    action_tool="evolve_drum_patterns",
+                    action_args={"track_index": drum_tracks[0], "total_bars": 16.0},
+                    target_track=drum_tracks[0]
+                ))
+
+        # 5h. TRANSITION RISERS & SWEEPS CHECK
+        dec_risers_id = "DEC-P5-TRANSITION-RISERS"
+        if dec_risers_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_risers_id,
+                phase=ProductionPhase.PHASE_5_ARRANGEMENT_TRANSITIONS,
+                title="Generate Continuous Transition Risers & Accelerating Snare Rolls",
+                description="Transitions between build-ups and drops need energy continuity. Injects exponential Auto Filter sweeps and accelerating snare rolls.",
+                recommendation="YES, generate filter sweep and accelerating snare roll into drop.",
+                action_tool="generate_transition_risers",
+                action_args={"target_bar": 33.0, "duration_bars": 2.0}
+            ))
+
+        # 5i. AUTO GAIN STAGING & HEADROOM CHECK
+        dec_gain_id = "DEC-P6-GAIN-STAGING"
+        if dec_gain_id not in self.resolved_decisions:
+            self._register_pending(ProductionDecision(
+                id=dec_gain_id,
+                phase=ProductionPhase.PHASE_6_MIX_ACOUSTICS,
+                title="Calibrate Session Gain Staging & Enforce -6 dB Master Headroom",
+                description="Faders must be calibrated according to acoustic hierarchy (Kick at -6dBFS, Bass -8.5dBFS, Snare -7dBFS) to deliver clean -6dB headroom to the master bus.",
+                recommendation="YES, recalibrate all track faders for -6 dB clean headroom.",
+                action_tool="auto_gain_stage_session",
+                action_args={"target_master_headroom_db": -6.0}
+            ))
+
         # 6. MASTER DELIVERY CHECK
         dec_master_id = "DEC-P7-MASTER-CHAIN-DELIVERY"
         if dec_master_id not in self.resolved_decisions:
@@ -323,6 +392,37 @@ class ExecutiveCopilotEngine:
                         scale=args.get("scale", "minor"),
                         style=args.get("style", "melodic_hook"),
                         total_bars=args.get("total_bars", 4.0)
+                    )
+                elif dec.action_tool == "generate_transition_risers":
+                    from engine.arrangement.transitions.risers import TransitionRisersEngine
+                    TransitionRisersEngine.apply_transition_riser(
+                        conn=conn,
+                        track_index=args.get("track_index", 13),
+                        target_bar=args.get("target_bar", 33.0),
+                        duration_bars=args.get("duration_bars", 2.0)
+                    )
+                elif dec.action_tool == "evolve_drum_patterns":
+                    from engine.music.drums.evolver import DrumPatternEvolver
+                    DrumPatternEvolver.apply_drum_evolution(
+                        conn=conn,
+                        track_index=args.get("track_index", 13),
+                        total_bars=args.get("total_bars", 16.0)
+                    )
+                elif dec.action_tool == "session_auto_curate":
+                    from engine.sound.curator.auto_curate import SessionAutoCuratorEngine
+                    SessionAutoCuratorEngine.auto_curate_session(conn=conn)
+                elif dec.action_tool == "generate_counter_melody_and_arp":
+                    from engine.music.melody.counterpoint import CounterpointEngine
+                    CounterpointEngine.apply_counterpoint(
+                        conn=conn,
+                        track_index=args.get("track_index", 4),
+                        style=args.get("style", "counter_melody")
+                    )
+                elif dec.action_tool == "auto_gain_stage_session":
+                    from engine.mix.gain_staging.auto_stager import AutoGainStagingEngine
+                    AutoGainStagingEngine.apply_gain_staging(
+                        conn=conn,
+                        target_master_headroom_db=args.get("target_master_headroom_db", -6.0)
                     )
                 execution_res["live_result"] = "executed_via_adapter"
             except Exception as e:

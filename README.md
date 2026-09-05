@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 208 specialized tools and 444 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 232 specialized tools and 462 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
@@ -36,7 +36,7 @@
                        │        LLM Cognitive Client         │
                        │    (Antigravity / Claude Desktop)   │
                        └──────────────────┬──────────────────┘
-                                          │ FastMCP (208 Tools)
+                                          │ FastMCP (232 Tools)
                                           ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │                 Production Intelligence Engine (PIE)                  │
@@ -361,5 +361,68 @@ Composición armónica avanzada y estructuras multi-movimiento:
 - **Beat-Switch Orchestrator (`engine/arrangement/structure/beat_switch.py`):**
   - Planifica cambios radicales de tempo y género en compases de quiebre (ej. compás 33: de 138 BPM a 90 BPM), automatizaciones de tempo escalonadas (*instant cut* o *ritardando*) y marcadores de sección en Ableton Live.
   - **Herramienta FastMCP:** `orchestrate_beat_switch(switch_bar, target_bpm, target_genre, transition_mode)`.
+
+---
+
+## 🧭 Copilot Ejecutivo & Guía Asistida Interactiva (`engine/production/copilot/`)
+
+Resuelve el problema de parálisis de decisión y olvidos del modelo guiando el flujo de producción a través de un checklist causal interactivo:
+- **Inspección de Sesión Heurística:** Analiza pistas existentes, detecta colisiones de frecuencias, pistas vacías, necesidad de transiciones y headroom.
+- **Checklist Causal de Decisiones (`ExecutiveCopilotEngine`):**
+  - Presenta opciones estructuradas (`YES`, `NO`, `CUSTOM`) con justificación acústica obligatoria en caso de rechazo.
+  - Previene que la IA olvide pasos críticos antes de la exportación.
+- **Preflight Check Obligatorio:** Bloquea la exportación/mastering si existen decisiones acústicas bloqueantes pendientes.
+- **Herramientas FastMCP:**
+  - `copilot_review_decisions()`: Inspecciona la sesión y lista decisiones pendientes organizadas por fase.
+  - `copilot_execute_decision(decision_id, choice, justification, custom_args)`: Resuelve una decisión interactiva y despacha la acción técnica en Ableton Live.
+  - `copilot_preflight_check()`: Audita el estado de cumplimiento para exportación final.
+
+---
+
+## 🎼 Macro-Composición y Módulos de Textura Rítmica
+
+### 🏰 Full Song Blueprint & Section Arranger (`engine/arrangement/structure/song_arranger.py`)
+- **Macro Estructural de 64 a 128 Compases:** Intro (8) $\to$ Verso 1 (16) $\to$ Pre-Coro (8) $\to$ Drop/Coro (16) $\to$ Verso 2 (16) $\to$ Puente (8) $\to$ Final Drop (16) $\to$ Outro (8).
+- **Control Dinámico de Capas (*Density Orchestration*):** Genera y conmuta clips de forma inteligente para vaciar el verso (dejando aire vocal), concentrar tensión en el pre-coro y detonar el arreglo completo en el drop.
+- **Herramienta FastMCP:** `macro_orchestrate_full_song(genre, tempo, key, scale, total_bars)`.
+
+### 🌿 Foley Textures, Vocal Chops & Break Slicing
+- **Organic Foley Bed (`engine/sound/foley/texture.py`):** Inyecta grabaciones de campo, texturas binaurales de lluvia, crujido de cinta o ambiente urbano sincronizadas al tempo. Herramienta FastMCP: `generate_organic_foley_bed()`.
+- **Transient Slicer & Break Chopper (`engine/music/drums/chopper.py`):** Trocea loops rítmicos en 8 o 16 rebanadas transientes y genera patrones invertidos o reorganizados. Herramienta FastMCP: `chop_drum_loop_transients()`.
+- **Vocal Hook Chopper & Formant Shift (`engine/music/vocal/chopper.py`):** Extrae microslices tonales de una toma vocal, genera arpegios vocales rítmicos y aplica cambios de formante. Herramienta FastMCP: `generate_vocal_hook_chops()`.
+
+---
+
+## 🚀 Las 5 Nuevas Dimensiones de Producción Avanzada
+
+### 1️⃣ Punto 1: Transition Risers & Sweeps Engine (`engine/arrangement/transitions/risers.py`)
+- **Subfase 1.1 - Auto Filter Sweeps:** Barridos exponenciales de frecuencia (Lowpass $20\text{ kHz} \to 300\text{ Hz}$ o Highpass $20\text{ Hz} \to 2.5\text{ kHz}$) con resonancia automática en el compás previo al drop.
+- **Subfase 1.2 - Noise & Pitch Risers:** Generación de curvas continuas de modulación de pitch (0 a +8191) y volumen para capas de ruido blanco o sintético.
+- **Subfase 1.3 - Procedural Snare Roll:** Redobles con aceleración geométrica ($1/8 \to 1/16 \to 1/32 \to 1/64$) y rampa de velocidad dinámica ($45 \to 127$).
+- **Herramienta FastMCP:** `generate_transition_risers(track_index, riser_type, start_bar, duration_bars, curve_type, cutoff_start, cutoff_end)`.
+
+### 2️⃣ Punto 2: Drum Pattern Evolver & Turnarounds (`engine/music/drums/evolver.py`)
+- **Subfase 2.1 - Compás 4 Ghost Snare & Hat Rolls:** Inyección de notas fantasma sutiles en redoblante y rolls de hi-hats en subdivisiones 1/32 para microvariación.
+- **Subfase 2.2 - Compás 8 Section Fill:** Redoble completo de toms y redoblante con corte de bombo en los últimos 2 tiempos (*kick dropout*) para señalizar el cambio de sección.
+- **Subfase 2.3 - Section Arrival Crash:** Acento de plato crash en el downbeat exacto de llegada (compás 9 o 17).
+- **Herramienta FastMCP:** `evolve_drum_patterns(track_index, clip_index, evolution_intensity, add_bar4_turnaround, add_bar8_fill, add_crash_accent)`.
+
+### 3️⃣ Punto 3: Session Auto-Curate & Device Scaffolding (`engine/sound/curator/auto_curate.py`)
+- **Subfase 3.1 - Detección y Clasificación Heurística:** Diagnostica pistas sin dispositivos ni clips y clasifica su rol musical por nombre (`KICK`, `BASS`, `LEAD`, `PAD`, `CHORD`, `DRUMS`).
+- **Subfase 3.2 - Inyección de Instrumentos Nativos:** Carga Drift o Wavetable con presets idóneos según el género detectado o Drum Rack en pistas rítmicas.
+- **Subfase 3.3 - Inyección de Channel Strip de Producción:** Inserta automáticamente EQ Eight (con filtro paso-altos limpio) y Utility (con Bass Mono a 120 Hz) para garantizar claridad sonora desde el inicio.
+- **Herramienta FastMCP:** `session_auto_curate(default_synth, inject_eq_eight, inject_utility)`.
+
+### 4️⃣ Punto 4: Counter-Melody & Polyphonic Modal Arp Engine (`engine/music/melody/counterpoint.py`)
+- **Subfase 4.1 - Contramelodía Guide-Tone:** Genera líneas contrapuntísticas en contratiempos en registros altos ($C5\text{--}C7$) usando 3as y 7as de los acordes subyacentes.
+- **Subfase 4.2 - Arpegios Modales Polifónicos:** Patrones arpegiados configurables (`UP`, `DOWN`, `CONVERGE`, `UP_DOWN`) con notas de paso diatónicas.
+- **Subfase 4.3 - Humanización Dinámica:** Microdesplazamientos temporales ($\pm 0.02$ pulsos) y humanización de velocidad para fraseo orgánico.
+- **Herramienta FastMCP:** `generate_counter_melody_and_arp(track_index, chord_clip_index, mode, pattern_type, subdivision, octave, humanize_amt)`.
+
+### 5️⃣ Punto 5: Hierarchical Auto Gain Staging & -6 dBFS Headroom (`engine/mix/gain_staging/auto_stager.py`)
+- **Subfase 5.1 - Modelo de Sumación Energética:** Modela la acumulación de energía del master en función del número de pistas activas ($E_{\text{total}} = 10 \cdot \log_{10}(N)$).
+- **Subfase 5.2 - Matriz Jerárquica de Calibración:** Ajusta faders relativos según rol acústico (KICK/BASS a 0 dB relativo, LEADS a -3 dB, CHORDS/PADS a -6 dB, FX a -9 dB).
+- **Subfase 5.3 - Bloqueo de Headroom Limpio a -6.0 dBFS:** Escala la ganancia de todas las pistas para garantizar exactamente $-6.0\text{ dBFS}$ de margen dinámico antes del bus master.
+- **Herramienta FastMCP:** `auto_gain_stage_session(target_headroom_db, protect_leads)`.
 
 
