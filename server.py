@@ -7655,6 +7655,45 @@ def generate_vocal_hook_chops(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def macro_orchestrate_full_song(
+    genre: str = "atlanta_trap",
+    bpm: float = 138.0,
+    key: str = "F",
+    scale: str = "minor",
+    drum_track: int = 13,
+    bass_track: int = 6,
+    piano_track: int = 9,
+    lead_track: int = 4,
+    foley_track: int = 15,
+    break_track: int = 14
+) -> dict:
+    """
+    Grand orchestrator producing an entire 96-bar (~3 minute) commercial arrangement in Ableton Live:
+    Intro(8) -> Verse 1(16) -> Pre-Chorus(8) -> Drop 1(16) -> Verse 2(16) -> Bridge(8) -> Final Drop(16) -> Outro(8).
+    Creates 8 section cue markers, manages dynamic layer density, cuts bass in pre-chorus, and injects pre-drop silences.
+    """
+    try:
+        from engine.production.copilot.recipes import MacroProductionRecipes
+        conn = get_ableton_connection()
+        return MacroProductionRecipes.orchestrate_complete_song(
+            conn=conn,
+            genre=genre,
+            bpm=bpm,
+            key=key,
+            scale=scale,
+            drum_track=drum_track,
+            bass_track=bass_track,
+            piano_track=piano_track,
+            lead_track=lead_track,
+            foley_track=foley_track,
+            break_track=break_track
+        )
+    except Exception as e:
+        logger.error(f"Error in macro_orchestrate_full_song: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

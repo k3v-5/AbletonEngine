@@ -28,6 +28,7 @@ from .generator import ArrangementGenerator
 from .automation.weaver import ArrangementAutomationWeaver, TransitionAutomationType
 from .fx.ear_candy import EarCandyEngine, EarCandyType
 from .structure.beat_switch import BeatSwitchOrchestrator
+from .blueprints import SectionSpec, FullSongBlueprint, FullSongArrangerEngine
 
 __all__ = [
     "Section", "SectionType", "Song",
@@ -39,6 +40,7 @@ __all__ = [
     "TransitionAutomationEngine", "AutomationCurveType",
     "ArrangementAutomationWeaver", "TransitionAutomationType",
     "EarCandyEngine", "EarCandyType", "BeatSwitchOrchestrator",
+    "SectionSpec", "FullSongBlueprint", "FullSongArrangerEngine",
     "DropDifferentiationEngine", "NarrativeArc",
     "VariationPlanner", "VariationDirective", "MotifEvolutionManager",
     "DensityController",

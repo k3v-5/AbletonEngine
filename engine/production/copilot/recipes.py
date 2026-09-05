@@ -260,3 +260,45 @@ class MacroProductionRecipes:
             "master_chain_target": target_profile,
             "readiness_verdict": "READY"
         }
+
+    @classmethod
+    def orchestrate_complete_song(
+        cls,
+        conn: Any,
+        genre: str = "atlanta_trap",
+        bpm: float = 138.0,
+        key: str = "F",
+        scale: str = "minor",
+        drum_track: int = 13,
+        bass_track: int = 6,
+        piano_track: int = 9,
+        lead_track: int = 4,
+        foley_track: int = 15,
+        break_track: int = 14
+    ) -> Dict[str, Any]:
+        """
+        All-in-one grand orchestrator:
+        Produces a complete 96-bar (~3 min) commercial song layout:
+        Intro(8) -> Verse1(16) -> Pre-Chorus(8) -> Drop1(16) -> Verse2(16) -> Bridge(8) -> Final Drop(16) -> Outro(8).
+        """
+        from engine.arrangement.blueprints.song_arranger import FullSongArrangerEngine
+
+        tracks_map = {
+            "kick": 0,
+            "drums": drum_track,
+            "bass": bass_track,
+            "piano": piano_track,
+            "lead": lead_track,
+            "foley": foley_track,
+            "break": break_track,
+            "vocal_chops": lead_track
+        }
+
+        return FullSongArrangerEngine.orchestrate_full_song_timeline(
+            conn=conn,
+            tracks_map=tracks_map,
+            bpm=bpm,
+            key=key,
+            scale=scale,
+            genre=genre
+        )
