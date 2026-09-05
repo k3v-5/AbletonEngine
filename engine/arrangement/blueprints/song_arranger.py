@@ -378,6 +378,38 @@ class FullSongArrangerEngine:
                             })
                             commands_dispatched += 1
 
+                # 5. Automatically load verified 808 sample kit onto drum tracks
+                try:
+                    from engine.music.drums.multitrack import MultiTrackDrumEngine
+                    for d_role in ["kick", "drums", "snare", "hats", "crash"]:
+                        if d_role in effective_map:
+                            MultiTrackDrumEngine.load_verified_drum_kit(conn, track_index=effective_map[d_role], kit_id="808_core")
+                            commands_dispatched += 1
+                except Exception:
+                    pass
+
+                # 6. Automatically configure physical compressor sidechain (Bass keyed against Kick)
+                try:
+                    from engine.mix.sidechain_manager import SidechainManager
+                    b_trk = effective_map.get("bass", 7)
+                    k_trk = effective_map.get("kick", effective_map.get("drums", 2))
+                    SidechainManager.configure_sidechain(conn, bass_track_index=b_trk, kick_track_index=k_trk)
+                    commands_dispatched += 1
+                except Exception:
+                    pass
+
+                # 7. Automatically apply physical filter sweeps and pre-drop vacuums
+                try:
+                    from engine.arrangement.automation.live_automation import LiveAutomationEngine
+                    l_trk = effective_map.get("lead", 4)
+                    LiveAutomationEngine.apply_filter_sweep(conn, track_index=l_trk, start_bar=29.0, duration_bars=4.0, direction="up")
+                    LiveAutomationEngine.apply_filter_sweep(conn, track_index=l_trk, start_bar=69.0, duration_bars=4.0, direction="up")
+                    LiveAutomationEngine.apply_pre_drop_vacuum(conn, track_indices=[effective_map.get("kick", 2), effective_map.get("bass", 7)], drop_bar=33.0)
+                    LiveAutomationEngine.apply_pre_drop_vacuum(conn, track_indices=[effective_map.get("kick", 2), effective_map.get("bass", 7)], drop_bar=73.0)
+                    commands_dispatched += 1
+                except Exception:
+                    pass
+
             except Exception:
                 pass
 

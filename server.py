@@ -7661,17 +7661,22 @@ def macro_orchestrate_full_song(
     bpm: float = 138.0,
     key: str = "F",
     scale: str = "minor",
-    drum_track: int = 13,
-    bass_track: int = 6,
+    drum_track: int = 2,
+    bass_track: int = 7,
     piano_track: int = 9,
     lead_track: int = 4,
     foley_track: int = 15,
-    break_track: int = 14
+    break_track: int = 14,
+    snare_track: int = 13,
+    hats_track: int = 16,
+    crash_track: int = 17
 ) -> dict:
     """
     Grand orchestrator producing an entire 96-bar (~3 minute) commercial arrangement in Ableton Live:
-    Intro(8) -> Verse 1(16) -> Pre-Chorus(8) -> Drop 1(16) -> Verse 2(16) -> Bridge(8) -> Final Drop(16) -> Outro(8).
-    Creates 8 section cue markers, manages dynamic layer density, cuts bass in pre-chorus, and injects pre-drop silences.
+    - Multi-Track Drum Layering (Kick on 2, Snare on 13, Hats on 16, Crash on 17) with verified 808 sample kit.
+    - Physical Sidechain Compressor configured on 808 Bass (Track 7) keyed against Kick (Track 2).
+    - Physical arrangement filter sweeps on lead/synths and pre-drop vacuum cuts before drops.
+    - 8 section cue markers, dynamic role density, and vocal space management across the timeline.
     """
     try:
         from engine.production.copilot.recipes import MacroProductionRecipes
@@ -7687,7 +7692,10 @@ def macro_orchestrate_full_song(
             piano_track=piano_track,
             lead_track=lead_track,
             foley_track=foley_track,
-            break_track=break_track
+            break_track=break_track,
+            snare_track=snare_track,
+            hats_track=hats_track,
+            crash_track=crash_track
         )
     except Exception as e:
         logger.error(f"Error in macro_orchestrate_full_song: {e}")
