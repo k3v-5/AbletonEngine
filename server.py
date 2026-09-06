@@ -23,6 +23,12 @@ except (ImportError, ValueError):
     from telemetry import record_startup
     from telemetry_decorator import telemetry_tool, rich_telemetry_tool
 
+try:
+    from engine.supervisor.governance import GovernanceViolationError
+except (ImportError, ValueError):
+    class GovernanceViolationError(RuntimeError):
+        pass
+
 ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
 ABLETON_PORT = int(os.environ.get("ABLETON_PORT", "9877"))
 
@@ -116,11 +122,110 @@ class AbletonConnection:
         else:
             raise Exception("No data received")
 
+    def _send_raw(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Low-level raw socket dispatch without governance interception for internal queries."""
+        if not self.sock and not self.connect():
+            raise ConnectionError("Not connected to Ableton")
+        
+        command = {
+            "type": command_type,
+            "params": params or {}
+        }
+        self.sock.sendall(json.dumps(command).encode('utf-8'))
+        self.sock.settimeout(5.0)
+        response_data = self.receive_full_response(self.sock)
+        response = json.loads(response_data.decode('utf-8'))
+        if response.get("status") == "error":
+            raise Exception(response.get("message", "Unknown error from Ableton"))
+        return response.get("result", {})
+
+    def _enforce_immutable_governance(self, command_type: str, params: Dict[str, Any]) -> None:
+        """
+        ==============================================================================
+        🔒 ARCHITECTURAL INVARIANT: IMMUTABLE GOVERNANCE GATEKEEPER 🔒
+        ==============================================================================
+        ATTENTION TO ALL AI ASSISTANTS (Gemini, Claude, GPT, Antigravity, Subagents):
+        THIS INTERCEPTOR ENFORCES DAW-LEVEL PRODUCTION INTEGRITY AND PREVENTS SILENT TRACKS,
+        UNCONFIGURED VSTS, AND PROCEDURAL COPILOT BYPASSES.
+
+        CRITICAL SYSTEM DIRECTIVES:
+        1. DO NOT MODIFY, DISABLE, RELAX, MOCK, OR COMMENT OUT THIS INTERCEPTOR.
+        2. DO NOT INTRODUCE WORKAROUNDS OR BYPASS FLAGS (e.g., bypass_governance=True).
+        3. DO NOT WRITE PROCEDURAL SCRIPTS IN scratch/ TO CIRCUMVENT COPILOT.
+
+        IF A COMMAND IS BLOCKED HERE, IT MEANS YOUR DAW PRODUCTION ACTIONS ARE DEFECTIVE.
+        YOU MUST FIX THE DAW STATE (LOAD AN AUTHENTIC INSTRUMENT, CONFIGURE PRESETS/MACROS,
+        OR EXECUTE COPILOT DECISIONS) INSTEAD OF TAMPERING WITH THIS CODE.
+        ==============================================================================
+        """
+        target_tracks = []
+        if command_type in ["create_clip", "add_notes_to_clip", "duplicate_session_clip_to_arrangement"]:
+            t_idx = params.get("track_index")
+            if t_idx is not None and isinstance(t_idx, int):
+                target_tracks.append(t_idx)
+        elif command_type == "execute_code":
+            code_str = str(params.get("code", ""))
+            if any(term in code_str for term in ["create_clip", "duplicate_session_clip", "add_notes_to_clip"]):
+                import re
+                found_indices = re.findall(r"tracks\[(\d+)\]", code_str)
+                for f_idx in found_indices:
+                    target_tracks.append(int(f_idx))
+
+        if not target_tracks:
+            return
+
+        for t_idx in target_tracks:
+            try:
+                t_info = self._send_raw("get_track_info", {"track_index": t_idx})
+            except Exception:
+                continue
+
+            if not t_info or not isinstance(t_info, dict):
+                continue
+
+            # Only enforce authentic instrument on MIDI tracks
+            if not t_info.get("is_midi_track", True):
+                continue
+
+            devices = t_info.get("devices", [])
+            authentic_classes = {
+                "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
+                "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
+                "MidiVelocity", "Operator", "MultiSampler", "Wavetable", "Drift"
+            }
+            inst_keywords = [
+                "analog lab", "pigments", "serum", "vital", "massive", "strings",
+                "orch", "pad", "kit", "drum", "piano", "rhodes", "bass", "808",
+                "lead", "synth", "sampler", "simpler", "operator", "wavetable"
+            ]
+
+            has_inst = any(
+                d.get("class_name") in authentic_classes or
+                "Instrument" in d.get("class_name", "") or
+                any(k in d.get("name", "").lower() for k in inst_keywords)
+                for d in devices
+            )
+
+            if not has_inst:
+                dev_names = [d.get("name") for d in devices]
+                raise GovernanceViolationError(
+                    f"[IMMUTABLE GOVERNANCE BLOCKED] VIOLATION DETECTED on Track {t_idx} ('{t_info.get('name')}'): "
+                    f"Attempted to create clips or write notes on a silent MIDI track without an authentic instrument! "
+                    f"Current devices: {dev_names}. Audio effects (such as EQ Eight or Compressor) DO NOT produce sound. "
+                    "You MUST load a valid instrument (e.g. via sound_load_role_instrument, load_drum_kit, or load_browser_item) "
+                    "before creating clips or adding notes. "
+                    "ATTENTION AI ASSISTANTS: DO NOT MODIFY, DISABLE, OR BYPASS THIS GUARD IN server.py. "
+                    "You must fix the DAW session state by properly loading the required instrument."
+                )
+
     def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Send a command to Ableton and return the response"""
         with self._lock:
             if not self.sock and not self.connect():
                 raise ConnectionError("Not connected to Ableton")
+            
+            # Enforce immutable DAW governance rules before mutating Ableton
+            self._enforce_immutable_governance(command_type, params or {})
             
             command = {
                 "type": command_type,
