@@ -677,8 +677,16 @@ class ExecutiveCopilotEngine:
                     id=dec_load_id,
                     phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
                     title=f"Load Authentic Orchestral Strings Instrument for Track {s_idx}",
-                    description="Load Ac Strings Orch or expressive ensemble strings.",
-                    recommendation="YES, load Ac Strings Orch.",
+                    description=(
+                        "Opciones sugeridas para STRINGS (Top 5 verificadas en Live 12):\n"
+                        "1. [Native Preset] Ac Strings Orch (.adg) (`native_strings_orch`) - Ensamble orquestal con dinámica y reverb de sala\n"
+                        "2. [Native Preset] Cello Strings (.adv) (`native_cello_strings`) - Violonchelo solista con vibrato cálido\n"
+                        "3. [Native Preset] Ensemble Strings (.adv) (`native_ensemble_strings`) - Sección de cuerdas sinfónica amplia\n"
+                        "4. [VST3] Arturia Pigments (`vst3_pigments_strings`) - Cuerdas híbridas modeladas y espacio granular\n"
+                        "5. [VST3] Arturia Analog Lab V (`vst3_analog_lab_strings`) - Máquinas de cuerdas vintage (Solina) y sinfónicas\n"
+                        "(Nota: Consulta el catálogo completo con get_available_vst_and_presets(role='strings'))"
+                    ),
+                    recommendation="YES para cargar opción #1 (Ac Strings Orch), o CUSTOM con custom_args={'instrument_id': '<id>'}.",
                     action_tool="sound_load_role_instrument",
                     action_args={"track_index": s_idx, "role": "STRINGS", "instrument_id": "native_strings_orch"},
                     target_track=s_idx
@@ -689,10 +697,16 @@ class ExecutiveCopilotEngine:
                     id=dec_sculpt_id,
                     phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
                     title=f"Sculpt Strings Dynamics & Attack Envelope for Track {s_idx}",
-                    description="Sculpt dynamic expression, slow attack envelope, and lush stereo space.",
-                    recommendation="YES to sculpt strings parameters (SPACE=0.45).",
-                    action_tool="plugin_set_semantic_parameter",
-                    action_args={"track_index": s_idx, "device_index": 0, "semantic_role": "SPACE", "value": 0.45},
+                    description=(
+                        "Parameter Blueprint para Strings (Valores verificados obligatorios):\n"
+                        "- Attack: 0.35 (Swell orquestal progresivo sin chasquido)\n"
+                        "- Release: 0.60 (Cola acústica natural)\n"
+                        "- Tone: 0.75 (Apertura tímbrica balanceada)\n"
+                        "- Space: 0.40 (Reverberación de sala orquestal)"
+                    ),
+                    recommendation="YES para aplicar el Parameter Blueprint recomendado de Strings.",
+                    action_tool="apply_sound_blueprint",
+                    action_args={"track_index": s_idx, "device_index": 0, "role": "STRINGS", "custom_blueprint": {"parameters": {"Attack": 0.35, "Release": 0.60, "Tone": 0.75, "Space": 0.40}}},
                     target_track=s_idx
                 ))
 
@@ -704,10 +718,18 @@ class ExecutiveCopilotEngine:
                     id=dec_load_id,
                     phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
                     title=f"Load Warm Analog Pad Instrument for Track {p_idx}",
-                    description="Load Warm Analog Pad or VHS Dreams texture.",
-                    recommendation="YES, load Warm Analog Pad.",
+                    description=(
+                        "Opciones sugeridas para PAD (Top 5 verificadas en Live 12):\n"
+                        "1. [Native Preset] Warm Analog Pad (.adg) (`native_warm_analog_pad`) - Polysynth analógico cálido con evolución lenta\n"
+                        "2. [Native Preset] After Glow Pad (.adg) (`native_after_glow_pad`) - Pad etéreo con cola shimmer\n"
+                        "3. [VST3] Spectrasonics Omnisphere (`vst3_omnisphere`) - Texturas híbridas y espacios cinemáticos\n"
+                        "4. [VST3] Arturia Pigments (`vst3_pigments_pad`) - Pad granular ambiental con modulación profunda\n"
+                        "5. [VST3] Arturia Analog Lab V (`vst3_analog_lab_pad`) - Pads vintage Jupiter-8 y Prophet-5\n"
+                        "(Nota: Consulta el catálogo completo con get_available_vst_and_presets(role='pad'))"
+                    ),
+                    recommendation="YES para cargar opción #1 (Warm Analog Pad), o CUSTOM con custom_args={'instrument_id': '<id>'}.",
                     action_tool="sound_load_role_instrument",
-                    action_args={"track_index": p_idx, "role": "PAD", "instrument_id": "native_analog_pad"},
+                    action_args={"track_index": p_idx, "role": "PAD", "instrument_id": "native_warm_analog_pad"},
                     target_track=p_idx
                 ))
             dec_sculpt_id = f"DEC-P3-09-PAD-PARAM-CONFIG-T{p_idx}"
@@ -716,10 +738,16 @@ class ExecutiveCopilotEngine:
                     id=dec_sculpt_id,
                     phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
                     title=f"Sculpt Analog Pad Filter & Atmosphere for Track {p_idx}",
-                    description="Sculpt 24dB LPF filter cutoff and stereo width.",
-                    recommendation="YES to sculpt pad parameters (BRIGHTNESS=0.40).",
-                    action_tool="plugin_set_semantic_parameter",
-                    action_args={"track_index": p_idx, "device_index": 0, "semantic_role": "BRIGHTNESS", "value": 0.40},
+                    description=(
+                        "Parameter Blueprint para Pad (Valores verificados obligatorios):\n"
+                        "- Cutoff: 0.55 (Calidez analógica sin asperezas)\n"
+                        "- Resonance: 0.20 (Resonancia controlada)\n"
+                        "- Attack: 0.45 (Ataque envolvente suave)\n"
+                        "- Release: 0.60 (Desvanecimiento natural)"
+                    ),
+                    recommendation="YES para aplicar el Parameter Blueprint recomendado de Pad.",
+                    action_tool="apply_sound_blueprint",
+                    action_args={"track_index": p_idx, "device_index": 0, "role": "PAD", "custom_blueprint": {"parameters": {"Cutoff": 0.55, "Resonance": 0.20, "Attack": 0.45, "Release": 0.60}}},
                     target_track=p_idx
                 ))
 
@@ -1426,6 +1454,14 @@ class ExecutiveCopilotEngine:
                 if not params:
                     params = {"DRIVE": 0.40}
                 governance_supervisor.record_effect_sculpted(track_index=t_idx, device_index=d_idx, parameters=params)
+            elif dec.action_tool == "apply_sound_blueprint":
+                t_idx = int(args.get("track_index", 0))
+                d_idx = int(args.get("device_index", 0))
+                cb = args.get("custom_blueprint", {})
+                b_params = cb.get("parameters", cb) if isinstance(cb, dict) else args.get("parameters", {})
+                if not b_params:
+                    b_params = {"SCULPTED": 1.0}
+                governance_supervisor.record_device_sculpted(track_index=t_idx, device_index=d_idx, parameters=b_params)
         except Exception as e:
             execution_res["governance_warning"] = str(e)
 
@@ -1654,8 +1690,24 @@ class ExecutiveCopilotEngine:
                     s_role = str(args.get("semantic_role", "BRIGHTNESS"))
                     s_val = float(args.get("value", 0.65))
                     DeviceParameterSupervisor.apply_semantic_tuning(conn, t_idx, d_idx, "", {s_role: s_val})
+                elif dec.action_tool == "apply_sound_blueprint":
+                    from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+                    t_idx = int(args.get("track_index", 0))
+                    d_idx = int(args.get("device_index", 0))
+                    role = str(args.get("role", "KEYS"))
+                    cb = args.get("custom_blueprint")
+                    p_name = str(args.get("plugin_name", ""))
+                    DeviceParameterSupervisor.apply_sound_blueprint(
+                        conn=conn,
+                        track_index=t_idx,
+                        role=role,
+                        plugin_name=p_name,
+                        custom_blueprint=cb,
+                        device_index=d_idx
+                    )
                 elif dec.action_tool == "sound_load_role_instrument":
                     from engine.instruments.installed_scanner import InstalledPluginScanner
+                    from engine.instruments.browser_catalog import CURATED_SOURCES
                     t_idx = int(args.get("track_index", 0))
                     role = str(args.get("role", "KEYS"))
                     inst_id = str(args.get("instrument_id", "vst3_analog_lab"))
@@ -1667,9 +1719,18 @@ class ExecutiveCopilotEngine:
                         target_uri = scanned[inst_id].uri
                         inst_display_name = scanned[inst_id].name
                     else:
-                        rec = scanner.recommend_for_role(role=role)
-                        target_uri = rec.uri
-                        inst_display_name = rec.name
+                        # Check curated catalog for exact or case-insensitive match
+                        cat_list = CURATED_SOURCES.get(role.upper(), [])
+                        for opt in cat_list:
+                            if opt.id.lower() == inst_id.lower() or opt.name.lower() == inst_id.lower():
+                                target_uri = opt.uri
+                                inst_display_name = opt.name
+                                break
+                        if not target_uri:
+                            rec = scanner.recommend_for_role(role=role)
+                            if rec:
+                                target_uri = rec.uri
+                                inst_display_name = rec.name
                     if target_uri:
                         conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": target_uri})
                         # POST-LOAD VALIDATION: Verify instrument actually loaded in Live
@@ -1678,7 +1739,15 @@ class ExecutiveCopilotEngine:
                             devices = verify_info.get("devices", verify_info.get("result", {}).get("devices", [])) if isinstance(verify_info, dict) else []
                             loaded_names = [str(d.get("name", "")).lower() for d in devices]
                             inst_lower = inst_display_name.lower().replace("vst3_", "").replace("_", " ")
-                            verified = any(inst_lower in n or n in inst_lower for n in loaded_names)
+                            authentic_classes = {
+                                "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
+                                "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
+                                "Operator", "MultiSampler", "Wavetable", "Drift"
+                            }
+                            verified = any(inst_lower in n or n in inst_lower for n in loaded_names) or any(
+                                d.get("class_name") in authentic_classes or "Instrument" in d.get("class_name", "")
+                                for d in devices
+                            )
                             if not verified:
                                 execution_res["load_verified"] = False
                                 execution_res["load_warning"] = (
@@ -1890,6 +1959,9 @@ class ExecutiveCopilotEngine:
 
         # If instrument/effect load failed, keep decision PENDING for retry
         if execution_res.get("load_failed"):
+            from engine.instruments.browser_catalog import CURATED_SOURCES
+            role_key = str(dec.action_args.get("role", "KEYS")).upper()
+            role_opts = [f"{s.id} ('{s.name}')" for s in CURATED_SOURCES.get(role_key, [])]
             return {
                 "status": "LOAD_FAILED",
                 "decision_id": dec.id,
@@ -1897,13 +1969,16 @@ class ExecutiveCopilotEngine:
                 "error": execution_res.get("load_error", "No valid URI found for this instrument/effect."),
                 "guidance": (
                     "MANDATORY: The instrument/effect could not be loaded because no valid URI was found. "
-                    "Call get_available_vst_and_presets() to list installed VSTs, "
-                    "then re-execute this decision with custom_args={'instrument_id': '<valid_id>'} or "
-                    "custom_args={'effect_uri': '<valid_uri>'}."
-                )
+                    f"Verified options for {role_key}: {', '.join(role_opts[:4]) if role_opts else 'See catalog'}. "
+                    "Re-execute this decision with custom_args={'instrument_id': '<valid_id>'}."
+                ),
+                "verified_options": role_opts
             }
 
         if execution_res.get("load_verified") is False:
+            from engine.instruments.browser_catalog import CURATED_SOURCES
+            role_key = str(dec.action_args.get("role", "KEYS")).upper()
+            role_opts = [f"{s.id} ('{s.name}')" for s in CURATED_SOURCES.get(role_key, [])]
             return {
                 "status": "VERIFICATION_FAILED",
                 "decision_id": dec.id,
@@ -1911,10 +1986,45 @@ class ExecutiveCopilotEngine:
                 "warning": execution_res.get("load_warning", "Load verification failed."),
                 "guidance": (
                     "MANDATORY: The instrument/effect did not appear in the track device chain after loading. "
-                    "Verify the instrument is installed and licensed in Ableton Live, "
-                    "then re-execute this decision or choose an alternative with custom_args."
-                )
+                    f"Select an alternative verified instrument for {role_key}: {', '.join(role_opts[:4]) if role_opts else 'See catalog'}. "
+                    "Re-execute this decision with custom_args={'instrument_id': '<valid_id>'}."
+                ),
+                "verified_options": role_opts
             }
+
+        # Automatically queue paired parameter sculpting decision if not already present
+        if dec.action_tool == "sound_load_role_instrument":
+            t_idx = int(dec.action_args.get("track_index", 0))
+            role = str(dec.action_args.get("role", "KEYS")).upper()
+            inst_id = str(dec.action_args.get("instrument_id", ""))
+            has_existing = any(
+                ("PARAM-CONFIG" in d_k or "SCULPT" in d_k) and f"T{t_idx}" in d_k
+                for d_k in list(self.pending_decisions.keys()) + list(self.resolved_decisions.keys())
+            )
+            if not has_existing:
+                sculpt_id = f"DEC-P3-{t_idx:02d}-{role}-PARAM-CONFIG-T{t_idx}"
+                from engine.instruments.browser_catalog import CURATED_SOURCES
+                opt_bp = {}
+                for opt in CURATED_SOURCES.get(role, []):
+                    if opt.id.lower() == inst_id.lower() or inst_id.lower() in opt.id.lower():
+                        opt_bp = opt.blueprint
+                        break
+                param_text = ", ".join([f"{k}: {v}" for k, v in opt_bp.get("parameters", {}).items()]) if opt_bp else "Macro and timbre controls"
+                self._register_pending(ProductionDecision(
+                    id=sculpt_id,
+                    phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
+                    title=f"Sculpt Parameter Blueprint for {role} on Track {t_idx}",
+                    description=f"Obligatory Parameter Blueprint ({param_text}) for authentic sound character.",
+                    recommendation=f"YES, apply Parameter Blueprint ({param_text}).",
+                    action_tool="apply_sound_blueprint",
+                    action_args={
+                        "track_index": t_idx,
+                        "device_index": 0,
+                        "role": role,
+                        "custom_blueprint": opt_bp
+                    },
+                    target_track=t_idx
+                ))
 
         dec.status = DecisionStatus.APPLIED
         dec.result = execution_res

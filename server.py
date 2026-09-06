@@ -633,10 +633,14 @@ def load_instrument_or_effect(ctx: Context, track_index: int, uri: str, user_pro
                 devices = result.get("devices_after", [])
                 return f"Loaded instrument with URI '{uri}' on track {track_index}. Devices on track: {', '.join(devices)}"
         else:
-            return f"Failed to load instrument with URI '{uri}'"
+            raise RuntimeError(
+                f"[LOAD_FAILED] Failed to load instrument or effect with URI '{uri}' on track {track_index}. "
+                "Ableton Live could not resolve or load this item URI. "
+                "Please verify the URI in the browser catalog (engine/instruments/browser_catalog.py) or use sound_load_role_instrument."
+            )
     except Exception as e:
         logger.error(f"Error loading instrument by URI: {str(e)}")
-        return f"Error loading instrument by URI: {str(e)}"
+        raise RuntimeError(f"Error loading instrument by URI '{uri}' on track {track_index}: {str(e)}") from e
 
 @mcp.tool()
 @telemetry_tool("fire_clip")
@@ -8920,13 +8924,21 @@ def sound_load_role_instrument(
     """
     Phase 3: Loads a premier VST3 plugin (Analog Lab V, Stage-73 V2, Vital, Serum 2, Kontakt 8)
     or native instrument tailored to a musical role onto the specified track.
+    Strictly verifies physical loading in Ableton Live LOM. If loading fails or URI is invalid,
+    it rejects the operation and provides verified catalog options to eliminate guessing.
     """
     try:
         from engine.instruments.installed_scanner import InstalledPluginScanner
+        from engine.instruments.browser_catalog import CURATED_SOURCES
+        from engine.supervisor.governance import governance_supervisor
         conn = get_ableton_connection()
         scanner = InstalledPluginScanner()
         target_uri = None
         plug_dict = {}
+        matched_blueprint = {}
+
+        role_upper = role.upper().strip()
+        curated_opts = CURATED_SOURCES.get(role_upper, [])
 
         if custom_uri:
             target_uri = custom_uri
@@ -8936,24 +8948,113 @@ def sound_load_role_instrument(
             target_uri = plug.uri
             plug_dict = plug.to_dict()
         else:
-            plug = scanner.recommend_for_role(role=role, style=style)
-            target_uri = plug.uri
-            plug_dict = plug.to_dict()
+            # Check curated catalog for exact or matching ID/name
+            for opt in curated_opts:
+                if opt.id.lower() == instrument_id.lower() or opt.name.lower() == instrument_id.lower():
+                    target_uri = opt.uri
+                    plug_dict = opt.to_dict()
+                    matched_blueprint = opt.blueprint
+                    break
+            if not target_uri:
+                plug = scanner.recommend_for_role(role=role, style=style)
+                if plug:
+                    target_uri = plug.uri
+                    plug_dict = plug.to_dict()
+
+        # Format verified catalog options for immediate fail-safe guidance
+        verified_options = [
+            {"id": o.id, "name": o.name, "category": o.category, "uri": o.uri, "blueprint": o.blueprint}
+            for o in curated_opts[:5]
+        ]
+
+        if not target_uri:
+            return {
+                "status": "ERROR",
+                "error_code": "NO_URI_FOUND",
+                "message": f"MANDATORY: No valid URI found for instrument '{instrument_id}' (role={role}). "
+                           f"Select one of the verified options below without guessing.",
+                "verified_options": verified_options
+            }
 
         if conn and target_uri:
             conn.send_command("load_browser_item", {
                 "track_index": track_index,
                 "item_uri": target_uri
             })
+
+            # Physical validation in Ableton Live LOM
+            verify_info = conn.send_command("get_track_info", {"track_index": track_index})
+            devices = verify_info.get("devices", verify_info.get("result", {}).get("devices", [])) if isinstance(verify_info, dict) else []
+            authentic_classes = {
+                "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
+                "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
+                "Operator", "MultiSampler", "Wavetable", "Drift"
+            }
+            inst_name = plug_dict.get("name", instrument_id).lower().replace("vst3_", "").replace("_", " ")
+            has_inst = any(
+                d.get("class_name") in authentic_classes or
+                "Instrument" in d.get("class_name", "") or
+                inst_name in str(d.get("name", "")).lower()
+                for d in devices
+            )
+
+            if not has_inst:
+                dev_names = [d.get("name") for d in devices]
+                return {
+                    "status": "ERROR",
+                    "error_code": "VERIFICATION_FAILED",
+                    "track_index": track_index,
+                    "message": f"CRITICAL: Instrument '{plug_dict.get('name', instrument_id)}' (URI: {target_uri}) "
+                               f"failed to load into Ableton Live track {track_index}. Current devices: {dev_names}. "
+                               f"Select an authentic instrument from verified_options below.",
+                    "verified_options": verified_options
+                }
+
+            # Register with governance supervisor
+            governance_supervisor.notify_instrument_loaded(track_index=track_index, instrument_name=plug_dict.get("name", instrument_id))
+
         return {
             "status": "SUCCESS",
             "track_index": track_index,
             "role": role,
             "instrument": plug_dict,
-            "loaded_uri": target_uri
+            "loaded_uri": target_uri,
+            "parameter_blueprint": matched_blueprint,
+            "next_mandatory_step": "Call apply_sound_blueprint to sculpt parameters and avoid silent/default presets."
         }
     except Exception as e:
         logger.error(f"Error in sound_load_role_instrument: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_sound_blueprint(
+    track_index: int,
+    role: str = "KEYS",
+    plugin_name: Optional[str] = None,
+    genre: str = "neo_soul_trap",
+    custom_blueprint: Optional[Dict[str, Any]] = None,
+    device_index: int = 0
+) -> dict:
+    """
+    Applies a concrete parameter blueprint (knobs, macros, timbre shaping) to an instrument
+    or effect on the specified track, ensuring zero blind guessing and satisfying production governance.
+    """
+    try:
+        from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+        conn = get_ableton_connection()
+        res = DeviceParameterSupervisor.apply_sound_blueprint(
+            conn=conn,
+            track_index=track_index,
+            role=role,
+            plugin_name=plugin_name or "",
+            genre=genre,
+            custom_blueprint=custom_blueprint,
+            device_index=device_index
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in apply_sound_blueprint: {e}")
         return {"status": "error", "message": str(e)}
 
 

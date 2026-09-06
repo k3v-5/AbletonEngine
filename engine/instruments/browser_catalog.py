@@ -25,11 +25,12 @@ class InstrumentSourceCategory(str, Enum):
 class SoundSourceOption:
     id: str
     name: str
-    role: str  # "KEYS", "BASS", "LEAD", "DRUMS", "STRINGS", "FX"
+    role: str  # "KEYS", "BASS", "LEAD", "STRINGS", "PAD", "DRUMS", "VOCALS", "FX", "MASTER"
     category: InstrumentSourceCategory
     uri: str
     vendor: Optional[str] = None
     description: str = ""
+    blueprint: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -40,6 +41,7 @@ class SoundSourceOption:
             "uri": self.uri,
             "vendor": self.vendor,
             "description": self.description,
+            "blueprint": self.blueprint,
         }
 
 
@@ -54,6 +56,39 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
             vendor="Arturia",
             description="Legendary vintage Rhodes, Wurlitzer, and analog polysynths.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"P1 Brightness": 0.65, "P1 Timbre": 0.55, "P1 Time": 0.45, "P1 Movement": 0.30},
+                "description": "Warm vintage Rhodes keys with analog presence and subtle stereo movement."
+            },
+        ),
+        SoundSourceOption(
+            id="native_epiano_wurli",
+            name="E-Piano Wurli (.adg)",
+            role="KEYS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Piano%20&%20Keys:FileId_4867",
+            vendor="Ableton",
+            description="Vintage Wurli electro-mechanical piano with analog warmth and vibrato (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Tone": 0.65, "Warmth": 0.70, "Decay": 0.50, "Tremolo": 0.35},
+                "description": "Vintage warm Wurli with gentle tremolo modulation."
+            },
+        ),
+        SoundSourceOption(
+            id="native_ac_piano",
+            name="Ac Piano Upright (.adg)",
+            role="KEYS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Piano%20&%20Keys:FileId_4847",
+            vendor="Ableton",
+            description="Acoustic upright piano with intimate felt dampening and room resonance (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Brightness": 0.60, "Dynamic Range": 0.75, "Room Reverb": 0.30},
+                "description": "Intimate upright acoustic piano with realistic key noise."
+            },
         ),
         SoundSourceOption(
             id="vst3_stage_73",
@@ -63,6 +98,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Stage-73%20V2",
             vendor="Arturia",
             description="Authentic physical modeling of the Fender Rhodes Stage 73 electric piano.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Drive": 0.30, "Tone": 0.60, "Tremolo": 0.35},
+                "description": "Physical modeled vintage Stage 73 Rhodes."
+            },
         ),
         SoundSourceOption(
             id="vst3_piano_v",
@@ -72,15 +112,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Piano%20V3",
             vendor="Arturia",
             description="Physical modeling acoustic grand and upright concert pianos.",
-        ),
-        SoundSourceOption(
-            id="vst3_wurli",
-            name="Arturia Wurli V3",
-            role="KEYS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Arturia:Wurli%20V3",
-            vendor="Arturia",
-            description="Physical modeling of vintage Wurlitzer 200A electric piano.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Hardness": 0.50, "Hammer": 0.55, "Resonance": 0.40},
+                "description": "Concert grand acoustic piano."
+            },
         ),
         SoundSourceOption(
             id="vst3_kontakt_8",
@@ -90,24 +126,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Native%20Instruments:Kontakt%208",
             vendor="Native Instruments",
             description="Industry standard sampler with ultra-realistic acoustic instruments and keys.",
-        ),
-        SoundSourceOption(
-            id="vst3_zenology",
-            name="Roland Cloud ZENOLOGY",
-            role="KEYS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Roland%20Cloud:ZENOLOGY",
-            vendor="Roland Cloud",
-            description="Zen-Core synthesis engine with classic Roland digital and analog keyboard presets.",
-        ),
-        SoundSourceOption(
-            id="vst3_keyscape",
-            name="Spectrasonics Keyscape",
-            role="KEYS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Spectrasonics:Keyscape",
-            vendor="Spectrasonics",
-            description="Grammy-grade collector keyboards and authentic jazz Rhodes.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Dynamics": 0.70, "Tone": 0.65, "Reverb": 0.35},
+                "description": "High-fidelity acoustic keys sampler."
+            },
         ),
         SoundSourceOption(
             id="native_drift_rhodes",
@@ -117,15 +140,25 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Synths#Drift",
             vendor="Ableton",
             description="Warm analog electric piano with subtle tape drift and chorus.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.60, "AMP_ATTACK": 0.02, "AMP_RELEASE": 0.45},
+                "description": "Drift analog neo-soul Rhodes."
+            },
         ),
         SoundSourceOption(
-            id="native_electric",
-            name="Ableton Electric (Vintage EP)",
+            id="vst3_keyscape",
+            name="Spectrasonics Keyscape",
             role="KEYS",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Electric",
-            vendor="Ableton",
-            description="Physical modeling of electro-mechanical Rhodes and Wurli pianos.",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Spectrasonics:Keyscape",
+            vendor="Spectrasonics",
+            description="Grammy-grade collector keyboards and authentic jazz Rhodes.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Character": 0.60, "Tone": 0.65, "Reverb": 0.30},
+                "description": "Collector keyboard Rhodes."
+            },
         ),
     ],
     "BASS": [
@@ -137,6 +170,53 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Xfer%20Records:Serum%202",
             vendor="Xfer Records",
             description="Clean analog wavetable sub-bass with direct drive saturation and 808 glides.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SUB_LEVEL": 0.95, "FILTER_CUTOFF": 0.35, "DRIVE": 0.35, "PORTAMENTO_GLIDE": 0.18},
+                "description": "Deep 808 sub-bass with gliding portamento and harmonic drive."
+            },
+        ),
+        SoundSourceOption(
+            id="native_808_drifter",
+            name="808 Drifter (.adg)",
+            role="BASS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Bass:FileId_5176",
+            vendor="Ableton",
+            description="Punchy 808 sub with warm saturation and sub-weight (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Tone": 0.40, "Decay": 0.65, "Drive": 0.35},
+                "description": "Punchy 808 sub with warm saturation."
+            },
+        ),
+        SoundSourceOption(
+            id="native_808_bnyx",
+            name="808 BNYX Stopper (.adg)",
+            role="BASS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Bass:FileId_5175",
+            vendor="Ableton",
+            description="Aggressive clipped 808 sub with tight transients (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Punch": 0.85, "Distortion": 0.40, "Decay": 0.55},
+                "description": "Aggressive clipped 808 sub."
+            },
+        ),
+        SoundSourceOption(
+            id="native_basic_sub_sine",
+            name="Basic Sub Sine (.adg)",
+            role="BASS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Bass:FileId_5196",
+            vendor="Ableton",
+            description="Pure fundamental sub-bass for low-end reinforcement (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Sub Level": 1.0, "Cutoff": 0.30},
+                "description": "Pure fundamental sub-bass."
+            },
         ),
         SoundSourceOption(
             id="vst3_bloom_bass",
@@ -146,51 +226,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Bloom%20Bass%20Impulse",
             vendor="Bloom",
             description="Specialized modern sub-bass and 808 engine with warm analog drive.",
-        ),
-        SoundSourceOption(
-            id="vst3_cyclop",
-            name="Sugar Bytes Cyclop",
-            role="BASS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Sugar%20Bytes:Cyclop",
-            vendor="Sugar Bytes",
-            description="Heavy monophonic bass engine with wobble, vocal filter, and sub growls.",
-        ),
-        SoundSourceOption(
-            id="vst3_massive_x",
-            name="Native Instruments Massive X",
-            role="BASS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Native%20Instruments:Massive%20X",
-            vendor="Native Instruments",
-            description="Next-gen subtractive wavetable monster with complex modulation and low-end punch.",
-        ),
-        SoundSourceOption(
-            id="native_drift_sub",
-            name="Drift Monophonic Sub-Bass",
-            role="BASS",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Drift",
-            vendor="Ableton",
-            description="Pure sine/triangle sub-bass with low-end punch and pitch envelope.",
-        ),
-        SoundSourceOption(
-            id="native_operator_sub",
-            name="Ableton Operator (808 Sub-Bass)",
-            role="BASS",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Operator",
-            vendor="Ableton",
-            description="FM-synthesized deep sub bass with smooth glide and sub warmth.",
-        ),
-        SoundSourceOption(
-            id="vst3_trilian",
-            name="Spectrasonics Trilian",
-            role="BASS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Spectrasonics:Trilian",
-            vendor="Spectrasonics",
-            description="Deep physical acoustic and analog synth basses.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SUB_LEVEL": 0.90, "DRIVE": 0.40, "AMP_ATTACK": 0.01},
+                "description": "Specialized modern sub-bass."
+            },
         ),
         SoundSourceOption(
             id="vst3_vital_808",
@@ -200,6 +240,25 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Vital%20Audio:Vital",
             vendor="Vital Audio",
             description="Spectral warp 808 sub-bass with gliding portamento.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SUB_LEVEL": 0.90, "FILTER_CUTOFF": 0.30, "PORTAMENTO_GLIDE": 0.20},
+                "description": "Spectral warp 808 sub-bass with smooth portamento glide."
+            },
+        ),
+        SoundSourceOption(
+            id="native_drift_sub",
+            name="Drift Monophonic Sub-Bass",
+            role="BASS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Synths#Drift",
+            vendor="Ableton",
+            description="Pure sine/triangle sub-bass with low-end punch and pitch envelope.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SUB_LEVEL": 0.90, "FILTER_CUTOFF": 0.38, "AMP_ATTACK": 0.01},
+                "description": "Pure analog sub-bass with tight attack."
+            },
         ),
     ],
     "LEAD": [
@@ -211,6 +270,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Pigments",
             vendor="Arturia",
             description="Polychrome multi-engine synth with cutting wavetable and virtual analog leads.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.70, "FILTER_RESONANCE": 0.25, "AMP_ATTACK": 0.02, "DELAY_MIX": 0.25},
+                "description": "Cutting lead synth with synchronized delay and bright filter."
+            },
         ),
         SoundSourceOption(
             id="vst3_serum_lead",
@@ -220,6 +284,25 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Xfer%20Records:Serum%202",
             vendor="Xfer Records",
             description="Sharp, cutting unison leads with high-resonance filter sweeps and portamento.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.75, "FILTER_RESONANCE": 0.30, "UNISON_VOICES": 0.40, "PORTAMENTO_GLIDE": 0.12},
+                "description": "Unison solo lead with high resonance and glide."
+            },
+        ),
+        SoundSourceOption(
+            id="native_agenda_lead",
+            name="Agenda Lead (.adv)",
+            role="LEAD",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Synth%20Lead:FileId_6743",
+            vendor="Ableton",
+            description="Punchy modern synth lead with portamento (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Cutoff": 0.75, "Glide": 0.15, "Drive": 0.30},
+                "description": "Punchy solo synth lead with glide."
+            },
         ),
         SoundSourceOption(
             id="vst3_analog_lab_lead",
@@ -229,24 +312,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
             vendor="Arturia",
             description="Cutting analog brass and vintage synth lead for melodic counterpoint.",
-        ),
-        SoundSourceOption(
-            id="vst3_synplant",
-            name="Sonic Charge Synplant",
-            role="LEAD",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Sonic%20Charge:Synplant",
-            vendor="Sonic Charge",
-            description="Organic genetic synthesis for unique, evolving, and expressive melodic leads.",
-        ),
-        SoundSourceOption(
-            id="vst3_massive_x_lead",
-            name="Native Instruments Massive X Lead",
-            role="LEAD",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Native%20Instruments:Massive%20X",
-            vendor="Native Instruments",
-            description="Aggressive cutting solo synth with dual wavetable oscillators and drive.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"P1 Brightness": 0.75, "P1 Timbre": 0.65, "P1 Time": 0.40, "P1 Movement": 0.35},
+                "description": "Cutting analog brass and vintage solo lead."
+            },
         ),
         SoundSourceOption(
             id="native_drift_lead",
@@ -256,15 +326,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Synths#Drift",
             vendor="Ableton",
             description="Expressive monophonic lead synth with glide and resonance.",
-        ),
-        SoundSourceOption(
-            id="native_wavetable_lead",
-            name="Ableton Wavetable (Solo Lead)",
-            role="LEAD",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Wavetable",
-            vendor="Ableton",
-            description="Modern wavetable lead with stereo unison spread and FM modulation.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.70, "FILTER_RESONANCE": 0.30, "PORTAMENTO_GLIDE": 0.15},
+                "description": "Expressive monophonic drift lead."
+            },
         ),
         SoundSourceOption(
             id="vst3_vital_lead",
@@ -274,9 +340,114 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Vital%20Audio:Vital",
             vendor="Vital Audio",
             description="Hyper-modern soaring lead with stereo unison spread.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.72, "UNISON_VOICES": 0.50, "PORTAMENTO_GLIDE": 0.14},
+                "description": "Hyper-modern soaring lead with stereo spread."
+            },
+        ),
+    ],
+    "STRINGS": [
+        SoundSourceOption(
+            id="native_strings_orch",
+            name="Ac Strings Orch (.adg)",
+            role="STRINGS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Strings:FileId_4765",
+            vendor="Ableton",
+            description="Authentic orchestral strings ensemble with dynamic swells (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Attack": 0.35, "Release": 0.60, "Tone": 0.75, "Space": 0.40},
+                "description": "Dynamic orchestral ensemble strings with emotional swell and hall reverb."
+            },
+        ),
+        SoundSourceOption(
+            id="native_cello_strings",
+            name="Cello Strings (.adv)",
+            role="STRINGS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Strings:FileId_6384",
+            vendor="Ableton",
+            description="Solo cello with warm expressive vibrato and woody timbre (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Attack": 0.25, "Vibrato": 0.50, "Release": 0.45},
+                "description": "Warm expressive solo cello."
+            },
+        ),
+        SoundSourceOption(
+            id="native_ensemble_strings",
+            name="Ensemble Strings (.adv)",
+            role="STRINGS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Strings:FileId_6385",
+            vendor="Ableton",
+            description="Full symphonic string section with rich stereo width (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Attack": 0.40, "Release": 0.65, "Brightness": 0.70},
+                "description": "Full symphonic string section."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_pigments_strings",
+            name="Arturia Pigments (Orchestral Strings)",
+            role="STRINGS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Pigments",
+            vendor="Arturia",
+            description="Hybrid physical modeled and sampled string ensemble with granular space.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.75, "AMP_ATTACK": 0.30, "AMP_RELEASE": 0.60, "REVERB_MIX": 0.35},
+                "description": "Lush hybrid orchestral strings with wide stereo space."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_analog_lab_strings",
+            name="Arturia Analog Lab (Symphonic Strings)",
+            role="STRINGS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
+            vendor="Arturia",
+            description="Vintage string machines (Solina, Mellotron) and modern symphonic strings.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"P1 Brightness": 0.65, "P1 Timbre": 0.60, "P1 Time": 0.50, "P1 Movement": 0.40},
+                "description": "Rich vintage string ensemble with Solina ensemble chorus."
+            },
         ),
     ],
     "PAD": [
+        SoundSourceOption(
+            id="native_warm_analog_pad",
+            name="Warm Analog Pad (.adg)",
+            role="PAD",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Pad:FileId_4993",
+            vendor="Ableton",
+            description="Lush warm analog polysynth pad with slow evolution (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Cutoff": 0.55, "Resonance": 0.20, "Attack": 0.45, "Release": 0.60},
+                "description": "Lush warm analog polysynth pad with slow attack."
+            },
+        ),
+        SoundSourceOption(
+            id="native_after_glow_pad",
+            name="After Glow Pad (.adg)",
+            role="PAD",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Pad:FileId_4895",
+            vendor="Ableton",
+            description="Ethereal ambient pad with shimmering reverb tail (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Brightness": 0.50, "Shimmer": 0.40, "Decay": 0.70},
+                "description": "Ethereal ambient shimmer pad."
+            },
+        ),
         SoundSourceOption(
             id="vst3_omnisphere",
             name="Spectrasonics Omnisphere",
@@ -285,6 +456,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Spectrasonics:Omnisphere",
             vendor="Spectrasonics",
             description="Massive hybrid ambient pads, cinematic textures, and lush ethereal spaces.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.60, "AMP_ATTACK": 0.40, "AMP_RELEASE": 0.65, "REVERB_MIX": 0.45},
+                "description": "Massive hybrid ambient pads and ethereal space."
+            },
         ),
         SoundSourceOption(
             id="vst3_pigments_pad",
@@ -294,6 +470,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Pigments",
             vendor="Arturia",
             description="Granular and harmonic ambient pads with deep spatial modulation.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.65, "AMP_ATTACK": 0.45, "AMP_RELEASE": 0.60, "CHORUS_MIX": 0.40},
+                "description": "Granular and harmonic ambient pads."
+            },
         ),
         SoundSourceOption(
             id="vst3_bloom_synth",
@@ -303,6 +484,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Bloom%20Synth%20Atmosphere",
             vendor="Bloom",
             description="Immersive ambient pad bed with organic pitch breathing and shimmer reverb.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.60, "AMP_ATTACK": 0.50, "REVERB_MIX": 0.50},
+                "description": "Immersive ambient pad bed with shimmer."
+            },
         ),
         SoundSourceOption(
             id="vst3_analog_lab_pad",
@@ -312,33 +498,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
             vendor="Arturia",
             description="Rich vintage analog polysynth pads from Jupiter-8 and Prophet-5.",
-        ),
-        SoundSourceOption(
-            id="vst3_zenology_pad",
-            name="Roland Cloud ZENOLOGY Pad",
-            role="PAD",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Roland%20Cloud:ZENOLOGY",
-            vendor="Roland Cloud",
-            description="Iconic Roland D-50 and JD-800 sparkling atmospheric pad sounds.",
-        ),
-        SoundSourceOption(
-            id="native_wavetable_pad",
-            name="Wavetable Ambient Keys/Pad",
-            role="PAD",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Wavetable",
-            vendor="Ableton",
-            description="Modern wavetable polyphonic keys with lush spatial harmonics.",
-        ),
-        SoundSourceOption(
-            id="native_meld",
-            name="Ableton Meld (Macro Textures)",
-            role="PAD",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Meld",
-            vendor="Ableton",
-            description="Bi-timbral macro synth for complex evolving organic drones and pads.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"P1 Brightness": 0.60, "P1 Timbre": 0.65, "P1 Time": 0.55, "P1 Movement": 0.45},
+                "description": "Rich vintage analog polysynth pads."
+            },
         ),
     ],
     "DRUMS": [
@@ -350,6 +514,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Drums#FileId_5422",
             vendor="Ableton",
             description="Authentic Roland TR-808 analog drum kit with booming kick and snappy snares.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Kick Pitch": 0.50, "Snare Snap": 0.65, "Hi-Hat Tone": 0.70},
+                "description": "Authentic Roland TR-808 analog drum kit."
+            },
         ),
         SoundSourceOption(
             id="drum_boom_bap",
@@ -359,6 +528,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Drums#FileId_5305",
             vendor="Ableton",
             description="Gritty vinyl acoustic drums with punchy kicks and textured claps.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Vinyl Grime": 0.45, "Kick Thump": 0.60, "Snare Body": 0.55},
+                "description": "Gritty vinyl acoustic drums."
+            },
         ),
         SoundSourceOption(
             id="vst3_bloom_drums",
@@ -368,15 +542,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Bloom%20Drum%20Breaks",
             vendor="Bloom",
             description="Dynamic modern breakbeat slicer and groove generator.",
-        ),
-        SoundSourceOption(
-            id="vst3_egoist",
-            name="Sugar Bytes Egoist",
-            role="DRUMS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Sugar%20Bytes:Egoist",
-            vendor="Sugar Bytes",
-            description="Slicer, drum machine, bass line, and multi-effect sequencer.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"DRIVE": 0.35, "COMP_DEPTH": 0.60},
+                "description": "Dynamic breakbeat slicer."
+            },
         ),
         SoundSourceOption(
             id="drum_bnyx_boot",
@@ -386,6 +556,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Drums#BNYX%20Boot%20Kit.adg",
             vendor="Ableton",
             description="Modern rage, drill, and trap kit with clipped kicks and fast hats.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Drive": 0.50, "Clip": 0.40},
+                "description": "Modern rage and drill trap kit."
+            },
         ),
         SoundSourceOption(
             id="drum_909_core",
@@ -395,6 +570,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Drums#909%20Core%20Kit.adg",
             vendor="Ableton",
             description="Classic techno and house TR-909 kit with punchy attack.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Punch": 0.65, "Snap": 0.60},
+                "description": "Classic techno and house TR-909 kit."
+            },
         ),
     ],
     "VOCALS": [
@@ -406,6 +586,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Bloom%20Vocal%20Aether",
             vendor="Bloom",
             description="Atmospheric vocal chops, vocal pad beds, and choral synthesis.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SPACE": 0.45, "VOICE_FORMANT": 0.48},
+                "description": "Atmospheric vocal chops and space reverb."
+            },
         ),
         SoundSourceOption(
             id="vst3_autotune",
@@ -415,6 +600,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Antares:Auto-Tune%20Pro",
             vendor="Antares",
             description="Industry-standard vocal pitch correction and modern formant shifting.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"REVERB_MIX": 0.20},
+                "description": "Pitch correction and formant shifting."
+            },
         ),
         SoundSourceOption(
             id="vst3_bloom_choir",
@@ -424,6 +614,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Bloom%20Vocal%20Choir",
             vendor="Bloom",
             description="Harmonic vocal ensemble with dynamic formant shaping and space.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"REVERB_MIX": 0.40, "VOICE_FORMANT": 0.50},
+                "description": "Harmonic vocal ensemble."
+            },
         ),
         SoundSourceOption(
             id="vst3_bloom_vocal_edit",
@@ -433,6 +628,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Bloom%20Vocal%20Edit",
             vendor="Bloom",
             description="Creative vocal slicing, pitch glides, and rhythm gated chops.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"PORTAMENTO_GLIDE": 0.15},
+                "description": "Creative vocal slicing and pitch glides."
+            },
         ),
         SoundSourceOption(
             id="native_simpler_vocal",
@@ -442,6 +642,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Synths#Simpler",
             vendor="Ableton",
             description="Transient-sliced vocal sampler with pitch-envelope glide.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"AMP_ATTACK": 0.01, "PORTAMENTO_GLIDE": 0.10},
+                "description": "Transient-sliced vocal sampler."
+            },
         ),
     ],
     "FX": [
@@ -453,6 +658,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:FabFilter:Pro-Q%204",
             vendor="FabFilter",
             description="Precision surgical and dynamic equalizer with spectral masking display.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"EQ_HPF_FREQ": 0.18, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.53},
+                "description": "Surgical clean EQ with HPF and high air shelf."
+            },
         ),
         SoundSourceOption(
             id="vst3_valhalla_vintage_verb",
@@ -462,6 +672,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
             vendor="Valhalla DSP",
             description="World-class algorithmic space and lush vintage hall/plate reverbs.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"REVERB_MIX": 0.30, "REVERB_DECAY": 0.45, "REVERB_PREDELAY": 0.20},
+                "description": "Lush 1980s vintage hall reverb."
+            },
         ),
         SoundSourceOption(
             id="vst3_shaperbox",
@@ -471,6 +686,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Cableguys:ShaperBox%203",
             vendor="Cableguys",
             description="Rhythmic sidechain ducking, volume curve shaping, and filter sweeps.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"COMP_DEPTH": 0.70, "DRIVE": 0.40},
+                "description": "Rhythmic volume sidechain and filter shaping."
+            },
         ),
         SoundSourceOption(
             id="vst3_thermal",
@@ -480,6 +700,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Output:Thermal",
             vendor="Output",
             description="Multi-stage harmonic distortion, tube saturation, and warm analog drive.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"DRIVE": 0.45, "DRIVE_MIX": 0.65},
+                "description": "Multi-stage warm analog distortion."
+            },
         ),
         SoundSourceOption(
             id="vst3_soothe2",
@@ -489,6 +714,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:oeksound:soothe2_x64",
             vendor="oeksound",
             description="Dynamic resonance suppressor that removes harshness without dulling clarity.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SOOTHE_DEPTH": 0.45, "SOOTHE_SHARPNESS": 0.50},
+                "description": "Dynamic resonance suppressor."
+            },
         ),
         SoundSourceOption(
             id="vst3_valhalla_delay",
@@ -498,24 +728,25 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Valhalla%20DSP:ValhallaDelay",
             vendor="Valhalla DSP",
             description="Classic tape, BBD, and digital delay with pitch modulation.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"DELAY_MIX": 0.25, "DELAY_FEEDBACK": 0.38},
+                "description": "Analog tape delay with pitch modulation."
+            },
         ),
         SoundSourceOption(
-            id="vst3_portal",
-            name="Output Portal",
+            id="native_saturator",
+            name="Ableton Saturator",
             role="FX",
             category=InstrumentSourceCategory.AUDIO_EFFECT,
-            uri="query:Plugins#VST3:Output:Portal",
-            vendor="Output",
-            description="Granular audio effects processor for pitch shifts, space, and motion.",
-        ),
-        SoundSourceOption(
-            id="vst3_saturn_2",
-            name="FabFilter Saturn 2",
-            role="FX",
-            category=InstrumentSourceCategory.AUDIO_EFFECT,
-            uri="query:Plugins#VST3:FabFilter:Saturn%202",
-            vendor="FabFilter",
-            description="Multiband warmth, vintage tube saturation, and tape exciter.",
+            uri="query:AudioFx#Saturator",
+            vendor="Ableton",
+            description="Analog warmth, harmonic drive, and soft clipping.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"DRIVE": 0.40, "DRIVE_MIX": 0.70},
+                "description": "Warm analog saturation with soft clipping."
+            },
         ),
     ],
     "MASTER": [
@@ -527,6 +758,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Cradle:The%20God%20Particle",
             vendor="Cradle",
             description="Jaycen Joshua's signature master dynamics and saturation engine.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"COMP_DEPTH": 0.60, "LIMITER_GAIN": 0.52},
+                "description": "Commercial master dynamics and saturation."
+            },
         ),
         SoundSourceOption(
             id="vst3_pro_l_2",
@@ -536,15 +772,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:FabFilter:Pro-L%202",
             vendor="FabFilter",
             description="True peak brickwall limiter compliant with ITU-R BS.1770-5.",
-        ),
-        SoundSourceOption(
-            id="vst3_pro_mb",
-            name="FabFilter Pro-MB",
-            role="MASTER",
-            category=InstrumentSourceCategory.AUDIO_EFFECT,
-            uri="query:Plugins#VST3:FabFilter:Pro-MB",
-            vendor="FabFilter",
-            description="Professional multiband compressor/expander for precise master bus polish.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"LIMITER_GAIN": 0.65, "LIMITER_CEILING": 0.98},
+                "description": "True peak brickwall limiter (-0.3 dBTP)."
+            },
         ),
         SoundSourceOption(
             id="native_master_chain",
@@ -554,6 +786,11 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:AudioFx#Limiter",
             vendor="Ableton",
             description="Calibrated sequence: EQ Eight -> Glue Compressor -> Saturator -> Utility -> Limiter.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"LIMITER_GAIN": 0.60, "LIMITER_CEILING": 0.98},
+                "description": "Ableton 5-Device calibrated master chain."
+            },
         ),
     ],
 }

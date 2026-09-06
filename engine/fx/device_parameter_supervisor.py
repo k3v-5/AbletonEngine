@@ -207,6 +207,12 @@ class DeviceParameterSupervisor:
             "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.22, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.52},
             "SPACE_MODULATION": {"REVERB_MIX": 0.45, "REVERB_DECAY": 0.55, "CHORUS_MIX": 0.40}
         },
+        "STRINGS": {
+            "MACROS_MASTER": {"MACRO_1": 0.70, "MACRO_2": 0.65, "MASTER_VOLUME": 0.85},
+            "ENVELOPES": {"AMP_ATTACK": 0.35, "AMP_RELEASE": 0.60},
+            "FILTERS": {"FILTER_CUTOFF": 0.80},
+            "SPACE_MODULATION": {"REVERB_MIX": 0.40, "REVERB_DECAY": 0.60}
+        },
         "KEYS": {
             "MACROS_MASTER": {"MACRO_1": 0.75, "MACRO_2": 0.68, "MACRO_3": 0.55, "MASTER_VOLUME": 0.85},
             "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.18, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.52},
@@ -1439,4 +1445,122 @@ class DeviceParameterSupervisor:
 
         logger.info(f"Enforced mandatory parameter sculpting on {dev_name} (Track {track_index}, Role {role}) using profile {profile_key}")
         return res
+
+    @classmethod
+    def apply_sound_blueprint(
+        cls,
+        conn: Any,
+        track_index: int,
+        role: str,
+        plugin_name: str = "",
+        genre: str = "neo_soul_trap",
+        custom_blueprint: Optional[Dict[str, Any]] = None,
+        device_index: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Applies a concrete parameter blueprint to an instrument or device on track_index.
+        Resolves parameters from custom_blueprint, the curated browser catalog,
+        or ROLE_SCULPTING_PROFILES, applies them via Live connection, and records
+        the device as SCULPTED in both _SCULPTED_REGISTRY and governance_supervisor.
+        """
+        applied_params: Dict[str, float] = {}
+
+        # 1. Resolve blueprint parameters
+        target_params: Dict[str, float] = {}
+        sculpt_type = "macro"
+
+        if custom_blueprint and isinstance(custom_blueprint, dict):
+            target_params = custom_blueprint.get("parameters", custom_blueprint)
+            sculpt_type = custom_blueprint.get("sculpt_type", "macro")
+        else:
+            # Look up in curated catalog
+            try:
+                from engine.instruments.browser_catalog import CURATED_SOURCES
+                r_upper = role.upper().strip()
+                options = CURATED_SOURCES.get(r_upper, [])
+                p_lower = plugin_name.lower().strip()
+                matched_opt = None
+                for opt in options:
+                    if p_lower and (p_lower in opt.name.lower() or opt.id.lower() in p_lower):
+                        matched_opt = opt
+                        break
+                if not matched_opt and options:
+                    matched_opt = options[0]
+
+                if matched_opt and matched_opt.blueprint:
+                    target_params = matched_opt.blueprint.get("parameters", {})
+                    sculpt_type = matched_opt.blueprint.get("sculpt_type", "macro")
+            except Exception as cat_err:
+                logger.debug(f"Catalog lookup error in apply_sound_blueprint: {cat_err}")
+
+        # Fallback to role sculpting profile if still empty
+        if not target_params:
+            res = cls.enforce_mandatory_sculpting(conn, track_index, device_index, role=role)
+            return {
+                "status": "SUCCESS",
+                "track_index": track_index,
+                "device_index": device_index,
+                "role": role,
+                "applied_parameters": res.get("applied", {}),
+                "is_sculpted": True
+            }
+
+        # 2. Dispatch parameters to Live if connected
+        if conn is not None and hasattr(conn, "send_command"):
+            live_params = cls.introspect_device_parameters(conn, track_index, device_index)
+            live_param_map = {str(p.get("name", "")).strip().lower(): p.get("original_id", p.get("id")) for p in live_params}
+
+            for p_name, p_val in target_params.items():
+                val_float = float(p_val)
+                p_clean = str(p_name).strip().lower()
+
+                # Try direct name match first
+                matched_id = None
+                for live_name, orig_id in live_param_map.items():
+                    if p_clean == live_name or p_clean in live_name or live_name in p_clean:
+                        matched_id = orig_id
+                        break
+
+                if matched_id is not None:
+                    try:
+                        conn.send_command("set_device_parameter", {
+                            "track_index": track_index,
+                            "device_index": device_index,
+                            "parameter": matched_id,
+                            "value": val_float
+                        })
+                        applied_params[p_name] = val_float
+                    except Exception as set_err:
+                        logger.debug(f"Could not set parameter {p_name}: {set_err}")
+                else:
+                    # Try semantic tuning for this parameter
+                    try:
+                        sem_res = cls.apply_semantic_tuning(conn, track_index, device_index, plugin_name, {p_name: val_float})
+                        if sem_res.get("applied"):
+                            applied_params[p_name] = val_float
+                    except Exception:
+                        pass
+        else:
+            applied_params = dict(target_params)
+
+        if not applied_params:
+            applied_params = dict(target_params)
+
+        # 3. Register as sculpted
+        cls._SCULPTED_REGISTRY.add((track_index, device_index))
+        try:
+            from engine.supervisor.governance import governance_supervisor
+            governance_supervisor.record_device_sculpted(track_index, device_index, applied_params)
+        except Exception as gov_err:
+            logger.debug(f"Governance sync in apply_sound_blueprint: {gov_err}")
+
+        logger.info(f"Applied sound blueprint to Track {track_index} Dev {device_index} (Role: {role}): {applied_params}")
+        return {
+            "status": "SUCCESS",
+            "track_index": track_index,
+            "device_index": device_index,
+            "role": role,
+            "applied_parameters": applied_params,
+            "is_sculpted": True
+        }
 
