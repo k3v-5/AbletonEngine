@@ -218,6 +218,34 @@ class AbletonConnection:
                     "You must fix the DAW session state by properly loading the required instrument."
                 )
 
+            # Nivel 2 & 3: Audit that the instrument is not in factory default / init state (Delta >= 1)
+            inst_idx = None
+            inst_name = "Instrument"
+            for d_idx, d in enumerate(devices):
+                if (
+                    d.get("class_name") in authentic_classes or
+                    "Instrument" in d.get("class_name", "") or
+                    any(k in d.get("name", "").lower() for k in inst_keywords)
+                ):
+                    inst_idx = d_idx
+                    inst_name = d.get("name", "Instrument")
+                    break
+
+            if inst_idx is not None:
+                from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+                audit = DeviceParameterSupervisor.audit_device_sculpting(self, t_idx, device_index=inst_idx)
+                if not audit.get("is_sculpted", False):
+                    reason_msg = audit.get("reason", "Zero internal synthesis parameters modified")
+                    raise GovernanceViolationError(
+                        f"[IMMUTABLE GOVERNANCE BLOCKED: INIT_SYNTH_DETECTED] VIOLATION on Track {t_idx} ('{t_info.get('name')}'): "
+                        f"Instrument '{inst_name}' (device {inst_idx}) is in factory default/init state with 0 internal parameters sculpted (Delta = 0)! "
+                        f"Reason: {reason_msg}. "
+                        "DIRECTIVE FOR AI ASSISTANTS: Queda terminantemente prohibido escribir notas o duplicar clips en un sinte sin esculpir. "
+                        f"You MUST explicitly configure at least one internal synthesis parameter (e.g. A WT Pos, Cutoff, Drive, Macros) "
+                        f"via apply_sound_blueprint, plugin_set_semantic_parameter, or set_device_parameter on track {t_idx}, device {inst_idx} "
+                        "before creating clips or adding notes. DO NOT modify, disable, or bypass this guard in server.py."
+                    )
+
     def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Send a command to Ableton and return the response"""
         with self._lock:
@@ -1069,6 +1097,16 @@ def set_device_parameter(
             "parameter": parameter,
             "value": value
         })
+        # Record parameter change in DeviceParameterSupervisor and governance_supervisor (Delta >= 1)
+        try:
+            from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+            from engine.supervisor.governance import governance_supervisor
+            p_str = str(parameter)
+            if "device on" not in p_str.lower():
+                DeviceParameterSupervisor._SCULPTED_REGISTRY.add((track_index, device_index))
+                governance_supervisor.record_device_sculpted(track_index, device_index, {p_str: float(value)})
+        except Exception:
+            pass
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error(f"Error setting device parameter: {str(e)}")

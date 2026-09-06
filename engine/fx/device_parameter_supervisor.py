@@ -1245,22 +1245,52 @@ class DeviceParameterSupervisor:
     def audit_device_sculpting(cls, conn: Any, track_index: int, device_index: int) -> Dict[str, Any]:
         """
         Audits whether a device on a track has been sculpted/configured
-        or if it remains in a blank, unconfigured default state.
+        or if it remains in a blank, unconfigured default state (Delta = 0).
+        Enforces Nivel 2: Regla Delta >= 1 across all synths and plugins.
         """
-        if (track_index, device_index) in cls._SCULPTED_REGISTRY:
-            return {
-                "is_sculpted": True,
-                "reason": "Registered in sculpted devices cache",
-                "track_index": track_index,
-                "device_index": device_index
-            }
-
         if conn is None or not hasattr(conn, "send_command"):
+            if (track_index, device_index) in cls._SCULPTED_REGISTRY:
+                return {
+                    "is_sculpted": True,
+                    "reason": "Registered in sculpted devices cache",
+                    "track_index": track_index,
+                    "device_index": device_index
+                }
             return {"is_sculpted": False, "reason": "No live connection"}
+
+        # Introspect track device info if possible to detect sample-based devices (Drum Rack, Simpler)
+        try:
+            raw_info = conn.send_command("get_track_info", {"track_index": track_index})
+            t_info = raw_info.get("result", raw_info) if isinstance(raw_info, dict) else {}
+            dev_list = t_info.get("devices", [])
+            if device_index < len(dev_list):
+                dev_entry = dev_list[device_index]
+                dev_name = str(dev_entry.get("name", "")).lower()
+                class_name = str(dev_entry.get("class_name", ""))
+                if (
+                    class_name in ("DrumGroupDevice", "OriginalSimpler", "MultiSampler")
+                    or any(k in dev_name for k in ["drum rack", "kit", "simpler", "sampler"])
+                ):
+                    cls._SCULPTED_REGISTRY.add((track_index, device_index))
+                    return {
+                        "is_sculpted": True,
+                        "reason": f"Sample-based instrument '{dev_entry.get('name')}' verified",
+                        "track_index": track_index,
+                        "device_index": device_index
+                    }
+        except Exception:
+            pass
 
         params = cls.introspect_device_parameters(conn, track_index, device_index)
         if not params:
-            return {"is_sculpted": False, "reason": "No parameters found"}
+            if (track_index, device_index) in cls._SCULPTED_REGISTRY:
+                return {
+                    "is_sculpted": True,
+                    "reason": "Registered in sculpted devices cache",
+                    "track_index": track_index,
+                    "device_index": device_index
+                }
+            return {"is_sculpted": False, "reason": "No controllable parameters found on device"}
 
         p_map = {p["name"]: p["value"] for p in params}
 
@@ -1270,7 +1300,7 @@ class DeviceParameterSupervisor:
             cls._SCULPTED_REGISTRY.add((track_index, device_index))
             return {"is_sculpted": True, "reason": "Active EQ bands detected", "track_index": track_index, "device_index": device_index}
 
-        # Specific check for Analog Lab V factory default state & preset selection (Phase 1)
+        # 1. Check for Analog Lab V factory default state & preset selection (Phase 1)
         if "P1 Brightness" in p_map:
             try:
                 from engine.supervisor.governance import governance_supervisor
@@ -1288,39 +1318,95 @@ class DeviceParameterSupervisor:
 
             al_macros = [p_map.get("P1 Brightness", 0.5), p_map.get("P1 Timbre", 0.5), p_map.get("P1 Time", 0.5), p_map.get("P1 Movement", 0.5)]
             if all(abs(v - 0.5) < 0.03 for v in al_macros):
+                cls._SCULPTED_REGISTRY.discard((track_index, device_index))
                 return {
                     "is_sculpted": False,
-                    "reason": "Analog Lab V parameters are in un-sculpted default state - macro sculpting required (Fase 2)",
+                    "reason": "Analog Lab V parameters are in un-sculpted default state (all macros at 0.50) - macro sculpting required (Fase 2)",
                     "track_index": track_index,
                     "device_index": device_index,
                     "total_params": len(params)
                 }
 
-        # Specific check for Serum 2 factory default state
-        if "A WT Pos" in p_map and "Filter 1 Freq" in p_map:
-            if (
-                p_map.get("A WT Pos", 0.0) == 0.0
-                and p_map.get("A Warp", 0.0) == 0.0
-                and p_map.get("Filter 1 Drive", 0.0) == 0.0
-                and p_map.get("Macro 1", 0.0) == 0.0
-            ):
+        # 2. Specific check for Serum / Serum 2 factory default state (Delta = 0)
+        serum_wt = [v for k, v in p_map.items() if any(w in k.lower() for w in ["a wt pos", "b wt pos", "wt pos", "wavetable pos"])]
+        serum_macros = [v for k, v in p_map.items() if "macro" in k.lower()]
+        serum_filter_drive = [v for k, v in p_map.items() if "drive" in k.lower()]
+        serum_warp = [v for k, v in p_map.items() if any(w in k.lower() for w in ["a warp", "b warp", "warp"])]
+        if serum_wt and serum_macros:
+            all_wt_zero = all(abs(v - 0.0) < 0.01 for v in serum_wt)
+            all_macro_zero = all(abs(v - 0.0) < 0.01 for v in serum_macros)
+            all_drive_zero = all(abs(v - 0.0) < 0.01 for v in serum_filter_drive) if serum_filter_drive else True
+            all_warp_zero = all(abs(v - 0.0) < 0.01 for v in serum_warp) if serum_warp else True
+            if all_wt_zero and all_macro_zero and all_drive_zero and all_warp_zero:
+                cls._SCULPTED_REGISTRY.discard((track_index, device_index))
                 return {
                     "is_sculpted": False,
-                    "reason": "Serum 2 is in factory default saw wave init state - synthesis sculpting required",
+                    "reason": "Serum 2 is in factory default saw wave init state (Delta = 0) - internal synthesis sculpting required (A WT Pos, Cutoff, Drive, or Macros)",
                     "track_index": track_index,
                     "device_index": device_index,
                     "total_params": len(params)
                 }
 
-        # Check for non-zero macro controls or altered filters
+        # 3. Specific check for Massive X factory default state (Delta = 0)
+        massive_wt = [v for k, v in p_map.items() if any(w in k.lower() for w in ["osc a wt", "osc a pos", "wavetable pos"])]
+        massive_macros = [v for k, v in p_map.items() if "macro" in k.lower() and not "assign" in k.lower()]
+        if massive_wt and massive_macros:
+            all_m_wt_zero = all(abs(v - 0.0) < 0.01 for v in massive_wt)
+            all_m_macro_zero = all(abs(v - 0.0) < 0.01 or abs(v - 0.5) < 0.01 for v in massive_macros)
+            if all_m_wt_zero and all_m_macro_zero:
+                cls._SCULPTED_REGISTRY.discard((track_index, device_index))
+                return {
+                    "is_sculpted": False,
+                    "reason": "Massive X is in factory default init state (Delta = 0) - internal synthesis parameters or macros must be sculpted",
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "total_params": len(params)
+                }
+
+        # 4. Specific check for Vital factory default state (Delta = 0)
+        vital_warp = [v for k, v in p_map.items() if "warp" in k.lower() and "osc" in k.lower()]
+        vital_macros = [v for k, v in p_map.items() if "macro" in k.lower()]
+        if vital_macros and vital_warp:
+            all_v_macro_zero = all(abs(v - 0.0) < 0.01 for v in vital_macros)
+            all_v_warp_zero = all(abs(v - 0.0) < 0.01 for v in vital_warp)
+            if all_v_macro_zero and all_v_warp_zero:
+                cls._SCULPTED_REGISTRY.discard((track_index, device_index))
+                return {
+                    "is_sculpted": False,
+                    "reason": "Vital is in factory default saw wave init state (Delta = 0) - internal synthesis parameters or macros must be sculpted",
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "total_params": len(params)
+                }
+
+        # 5. Check if registered in sculpted cache AND verified non-init
+        if (track_index, device_index) in cls._SCULPTED_REGISTRY:
+            return {
+                "is_sculpted": True,
+                "reason": "Registered in sculpted devices cache and confirmed modified (Delta >= 1)",
+                "track_index": track_index,
+                "device_index": device_index
+            }
+
+        # 6. General Check: non-zero/non-default macro controls (Delta >= 1)
         macro_vals = [v for k, v in p_map.items() if any(m in k.lower() for m in ["macro", "brightness", "timbre"])]
         if macro_vals and any(abs(v - 0.0) > 0.01 and abs(v - 0.5) > 0.05 for v in macro_vals):
             cls._SCULPTED_REGISTRY.add((track_index, device_index))
-            return {"is_sculpted": True, "reason": "Non-default macro positions detected", "track_index": track_index, "device_index": device_index}
+            return {"is_sculpted": True, "reason": "Non-default macro positions detected (Delta >= 1)", "track_index": track_index, "device_index": device_index}
+
+        # 7. Check for filter / envelope / timbre modifications away from default (Delta >= 1)
+        timbre_vals = [
+            v for k, v in p_map.items()
+            if any(t in k.lower() for t in ["cutoff", "drive", "resonance", "decay", "attack", "wt pos", "warp", "waveframe"])
+            and not any(ex in k.lower() for ex in ["on", "enabled", "solo", "mute", "speaker"])
+        ]
+        if timbre_vals and any(abs(v - 0.0) > 0.02 and abs(v - 1.0) > 0.02 for v in timbre_vals):
+            cls._SCULPTED_REGISTRY.add((track_index, device_index))
+            return {"is_sculpted": True, "reason": "Sculpted timbre parameters detected (Delta >= 1)", "track_index": track_index, "device_index": device_index}
 
         return {
             "is_sculpted": False,
-            "reason": "Device appears to be in initial/default state with no sculpted parameters",
+            "reason": "Device appears to be in initial/default state with zero sculpted parameters (Delta = 0)",
             "track_index": track_index,
             "device_index": device_index,
             "total_params": len(params)

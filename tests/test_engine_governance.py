@@ -284,4 +284,102 @@ def test_analog_lab_two_phase_governance_enforcement():
     assert eff_idx == 1
 
 
+def test_delta_rule_detects_init_synths_serum_massive_vital():
+    from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+
+    class MockSerumInitConn:
+        def send_command(self, cmd, params=None):
+            if cmd == "get_device_parameters":
+                return {
+                    "parameters": [
+                        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+                        {"index": 13, "name": "A WT Pos", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 14, "name": "A Warp", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 67, "name": "Filter 1 Drive", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 75, "name": "Macro 1", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 76, "name": "Macro 2", "value": 0.0, "min": 0.0, "max": 1.0}
+                    ]
+                }
+            return {}
+
+    conn = MockSerumInitConn()
+    res = DeviceParameterSupervisor.audit_device_sculpting(conn, track_index=1, device_index=0)
+    assert res["is_sculpted"] is False
+    assert "Serum 2 is in factory default" in res["reason"]
+
+    # Massive X init test
+    class MockMassiveXInitConn:
+        def send_command(self, cmd, params=None):
+            if cmd == "get_device_parameters":
+                return {
+                    "parameters": [
+                        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+                        {"index": 1, "name": "OSC A WT Pos", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 2, "name": "Macro 1", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 3, "name": "Macro 2", "value": 0.5, "min": 0.0, "max": 1.0}
+                    ]
+                }
+            return {}
+
+    conn_m = MockMassiveXInitConn()
+    res_m = DeviceParameterSupervisor.audit_device_sculpting(conn_m, track_index=2, device_index=0)
+    assert res_m["is_sculpted"] is False
+    assert "Massive X is in factory default" in res_m["reason"]
+
+    # Vital init test
+    class MockVitalInitConn:
+        def send_command(self, cmd, params=None):
+            if cmd == "get_device_parameters":
+                return {
+                    "parameters": [
+                        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+                        {"index": 1, "name": "Osc 1 Warp", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 2, "name": "Macro 1", "value": 0.0, "min": 0.0, "max": 1.0}
+                    ]
+                }
+            return {}
+
+    conn_v = MockVitalInitConn()
+    res_v = DeviceParameterSupervisor.audit_device_sculpting(conn_v, track_index=3, device_index=0)
+    assert res_v["is_sculpted"] is False
+    assert "Vital is in factory default" in res_v["reason"]
+
+
+def test_socket_governance_blocks_init_synth():
+    from server import AbletonConnection, GovernanceViolationError
+
+    class MockAbletonConnForGov(AbletonConnection):
+        def __init__(self):
+            self.sent_commands = []
+        def _send_raw(self, cmd, params=None):
+            if cmd == "get_track_info":
+                return {
+                    "name": "Lead Track",
+                    "is_midi_track": True,
+                    "devices": [
+                        {"name": "Serum 2", "class_name": "PluginDevice"}
+                    ]
+                }
+            elif cmd == "get_device_parameters":
+                return {
+                    "parameters": [
+                        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+                        {"index": 13, "name": "A WT Pos", "value": 0.0, "min": 0.0, "max": 1.0},
+                        {"index": 75, "name": "Macro 1", "value": 0.0, "min": 0.0, "max": 1.0}
+                    ]
+                }
+            return {}
+        def send_command(self, cmd, params=None):
+            return self._send_raw(cmd, params)
+
+    conn = MockAbletonConnForGov()
+    # Attempting to create clip on un-sculpted Serum MUST raise GovernanceViolationError
+    with pytest.raises(GovernanceViolationError) as exc_info:
+        conn._enforce_immutable_governance("create_clip", {"track_index": 0, "clip_index": 0})
+
+    assert "INIT_SYNTH_DETECTED" in str(exc_info.value)
+    assert "Serum 2" in str(exc_info.value)
+
+
+
 
