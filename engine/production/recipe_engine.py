@@ -138,6 +138,72 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         typical_scales=["D Minor", "C Major", "F Lydian", "A Aeolian"],
         typical_roles=["pad", "keys", "arp", "fx"],
         recommended_instruments={"pad": "Pigments", "keys": "Analog Lab V", "arp": "Massive X"}
+    ),
+    "cumbia_latina": GenreProductionProfile(
+        genre_id="cumbia_latina",
+        display_name="Cumbia Latina / Sonidera / Electrocumbia",
+        bpm_range=(85.0, 105.0),
+        default_bpm=92.0,
+        target_lufs=-8.0,
+        true_peak_ceiling=-0.5,
+        typical_scales=["A Minor", "D Minor", "E Minor", "C Major"],
+        typical_roles=["drums", "bass", "keys", "lead", "percussion"],
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2", "percussion": "Drum Rack"}
+    ),
+    "boom_bap_rap": GenreProductionProfile(
+        genre_id="boom_bap_rap",
+        display_name="Boom-Bap / 90s Rap & Hip-Hop",
+        bpm_range=(85.0, 98.0),
+        default_bpm=92.0,
+        target_lufs=-9.0,
+        true_peak_ceiling=-0.5,
+        typical_scales=["C Minor", "F Minor", "G Minor", "Eb Major"],
+        typical_roles=["drums", "bass", "keys", "lead", "horns"],
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Massive X"}
+    ),
+    "edm_festival": GenreProductionProfile(
+        genre_id="edm_festival",
+        display_name="EDM / Big Room / Festival Progressive",
+        bpm_range=(125.0, 132.0),
+        default_bpm=128.0,
+        target_lufs=-6.0,
+        true_peak_ceiling=-0.3,
+        typical_scales=["F Minor", "G Minor", "A Minor", "D# Minor"],
+        typical_roles=["drums", "bass", "lead", "pad", "arp", "fx"],
+        recommended_instruments={"drums": "Drum Rack", "lead": "Serum 2", "bass": "Vital", "pad": "Pigments", "arp": "Massive X"}
+    ),
+    "drum_and_bass": GenreProductionProfile(
+        genre_id="drum_and_bass",
+        display_name="Drum & Bass / Liquid / Jungle",
+        bpm_range=(170.0, 178.0),
+        default_bpm=174.0,
+        target_lufs=-6.5,
+        true_peak_ceiling=-0.3,
+        typical_scales=["F Minor", "D Minor", "C Minor"],
+        typical_roles=["drums", "bass", "pad", "arp", "lead"],
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "pad": "Pigments", "lead": "Serum 2"}
+    ),
+    "afrobeat_urban": GenreProductionProfile(
+        genre_id="afrobeat_urban",
+        display_name="Afrobeat / Afropop / Urban Dancehall",
+        bpm_range=(95.0, 108.0),
+        default_bpm=102.0,
+        target_lufs=-8.0,
+        true_peak_ceiling=-0.5,
+        typical_scales=["F Major", "C Major", "G Minor", "D Minor"],
+        typical_roles=["drums", "bass", "keys", "lead", "percussion"],
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2"}
+    ),
+    "rock_modern": GenreProductionProfile(
+        genre_id="rock_modern",
+        display_name="Modern Rock / Indie / Alternative",
+        bpm_range=(110.0, 145.0),
+        default_bpm=128.0,
+        target_lufs=-8.5,
+        true_peak_ceiling=-0.5,
+        typical_scales=["E Minor", "A Minor", "D Major", "G Major"],
+        typical_roles=["drums", "bass", "guitar", "lead", "keys"],
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2"}
     )
 }
 
@@ -522,6 +588,44 @@ class ProductionRecipeEngine:
             logger.info(f"[Loudness Remedy] Niveles de pista {track_idx} aceptados sin cambios.")
 
         return result
+
+    @classmethod
+    def offer_genre_production_menu(cls, category: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Offers structured production skeletons, musical scales, recommended instruments,
+        groove styles, and LUFS targets per genre category:
+        - Rap & Trap (Trap, Boom-Bap)
+        - Cumbia & Ritmos Latinos (Cumbia Latina / Sonidera / Electrocumbia)
+        - Electro (House, Techno, Synthwave, EDM, Drum & Bass)
+        - Urbana & Pop (Reggaeton, Afrobeat, Pop Comercial)
+        - Rock (Modern & Indie)
+
+        NOTE: This is strictly an optional creative accelerator and advisory menu ('un extra y no una limitante').
+        The AI and user are fully free to create custom recipes or use any manual workflow without restriction.
+        """
+        from engine.music.drums.genre_grooves import GenreRhythmGrooveEngine
+        groove_catalog = GenreRhythmGrooveEngine.offer_genre_options(category=category)
+
+        profiles = {}
+        for g_id, prof in GENRE_PRODUCTION_CATALOG.items():
+            profiles[g_id] = {
+                "display_name": prof.display_name,
+                "default_bpm": prof.default_bpm,
+                "bpm_range": list(prof.bpm_range),
+                "target_lufs": prof.target_lufs,
+                "true_peak_ceiling": prof.true_peak_ceiling,
+                "typical_scales": prof.typical_scales,
+                "typical_roles": prof.typical_roles,
+                "recommended_instruments": prof.recommended_instruments,
+            }
+
+        return {
+            "status": "success",
+            "is_optional": True,
+            "notice": "Este catálogo es un extra y catalizador creativo para la IA. Todo flujo personalizado, manual o fuera de catálogo es 100% válido y respetado por el motor.",
+            "categories": groove_catalog.get("catalog", {}),
+            "production_profiles": profiles
+        }
 
     @classmethod
     def get_section_automation_menu(cls, recipe: ProductionRecipe) -> Dict[str, Any]:

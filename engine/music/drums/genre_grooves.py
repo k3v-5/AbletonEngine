@@ -21,6 +21,12 @@ class GenreDrumStyle(str, Enum):
     SYNTHWAVE = "synthwave"
     BOOM_BAP = "boom_bap"
     TECHNO = "techno"
+    CUMBIA = "cumbia"
+    AFROBEAT = "afrobeat"
+    EDM = "edm"
+    DRUM_AND_BASS = "drum_and_bass"
+    POP = "pop"
+    ROCK = "rock"
 
 
 class GenreRhythmGrooveEngine:
@@ -53,26 +59,41 @@ class GenreRhythmGrooveEngine:
         """
         Generates a complete multi-layered drum pattern for the requested genre and length.
         """
-        if isinstance(genre, str):
-            g_clean = genre.lower().strip()
-            if "trap" in g_clean or "hip hop" in g_clean or "hiphop" in g_clean:
-                style = GenreDrumStyle.TRAP
-            elif "house" in g_clean:
-                style = GenreDrumStyle.HOUSE
-            elif "soul" in g_clean or "rnb" in g_clean:
-                style = GenreDrumStyle.NEO_SOUL
-            elif "reggaeton" in g_clean or "latin" in g_clean or "dembow" in g_clean:
-                style = GenreDrumStyle.REGGAETON
-            elif "synth" in g_clean or "80s" in g_clean or "retro" in g_clean:
-                style = GenreDrumStyle.SYNTHWAVE
-            elif "boom" in g_clean:
-                style = GenreDrumStyle.BOOM_BAP
-            elif "techno" in g_clean:
-                style = GenreDrumStyle.TECHNO
-            else:
-                style = GenreDrumStyle.TRAP
-        else:
+        if isinstance(genre, GenreDrumStyle):
             style = genre
+        else:
+            g_clean = str(genre).lower().strip().replace("-", "_").replace(" ", "_")
+            try:
+                style = GenreDrumStyle(g_clean)
+            except ValueError:
+                if "cumbia" in g_clean or "guira" in g_clean:
+                    style = GenreDrumStyle.CUMBIA
+                elif "trap" in g_clean or "hip_hop" in g_clean or "hiphop" in g_clean:
+                    style = GenreDrumStyle.TRAP
+                elif "rock" in g_clean or "indie" in g_clean:
+                    style = GenreDrumStyle.ROCK
+                elif "afro" in g_clean or "dancehall" in g_clean:
+                    style = GenreDrumStyle.AFROBEAT
+                elif "dnb" in g_clean or "drum_and_bass" in g_clean or "jungle" in g_clean:
+                    style = GenreDrumStyle.DRUM_AND_BASS
+                elif "edm" in g_clean or "festival" in g_clean or "big_room" in g_clean:
+                    style = GenreDrumStyle.EDM
+                elif "house" in g_clean:
+                    style = GenreDrumStyle.HOUSE
+                elif "soul" in g_clean or "rnb" in g_clean:
+                    style = GenreDrumStyle.NEO_SOUL
+                elif "reggaeton" in g_clean or "latin" in g_clean or "dembow" in g_clean:
+                    style = GenreDrumStyle.REGGAETON
+                elif "synth" in g_clean or "80s" in g_clean or "retro" in g_clean:
+                    style = GenreDrumStyle.SYNTHWAVE
+                elif "boom" in g_clean or "rap" in g_clean:
+                    style = GenreDrumStyle.BOOM_BAP
+                elif "techno" in g_clean:
+                    style = GenreDrumStyle.TECHNO
+                elif "pop" in g_clean:
+                    style = GenreDrumStyle.POP
+                else:
+                    style = GenreDrumStyle.TRAP
 
         generator_map = {
             GenreDrumStyle.TRAP: cls._generate_trap,
@@ -82,6 +103,12 @@ class GenreRhythmGrooveEngine:
             GenreDrumStyle.SYNTHWAVE: cls._generate_synthwave,
             GenreDrumStyle.BOOM_BAP: cls._generate_boom_bap,
             GenreDrumStyle.TECHNO: cls._generate_techno,
+            GenreDrumStyle.CUMBIA: cls._generate_cumbia,
+            GenreDrumStyle.AFROBEAT: cls._generate_afrobeat,
+            GenreDrumStyle.EDM: cls._generate_edm,
+            GenreDrumStyle.DRUM_AND_BASS: cls._generate_drum_and_bass,
+            GenreDrumStyle.POP: cls._generate_pop,
+            GenreDrumStyle.ROCK: cls._generate_rock,
         }
 
         gen_fn = generator_map.get(style, cls._generate_trap)
@@ -291,6 +318,228 @@ class GenreRhythmGrooveEngine:
             notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 3.0, duration=0.20, velocity=116))
         return notes
 
+    @classmethod
+    def _generate_cumbia(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        Cumbia Latina / Sonidera / Electrocumbia pattern:
+        - Continuous 16th Güira scrape pattern with iconic syncopated accent on the 3rd sixteenth ("ch-ch-CHII-ka")
+        - Walking/syncopated Kick on beats 1 and 3 (0.0, 2.0) with pickup
+        - Conga tumbao: slap on beat 2 & 4 (1.0, 3.0) and double open tones on 1.5 & 3.5
+        - Timbal fill on bar 4 turnaround
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+
+            # 1. Kick on 1 and 3 (0.0, 2.0)
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.25, velocity=115))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.0, duration=0.25, velocity=112))
+            if bar % 2 == 1:
+                # Syncopated cumbia kick pickup
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 3.75, duration=0.20, velocity=98))
+
+            # 2. Güira continua raspada (16th notes: down, up, long accented stroke, release)
+            # Step 0: down (70), Step 1: up (80), Step 2: ACCENT (118), Step 3: soft (50)
+            guira_vels = [70, 80, 118, 50]
+            for beat in range(4):
+                for step in range(4):
+                    t = bar_start + beat * 1.0 + step * 0.25
+                    notes.append(NoteEvent(
+                        pitch=cls.CLOSED_HAT_PITCH,
+                        start=t,
+                        duration=0.18 if step == 2 else 0.10,
+                        velocity=guira_vels[step]
+                    ))
+
+            # 3. Congas / Percussion Tumbao
+            # Slap on beats 2 & 4 (1.0, 3.0)
+            notes.append(NoteEvent(pitch=cls.PERC_PITCH, start=bar_start + 1.0, duration=0.15, velocity=105))
+            notes.append(NoteEvent(pitch=cls.PERC_PITCH, start=bar_start + 3.0, duration=0.15, velocity=108))
+            # Open tones (Low / High Tom) on contratiempos (1.5, 1.75, 3.5, 3.75)
+            notes.append(NoteEvent(pitch=cls.LOW_TOM, start=bar_start + 1.50, duration=0.22, velocity=92))
+            notes.append(NoteEvent(pitch=cls.HIGH_TOM, start=bar_start + 1.75, duration=0.20, velocity=95))
+            notes.append(NoteEvent(pitch=cls.LOW_TOM, start=bar_start + 3.50, duration=0.22, velocity=94))
+            notes.append(NoteEvent(pitch=cls.HIGH_TOM, start=bar_start + 3.75, duration=0.20, velocity=96))
+
+            # 4. Timbal / Rim accents (or fill on last bar)
+            if bar == length_bars - 1:
+                # Timbal turnaround fill on beat 3.0 to 4.0
+                timbal_steps = [3.0, 3.25, 3.5, 3.667, 3.833]
+                for ts in timbal_steps:
+                    notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + ts, duration=0.12, velocity=118))
+            else:
+                # Subtle cascara / timbal rim tap on 1.0 and 3.0
+                notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.15, velocity=88))
+                notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.15, velocity=92))
+
+        return notes
+
+    @classmethod
+    def _generate_rock(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        Modern / Indie / Alternative Rock pattern:
+        - Solid driving Kick on 1 and 3 (0.0, 2.0) with pickup kicks on alternate bars
+        - High-velocity Snare crack on 2 and 4 (1.0, 3.0) with natural stick impact
+        - Relentless 8th-note Hi-Hats / Ride with accents on the downbeats
+        - Crash cymbal on bar 1 downbeat and turnaround
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+
+            # Crash on first downbeat or turnaround
+            if bar == 0 or bar == length_bars - 1:
+                notes.append(NoteEvent(pitch=cls.OPEN_HAT_PITCH, start=bar_start + 0.0, duration=0.50, velocity=124))
+
+            # Kick on 1 and 3
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.28, velocity=125))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.0, duration=0.28, velocity=122))
+            if bar % 2 == 1:
+                # Dynamic rock kick pickup on 2.5 or 3.5
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.5, duration=0.22, velocity=108))
+
+            # Aggressive Snare on 2 and 4
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.25, velocity=126))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.25, velocity=127))
+
+            # 8th-note Hi-Hats (heavy on downbeats, lighter on '&'s)
+            for s in range(8):
+                t = bar_start + s * 0.5
+                v = 105 if s % 2 == 0 else 82
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=t, duration=0.20, velocity=v))
+
+            # Last bar turnaround fill on toms/snare
+            if bar == length_bars - 1:
+                notes.append(NoteEvent(pitch=cls.HIGH_TOM, start=bar_start + 3.25, duration=0.15, velocity=115))
+                notes.append(NoteEvent(pitch=cls.MID_TOM, start=bar_start + 3.50, duration=0.15, velocity=118))
+                notes.append(NoteEvent(pitch=cls.LOW_TOM, start=bar_start + 3.75, duration=0.15, velocity=122))
+
+        return notes
+
+    @classmethod
+    def _generate_afrobeat(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        Afrobeat / Afropop / Urban Dancehall pattern:
+        - Syncopated cross-rhythm Kick (0.0, 1.75, 2.5)
+        - Crisp rimshot / snare accents (1.5, 2.75, 3.5)
+        - Grooving 16th shaker / hat wave with African syncopation
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+
+            # Syncopated Kick
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.25, velocity=118))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 1.75, duration=0.22, velocity=106))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.50, duration=0.25, velocity=112))
+
+            # Rimshot / Snare cross-rhythm
+            rim_offsets = [1.50, 2.75, 3.50]
+            for ro in rim_offsets:
+                notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + ro, duration=0.18, velocity=110))
+
+            # Percussion / Conga syncopation
+            notes.append(NoteEvent(pitch=cls.PERC_PITCH, start=bar_start + 0.75, duration=0.15, velocity=92))
+            notes.append(NoteEvent(pitch=cls.PERC_PITCH, start=bar_start + 2.25, duration=0.15, velocity=95))
+
+            # 16th Shaker / Closed Hat wave
+            shaker_vels = [90, 60, 75, 55, 85, 58, 72, 52, 92, 62, 78, 54, 88, 58, 75, 50]
+            for s in range(16):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.25, duration=0.15, velocity=shaker_vels[s]))
+
+        return notes
+
+    @classmethod
+    def _generate_edm(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        EDM / Festival Big Room pattern:
+        - 4-on-the-floor heavy kick at maximum impact
+        - Clap/Snare on 2 and 4 (1.0, 3.0)
+        - Offbeat Open Hi-Hat (0.5, 1.5, 2.5, 3.5)
+        - Fast driving 16th hats with build
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+
+            # 4-on-the-floor kick
+            for b in range(4):
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0, duration=0.25, velocity=125))
+
+            # Clap on 2 and 4
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 1.0, duration=0.22, velocity=118))
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 3.0, duration=0.22, velocity=120))
+
+            # Offbeat open hat
+            for b in range(4):
+                notes.append(NoteEvent(pitch=cls.OPEN_HAT_PITCH, start=bar_start + b * 1.0 + 0.5, duration=0.30, velocity=102))
+
+            # 16th closed hats
+            for s in range(16):
+                if s % 4 != 2:
+                    notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.25, duration=0.12, velocity=75 if s % 2 == 0 else 60))
+
+        return notes
+
+    @classmethod
+    def _generate_drum_and_bass(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        Drum & Bass 2-step breakbeat pattern (170-175 BPM):
+        - Kick on 0.0 and syncopated pickup at 2.75
+        - Snare crack on 1.0 and 3.0
+        - Fast 16th hats and ghost snares (vel ~40)
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+
+            # 2-step kick
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.22, velocity=124))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.75, duration=0.20, velocity=116))
+
+            # Snare on 2 and 4
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.25, velocity=125))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.25, velocity=127))
+
+            # Ghost snares for DnB groove
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.75, duration=0.12, velocity=45))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.50, duration=0.12, velocity=42))
+
+            # Relentless 16th hats
+            for s in range(16):
+                v = 95 if s % 4 == 0 else (75 if s % 2 == 0 else 60)
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.25, duration=0.14, velocity=v))
+
+        return notes
+
+    @classmethod
+    def _generate_pop(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        Commercial / Latin Pop pattern:
+        - Modern radio pocket: Kick on 0.0, 1.75, 2.0
+        - Clean Clap/Snare on 1.0 and 3.0
+        - Polished 8th/16th hats with dynamic accentuation
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+
+            # Pocket kick
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.25, velocity=118))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 1.75, duration=0.20, velocity=102))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.0, duration=0.25, velocity=114))
+
+            # Clap/Snare on 2 and 4
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 1.0, duration=0.22, velocity=112))
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 3.0, duration=0.22, velocity=114))
+
+            # Dynamic 8th hats
+            for s in range(8):
+                v = 90 if s % 2 == 0 else 70
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.18, velocity=v))
+
+        return notes
+
     @staticmethod
     def apply_mpc_swing(notes: List[NoteEvent], swing_percent: float = 0.58) -> List[NoteEvent]:
         """
@@ -341,3 +590,185 @@ class GenreRhythmGrooveEngine:
             humanized.append(n_copy)
 
         return humanized
+
+    @classmethod
+    def offer_genre_options(cls, category: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Offers structured production options grouped by genre categories:
+        - Rap & Trap (Trap, Boom-Bap)
+        - Cumbia (Cumbia Latina / Sonidera / Electrocumbia)
+        - Electro (House, Techno, Synthwave, EDM, Drum & Bass)
+        - Urbana & Pop (Reggaeton, Afrobeat, Pop Comercial)
+        - Rock (Rock Moderno / Indie)
+
+        IMPORTANT: These options are an optional creative accelerator, NOT a limitation.
+        Custom and freeform workflows are fully preserved and respected.
+        """
+        all_catalog = {
+            "rap_trap": {
+                "category_title": "Rap & Trap",
+                "genres": {
+                    "trap": {
+                        "name": "Modern Trap / Hip-Hop",
+                        "bpm_default": 140.0,
+                        "bpm_range": [130.0, 165.0],
+                        "groove": "Syncopated 808 kick, clap on beat 3 (half-time), dynamic triplet hi-hat rolls (1/12 and 1/24) with velocity ramps.",
+                        "recommended_roles": ["bass (808)", "drums", "lead", "keys", "pad"],
+                        "target_lufs": -7.5
+                    },
+                    "boom_bap": {
+                        "name": "Boom-Bap / 90s Golden Era Rap",
+                        "bpm_default": 92.0,
+                        "bpm_range": [85.0, 98.0],
+                        "groove": "Classic MPC swing (58-62%), behind-the-beat snare crack on 2 & 4, chopped sample pocket, kick pickups.",
+                        "recommended_roles": ["drums", "bass", "keys (rhodes)", "horns", "scratch_fx"],
+                        "target_lufs": -9.0
+                    }
+                }
+            },
+            "cumbia": {
+                "category_title": "Cumbia & Ritmos Latinos",
+                "genres": {
+                    "cumbia": {
+                        "name": "Cumbia Latina / Sonidera / Electrocumbia",
+                        "bpm_default": 92.0,
+                        "bpm_range": [85.0, 105.0],
+                        "groove": "Güira continua 16th con acento sincopado en la 3ra semicorchea ('ch-ch-CHII-ka'), conga tumbao y slap en tiempos 2 & 4, bajo caminado sincopado, timbales con remates.",
+                        "recommended_roles": ["percussion (güira)", "congas_tumbao", "bass (caminado)", "keys (piano/acordeón)", "lead_synth"],
+                        "target_lufs": -8.0
+                    }
+                }
+            },
+            "electro": {
+                "category_title": "Electro de Todo Tipo",
+                "genres": {
+                    "house": {
+                        "name": "House / Tech House / Deep House",
+                        "bpm_default": 126.0,
+                        "bpm_range": [122.0, 130.0],
+                        "groove": "Four-on-the-floor kick, offbeat open hat (0.5, 1.5, 2.5, 3.5), clap on 2 & 4, 16th closed hat pocket con swing MPC.",
+                        "recommended_roles": ["drums", "bass", "lead", "pad", "fx"],
+                        "target_lufs": -6.5
+                    },
+                    "techno": {
+                        "name": "Techno / Peak-Time / Melodic",
+                        "bpm_default": 132.0,
+                        "bpm_range": [128.0, 142.0],
+                        "groove": "Driving industrial rumble kick 4/4, relentless 16th open/closed hat patterns, percussive synth stabs.",
+                        "recommended_roles": ["drums", "sub_rumble", "synth_stab", "noise_fx", "lead"],
+                        "target_lufs": -6.0
+                    },
+                    "synthwave": {
+                        "name": "Synthwave / Outrun / 80s Retro",
+                        "bpm_default": 115.0,
+                        "bpm_range": [100.0, 125.0],
+                        "groove": "Driving kick on 1 & 3, massive gated snare on 2 & 4, running 16th hats, bass arpeggiator rolling octave pocket.",
+                        "recommended_roles": ["bass (arp)", "lead", "pad", "drums", "keys"],
+                        "target_lufs": -8.5
+                    },
+                    "edm": {
+                        "name": "EDM / Festival Big Room / Progressive",
+                        "bpm_default": 128.0,
+                        "bpm_range": [125.0, 132.0],
+                        "groove": "Heavy impact 4-on-the-floor kick, wide layered claps on 2 & 4, offbeat open hat, massive supersaw sidechain.",
+                        "recommended_roles": ["drums", "supersaw_lead", "sub_bass", "white_noise_riser", "chords"],
+                        "target_lufs": -6.0
+                    },
+                    "drum_and_bass": {
+                        "name": "Drum & Bass / Liquid / Jungle",
+                        "bpm_default": 174.0,
+                        "bpm_range": [170.0, 178.0],
+                        "groove": "Fast 2-step breakbeat (kick at 0.0 & 2.75, snare at 1.0 & 3.0), rolling ghost snares, reese sub bass.",
+                        "recommended_roles": ["drums", "reese_bass", "sub_bass", "pad", "arp"],
+                        "target_lufs": -6.5
+                    }
+                }
+            },
+            "urbano_pop": {
+                "category_title": "Música Urbana & Pop",
+                "genres": {
+                    "reggaeton": {
+                        "name": "Reggaetón / Dembow Urbano",
+                        "bpm_default": 94.0,
+                        "bpm_range": [88.0, 100.0],
+                        "groove": "4-on-the-floor kick con caja sincopada Dembow en 0.75, 1.5, 2.75, 3.5. Sub bass redondo con amplio espacio vocal.",
+                        "recommended_roles": ["drums", "bass (sub 808)", "keys", "lead_vocal", "synth_pluck"],
+                        "target_lufs": -7.5
+                    },
+                    "afrobeat": {
+                        "name": "Afrobeat / Afropop / Dancehall",
+                        "bpm_default": 102.0,
+                        "bpm_range": [95.0, 108.0],
+                        "groove": "Kick con síncopa africana (0.0, 1.75, 2.5), rimshots cruzados (1.5, 2.75, 3.5), shaker 16ths orgánico y percusión polirrítmica.",
+                        "recommended_roles": ["drums", "bass", "guitar_skank", "keys", "percussion (shekere/congas)"],
+                        "target_lufs": -8.0
+                    },
+                    "pop": {
+                        "name": "Commercial Pop / Latin Pop",
+                        "bpm_default": 122.0,
+                        "bpm_range": [112.0, 128.0],
+                        "groove": "Radio pocket: kick dinámico (0.0, 1.75, 2.0), clap/snare definido en 2 & 4, hi-hats pulidos con articulación de volumen.",
+                        "recommended_roles": ["drums", "bass", "keys (rhodes/piano)", "lead_synth", "pad", "guitar"],
+                        "target_lufs": -8.0
+                    }
+                }
+            },
+            "rock": {
+                "category_title": "Rock (Moderno & Indie)",
+                "genres": {
+                    "rock": {
+                        "name": "Modern Rock / Indie Rock / Alternative",
+                        "bpm_default": 128.0,
+                        "bpm_range": [110.0, 145.0],
+                        "groove": "Batería acústica potente: kick sólido en 1 & 3 con pickups dinámicos, golpe seco y agresivo de tarola en 2 & 4, hi-hats/ride continuos en corcheas (8ths), crash en compás 1.",
+                        "recommended_roles": ["drums (acoustic kit)", "bass (distorted/drive)", "guitar_rhythm", "guitar_lead", "keys/organ"],
+                        "target_lufs": -8.5
+                    }
+                }
+            }
+        }
+
+        if category:
+            cat_clean = category.lower().strip()
+            for k, v in all_catalog.items():
+                if cat_clean in k or cat_clean in v["category_title"].lower():
+                    return {
+                        "status": "success",
+                        "filter": category,
+                        "catalog": {k: v},
+                        "notice": "Estas opciones son una sugerencia/extra creativo del motor para la IA; el flujo de producción libre o personalizado se respeta por completo sin restricciones."
+                    }
+
+        return {
+            "status": "success",
+            "categories_available": list(all_catalog.keys()),
+            "catalog": all_catalog,
+            "notice": "Estas opciones son un extra y catalizador creativo para la IA. Todo flujo personalizado o no catalogado sigue siendo 100% válido y soportado por el motor."
+        }
+
+    @classmethod
+    def get_genre_descriptor(cls, genre: str) -> Dict[str, Any]:
+        """Returns the specific production profile descriptor for a genre."""
+        g_clean = genre.lower().strip()
+        catalog = cls.offer_genre_options()["catalog"]
+        for cat_data in catalog.values():
+            for g_key, g_val in cat_data["genres"].items():
+                if g_key in g_clean or g_clean in g_key:
+                    return {
+                        "status": "found",
+                        "genre_id": g_key,
+                        "profile": g_val
+                    }
+        # Fallback default
+        return {
+            "status": "custom",
+            "genre_id": g_clean,
+            "profile": {
+                "name": f"Custom / Freeform ({genre})",
+                "bpm_default": 120.0,
+                "bpm_range": [60.0, 200.0],
+                "groove": "Libre / personalizable según la intención creativa de la IA.",
+                "recommended_roles": ["drums", "bass", "keys", "lead"],
+                "target_lufs": -9.0
+            }
+        }

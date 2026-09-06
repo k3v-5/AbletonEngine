@@ -9037,6 +9037,122 @@ def preset_select_for_track(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def genre_offer_production_options(category: str = "", genre: str = "") -> dict:
+    """
+    Offers the AI a rich, structured catalog of production recipes, authentic groove patterns,
+    and mix targets organized by genre:
+    - Rap & Trap (Modern Trap, 90s Boom-Bap)
+    - Cumbia & Ritmos Latinos (Cumbia Tradicional / Sonidera / Electrocumbia)
+    - Electro de todo tipo (House, Techno, Synthwave, EDM Festival, Drum & Bass)
+    - Música Urbana & Pop (Reggaetón Dembow, Afrobeat, Pop Comercial)
+    - Rock (Modern Rock, Indie, Alternativo)
+
+    IMPORTANT: This catalog is purely an optional creative accelerator ('un extra y no una limitante').
+    Custom, experimental, and freeform workflows are 100% supported without restriction.
+
+    Args:
+        category: Optional filter by category ("rap_trap", "cumbia", "electro", "urbano_pop", "rock")
+        genre: Optional filter by specific genre ("trap", "cumbia", "house", "techno", "reggaeton", "afrobeat", "rock", etc.)
+    """
+    try:
+        from engine.production.recipe_engine import ProductionRecipeEngine
+        from engine.music.drums.genre_grooves import GenreRhythmGrooveEngine
+
+        if genre:
+            desc = GenreRhythmGrooveEngine.get_genre_descriptor(genre)
+            return {
+                "status": "success",
+                "genre_requested": genre,
+                "profile": desc,
+                "is_optional": True,
+                "notice": "Este perfil es una sugerencia técnica y creativa opcional. El flujo libre y manual se respeta al 100%."
+            }
+
+        menu = ProductionRecipeEngine.offer_genre_production_menu(category=category if category else None)
+        return menu
+    except Exception as e:
+        logger.error(f"Error in genre_offer_production_options: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def genre_generate_drum_pattern(
+    genre: str,
+    track_index: int,
+    clip_index: int = 0,
+    length_bars: int = 4,
+    tempo: float = 120.0,
+    swing_amount: float = 0.0,
+    humanize_ms: float = 6.0
+) -> dict:
+    """
+    Generates and injects an authentic procedural rhythm pattern for a specified genre directly
+    into an Ableton clip slot:
+    - Cumbia: Güira raspada 16th sincopada, conga tumbao y timbal turnaround fill
+    - Rap / Trap: Half-time clap, syncopated 808 kick, rolling triplet hi-hats
+    - Rock: Acoustic kit drive, solid 1 & 3 kick, aggressive 2 & 4 snare crack, 8th hats/ride
+    - Afrobeat: Syncopated cross-rhythm kick, crisp rimshots, organic 16th shaker wave
+    - House / Techno / EDM: 4-on-the-floor, offbeat open hat, 16th pocket
+    - Drum & Bass: 174 BPM 2-step breakbeat, rolling ghost snares
+
+    Args:
+        genre: Target genre ("cumbia", "trap", "rock", "afrobeat", "house", "techno", "edm", "drum_and_bass", "pop", "reggaeton")
+        track_index: Track index containing Drum Rack or percussion instrument
+        clip_index: Target clip slot index (default 0)
+        length_bars: Pattern duration in bars (default 4)
+        tempo: Target BPM for micro-timing calculations
+        swing_amount: MPC swing ratio (0.0 to 0.70)
+        humanize_ms: Human timing jitter in milliseconds (default 6.0)
+    """
+    try:
+        from engine.music.drums.genre_grooves import GenreRhythmGrooveEngine
+        notes = GenreRhythmGrooveEngine.generate_rhythm_pattern(
+            genre=genre,
+            length_bars=length_bars,
+            tempo=tempo,
+            swing_amount=swing_amount,
+            humanize_ms=humanize_ms
+        )
+
+        conn = get_ableton_connection()
+        # Create clip if needed
+        conn.send_command("create_clip", {
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "length": float(length_bars * 4.0)
+        })
+
+        # Add notes
+        notes_payload = [
+            {
+                "pitch": n.pitch,
+                "start_time": n.start,
+                "duration": n.duration,
+                "velocity": n.velocity
+            }
+            for n in notes
+        ]
+        conn.send_command("add_notes_to_clip", {
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "notes": notes_payload
+        })
+
+        return {
+            "status": "success",
+            "genre": genre,
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "length_bars": length_bars,
+            "total_notes": len(notes),
+            "sample_groove": f"Patrón procedural de {genre} inyectado con {len(notes)} eventos de nota."
+        }
+    except Exception as e:
+        logger.error(f"Error in genre_generate_drum_pattern: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 
