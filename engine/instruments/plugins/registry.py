@@ -193,37 +193,258 @@ class PluginRegistry:
             plugin_name="The God Particle",
             category="mastering",
             is_native=False,
-            aliases=["The God Particle", "God Particle", "GodParticle.vst3"],
+            aliases=["The God Particle", "God Particle", "GodParticle.vst3", "GodParticle"],
             parameter_mappings={
-                PluginSemanticRole.DRIVE: "Input Level",
-                PluginSemanticRole.FATNESS: "Amount",
-                PluginSemanticRole.LIMITER_CEILING: "Limiter Ceiling",
-                PluginSemanticRole.VOLUME: "Limiter Ceiling",
+                PluginSemanticRole.DRIVE: "Character",
+                PluginSemanticRole.VOLUME: "Output Gain",
+                PluginSemanticRole.LIMITER_GAIN: "Limiter Input Gain",
+                PluginSemanticRole.EQ_LOW_BOOST: "EQ Low Gain",
+                PluginSemanticRole.EQ_AIR_SHELF: "EQ High Gain",
             },
             semantic_aliases={
-                PluginSemanticRole.DRIVE: ["input level", "input", "input gain"],
-                PluginSemanticRole.FATNESS: ["amount", "character", "processing"],
-                PluginSemanticRole.LIMITER_CEILING: ["limiter ceiling", "ceiling", "output ceiling"],
+                PluginSemanticRole.DRIVE: ["character", "input gain", "input"],
+                PluginSemanticRole.VOLUME: ["output gain", "output", "gain"],
+                PluginSemanticRole.LIMITER_GAIN: ["limiter input gain", "limiter", "gain"],
+                PluginSemanticRole.EQ_LOW_BOOST: ["eq low gain", "low gain", "sub"],
+                PluginSemanticRole.EQ_AIR_SHELF: ["eq high gain", "high gain", "air"],
             }
         ))
 
-        # 8. Arturia Efx REFRACT & MOTIONS
+        # 8. Arturia Efx REFRACT
         self.register_profile(PluginProfile(
             plugin_name="Arturia Efx REFRACT",
             category="effect",
             is_native=False,
             aliases=["Efx REFRACT", "Refract", "Efx Refract", "EfxRefract.vst3"],
             parameter_mappings={
-                PluginSemanticRole.MORPH: "Morph",
-                PluginSemanticRole.DEPTH: "Amount",
-                PluginSemanticRole.RATE: "Rate",
-                PluginSemanticRole.DRY_WET: "Dry/Wet",
+                PluginSemanticRole.MORPH: "Refraction",
+                PluginSemanticRole.UNISON_DETUNE: "Refraction",
+                PluginSemanticRole.DRY_WET: "Mix",
+                PluginSemanticRole.RATE: "Rate (Sync)",
+                PluginSemanticRole.DRIVE: "Distortion Drive Amount",
+                PluginSemanticRole.CUTOFF: "Bandpass Filter Cutoff Frequency",
+                PluginSemanticRole.RESONANCE: "Bandpass Filter Resonance",
+                PluginSemanticRole.VOLUME: "Output Gain",
             },
             semantic_aliases={
-                PluginSemanticRole.MORPH: ["morph", "refraction"],
-                PluginSemanticRole.DEPTH: ["amount", "depth", "refract amount"],
-                PluginSemanticRole.RATE: ["rate", "speed", "frequency"],
-                PluginSemanticRole.DRY_WET: ["dry/wet", "dry wet", "mix"],
+                PluginSemanticRole.MORPH: ["refraction", "morph"],
+                PluginSemanticRole.DRY_WET: ["mix", "dry/wet"],
+                PluginSemanticRole.RATE: ["rate (sync)", "rate (hertz)", "rate"],
+                PluginSemanticRole.DRIVE: ["distortion drive amount", "drive"],
+                PluginSemanticRole.CUTOFF: ["bandpass filter cutoff frequency", "cutoff", "comb filter cutoff frequency"],
+                PluginSemanticRole.RESONANCE: ["bandpass filter resonance", "resonance"],
+            }
+        ))
+
+        # 9. Xfer Serum 2
+        self.register_profile(PluginProfile(
+            plugin_name="Serum 2",
+            category="synth",
+            is_native=False,
+            aliases=["Serum", "Serum 2", "Serum.vst3", "Serum_x64", "Serum_x64.vst3", "Xfer Serum"],
+            parameter_mappings={
+                PluginSemanticRole.CUTOFF: "Filter 1 Freq",
+                PluginSemanticRole.RESONANCE: "Filter 1 Res",
+                PluginSemanticRole.DRIVE: "Filter 1 Drive",
+                PluginSemanticRole.ATTACK: "Env 1 Attack",
+                PluginSemanticRole.DECAY: "Env 1 Decay",
+                PluginSemanticRole.SUSTAIN: "Env 1 Sustain",
+                PluginSemanticRole.RELEASE: "Env 1 Release",
+                PluginSemanticRole.RATE: "LFO 1 Rate",
+                PluginSemanticRole.GLIDE: "Porta Time",
+                PluginSemanticRole.WAVETABLE_POS: "A WT Pos",
+                PluginSemanticRole.UNISON_DETUNE: "A Uni Detune",
+                PluginSemanticRole.SUB_LEVEL: "Sub Level",
+                PluginSemanticRole.MACRO_1: "Macro 1",
+                PluginSemanticRole.MACRO_2: "Macro 2",
+                PluginSemanticRole.MACRO_3: "Macro 3",
+                PluginSemanticRole.MACRO_4: "Macro 4",
+                PluginSemanticRole.MACRO_5: "Macro 5",
+                PluginSemanticRole.MACRO_6: "Macro 6",
+                PluginSemanticRole.MACRO_7: "Macro 7",
+                PluginSemanticRole.MACRO_8: "Macro 8",
+            },
+            semantic_aliases={
+                PluginSemanticRole.CUTOFF: ["filter 1 freq", "cutoff", "filter freq"],
+                PluginSemanticRole.RESONANCE: ["filter 1 res", "resonance", "res"],
+                PluginSemanticRole.DRIVE: ["filter 1 drive", "drive"],
+                PluginSemanticRole.ATTACK: ["env 1 attack", "attack"],
+                PluginSemanticRole.DECAY: ["env 1 decay", "decay"],
+                PluginSemanticRole.SUSTAIN: ["env 1 sustain", "sustain"],
+                PluginSemanticRole.RELEASE: ["env 1 release", "release"],
+                PluginSemanticRole.RATE: ["lfo 1 rate", "rate"],
+                PluginSemanticRole.GLIDE: ["porta time", "glide"],
+                PluginSemanticRole.WAVETABLE_POS: ["a wt pos", "b wt pos", "wt pos"],
+                PluginSemanticRole.UNISON_DETUNE: ["a uni detune", "b uni detune", "uni detune"],
+                PluginSemanticRole.SUB_LEVEL: ["sub level", "sub osc"],
+                PluginSemanticRole.MACRO_1: ["macro 1"],
+                PluginSemanticRole.MACRO_2: ["macro 2"],
+                PluginSemanticRole.MACRO_3: ["macro 3"],
+                PluginSemanticRole.MACRO_4: ["macro 4"],
+            }
+        ))
+
+        # 10. FabFilter Pro-L 2
+        self.register_profile(PluginProfile(
+            plugin_name="Pro-L 2",
+            category="mastering",
+            is_native=False,
+            aliases=["Pro-L 2", "FabFilter Pro-L 2", "FabFilter Pro-L", "Pro-L2", "ProL2.vst3", "Pro-L 2.vst3"],
+            parameter_mappings={
+                PluginSemanticRole.LIMITER_GAIN: "Gain",
+                PluginSemanticRole.DRIVE: "Gain",
+                PluginSemanticRole.LIMITER_CEILING: "Output Level",
+                PluginSemanticRole.VOLUME: "Output Level",
+                PluginSemanticRole.ATTACK: "Attack",
+                PluginSemanticRole.RELEASE: "Release",
+            },
+            semantic_aliases={
+                PluginSemanticRole.LIMITER_GAIN: ["gain", "input gain"],
+                PluginSemanticRole.DRIVE: ["gain"],
+                PluginSemanticRole.LIMITER_CEILING: ["output level", "ceiling"],
+                PluginSemanticRole.VOLUME: ["output level"],
+                PluginSemanticRole.ATTACK: ["attack"],
+                PluginSemanticRole.RELEASE: ["release"],
+            }
+        ))
+
+        # 11. oeksound soothe2
+        self.register_profile(PluginProfile(
+            plugin_name="soothe2",
+            category="effect",
+            is_native=False,
+            aliases=["soothe2", "soothe 2", "oeksound soothe2", "soothe2.vst3", "soothe"],
+            parameter_mappings={
+                PluginSemanticRole.SOOTHE_DEPTH: "depth",
+                PluginSemanticRole.DEPTH: "depth",
+                PluginSemanticRole.SOOTHE_SHARPNESS: "sharpness",
+                PluginSemanticRole.DRY_WET: "mix",
+                PluginSemanticRole.ATTACK: "attack",
+                PluginSemanticRole.RELEASE: "release",
+                PluginSemanticRole.VOLUME: "trim",
+            },
+            semantic_aliases={
+                PluginSemanticRole.SOOTHE_DEPTH: ["depth"],
+                PluginSemanticRole.DEPTH: ["depth"],
+                PluginSemanticRole.SOOTHE_SHARPNESS: ["sharpness"],
+                PluginSemanticRole.DRY_WET: ["mix"],
+                PluginSemanticRole.ATTACK: ["attack"],
+                PluginSemanticRole.RELEASE: ["release"],
+                PluginSemanticRole.VOLUME: ["trim", "input trim"],
+            }
+        ))
+
+        # 12. Soundtoys Decapitator
+        self.register_profile(PluginProfile(
+            plugin_name="Decapitator",
+            category="effect",
+            is_native=False,
+            aliases=["Decapitator", "Soundtoys Decapitator", "Decapitator.vst3"],
+            parameter_mappings={
+                PluginSemanticRole.DRIVE: "Drive",
+                PluginSemanticRole.PUNISH: "Punish",
+                PluginSemanticRole.COLOR: "Tone",
+                PluginSemanticRole.DRY_WET: "Mix",
+                PluginSemanticRole.VOLUME: "OutputTrim",
+                PluginSemanticRole.CUTOFF: "HighCut",
+            },
+            semantic_aliases={
+                PluginSemanticRole.DRIVE: ["drive"],
+                PluginSemanticRole.PUNISH: ["punish"],
+                PluginSemanticRole.COLOR: ["tone"],
+                PluginSemanticRole.DRY_WET: ["mix"],
+                PluginSemanticRole.VOLUME: ["outputtrim", "output trim"],
+                PluginSemanticRole.CUTOFF: ["highcut", "high cut"],
+            }
+        ))
+
+        # 13. Soundtoys LittleAlterBoy
+        self.register_profile(PluginProfile(
+            plugin_name="LittleAlterBoy",
+            category="effect",
+            is_native=False,
+            aliases=["LittleAlterBoy", "Soundtoys LittleAlterBoy", "Little AlterBoy", "LittleAlterBoy.vst3"],
+            parameter_mappings={
+                PluginSemanticRole.PITCH: "Pitch",
+                PluginSemanticRole.FORMANT: "Formant",
+                PluginSemanticRole.DRIVE: "Drive",
+                PluginSemanticRole.DRY_WET: "Mix",
+            },
+            semantic_aliases={
+                PluginSemanticRole.PITCH: ["pitch"],
+                PluginSemanticRole.FORMANT: ["formant"],
+                PluginSemanticRole.DRIVE: ["drive"],
+                PluginSemanticRole.DRY_WET: ["mix"],
+            }
+        ))
+
+        # 14. Soundtoys EchoBoy
+        self.register_profile(PluginProfile(
+            plugin_name="EchoBoy",
+            category="effect",
+            is_native=False,
+            aliases=["EchoBoy", "Soundtoys EchoBoy", "EchoBoy.vst3"],
+            parameter_mappings={
+                PluginSemanticRole.DRY_WET: "Mix",
+                PluginSemanticRole.FEEDBACK: "Feedback",
+                PluginSemanticRole.TIME: "Echo1Time",
+                PluginSemanticRole.DRIVE: "Saturation",
+                PluginSemanticRole.CUTOFF: "HighCut",
+                PluginSemanticRole.VOLUME: "OutputGain",
+            },
+            semantic_aliases={
+                PluginSemanticRole.DRY_WET: ["mix"],
+                PluginSemanticRole.FEEDBACK: ["feedback"],
+                PluginSemanticRole.TIME: ["echo1time", "echo 1 time"],
+                PluginSemanticRole.DRIVE: ["saturation", "drive"],
+                PluginSemanticRole.CUTOFF: ["highcut", "high cut"],
+                PluginSemanticRole.VOLUME: ["outputgain", "output gain"],
+            }
+        ))
+
+        # 15. Xfer Records OTT
+        self.register_profile(PluginProfile(
+            plugin_name="OTT",
+            category="effect",
+            is_native=False,
+            aliases=["OTT", "Xfer OTT", "Xfer Records OTT", "OTT.vst3"],
+            parameter_mappings={
+                PluginSemanticRole.DEPTH: "Depth",
+                PluginSemanticRole.TIME: "Time",
+                PluginSemanticRole.VOLUME: "Out Gain",
+                PluginSemanticRole.THRESHOLD: "Thresh M",
+                PluginSemanticRole.DRIVE: "In Gain",
+            },
+            semantic_aliases={
+                PluginSemanticRole.DEPTH: ["depth"],
+                PluginSemanticRole.TIME: ["time"],
+                PluginSemanticRole.VOLUME: ["out gain", "output gain"],
+                PluginSemanticRole.THRESHOLD: ["thresh m", "threshold"],
+                PluginSemanticRole.DRIVE: ["in gain", "input gain"],
+            }
+        ))
+
+        # 16. Valhalla DSP ValhallaVintageVerb
+        self.register_profile(PluginProfile(
+            plugin_name="ValhallaVintageVerb",
+            category="effect",
+            is_native=False,
+            aliases=["ValhallaVintageVerb", "VintageVerb", "Valhalla Vintage Verb", "ValhallaVintageVerb.vst3"],
+            parameter_mappings={
+                PluginSemanticRole.DRY_WET: "Mix",
+                PluginSemanticRole.DECAY: "Decay",
+                PluginSemanticRole.TIME: "PreDelay",
+                PluginSemanticRole.ATTACK: "Attack",
+                PluginSemanticRole.COLOR: "ColorMode",
+                PluginSemanticRole.CUTOFF: "HighCut",
+            },
+            semantic_aliases={
+                PluginSemanticRole.DRY_WET: ["mix"],
+                PluginSemanticRole.DECAY: ["decay"],
+                PluginSemanticRole.TIME: ["predelay"],
+                PluginSemanticRole.ATTACK: ["attack"],
+                PluginSemanticRole.COLOR: ["colormode"],
+                PluginSemanticRole.CUTOFF: ["highcut", "high cut"],
             }
         ))
 
@@ -383,5 +604,24 @@ class PluginRegistry:
                 PluginSemanticRole.MACRO_6: "Macro 6",
                 PluginSemanticRole.MACRO_7: "Macro 7",
                 PluginSemanticRole.MACRO_8: "Macro 8",
+            }
+        ))
+
+        # 11. Fraction (Prototype Audio / Eraform)
+        self.register_profile(PluginProfile(
+            plugin_name="Fraction",
+            category="synth",
+            is_native=False,
+            aliases=["Fraction", "Fraction.vst3", "Prototype Audio Fraction"],
+            parameter_mappings={
+                PluginSemanticRole.VOLUME: "global volume",
+                PluginSemanticRole.CUTOFF: "global filter",
+                PluginSemanticRole.RESONANCE: "filter depth",
+                PluginSemanticRole.DRIVE: "saturation",
+                PluginSemanticRole.DRY_WET: "delay",
+                PluginSemanticRole.MACRO_1: "humanize",
+                PluginSemanticRole.MACRO_2: "vintage",
+                PluginSemanticRole.MACRO_3: "fractalize",
+                PluginSemanticRole.MACRO_4: "reverb",
             }
         ))

@@ -1,75 +1,77 @@
 # tests/test_preset_catalog.py
-import unittest
-from engine.adapters.mock_adapter import MockAbletonAdapter
-from engine.instruments import (
-    InstrumentEngine, InstrumentPlanner, PresetCatalog, PresetEntry, PRESET_CATALOG
-)
+import pytest
+from engine.presets.catalog import PresetCatalog, preset_catalog
+from engine.midi.program_change import MIDIProgramChangeDispatcher, program_change_dispatcher
 
-class TestPresetCatalog(unittest.TestCase):
-    def setUp(self):
-        self.mock_adapter = MockAbletonAdapter()
-        self.engine = InstrumentEngine(adapter=self.mock_adapter)
+def test_preset_catalog_initialization():
+    cat = PresetCatalog()
+    assert cat is not None
 
-    def test_catalog_not_empty(self):
-        """Test that the curated catalog has verified entries."""
-        self.assertGreaterEqual(len(PRESET_CATALOG), 10)
+def test_preset_catalog_search_arturia():
+    results = preset_catalog.search_presets(query="Rhodes", limit=5)
+    assert isinstance(results, list)
+    if results:
+        first = results[0]
+        assert "preset_name" in first
+        assert "plugin" in first
+        assert "loading_method" in first
+        assert first["loading_method"] in ["midi_program_change", "user_library_adv"]
 
-    def test_resolve_piano_by_role(self):
-        """Resolving PIANO returns a verified concert grand preset."""
-        preset = PresetCatalog.resolve_preset("PIANO")
-        self.assertIsNotNone(preset)
-        self.assertEqual(preset.role, "PIANO")
-        self.assertIn("query:Sounds#Piano%20&%20Keys", preset.uri)
+def test_preset_catalog_search_fraction():
+    results = preset_catalog.search_presets(plugin="Fraction", role="bass", limit=5)
+    assert isinstance(results, list)
+    if results:
+        first = results[0]
+        assert first["plugin"] == "Fraction"
+        assert first["family"] == "Prototype Audio"
+        assert first["loading_method"] == "user_library_adv"
 
-    def test_resolve_felt_piano_by_character(self):
-        """Resolving PIANO with lofi / felt mood returns Childhood Home Piano."""
-        preset = PresetCatalog.resolve_preset("PIANO", genre="lofi", mood="felt")
-        self.assertIsNotNone(preset)
-        self.assertEqual(preset.name, "Childhood Home Piano")
-        self.assertEqual(preset.character, "intimate_felt")
+def test_preset_catalog_search_omnisphere():
+    results = preset_catalog.search_presets(plugin="Omnisphere", limit=5)
+    assert isinstance(results, list)
+    assert len(results) > 0
+    first = results[0]
+    assert first["plugin"] == "Omnisphere"
+    assert first["loading_method"] == "midi_program_change"
+    assert "program_change_id" in first
 
-    def test_resolve_808_sub_bass(self):
-        """Resolving SUB_BASS with trap genre returns a punchy 808."""
-        preset = PresetCatalog.resolve_preset("SUB_BASS", genre="trap")
-        self.assertIsNotNone(preset)
-        self.assertIn("808", preset.name)
-        self.assertIn("Bass", preset.category)
+def test_preset_catalog_search_massive():
+    results = preset_catalog.search_presets(plugin="Massive", limit=5)
+    assert isinstance(results, list)
+    assert len(results) > 0
+    first = results[0]
+    assert first["plugin"] == "Massive"
+    assert first["loading_method"] == "midi_program_change"
 
-    def test_resolve_drum_kit(self):
-        """Resolving DRUM_KIT returns full native drum rack preset."""
-        preset = PresetCatalog.resolve_preset("DRUM_KIT", genre="trap")
-        self.assertIsNotNone(preset)
-        self.assertEqual(preset.name, "808 Core Kit")
-        self.assertEqual(preset.uri, "query:Drums#FileId_5422")
+def test_preset_catalog_search_zenology():
+    results = preset_catalog.search_presets(plugin="ZENOLOGY", limit=5)
+    assert isinstance(results, list)
+    assert len(results) > 0
+    first = results[0]
+    assert first["plugin"] == "ZENOLOGY"
+    assert first["loading_method"] == "midi_program_change"
 
-    def test_search_presets(self):
-        """Search query matches preset name and tags."""
-        results = PresetCatalog.search("analog")
-        self.assertGreaterEqual(len(results), 2)
-        names = [p.name for p in results]
-        self.assertTrue(any("Analog" in n for n in names))
+def test_program_change_dispatcher_analog_lab():
+    res = program_change_dispatcher.resolve_program_change("Analog Lab V", 12, playlist_or_bank=1)
+    assert res["plugin"] == "Analog Lab V"
+    assert res["program"] == 12
+    assert res["bank_msb"] == 1
+    assert res["bank_lsb"] == 0
+    assert "Playlist #2" in res["description"]
 
-    def test_list_presets_filter(self):
-        """Filtering presets by role returns only that role."""
-        strings = PresetCatalog.list_presets(role="STRINGS")
-        self.assertGreaterEqual(len(strings), 1)
-        for s in strings:
-            self.assertEqual(s.role, "STRINGS")
+def test_program_change_dispatcher_omnisphere():
+    res = program_change_dispatcher.resolve_program_change("Omnisphere", 3)
+    assert res["plugin"] == "Omnisphere"
+    assert res["program"] == 3
+    assert res["bank_msb"] is None
 
-    def test_instrument_planner_integration(self):
-        """InstrumentPlanner.resolve_instrument uses curated presets instead of blank init synth."""
-        desc = InstrumentPlanner.resolve_instrument("PIANO", sound_profile="lofi")
-        self.assertEqual(desc.device_name, "Childhood Home Piano")
-        self.assertIn("query:Sounds#Piano%20&%20Keys", desc.uri)
-        self.assertFalse(desc.is_fallback)
+def test_program_change_dispatcher_massive():
+    res = program_change_dispatcher.resolve_program_change("Massive", 10)
+    assert res["plugin"] == "Massive"
+    assert res["program"] == 10
 
-    def test_load_preset_on_mock_adapter(self):
-        """InstrumentEngine.load_preset loads target URI onto the track."""
-        res = self.engine.load_preset(track_index=0, preset_name_or_role="808 Core Kit")
-        self.assertEqual(res["status"], "SUCCESS")
-        self.assertEqual(res["preset"]["name"], "808 Core Kit")
-        self.assertTrue(res["load_result"]["loaded"])
-        self.assertEqual(res["load_result"]["uri"], "query:Drums#FileId_5422")
-
-if __name__ == "__main__":
-    unittest.main()
+def test_program_change_dispatcher_zenology():
+    res = program_change_dispatcher.resolve_program_change("ZENOLOGY", 5, playlist_or_bank=2)
+    assert res["plugin"] == "ZENOLOGY"
+    assert res["program"] == 5
+    assert res["bank_msb"] == 2

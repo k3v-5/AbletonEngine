@@ -6288,6 +6288,7 @@ from engine.instruments.plugins import (
     PluginSemanticRole,
     PluginRegistry
 )
+from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
 from engine.instruments.library.crawler import LibraryCrawler
 from engine.vocal import (
     VocalStyle,
@@ -6301,6 +6302,8 @@ from engine.sound.vital.file_manager import VitalPresetManager
 from engine.audio.deconstruction.separator import AudioStemSeparator
 from engine.audio.deconstruction.transcriber import ReferenceTranscriber
 from engine.audio.deconstruction.reconstructor import ReferenceReconstructor
+from engine.presets.catalog import PresetCatalog
+from engine.midi.program_change import MIDIProgramChangeDispatcher
 
 _vst_normalizer = VSTParameterNormalizer()
 _library_crawler = LibraryCrawler()
@@ -6310,16 +6313,20 @@ _vital_manager = VitalPresetManager()
 _audio_separator = AudioStemSeparator()
 _ref_transcriber = ReferenceTranscriber(separator=_audio_separator)
 _ref_reconstructor = ReferenceReconstructor()
+_preset_catalog = PresetCatalog()
+_midi_pc_dispatcher = MIDIProgramChangeDispatcher()
 
 
 @mcp.tool()
 def plugin_inspect_parameters(
     track: Union[int, str],
-    device: Union[int, str] = 0
+    device: Union[int, str] = 0,
+    show_all: bool = False
 ) -> dict:
     """
     Inspecciona y clasifica semánticamente los parámetros de un dispositivo VST3 o nativo.
-    Devuelve los parámetros normalizados [0.0, 1.0] mapeados a roles como CUTOFF, DRIVE, MACRO_1..8.
+    Por defecto (show_all=False), devuelve los controles esenciales más importantes para decisiones musicales directas.
+    Si show_all=True, expone la totalidad de controles avanzados mapeados en el dispositivo.
     """
     conn = get_ableton_connection()
     t_idx, t_name, d_idx, d_name = _server_resolve_track_and_device(conn, track, device)
@@ -6332,27 +6339,78 @@ def plugin_inspect_parameters(
     parameters = dev_info.get("parameters", [])
     
     semantic_summary = {}
-    for role in [
-        PluginSemanticRole.CUTOFF, PluginSemanticRole.RESONANCE,
-        PluginSemanticRole.DRIVE, PluginSemanticRole.DRY_WET,
-        PluginSemanticRole.VOLUME, PluginSemanticRole.FATNESS,
-        PluginSemanticRole.COLOR, PluginSemanticRole.LIMITER_CEILING,
-        PluginSemanticRole.ATTACK, PluginSemanticRole.DECAY,
-        PluginSemanticRole.MACRO_1, PluginSemanticRole.MACRO_2,
-        PluginSemanticRole.MACRO_3, PluginSemanticRole.MACRO_4
-    ]:
+    for role in PluginSemanticRole:
         res = _vst_normalizer.resolve_parameter(device_name, parameters, role)
         if res.found:
             semantic_summary[role.value] = res.to_dict()
+
+    # Deep AI functional inspection via DeviceParameterSupervisor
+    ai_guide = DeviceParameterSupervisor.inspect_for_ai(conn, t_idx, d_idx if d_idx is not None else 0)
+    all_functional_controls = ai_guide.get("functional_controls", [])
+
+    # Curate essential vs full controls for the AI
+    ESSENTIAL_ROLES = {
+        "MACRO_1", "MACRO_2", "MACRO_3", "MACRO_4", "MACRO_5", "MACRO_6", "MACRO_7", "MACRO_8",
+        "FILTER_CUTOFF", "FILTER_RESONANCE", "DRIVE", "MASTER_VOLUME", "VOLUME", "MIX", "DRY_WET",
+        "AMP_ATTACK", "AMP_RELEASE", "COMP_DEPTH", "LIMITER_GAIN", "DELAY_FEEDBACK", "CHORUS_MIX",
+        "EQ_HPF_FREQ", "SUB_OSC", "FM_DEPTH", "OSC_A_LEVEL", "OSC_B_LEVEL", "OSC_A_WT_POS", "OSC_A_SEMI",
+        "BRIGHTNESS", "WARMTH", "MOVEMENT", "ATTACK"
+    }
+
+    if not show_all and len(all_functional_controls) > 12:
+        essential_controls = [c for c in all_functional_controls if c.get("role") in ESSENTIAL_ROLES]
+        if len(essential_controls) < 6:
+            essential_controls = all_functional_controls[:12]
+        curated_controls = essential_controls
+        has_more = len(all_functional_controls) > len(essential_controls)
+        more_count = len(all_functional_controls) - len(essential_controls)
+    else:
+        curated_controls = all_functional_controls
+        has_more = False
+        more_count = 0
+
+    # Filter parameter list to match the exposed controls
+    curated_param_names = {c.get("daw_parameter", "").lower() for c in curated_controls if c.get("daw_parameter")}
+    if curated_param_names:
+        exposed_parameters = [p for p in parameters if p.get("name", "").lower() in curated_param_names or p.get("name") == "Device On"]
+    else:
+        exposed_parameters = parameters
+
+    instructions = (
+        "El motor expone los controles semánticos principales mapeados para este dispositivo. "
+        "Usa plugin_set_semantic_parameter(track, semantic_role, value) para configurarlos. "
+    )
+    if has_more:
+        instructions += (
+            f"Existen {more_count} controles mapeados adicionales. Para ver la lista completa de todos los parámetros avanzados, "
+            "llama a plugin_inspect_parameters(track, device, show_all=True). "
+        )
+    if "analog lab" in device_name.lower():
+        instructions += (
+            "En Analog Lab V, primero selecciona el instrumento/preset deseado (preset_search / preset_select_for_track) "
+            "y luego modifica los parámetros de los 10 botones/macros según sea necesario."
+        )
+    elif any(k in device_name.lower() for k in ["omnisphere", "zenology", "fraction"]):
+        instructions += (
+            "Para este instrumento, escoge un preset .adv cargado por el usuario en la carpeta de presets "
+            "(preset_search / preset_select_for_track) y posteriormente ajusta los controles disponibles expuestos."
+        )
 
     return {
         "track_index": t_idx,
         "track_name": t_name,
         "device_index": d_idx,
         "device_name": device_name,
-        "parameter_count": len(parameters),
+        "parameter_count": len(exposed_parameters),
+        "total_raw_parameters_in_daw": len(parameters),
+        "total_mapped_controls": len(all_functional_controls),
+        "has_more_controls": has_more,
+        "more_controls_count": more_count,
         "semantic_mappings": semantic_summary,
-        "parameters": parameters
+        "functional_sections": ai_guide.get("active_sections", []),
+        "curated_controls_for_ai": curated_controls,
+        "ai_usage_instructions": instructions,
+        "parameters": exposed_parameters
     }
 
 
@@ -6379,11 +6437,31 @@ def plugin_set_semantic_parameter(
     
     res = _vst_normalizer.resolve_parameter(device_name, parameters, semantic_role)
     if not res.found:
+        # Fallback to DeviceParameterSupervisor semantic tuning
+        sup_res = DeviceParameterSupervisor.apply_semantic_tuning(conn, t_idx, d_idx if d_idx is not None else 0, device_name, {semantic_role: value})
+        if sup_res.get("applied"):
+            DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, d_idx if d_idx is not None else 0))
+            return {
+                "status": "success",
+                "track_index": t_idx,
+                "device_name": device_name,
+                "semantic_role": semantic_role,
+                "applied_via": "DeviceParameterSupervisor",
+                "details": sup_res
+            }
         raise ValueError(f"No se pudo resolver el rol semántico '{semantic_role}' en el dispositivo '{device_name}'")
 
     target_raw_value = value
     if 0.0 <= value <= 1.0 and (res.min_value != 0.0 or res.max_value != 1.0):
         target_raw_value = _vst_normalizer.denormalize_value(value, res.min_value, res.max_value)
+
+    # Auto-ensure device is On
+    conn.send_command("set_device_parameter", {
+        "track_index": t_idx,
+        "device_index": d_idx if d_idx is not None else 0,
+        "parameter": "Device On",
+        "value": 1.0
+    })
 
     set_res = conn.send_command("set_device_parameter", {
         "track_index": t_idx,
@@ -6391,6 +6469,8 @@ def plugin_set_semantic_parameter(
         "parameter": res.parameter_index,
         "value": target_raw_value
     })
+
+    DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, d_idx if d_idx is not None else 0))
     
     return {
         "status": "success",
@@ -8418,30 +8498,95 @@ def sound_load_role_instrument(
     track_index: int,
     role: str = "KEYS",
     instrument_id: str = "vst3_analog_lab",
-    style: str = "neo_soul_trap"
+    style: str = "neo_soul_trap",
+    custom_uri: Optional[str] = None
 ) -> dict:
     """
-    Phase 3: Loads a premier VST3 plugin (Analog Lab V, Serum, Kontakt 8) or native instrument
-    tailored to a musical role onto the specified track.
+    Phase 3: Loads a premier VST3 plugin (Analog Lab V, Stage-73 V2, Vital, Serum 2, Kontakt 8)
+    or native instrument tailored to a musical role onto the specified track.
     """
     try:
         from engine.instruments.installed_scanner import InstalledPluginScanner
         conn = get_ableton_connection()
         scanner = InstalledPluginScanner()
-        plug = scanner.recommend_for_role(role=role, style=style)
-        if conn:
+        target_uri = None
+        plug_dict = {}
+
+        if custom_uri:
+            target_uri = custom_uri
+            plug_dict = {"uri": custom_uri, "name": custom_uri.split(":")[-1]}
+        elif instrument_id and instrument_id in scanner.scan():
+            plug = scanner.scan()[instrument_id]
+            target_uri = plug.uri
+            plug_dict = plug.to_dict()
+        else:
+            plug = scanner.recommend_for_role(role=role, style=style)
+            target_uri = plug.uri
+            plug_dict = plug.to_dict()
+
+        if conn and target_uri:
             conn.send_command("load_browser_item", {
                 "track_index": track_index,
-                "item_uri": plug.uri
+                "item_uri": target_uri
             })
         return {
             "status": "SUCCESS",
             "track_index": track_index,
             "role": role,
-            "instrument": plug.to_dict()
+            "instrument": plug_dict,
+            "loaded_uri": target_uri
         }
     except Exception as e:
         logger.error(f"Error in sound_load_role_instrument: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_vst_effect_chain(
+    track_index: int,
+    role: str = "keys"
+) -> dict:
+    """
+    Loads authentic physical VST effect chains onto the track:
+    - Keys: EQ Eight (low cut 110Hz) + ValhallaVintageVerb (lush vintage hall)
+    - Bass: FabFilter Pro-Q 4 (or EQ Eight) + Saturator (analog tube harmonics)
+    - Lead: FabFilter Pro-Q 4 + ValhallaDelay (classic echo modulation)
+    - Vocals: EQ Eight + ValhallaVintageVerb
+    - Drums: EQ Eight + Drum Buss
+    - Master: FabFilter Pro-Q 4 + Cradle The God Particle
+    """
+    try:
+        conn = get_ableton_connection()
+        r = role.lower().strip()
+        loaded = []
+        if conn:
+            if "key" in r or "chord" in r or "piano" in r:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:AudioFx#EQ%20Eight"})
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb"})
+                loaded = ["EQ Eight", "ValhallaVintageVerb"]
+            elif "bass" in r or "808" in r or "sub" in r:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:FabFilter:Pro-Q%204"})
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:AudioFx#Saturator"})
+                loaded = ["FabFilter Pro-Q 4", "Saturator"]
+            elif "lead" in r or "synth" in r:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:FabFilter:Pro-Q%204"})
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaDelay"})
+                loaded = ["FabFilter Pro-Q 4", "ValhallaDelay"]
+            elif "vox" in r or "vocal" in r or "chop" in r:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:AudioFx#EQ%20Eight"})
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb"})
+                loaded = ["EQ Eight", "ValhallaVintageVerb"]
+            elif "drum" in r or "kit" in r:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:AudioFx#EQ%20Eight"})
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:AudioFx#Drum%20Buss"})
+                loaded = ["EQ Eight", "Drum Buss"]
+            elif "master" in r:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:FabFilter:Pro-Q%204"})
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": "query:Plugins#VST3:Cradle:The%20God%20Particle"})
+                loaded = ["FabFilter Pro-Q 4", "The God Particle"]
+        return {"status": "SUCCESS", "track_index": track_index, "role": role, "loaded_effects": loaded}
+    except Exception as e:
+        logger.error(f"Error in apply_vst_effect_chain: {e}")
         return {"status": "error", "message": str(e)}
 
 
@@ -8763,6 +8908,132 @@ def mix_apply_multitrack_sidechain_ducking() -> dict:
         return matrix
     except Exception as e:
         logger.error(f"Error in mix_apply_multitrack_sidechain_ducking: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def preset_search(
+    query: str = "",
+    role: str = "",
+    plugin: str = "",
+    limit: int = 15
+) -> dict:
+    """
+    Search presets across 14,105 Arturia patches (Analog Lab V, Pigments, Jup-8, etc.),
+    Prototype Audio Fraction expansions, Omnisphere, Massive, ZENOLOGY, and Ableton User Library.
+
+    Args:
+        query: Free text search keyword (e.g. 'Rhodes', '808', 'Reese', 'Warm Pad', 'Lead', 'Granular')
+        role: Musical role filter (e.g. 'bass', 'lead', 'pad', 'keys', 'organ', 'strings', 'fx', 'drums')
+        plugin: Target plugin name filter (e.g. 'Analog Lab V', 'Fraction', 'Pigments', 'Fragments', 'Motions', 'Omnisphere', 'Massive', 'ZENOLOGY')
+        limit: Maximum number of presets to return (default 15)
+
+    Returns:
+        Structured list of matching presets with loading method (MIDI Program Change vs User Library .adv)
+        and exact selection parameters.
+    """
+    try:
+        from engine.presets.catalog import preset_catalog
+        results = preset_catalog.search_presets(
+            query=query,
+            role=role if role else None,
+            plugin=plugin if plugin else None,
+            limit=limit
+        )
+        return {
+            "status": "success",
+            "count": len(results),
+            "presets": results,
+            "instruction_for_ai": (
+                "Para sintes con 'midi_program_change' (Analog Lab, Omnisphere, Massive, ZENOLOGY): "
+                "usa preset_select_for_track para enviar el Program Change correspondiente. "
+                "Para plugins con 'user_library_adv' (Fraction, Efx FRAGMENTS, Efx MOTIONS, etc.): "
+                "carga el archivo .adv de la User Library con preset_select_for_track o load_instrument_or_effect."
+            )
+        }
+    except Exception as e:
+        logger.error(f"Error in preset_search: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def preset_select_for_track(
+    track_index: int,
+    preset_name: str,
+    plugin: str = "",
+    clip_index: int = 0,
+    program_id: int = None
+) -> dict:
+    """
+    Selects and applies a preset to a track:
+    - For MIDI synthesizers (Analog Lab V, Omnisphere, Massive, ZENOLOGY):
+      Configures MIDI Program Change and Bank parameters for the track/clip.
+    - For User Library plugins (Fraction, Efx FRAGMENTS, Efx MOTIONS, etc.):
+      Loads the .adv / .adg device preset onto the track via Ableton's browser.
+
+    Args:
+        track_index: Ableton track index (0-based)
+        preset_name: Name of the preset to select
+        plugin: Plugin name (e.g. 'Analog Lab V', 'Fraction', 'Omnisphere', 'Massive', 'ZENOLOGY')
+        clip_index: Clip slot index to associate with the program change (default 0)
+        program_id: Optional explicit Program Change ID (0-127)
+    """
+    try:
+        from engine.presets.catalog import preset_catalog
+        from engine.midi.program_change import program_change_dispatcher
+
+        candidates = preset_catalog.search_presets(query=preset_name, plugin=plugin, limit=5)
+        target = None
+        for c in candidates:
+            if c.get("preset_name", "").lower() == preset_name.lower():
+                target = c
+                break
+        if not target and candidates:
+            target = candidates[0]
+
+        target_plugin = plugin or (target.get("plugin") if target else "Unknown")
+
+        if target and target.get("loading_method") == "user_library_adv" and target.get("browser_uri"):
+            conn = get_ableton_connection()
+            uri = target["browser_uri"]
+            res = conn.send_command("load_instrument_or_effect", {"track_index": track_index, "uri": uri})
+            return {
+                "status": "success",
+                "track_index": track_index,
+                "plugin": target_plugin,
+                "preset_name": preset_name,
+                "loading_method": "user_library_adv",
+                "browser_uri": uri,
+                "result": res
+            }
+
+        pc_id = program_id
+        if pc_id is None and target and target.get("program_change_id") is not None:
+            pc_id = target["program_change_id"]
+        if pc_id is None:
+            pc_id = 0
+
+        pc_config = program_change_dispatcher.resolve_program_change(
+            target_plugin,
+            pc_id,
+            playlist_or_bank=target.get("bank") if target else None
+        )
+
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "plugin": target_plugin,
+            "preset_name": preset_name,
+            "loading_method": "midi_program_change",
+            "program_change_config": pc_config,
+            "message": (
+                f"Preset '{preset_name}' asignado vía {pc_config['description']}. "
+                "Los clips MIDI disparados en esta pista conmutarán el sonido instantáneamente sin latencia."
+            )
+        }
+
+    except Exception as e:
+        logger.error(f"Error in preset_select_for_track: {e}")
         return {"status": "error", "message": str(e)}
 
 

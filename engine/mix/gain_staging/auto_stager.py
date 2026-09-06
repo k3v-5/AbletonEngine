@@ -24,18 +24,18 @@ class TrackGainCalibration:
 class AutoGainStagingEngine:
     """Calculates and applies mathematically coherent gain staging across all session tracks."""
 
-    # Relative target peak levels in dBFS for studio gain staging
+    # Studio headroom hierarchy: ensures summing 8-16 tracks leaves at least -6.0 dBFS on Master
     HIERARCHY_TARGETS = {
-        "kick": -6.0,          # The dynamic anchor of modern music
-        "drums": -7.0,         # Drum kit / snare / hats
-        "snare": -7.0,         # Sits just under kick
-        "bass": -8.5,          # 808 / Sub-bass
-        "lead": -8.0,          # Lead vocal or synth hook
-        "piano": -10.5,        # Harmonic keys / rhythm guitar
-        "chords": -10.5,
-        "break": -9.0,         # Secondary breakbeat layer
-        "foley": -18.0,        # Organic textures sit in the background
-        "fx": -14.0            # Ear candy sweeps
+        "kick": -12.0,         # The dynamic anchor of modern music
+        "drums": -14.0,        # Drum kit / snare / hats
+        "snare": -13.5,        # Sits just under kick
+        "bass": -14.0,         # 808 / Sub-bass
+        "lead": -15.0,         # Lead vocal or synth hook
+        "piano": -18.0,        # Harmonic keys / rhythm guitar
+        "chords": -18.0,
+        "break": -15.0,        # Secondary breakbeat layer
+        "foley": -24.0,        # Organic textures sit deep in the background
+        "fx": -20.0            # Ear candy sweeps
     }
 
     @classmethod
@@ -61,9 +61,12 @@ class AutoGainStagingEngine:
 
     @classmethod
     def db_to_linear(cls, db_val: float) -> float:
-        """Converts dB to Live fader linear gain (approx. 0 dB = 0.85, -6 dB = 0.70, etc.)."""
-        # Live 12 fader curve: 0 dBFS ≈ 0.85 in normalized range
-        return max(0.01, min(1.0, round(0.85 * math.pow(10.0, db_val / 20.0), 4)))
+        """Converts dB to Live 12 fader linear gain using audio-tapered calibration (0 dB ≈ 0.85)."""
+        if db_val <= -70.0:
+            return 0.0
+        # Live 12 fader curve: 0 dBFS ≈ 0.85, log-tapered
+        val = 0.85 * math.pow(10.0, db_val / 40.0)
+        return max(0.01, min(1.0, round(val, 4)))
 
     @classmethod
     def calculate_session_calibration(

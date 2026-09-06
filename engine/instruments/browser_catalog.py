@@ -47,6 +47,15 @@ class SoundSourceOption:
 CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     "KEYS": [
         SoundSourceOption(
+            id="vst3_stage_73",
+            name="Arturia Stage-73 V2",
+            role="KEYS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Stage-73%20V2",
+            vendor="Arturia",
+            description="Authentic physical modeling of the Fender Rhodes Stage 73 electric piano.",
+        ),
+        SoundSourceOption(
             id="vst3_analog_lab",
             name="Arturia Analog Lab V",
             role="KEYS",
@@ -95,10 +104,10 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
         ),
         SoundSourceOption(
             id="vst3_serum_bass",
-            name="Xfer Records Serum Sub",
+            name="Xfer Records Serum 2 Sub",
             role="BASS",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Xfer%20Records:Serum",
+            uri="query:Plugins#VST3:Xfer%20Records:Serum%202",
             vendor="Xfer Records",
             description="Clean analog wavetable sub-bass with direct drive saturation.",
         ),
@@ -190,6 +199,33 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     ],
     "FX": [
         SoundSourceOption(
+            id="vst3_pro_q_4",
+            name="FabFilter Pro-Q 4",
+            role="FX",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:Plugins#VST3:FabFilter:Pro-Q%204",
+            vendor="FabFilter",
+            description="Precision surgical and dynamic equalizer.",
+        ),
+        SoundSourceOption(
+            id="vst3_pro_c_3",
+            name="FabFilter Pro-C 3",
+            role="FX",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:Plugins#VST3:FabFilter:Pro-C%203",
+            vendor="FabFilter",
+            description="High-definition versatile stereo bus compressor.",
+        ),
+        SoundSourceOption(
+            id="vst3_valhalla_vintage_verb",
+            name="ValhallaVintageVerb",
+            role="FX",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            vendor="Valhalla DSP",
+            description="World-class algorithmic space and lush vintage hall reverb.",
+        ),
+        SoundSourceOption(
             id="vst3_shaperbox",
             name="Cableguys ShaperBox 3",
             role="FX",
@@ -215,6 +251,26 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             uri="query:Plugins#VST3:Valhalla%20DSP:ValhallaDelay",
             vendor="Valhalla DSP",
             description="Classic tape, BBD, and digital delay with pitch modulation.",
+        ),
+    ],
+    "MASTER": [
+        SoundSourceOption(
+            id="vst3_god_particle",
+            name="Cradle The God Particle",
+            role="MASTER",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:Plugins#VST3:Cradle:The%20God%20Particle",
+            vendor="Cradle",
+            description="Jaycen Joshua's signature master dynamics and saturation engine.",
+        ),
+        SoundSourceOption(
+            id="vst3_pro_l_2",
+            name="FabFilter Pro-L 2",
+            role="MASTER",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:Plugins#VST3:FabFilter:Pro-L%202",
+            vendor="FabFilter",
+            description="True peak brickwall limiter compliant with ITU-R BS.1770-5.",
         ),
     ],
 }

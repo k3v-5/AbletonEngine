@@ -59,6 +59,38 @@ class InstalledPluginScanner:
 
     # Semantic classification mapping based on plugin names / vendors
     SIGNATURE_MAP = {
+        "vital": {
+            "vendor": "Vital Audio",
+            "primary_role": "BASS",
+            "supported_roles": ["BASS", "LEAD", "PLUCK", "VOCALS", "FX"],
+            "description": "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Vital%20Audio:Vital",
+        },
+        "stage-73": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "PIANO", "RHODES"],
+            "description": "Authentic physical modeling of the Fender Rhodes Stage 73 electric piano.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Stage-73%20V2",
+        },
+        "wurli": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "PIANO"],
+            "description": "Physical modeling of the vintage Wurlitzer 200A electric piano.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Wurli%20V3",
+        },
+        "piano v": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "PIANO"],
+            "description": "Physical modeling grand and upright piano suite.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Piano%20V3",
+        },
         # Keyboards / Pianos / Rhodes
         "analog lab": {
             "vendor": "Arturia",
@@ -66,6 +98,7 @@ class InstalledPluginScanner:
             "supported_roles": ["KEYS", "LEAD", "PAD", "BASS"],
             "description": "Legendary vintage keyboards, Rhodes, Wurlitzers, and analog polysynths.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Analog%20Lab%20V",
         },
         "omnisphere": {
             "vendor": "Spectrasonics",
@@ -73,6 +106,7 @@ class InstalledPluginScanner:
             "supported_roles": ["KEYS", "PAD", "LEAD", "TEXTURE", "ACOUSTIC"],
             "description": "Industry powerhouse with massive acoustic/hybrid keys, pads, and cinematic textures.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Spectrasonics:Omnisphere",
         },
         "keyscape": {
             "vendor": "Spectrasonics",
@@ -87,6 +121,7 @@ class InstalledPluginScanner:
             "supported_roles": ["KEYS", "SAMPLER", "ORCHESTRAL", "ACOUSTIC", "BASS"],
             "description": "World-standard sampler hosting realistic acoustic instruments, pianos, and libraries.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Native%20Instruments:Kontakt%208",
         },
         "fm8": {
             "vendor": "Native Instruments",
@@ -102,6 +137,7 @@ class InstalledPluginScanner:
             "supported_roles": ["BASS", "LEAD", "PLUCK", "CHORDS"],
             "description": "Elite wavetable synthesizer for earth-shaking 808s, glide basses, and sharp leads.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Xfer%20Records:Serum%202",
         },
         "massive x": {
             "vendor": "Native Instruments",
@@ -109,6 +145,7 @@ class InstalledPluginScanner:
             "supported_roles": ["BASS", "LEAD", "TEXTURE"],
             "description": "Next-gen subtractive wavetable monster with complex modulation and analog punch.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Native%20Instruments:Massive%20X",
         },
         "massive": {
             "vendor": "Native Instruments",
@@ -145,6 +182,7 @@ class InstalledPluginScanner:
             "supported_roles": ["VOCALS", "PITCH_CORRECTION"],
             "description": "Industry-standard Auto-Tune pitch correction and vocal formatting.",
             "is_instrument": False,
+            "live_uri": "query:Plugins#VST3:Antares:Auto-Tune%20Pro",
         },
         # Drums
         "bloom drum": {
@@ -308,7 +346,7 @@ class InstalledPluginScanner:
                 desc = meta["description"]
                 is_inst = meta["is_instrument"]
 
-                uri = f"query:Plugins#{category.value.upper()}:{vendor}:{clean_name}"
+                uri = meta.get("live_uri") or f"query:Plugins#{category.value.upper()}:{vendor}:{clean_name}"
 
                 plugin = ScannedPlugin(
                     id=plug_id,
@@ -341,6 +379,61 @@ class InstalledPluginScanner:
                     is_instrument=False,
                 )
 
+    def scan_live_session(self, conn: Any = None) -> Dict[str, ScannedPlugin]:
+        """Queries the live connected Ableton instance to discover and register all installed VST3s."""
+        self.scan()
+        if conn is None:
+            return self._cache
+
+        try:
+            res = conn.send_command("get_browser_items_at_path", {"path": "plugins/vst3"})
+            vendors = res.get("result", {}).get("items", []) if isinstance(res, dict) else []
+            for v in vendors:
+                v_name = v.get("name")
+                if v.get("is_folder") and v_name:
+                    v_res = conn.send_command("get_browser_items_at_path", {"path": f"plugins/vst3/{v_name}"})
+                    items = v_res.get("result", {}).get("items", []) if isinstance(v_res, dict) else []
+                    for it in items:
+                        p_name = it.get("name")
+                        p_uri = it.get("uri")
+                        if not p_name or not p_uri:
+                            continue
+                        low_name = p_name.lower()
+                        role = "FX"
+                        is_inst = False
+                        if any(w in low_name for w in ["vital", "serum", "bass", "sub", "cyclop"]):
+                            role = "BASS"
+                            is_inst = True
+                        elif any(w in low_name for w in ["lab", "stage", "piano", "wurli", "clav", "organ", "b-3", "rhodes", "kontakt", "omnisphere"]):
+                            role = "KEYS"
+                            is_inst = True
+                        elif any(w in low_name for w in ["lead", "synth", "synplant", "zenology", "pigments", "massive", "fm8", "modular"]):
+                            role = "LEAD"
+                            is_inst = True
+                        elif any(w in low_name for w in ["vocal", "auto-tune", "tune", "vox"]):
+                            role = "VOCALS"
+                            is_inst = True
+                        elif any(w in low_name for w in ["god particle", "limiter", "pro-l"]):
+                            role = "MASTER"
+                            is_inst = False
+
+                        plug_id = f"live_vst3_{v_name.lower()}_{low_name.replace(' ', '_')}"
+                        self._cache[plug_id] = ScannedPlugin(
+                            id=plug_id,
+                            name=f"{v_name} {p_name}",
+                            vendor=v_name,
+                            path=f"Live/VST3/{v_name}/{p_name}",
+                            category=PluginCategory.VST3,
+                            primary_role=role,
+                            supported_roles=[role, "FX"],
+                            description=f"Host-installed {v_name} {p_name} in Ableton Live.",
+                            uri=p_uri,
+                            is_instrument=is_inst
+                        )
+        except Exception:
+            pass
+        return self._cache
+
     def get_plugins_for_role(self, role: str) -> List[ScannedPlugin]:
         """Returns all plugins suitable for a specific musical role."""
         self.scan()
@@ -349,7 +442,7 @@ class InstalledPluginScanner:
         for plug in self._cache.values():
             if role_upper == plug.primary_role or role_upper in plug.supported_roles:
                 matches.append(plug)
-        
+
         matches.sort(key=lambda p: (0 if p.category == PluginCategory.VST3 else 1, p.name))
         return matches
 
@@ -381,23 +474,106 @@ class InstalledPluginScanner:
 
         if role_upper == "KEYS":
             for c in candidates:
-                if "analog lab" in c.name.lower() or "keyscape" in c.name.lower():
+                if "stage-73" in c.name.lower() or "analog lab" in c.name.lower() or "keyscape" in c.name.lower() or "kontakt" in c.name.lower():
                     return c
         elif role_upper == "BASS":
             for c in candidates:
-                if "serum" in c.name.lower() or "bloom bass" in c.name.lower():
+                if "vital" in c.name.lower() or "serum" in c.name.lower() or "bloom bass" in c.name.lower():
                     return c
         elif role_upper == "LEAD":
             for c in candidates:
-                if "serum" in c.name.lower() or "analog lab" in c.name.lower():
+                if "analog lab" in c.name.lower() or "vital" in c.name.lower() or "serum" in c.name.lower():
                     return c
         elif role_upper == "VOCALS":
             for c in candidates:
-                if "bloom vocal" in c.name.lower():
+                if "vital" in c.name.lower() or "bloom vocal" in c.name.lower() or "auto-tune" in c.name.lower():
                     return c
         elif role_upper == "DRUMS":
             for c in candidates:
-                if "drum_rack" in c.id:
+                if "drum_rack" in c.id or "808" in c.name.lower():
                     return c
 
         return candidates[0] if candidates else self.NATIVE_FALLBACKS[0]
+
+    @classmethod
+    def verify_and_fallback(
+        cls,
+        conn: Any,
+        track_index: int,
+        role: str,
+        expected_plugin_name: str,
+        known_unhealthy: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Verifies that a loaded instrument is active and healthy in Live.
+        If the plugin failed to open, threw an error, or is listed in known_unhealthy,
+        the motor automatically fails over to the next best working sound source.
+        """
+        unhealthy_set = set(k.lower() for k in (known_unhealthy or ["stage-73", "stage-73 v2"]))
+        
+        # Query Live track devices
+        devices = []
+        if conn and hasattr(conn, "send_command"):
+            t_info = conn.send_command("get_track_info", {"track_index": track_index})
+            devices = t_info.get("result", {}).get("devices", [])
+
+        is_failed = False
+        failure_reason = ""
+
+        # Check if expected plugin is in known unhealthy list
+        if any(bad in expected_plugin_name.lower() for bad in unhealthy_set):
+            is_failed = True
+            failure_reason = f"Plugin '{expected_plugin_name}' is known to require host license activation or failed to open."
+
+        # Check if device is missing or uninstantiated
+        if not devices:
+            is_failed = True
+            failure_reason = f"No devices present on track {track_index}."
+
+        if not is_failed:
+            return {
+                "status": "HEALTHY",
+                "track_index": track_index,
+                "plugin_name": expected_plugin_name,
+                "verified": True
+            }
+
+        # Failure detected: Perform autonomous failover
+        scanner = cls()
+        candidates = scanner.get_plugins_for_role(role)
+        fallback = None
+        for c in candidates:
+            if not any(bad in c.name.lower() for bad in unhealthy_set) and c.uri:
+                fallback = c
+                break
+
+        if not fallback:
+            fallback = ScannedPlugin(
+                id="native_drift",
+                name="Drift (Native)",
+                vendor="Ableton",
+                path="",
+                category=PluginCategory.NATIVE,
+                primary_role=role.upper(),
+                supported_roles=[role.upper()],
+                description="Built-in Ableton synthesizer (100% reliable)",
+                uri="query:synths#Drift",
+                is_instrument=True
+            )
+
+        load_res = None
+        if conn and hasattr(conn, "send_command") and fallback.uri:
+            load_res = conn.send_command("load_browser_item", {
+                "track_index": track_index,
+                "item_uri": fallback.uri
+            })
+
+        return {
+            "status": "FAILOVER_EXECUTED",
+            "track_index": track_index,
+            "failed_plugin": expected_plugin_name,
+            "failure_reason": failure_reason,
+            "fallback_selected": fallback.name,
+            "fallback_uri": fallback.uri,
+            "load_result": load_res
+        }

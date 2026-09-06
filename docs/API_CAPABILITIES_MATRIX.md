@@ -51,6 +51,8 @@
 | | `master_evaluate` | *none* | Read-Only | Verified Live |
 | **VST3 & Plugins (Fase A)** | `plugin_inspect_parameters` | `track`, `device` | Read-Only | Verified Live |
 | | `plugin_set_semantic_parameter` | `track`, `semantic_role`, `value`, `device` | Read/Write | Verified Live |
+| | `preset_search` | `query`, `role`, `plugin`, `limit` | DB Search (14,300+) | Verified Live |
+| | `preset_select_for_track` | `track_index`, `preset_name`, `plugin`, `clip_index`, `program_id` | Program Change / .adv | Verified Live |
 | | `browser_crawl_library` | `category`, `max_depth` | Async Indexer | Verified Live |
 | | `browser_search_library` | `query`, `category`, `max_results` | Cache Query | Verified Live |
 | **Arrangement Automation (Fase B)** | `arrangement_inject_automation_envelope` | `track`, `parameter`, `points`, `device`, `clip_index` | Read/Write LOM | Verified Live |

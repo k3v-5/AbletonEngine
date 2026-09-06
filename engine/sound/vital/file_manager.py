@@ -170,7 +170,9 @@ class VitalPresetManager:
         Saves a synthesized preset to both engine library and user Vital folder.
         Returns dictionary with file paths and preset name.
         """
-        if not filename:
+        if filename is not None:
+            filename = str(filename.name if hasattr(filename, "name") else filename)
+        else:
             clean_name = "".join(c for c in spec.preset_name if c.isalnum() or c in (" ", "_", "-")).strip()
             filename = f"{clean_name}.vital"
         if not filename.endswith(".vital"):

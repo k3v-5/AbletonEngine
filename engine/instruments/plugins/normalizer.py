@@ -41,6 +41,18 @@ class VSTParameterNormalizer:
         PluginSemanticRole.MACRO_8: ["macro 8", "macro_8", "m8"],
         PluginSemanticRole.DYNAMICS: ["dynamics", "modwheel", "cc1"],
         PluginSemanticRole.EXPRESSION: ["expression", "cc11"],
+        PluginSemanticRole.FORMANT: ["formant", "voice formant", "throat"],
+        PluginSemanticRole.PITCH: ["pitch", "voice pitch", "tune", "transpose"],
+        PluginSemanticRole.PUNISH: ["punish"],
+        PluginSemanticRole.SOOTHE_DEPTH: ["depth"],
+        PluginSemanticRole.SOOTHE_SHARPNESS: ["sharpness"],
+        PluginSemanticRole.WAVETABLE_POS: ["wt pos", "wavetable pos", "wavetable 1 position", "wt position"],
+        PluginSemanticRole.UNISON_DETUNE: ["uni detune", "unison detune", "refraction", "detune"],
+        PluginSemanticRole.SUB_LEVEL: ["sub level", "sub osc", "sub"],
+        PluginSemanticRole.LIMITER_GAIN: ["gain", "limiter input gain", "in gain"],
+        PluginSemanticRole.EQ_HPF: ["low cut", "hpf", "band 1 freq", "band 1 frequency"],
+        PluginSemanticRole.EQ_LOW_BOOST: ["eq low gain", "low gain", "sub", "band 2 gain"],
+        PluginSemanticRole.EQ_AIR_SHELF: ["eq high gain", "high gain", "air", "band 5 gain"],
     }
 
     def __init__(self, registry: Optional[PluginRegistry] = None):
@@ -174,6 +186,13 @@ class VSTParameterNormalizer:
         max_v = float(param.get("max", 1.0))
         raw_v = float(param.get("value", 0.0))
         norm_v = self.normalize_value(raw_v, min_v, max_v)
+        desc = ""
+        try:
+            from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+            role_key = role.name if isinstance(role, PluginSemanticRole) else str(role).upper()
+            desc = DeviceParameterSupervisor.ROLE_DESCRIPTIONS.get(role_key, "")
+        except Exception:
+            pass
         return NormalizedParameterResult(
             found=True,
             parameter_name=param.get("name", ""),
@@ -183,6 +202,7 @@ class VSTParameterNormalizer:
             min_value=min_v,
             max_value=max_v,
             role=role,
+            description=desc,
             confidence=confidence,
             source=source,
             matched_alias=matched_alias

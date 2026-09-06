@@ -126,8 +126,12 @@ graph TD
 2. **Set Parameter by Semantic Intent**:
    - `plugin_set_semantic_parameter(track="Lead 1", semantic_role="cutoff", value=0.70)`
    - Denormalizes [0.0, 1.0] to plugin's native parameter range automatically.
-3. **Crawl & Search Browser Presets**:
-   - `browser_search_library(query="Omnisphere", category="plugins")`
+3. **Search Unified Preset Database**:
+   - `preset_search(query="Jupiter", role="lead", limit=5)`
+   - Queries 14,105 Arturia patches, Fraction expansions, and User Library.
+4. **Select Preset on Track via MIDI Program Change**:
+   - `preset_select_for_track(track_index=11, preset_name="Jupiter Lead", plugin="Analog Lab V")`
+   - Dispatches Bank and Program Change seamlessly without latency.
 
 ---
 

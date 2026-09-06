@@ -23,6 +23,7 @@ from ..instruments.library.preset_catalog import PresetCatalog, PresetEntry
 
 class CompletenessViolationType(str, Enum):
     SILENT_TRACK = "SILENT_TRACK"
+    UNCONFIGURED_PLUGIN = "UNCONFIGURED_PLUGIN"
     MISSING_CORE_ROLE = "MISSING_CORE_ROLE"
     EMPTY_TIMELINE = "EMPTY_TIMELINE"
     MISSING_CUE_POINTS = "MISSING_CUE_POINTS"
@@ -276,6 +277,28 @@ class ProductionCompletenessGate:
                 if auto_remediate:
                     rem_res = cls._remediate_track(adapter, t_idx, track_name, deduced_role, target_genre)
                     remediations.append(rem_res)
+            else:
+                # INV-SCULPT-07: Devices on active tracks MUST be configured and sculpted
+                try:
+                    from ..fx.device_parameter_supervisor import DeviceParameterSupervisor
+                    for d_idx, dev in enumerate(devices):
+                        d_name = dev.get("name", "Unknown")
+                        sculpt_audit = DeviceParameterSupervisor.audit_device_sculpting(adapter, t_idx, d_idx)
+                        if not sculpt_audit.get("is_sculpted", False):
+                            violation = CompletenessViolation(
+                                violation_type=CompletenessViolationType.UNCONFIGURED_PLUGIN,
+                                severity=ViolationSeverity.CRITICAL,
+                                message=f"Device '{d_name}' on track {t_idx} ('{track_name}') is in default / unconfigured state (INV-SCULPT-07).",
+                                track_index=t_idx,
+                                track_name=track_name,
+                                deduced_role=deduced_role,
+                                suggested_action=f"Apply parameter sculpting for role '{deduced_role}' using DeviceParameterSupervisor."
+                            )
+                            violations.append(violation)
+                            if auto_remediate:
+                                DeviceParameterSupervisor.enforce_mandatory_sculpting(adapter, t_idx, d_idx, deduced_role)
+                except Exception:
+                    pass
 
         # 3. INV-STRUCT-02: Check core musical roles
         missing_roles = [r for r in cls.CORE_ROLES if r not in detected_core_roles]

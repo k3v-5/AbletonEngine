@@ -47,6 +47,20 @@ class PluginSemanticRole(str, Enum):
     EXPRESSION = "expression"
     DYNAMICS = "dynamics"
 
+    # Extended Arsenal Roles
+    FORMANT = "formant"
+    PITCH = "pitch"
+    PUNISH = "punish"
+    SOOTHE_DEPTH = "soothe_depth"
+    SOOTHE_SHARPNESS = "soothe_sharpness"
+    WAVETABLE_POS = "wavetable_pos"
+    UNISON_DETUNE = "unison_detune"
+    SUB_LEVEL = "sub_level"
+    LIMITER_GAIN = "limiter_gain"
+    EQ_HPF = "eq_hpf"
+    EQ_LOW_BOOST = "eq_low_boost"
+    EQ_AIR_SHELF = "eq_air_shelf"
+
 
 @dataclass
 class ParameterSpec:
@@ -100,6 +114,7 @@ class NormalizedParameterResult:
     min_value: float = 0.0
     max_value: float = 1.0
     role: Optional[PluginSemanticRole] = None
+    description: str = ""
     confidence: float = 0.0
     source: str = "none"
     matched_alias: Optional[str] = None
@@ -115,6 +130,7 @@ class NormalizedParameterResult:
             "min_value": self.min_value,
             "max_value": self.max_value,
             "role": self.role.value if isinstance(self.role, PluginSemanticRole) else (str(self.role) if self.role else None),
+            "description": self.description,
             "confidence": round(self.confidence, 3),
             "source": self.source,
             "matched_alias": self.matched_alias,

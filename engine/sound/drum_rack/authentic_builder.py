@@ -164,31 +164,65 @@ class AuthenticSampleDrumRackEngine:
 
         return kit
 
-    def load_kit_into_live(self, track_index: int, kit_spec: Optional[AuthenticDrumKitSpec] = None) -> Dict[str, Any]:
+    def load_kit_into_live(self, track_index: int, kit_spec: Optional[AuthenticDrumKitSpec] = None, kit_uri: str = "query:Drums#FileId_5422") -> Dict[str, Any]:
         """Loads the authentic drum kit into the Ableton Live track."""
         spec = kit_spec or self.build_kit_spec()
         results = []
+        loaded_pads_info = []
 
-        # If adapter is available, ensure drum rack device and load pads
         if self.adapter:
             try:
-                # 1. Check if track has Drum Rack
-                t_info = self.adapter.get_track_info(track_index) if hasattr(self.adapter, "get_track_info") else {}
-                devices = t_info.get("devices", [])
-                has_rack = any("drum" in d.get("name", "").lower() or d.get("class_name") == "DrumGroupDevice" for d in devices)
+                # 1. Check if track already has a populated Drum Rack
+                has_populated_rack = False
+                if hasattr(self.adapter, "send_command"):
+                    pads_res = self.adapter.send_command("get_drum_rack_pads", {"track_index": track_index, "device_index": 0})
+                    if isinstance(pads_res, dict) and pads_res.get("result", {}).get("active_pad_count", 0) > 0:
+                        has_populated_rack = True
+                        loaded_pads_info = pads_res.get("result", {}).get("pads", [])
 
-                if not has_rack:
-                    # Load Drum Rack container
-                    if hasattr(self.adapter, "load_instrument_or_effect"):
-                        self.adapter.load_instrument_or_effect(track_index, "query:Drums#Drum%20Rack")
+                # 2. If not populated, load the authentic .adg Drum Kit (e.g. 808 Core Kit)
+                if not has_populated_rack:
+                    if hasattr(self.adapter, "send_command"):
+                        load_res = self.adapter.send_command("load_browser_item", {
+                            "track_index": track_index,
+                            "item_uri": kit_uri
+                        })
+                        results.append({"action": "load_browser_item", "uri": kit_uri, "result": load_res})
+                    elif hasattr(self.adapter, "load_instrument_or_effect"):
+                        load_res = self.adapter.load_instrument_or_effect(track_index, kit_uri)
+                        results.append({"action": "load_instrument_or_effect", "uri": kit_uri, "result": load_res})
 
-                # 2. Populate pads
-                for note, pad in spec.pads.items():
-                    if pad.verified and pad.sample_path:
-                        uri = f"query:Samples#{pad.sample_name}"
-                        if hasattr(self.adapter, "load_drum_pad_item"):
-                            res = self.adapter.load_drum_pad_item(track_index, note, uri, 0)
-                            results.append({"note": note, "sample": pad.sample_name, "status": res})
+                    # Poll and inspect loaded pads
+                    if hasattr(self.adapter, "send_command"):
+                        import time
+                        for _ in range(5):
+                            time.sleep(0.3)
+                            pads_res = self.adapter.send_command("get_drum_rack_pads", {"track_index": track_index, "device_index": 0})
+                            if isinstance(pads_res, dict) and pads_res.get("result", {}).get("active_pad_count", 0) > 0:
+                                loaded_pads_info = pads_res.get("result", {}).get("pads", [])
+                                break
+
+                # Sync spec with actual loaded pads if available
+                if loaded_pads_info:
+                    for lp in loaded_pads_info:
+                        note = lp.get("note")
+                        name = lp.get("name")
+                        devs = lp.get("devices", [])
+                        dev_name = devs[0]["name"] if devs else name
+                        if note in spec.pads:
+                            spec.pads[note].verified = True
+                            spec.pads[note].sample_name = dev_name
+                            spec.pads[note].name = f"[{note}] {name}"
+                        else:
+                            spec.pads[note] = AuthenticDrumPad(
+                                note=note,
+                                role="DRUM_PAD",
+                                name=f"[{note}] {name}",
+                                sample_path=dev_name,
+                                sample_name=dev_name,
+                                filesize_bytes=1024,
+                                verified=True
+                            )
             except Exception as e:
                 results.append({"error": str(e)})
 
@@ -198,6 +232,8 @@ class AuthenticSampleDrumRackEngine:
             "kit_name": spec.name,
             "total_pads": len(spec.pads),
             "verified_pads": sum(1 for p in spec.pads.values() if p.verified),
+            "active_live_pads": len(loaded_pads_info),
             "pads": {n: p.to_dict() for n, p in spec.pads.items()},
             "live_load_results": results,
+            "loaded_pads_info": loaded_pads_info,
         }

@@ -126,3 +126,65 @@ def test_normalization_and_denormalization():
     assert norm.denormalize_value(0.25, 0.0, 100.0) == 25.0
     with pytest.raises(ValueError):
         norm.denormalize_value(1.5, 0.0, 1.0)
+
+
+def test_arsenal_plugins_resolution():
+    norm = VSTParameterNormalizer()
+
+    # 1. Decapitator
+    decap_params = [
+        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+        {"index": 3, "name": "Drive", "value": 3.5, "min": 0.0, "max": 10.0},
+        {"index": 4, "name": "Punish", "value": 0.0, "min": 0.0, "max": 1.0},
+        {"index": 6, "name": "Tone", "value": 0.0, "min": -10.0, "max": 10.0},
+    ]
+    res = norm.resolve_parameter("Decapitator", decap_params, PluginSemanticRole.DRIVE)
+    assert res.found is True
+    assert res.parameter_name == "Drive"
+    assert res.description != ""
+
+    res_punish = norm.resolve_parameter("Decapitator", decap_params, PluginSemanticRole.PUNISH)
+    assert res_punish.found is True
+    assert res_punish.parameter_name == "Punish"
+
+    # 2. LittleAlterBoy
+    alter_params = [
+        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+        {"index": 2, "name": "Pitch", "value": 0.0, "min": -12.0, "max": 12.0},
+        {"index": 3, "name": "Formant", "value": 0.0, "min": -12.0, "max": 12.0}
+    ]
+    res_formant = norm.resolve_parameter("LittleAlterBoy", alter_params, PluginSemanticRole.FORMANT)
+    assert res_formant.found is True
+    assert res_formant.parameter_name == "Formant"
+
+    # 3. EchoBoy
+    echo_params = [
+        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+        {"index": 4, "name": "Mix", "value": 0.4, "min": 0.0, "max": 1.0},
+        {"index": 12, "name": "Feedback", "value": 0.3, "min": 0.0, "max": 1.0}
+    ]
+    res_feed = norm.resolve_parameter("EchoBoy", echo_params, PluginSemanticRole.FEEDBACK)
+    assert res_feed.found is True
+    assert res_feed.parameter_name == "Feedback"
+
+    # 4. soothe2
+    soothe_params = [
+        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+        {"index": 2, "name": "depth", "value": 0.5, "min": 0.0, "max": 1.0},
+        {"index": 3, "name": "sharpness", "value": 0.6, "min": 0.0, "max": 1.0}
+    ]
+    res_depth = norm.resolve_parameter("soothe2", soothe_params, PluginSemanticRole.SOOTHE_DEPTH)
+    assert res_depth.found is True
+    assert res_depth.parameter_name == "depth"
+
+    # 5. Serum 2
+    serum_params = [
+        {"index": 0, "name": "Device On", "value": 1.0, "min": 0.0, "max": 1.0},
+        {"index": 15, "name": "A WT Pos", "value": 12.0, "min": 0.0, "max": 256.0},
+        {"index": 64, "name": "Filter 1 Freq", "value": 800.0, "min": 20.0, "max": 20000.0},
+        {"index": 77, "name": "Macro 1", "value": 0.5, "min": 0.0, "max": 1.0}
+    ]
+    res_wt = norm.resolve_parameter("Serum 2", serum_params, PluginSemanticRole.WAVETABLE_POS)
+    assert res_wt.found is True
+    assert res_wt.parameter_name == "A WT Pos"
+

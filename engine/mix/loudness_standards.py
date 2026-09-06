@@ -355,6 +355,18 @@ class LoudnessProfile:
     profile_type: ProfileType = ProfileType.STANDARD
     description: str = ""
 
+    @property
+    def integrated_target(self) -> float:
+        return self.target_lufs
+
+    @property
+    def max_true_peak(self) -> float:
+        return self.max_true_peak_dbtp
+
+    @property
+    def integrated_tolerance(self) -> float:
+        return self.tolerance_lufs
+
     def __post_init__(self):
         # Name and policy validation
         if not isinstance(self.name, str) or not self.name.strip():

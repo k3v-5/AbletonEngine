@@ -33,6 +33,26 @@ class DrumGhostNoteInjector:
         if not notes:
             return []
 
+        # Convert dict notes to NoteEvent if necessary
+        note_objs = []
+        for n in notes:
+            if isinstance(n, NoteEvent):
+                note_objs.append(n)
+            elif isinstance(n, dict):
+                p = int(n.get("pitch", 38))
+                note_objs.append(NoteEvent(
+                    pitch=p,
+                    start=float(n.get("start_time", n.get("start", 0.0))),
+                    duration=float(n.get("duration", 0.2)),
+                    velocity=int(n.get("velocity", 100)),
+                    pitch_class=p % 12,
+                    octave=p // 12 - 1,
+                    channel=int(n.get("channel", 0)),
+                    probability=float(n.get("probability", 1.0)),
+                    accent=bool(n.get("accent", False))
+                ))
+        notes = note_objs
+
         rng = random.Random(seed)
         existing_positions = {(round(n.start, 3), n.pitch) for n in notes}
         augmented = [NoteEvent(**n.__dict__) for n in notes]
