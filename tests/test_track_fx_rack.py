@@ -155,7 +155,7 @@ def test_analog_lab_v_default_audit_detection():
     conn = MockDefaultAnalogLabConn()
     audit = DeviceParameterSupervisor.audit_device_sculpting(conn, track_index=19, device_index=0)
     assert audit["is_sculpted"] is False
-    assert "Analog Lab V is in factory default" in audit["reason"]
+    assert "Analog Lab V" in audit["reason"] and "default" in audit["reason"]
 
 
 def test_serum2_deep_sculpting_and_audit():

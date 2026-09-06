@@ -115,5 +115,55 @@ class MIDIProgramChangeDispatcher:
                 "description": f"Standard MIDI Program Change #{pc_id} on {plugin_name}"
             }
 
+    @classmethod
+    def send_program_change(
+        cls,
+        conn: Any = None,
+        track_index: int = 0,
+        program: int = 0,
+        bank: Optional[int] = None,
+        plugin_name: str = "Analog Lab V"
+    ) -> Dict[str, Any]:
+        """
+        Dispatches MIDI Program Change and Bank parameters to Ableton Live.
+        Executes MIDI dispatch via Remote Script if connected.
+        """
+        pc_config = cls.resolve_program_change(
+            plugin_name=plugin_name,
+            preset_name_or_id=program,
+            playlist_or_bank=bank
+        )
+
+        results = {
+            "status": "success",
+            "track_index": track_index,
+            "program": program,
+            "bank": bank,
+            "plugin": plugin_name,
+            "config": pc_config,
+            "midi_dispatched": False
+        }
+
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                prog_val = max(0, min(127, int(program)))
+                bank_val = max(0, min(127, int(bank))) if bank is not None else 0
+                midi_code = f"""
+try:
+    c_inst = self._c_instance if hasattr(self, '_c_instance') else None
+    if c_inst and hasattr(c_inst, 'send_midi'):
+        c_inst.send_midi((0xB0, 0, {bank_val}))
+        c_inst.send_midi((0xC0, {prog_val}))
+except Exception:
+    pass
+"""
+                conn.send_command("execute_code", {"code": midi_code})
+                results["midi_dispatched"] = True
+            except Exception as e:
+                results["midi_error"] = str(e)
+
+        return results
+
 
 program_change_dispatcher = MIDIProgramChangeDispatcher()
+

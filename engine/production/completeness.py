@@ -259,13 +259,22 @@ class ProductionCompletenessGate:
             if core_cat != "OTHER":
                 detected_core_roles.add(core_cat)
 
-            # INV-SOUND-01: Track with clips MUST have devices
-            if len(devices) == 0:
+            # INV-SOUND-01: Track with clips MUST have an instrument loaded (not only audio effects like EQ Eight)
+            known_audio_fx_classes = {"Eq8", "Compressor2", "GlueCompressor", "Saturator", "StereoGain", "Limiter", "Reverb", "Delay", "Chorus2", "PhaserNew", "Redux2", "AutoFilter"}
+            has_instrument = any(
+                d.get("class_name", "") in ["InstrumentGroupDevice", "OriginalSimpler", "MultiSampler", "UltraAnalog", "Operator", "Wavetable", "StringStudio", "LoungeLizard", "Collision", "DrumGroupDevice", "PluginDevice"] or
+                d.get("type", "") in ["instrument", "rack"] or
+                (d.get("class_name", "") not in known_audio_fx_classes and not any(fx in d.get("name", "").lower() for fx in ["eq", "compressor", "glue", "saturator", "utility", "limiter", "delay", "reverb", "filter"]))
+                for d in devices
+            )
+
+            if len(devices) == 0 or (is_midi and not has_instrument):
                 silent_tracks_detected += 1
+                msg = f"Track {t_idx} ('{track_name}') contains musical clips but 0 devices loaded (SILENT)." if len(devices) == 0 else f"Track {t_idx} ('{track_name}') contains audio effects but NO instrument loaded to generate sound (SILENT)."
                 violation = CompletenessViolation(
                     violation_type=CompletenessViolationType.SILENT_TRACK,
                     severity=ViolationSeverity.CRITICAL,
-                    message=f"Track {t_idx} ('{track_name}') contains musical clips but 0 devices loaded (SILENT).",
+                    message=msg,
                     track_index=t_idx,
                     track_name=track_name,
                     deduced_role=deduced_role,
@@ -312,12 +321,13 @@ class ProductionCompletenessGate:
 
         # 4. INV-TIMELINE-03: Timeline bar coverage (4 beats per bar)
         timeline_bars = int(max_timeline_beats // 4.0)
-        if timeline_bars < 16:
+        if len(all_arrangement_clips) == 0 or timeline_bars < 16:
+            severity = ViolationSeverity.CRITICAL if len(all_arrangement_clips) == 0 else ViolationSeverity.WARNING
             violations.append(CompletenessViolation(
                 violation_type=CompletenessViolationType.EMPTY_TIMELINE,
-                severity=ViolationSeverity.WARNING,
-                message=f"Arrangement timeline contains only {timeline_bars} bars (< 16 bars minimum standard).",
-                suggested_action="Duplicate or place section clips onto arrangement timeline."
+                severity=severity,
+                message=f"Arrangement timeline contains only {timeline_bars} bars (< 16 bars minimum standard). 0 clips found on arrangement view." if len(all_arrangement_clips) == 0 else f"Arrangement timeline contains only {timeline_bars} bars (< 16 bars minimum standard).",
+                suggested_action="Duplicate or place section clips onto arrangement timeline via duplicate_session_clip_to_arrangement."
             ))
 
         # 4b. INV-GAP-06: Timeline Continuity & Dead Air Detection

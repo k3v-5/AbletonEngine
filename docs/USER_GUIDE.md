@@ -8,8 +8,8 @@ A diferencia de los asistentes basados exclusivamente en modelos de lenguaje que
 $$\text{El LLM decide la intención musical} \longrightarrow \text{PIE planifica, valida y verifica acústicamente} \longrightarrow \text{Ableton Live ejecuta}$$
 
 ### Capacidades Globales:
-- **174 herramientas FastMCP** expuestas a clientes de IA (Claude Desktop, Antigravity, agentes autónomos).
-- **331 pruebas automatizadas** de integración, aceptación, modelos DSP e inyección de fallos (100% de éxito).
+- **273 herramientas FastMCP** expuestas a clientes de IA (Claude Desktop, Antigravity, agentes autónomos).
+- **706 pruebas automatizadas** de integración, aceptación, modelos DSP, producción musical e inyección de fallos (100% de éxito).
 - **Medición de sonoridad ITU-R BS.1770-5 / EBU R 128** con sobremuestreo sinc FIR $4\times$ para detección de True Peak inter-sample.
 - **Transacciones ACID con Write-Ahead Logging (WAL)** y auto-rollback garantizado ante regresiones acústicas o caídas de red.
 - **Grafo Causal Aclíclico (`ProductionGraph`)** que registra el linaje completo de *por qué* se tomó cada decisión.
@@ -233,3 +233,61 @@ La capa de supervisión que asegura que ninguna acción se ejecute sin justifica
    }
    ```
    *Respuesta:* Informe estructurado con la evidencia acústica, reglas aplicadas y alternativas rechazadas.
+
+---
+
+## 5. Módulos de Producción Musical Avanzada y Finalización Comercial (Fases 8 a 14)
+
+### 5.1 Catálogo y Generación de Ritmos por Género
+El motor ofrece herramientas inteligentes que actúan como aceleradores opcionales (sin limitar la libertad creativa del usuario):
+- `genre_offer_production_options()`: Consulta menús estructurados para **Rap/Trap**, **Cumbia** (güira con acento sincopado "ch-ch-CHII-ka"), **Electro** (House, Techno, Synthwave, EDM, DnB), **Música Urbana/Pop** (Reggaetón, Afrobeat) y **Rock**.
+- `genre_generate_drum_pattern(genre, bpm, bars)`: Genera clips MIDI con microtiming auténtico y swing MPC determinista.
+
+### 5.2 Enrutamiento Físico de Sidechain (Kick -> 808 Bass)
+- Detecta automáticamente las pistas de Bombo y Sub Bass.
+- Carga y configura el procesador `Compressor` nativo en la pista de graves con parámetros óptimos de contorno:
+  - `Device On = 1.0`, `S/C On = 1.0` (Sidechain activado).
+  - `Attack = 0.0 ms` (Ataque ultra rápido para evitar colisiones de transientes).
+  - `Release = 0.16 s` (~30-50 ms musical).
+  - `Ratio = 4:1`, `Threshold = -18 dB`.
+
+### 5.3 Cadena Nativa de Masterización de 5 Etapas en Live 12
+Configura en el bus `Master` o `Premaster`:
+1. **EQ Eight**: HPF a 25 Hz para limpieza de subgraves e infra-frecuencias, corte notch anti-mud a 250 Hz.
+2. **Glue Compressor**: Pegada analógica con peak clip activado y ratio 2:1.
+3. **Saturator**: Saturación cálida *Analog Warm* para densidad armónica.
+4. **Utility**: `Bass Mono = 1.0` activo con corte a 120 Hz y preservación de campo estéreo (`Stereo Width = 1.0`).
+5. **Limiter**: Techo True Peak transparente con lookahead de 5.0 ms.
+
+### 5.4 Macro de Finalización de Canción (`macro_finalize_song`)
+Ejecuta la preparación integral del tema en un solo paso:
+```json
+// Tool: macro_finalize_song
+{
+  "target_profile": "STREAMING",
+  "pre_drop_bar": 33.0
+}
+```
+*Orquestación interna:*
+1. Inyección de pre-drop ear candy vacuum (corte de silencio antes del drop).
+2. Tallado espectral vocal (-3 dB a 2.8 kHz en acompañamiento) y ducking dinámico.
+3. Configuración del sidechain físico Kick -> 808.
+4. Despliegue y calibración de la cadena de masterización de 5 etapas.
+5. Veredicto técnico de entrega (`READY`).
+
+### 5.5 Exportador y Auditor Forense de Stems Multitrack (`export_and_audit_stems`)
+Exporta y audita stems comerciales listos para mezcla, remix o distribución:
+```json
+// Tool: export_and_audit_stems
+{
+  "start_bar": 1.0,
+  "end_bar": 65.0,
+  "sample_rate": 48000,
+  "bit_depth": 24
+}
+```
+*Capacidades:*
+- Agrupamiento en 8 stems canónicos: `01_Drums`, `02_Bass`, `03_Keys`, `04_Lead`, `05_Vocals`, `06_FX`, `07_Other`, `00_Master`.
+- Auditoría forense de correlación de fase en subgraves ($\rho \ge +0.30$ requerido para suma mono sin cancelaciones).
+- Auditoría de margen True Peak ($\le -1.0\text{ dBTP}$) por stem.
+- Generación del manifiesto `stem_phase_audit_manifest.json` con veredicto `ready_for_distribution: true`.

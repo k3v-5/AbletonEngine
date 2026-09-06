@@ -30,7 +30,13 @@ class GenreDrumStyle(str, Enum):
 
 
 class GenreRhythmGrooveEngine:
-    """Procedural rhythm generator with genre-authentic pocket and groove templates."""
+    """
+    Procedural rhythm generator with genre-authentic pocket and groove templates.
+    FEATURE STATUS: EXPERIMENTAL (OFF BY DEFAULT).
+    This engine is dormant and strictly optional. The standard/custom workflow is preserved.
+    """
+    IS_EXPERIMENTAL: bool = True
+    ENABLED_BY_DEFAULT: bool = False
 
     # Standard General MIDI / Drum Rack Pitches
     KICK_PITCH = 36

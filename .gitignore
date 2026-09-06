@@ -234,3 +234,6 @@ state/events/
 state/production/
 state/*.json
 exports/
+*.asd
+cache/
+scratch/

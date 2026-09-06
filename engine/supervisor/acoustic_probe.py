@@ -220,6 +220,57 @@ class AcousticProbe:
         }
 
     @classmethod
+    def probe_main_liveness(
+        cls,
+        conn: Any,
+        target_tracks: Optional[List[int]] = None,
+        fail_fast: bool = False
+    ) -> Dict[str, Any]:
+        """Probes main track liveness across session or target tracks, checking for blocking silence."""
+        if conn is None or not hasattr(conn, "send_command"):
+            return {
+                "status": "MOCK_PASSED",
+                "tracks_audited": 1,
+                "audible_tracks": 1,
+                "silent_tracks": [],
+                "findings": []
+            }
+
+        if target_tracks is None:
+            sess = conn.send_command("get_session_info", {})
+            t_count = sess.get("result", {}).get("track_count", 0) if isinstance(sess, dict) else 0
+            target_tracks = list(range(t_count))
+
+        all_findings = []
+        silent_tracks = []
+        audible_count = 0
+
+        for t_idx in target_tracks:
+            res = cls.audit_track_liveness(conn, t_idx)
+            findings = res.get("findings", [])
+            if findings:
+                all_findings.extend(findings)
+            if not res.get("is_audible", True):
+                silent_tracks.append(t_idx)
+            else:
+                audible_count += 1
+
+        if fail_fast and silent_tracks:
+            raise AcousticSilenceError(
+                f"Physical acoustic probe failed: {len(silent_tracks)} track(s) structurally silent or blocked",
+                findings=all_findings,
+                silent_tracks=silent_tracks
+            )
+
+        return {
+            "status": "PASSED" if not silent_tracks else "SILENCE_DETECTED",
+            "tracks_audited": len(target_tracks),
+            "audible_tracks": audible_count,
+            "silent_tracks": silent_tracks,
+            "findings": all_findings
+        }
+
+    @classmethod
     def ensure_audible_playback(
         cls,
         conn: Any,
@@ -249,5 +300,12 @@ class AcousticProbe:
             if t_data.get("volume", 0.85) < 0.3:
                 conn.send_command("set_track_volume", {"track_index": t_idx, "volume": 0.85})
                 actions_taken.append(f"Restored fader on Track {t_idx} to 0.85")
+            if trigger_session_clips:
+                clip_slots = t_data.get("clip_slots", [])
+                for s_idx, cs in enumerate(clip_slots):
+                    if cs.get("has_clip"):
+                        conn.send_command("fire_clip", {"track_index": t_idx, "clip_index": s_idx})
+                        actions_taken.append(f"Fired clip {s_idx} on Track {t_idx}")
+                        break
 
         return {"status": "SUCCESS", "actions_taken": actions_taken}

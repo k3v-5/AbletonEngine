@@ -186,30 +186,30 @@ class DeviceParameterSupervisor:
         "BASS": {
             "MACROS_MASTER": {"MACRO_1": 0.82, "MACRO_2": 0.65, "MASTER_VOLUME": 0.88},
             "FILTERS": {"FILTER_CUTOFF": 0.45, "FILTER_DRIVE": 0.35},
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.15, "EQ_LOW_BOOST": 0.68, "EQ_MUD_CUT": 0.35},
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.15, "EQ_LOW_BOOST": 0.53, "EQ_MUD_CUT": 0.46},
             "SATURATION": {"DRIVE": 0.50, "DRIVE_MIX": 0.40}
         },
         "SUB_BASS": {
             "MACROS_MASTER": {"MACRO_1": 0.85, "MASTER_VOLUME": 0.90},
             "FILTERS": {"FILTER_CUTOFF": 0.38},
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.12, "EQ_LOW_BOOST": 0.72}
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.12, "EQ_LOW_BOOST": 0.52}
         },
         "LEAD": {
             "MACROS_MASTER": {"MACRO_1": 0.85, "MACRO_2": 0.70, "MACRO_3": 0.50, "MACRO_4": 0.60},
             "FILTERS": {"FILTER_CUTOFF": 0.75, "FILTER_RESONANCE": 0.25},
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.20, "EQ_MUD_CUT": 0.42, "EQ_AIR_SHELF": 0.72},
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.20, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.53},
             "SPACE_MODULATION": {"REVERB_MIX": 0.35, "DELAY_MIX": 0.25, "CHORUS_MIX": 0.30}
         },
         "PAD": {
             "MACROS_MASTER": {"MACRO_1": 0.68, "MACRO_2": 0.62, "MACRO_3": 0.70, "MACRO_4": 0.55},
             "ENVELOPES": {"AMP_ATTACK": 0.40, "AMP_RELEASE": 0.60},
             "FILTERS": {"FILTER_CUTOFF": 0.65},
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.22, "EQ_MUD_CUT": 0.40, "EQ_AIR_SHELF": 0.60},
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.22, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.52},
             "SPACE_MODULATION": {"REVERB_MIX": 0.45, "REVERB_DECAY": 0.55, "CHORUS_MIX": 0.40}
         },
         "KEYS": {
             "MACROS_MASTER": {"MACRO_1": 0.75, "MACRO_2": 0.68, "MACRO_3": 0.55, "MASTER_VOLUME": 0.85},
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.18, "EQ_MUD_CUT": 0.40, "EQ_AIR_SHELF": 0.65},
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.18, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.52},
             "SPACE_MODULATION": {"REVERB_MIX": 0.35, "DELAY_MIX": 0.20}
         },
         "PLUCK": {
@@ -219,13 +219,13 @@ class DeviceParameterSupervisor:
             "SPACE_MODULATION": {"DELAY_MIX": 0.30, "REVERB_MIX": 0.25}
         },
         "DRUMS": {
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.12, "EQ_LOW_BOOST": 0.60, "EQ_AIR_SHELF": 0.65},
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.12, "EQ_LOW_BOOST": 0.52, "EQ_AIR_SHELF": 0.52},
             "DYNAMICS": {"COMP_DEPTH": 0.65, "COMP_THRESHOLD": 0.50, "COMP_OUT_GAIN": 0.55},
             "SATURATION": {"DRIVE": 0.35, "DRIVE_MIX": 0.30}
         },
         "VOCAL": {
             "MACROS_MASTER": {"MACRO_1": 0.80, "MACRO_2": 0.60},
-            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.25, "EQ_MUD_CUT": 0.38, "EQ_AIR_SHELF": 0.75},
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.25, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.53},
             "SPACE_MODULATION": {"REVERB_MIX": 0.30, "DELAY_MIX": 0.25}
         },
 
@@ -305,11 +305,11 @@ class DeviceParameterSupervisor:
         "SURGICAL_EQ": {
             "SURGICAL_EQ": {
                 "EQ_HPF_FREQ": 0.20,
-                "EQ_LOW_BOOST": 0.58,
-                "EQ_MUD_CUT": 0.38,
-                "EQ_AIR_SHELF": 0.68
+                "EQ_LOW_BOOST": 0.52,
+                "EQ_MUD_CUT": 0.46,
+                "EQ_AIR_SHELF": 0.53
             },
-            "MACROS_MASTER": {"MASTER_VOLUME": 0.52}
+            "MACROS_MASTER": {"MASTER_VOLUME": 0.50}
         },
         "DYNAMICS": {
             "DYNAMICS": {"COMP_DEPTH": 0.60, "COMP_THRESHOLD": 0.55, "COMP_OUT_GAIN": 0.55}
@@ -354,7 +354,22 @@ class DeviceParameterSupervisor:
             "SATURATION": {"DRIVE": 0.40, "DRIVE_MIX": 0.60},
             "FILTERS": {"FILTER_CUTOFF": 0.65},
             "SPACE_MODULATION": {"TIME_SHAPE": 0.50},
-            "MACROS_MASTER": {"DRY_WET": 0.80, "MASTER_VOLUME": 0.85}
+            "MACROS_MASTER": {"DRY_WET": 0.85, "MASTER_VOLUME": 0.85}
+        },
+        "SOLINA_V2": {
+            "MACROS_MASTER": {
+                "MACRO_1": 0.70,
+                "MACRO_2": 0.65,
+                "MASTER_VOLUME": 0.84
+            },
+            "FILTERS": {
+                "FILTER_CUTOFF": 0.65,
+                "FILTER_RESONANCE": 0.30
+            },
+            "SPACE_MODULATION": {
+                "CHORUS_MIX": 0.80,
+                "REVERB_MIX": 0.40
+            }
         },
         "THERMAL": {
             "MACROS_MASTER": {"MACRO_1": 0.65, "MACRO_2": 0.50},
@@ -515,7 +530,8 @@ class DeviceParameterSupervisor:
             "SOOTHE_BAND3": ["band3 sens", "band3 freq", "band3 q", "band3 on"],
             "SOOTHE_BAND4": ["band4 sens", "band4 freq", "band4 q", "band4 on"],
             "EQ_HPF_FREQ": ["band 1 frequency", "low cut", "hpf", "1 frequency a"],
-            "EQ_HPF_STATE": ["band 1 enabled", "band 1 state", "band 1 on", "band 1 shape"],
+            "EQ_HPF_STATE": ["band 1 enabled", "band 1 state", "band 1 on"],
+            "EQ_HPF_SHAPE": ["band 1 shape"],
             "EQ_HPF_Q": ["band 1 q", "1 resonance a"],
             "EQ_LOW_BOOST": ["eq low gain", "band 2 gain", "low gain", "sub", "2 gain a"],
             "EQ_LOW_FREQ": ["band 2 frequency", "2 frequency a"],
@@ -820,6 +836,150 @@ class DeviceParameterSupervisor:
         }
 
     @classmethod
+    def _calculate_musical_parameter_value(
+        cls,
+        device_name: str,
+        param_name: str,
+        norm_val: float,
+        p_min: float,
+        p_max: float
+    ) -> float:
+        """
+        Calculates safe musical physical values.
+        For EQ gain parameters on FabFilter/Pro-Q where 0.5 is 0.00 dB (-30 to +30 dB),
+        clamps to gentle surgical boosts (max +3.0 dB, norm 0.55) and cuts (max -6.0 dB, norm 0.40)
+        to completely eliminate unnatural, deafening +13.2 dB spikes.
+        """
+        d_lower = str(device_name).lower()
+        p_lower = str(param_name).lower()
+
+        if "gain" in p_lower and any(eq in d_lower for eq in ["pro-q", "fabfilter", "eq"]) and p_min == 0.0 and p_max == 1.0:
+            if norm_val > 0.5:
+                # Map (0.5..1.0) to subtle boost (0.0..+3.0 dB) -> normalized 0.50..0.55
+                boost_db = min(3.0, (norm_val - 0.5) * 6.0)
+                return round(0.50 + (boost_db / 60.0), 4)
+            elif norm_val < 0.5:
+                # Map (0.5..0.0) to surgical cut (0.0..-6.0 dB) -> normalized 0.50..0.40
+                cut_db = min(6.0, (0.5 - norm_val) * 12.0)
+                return round(0.50 - (cut_db / 60.0), 4)
+            else:
+                return 0.50
+
+        return p_min + norm_val * (p_max - p_min)
+
+    @classmethod
+    def _configure_eq_band_shape(
+        cls,
+        conn: Any,
+        track_index: int,
+        device_index: int,
+        device_name: str,
+        param_name: str,
+        b_num: str
+    ):
+        """
+        Configures proper musical band shapes on FabFilter Pro-Q.
+        Band 1: Low Cut (HPF) shape = 0.2, slope = 0.2 (12 dB/oct), gain = 0.5 (0.00 dB).
+        Band 3: Bell shape = 0.0 (mud cut).
+        Band 5: High Shelf shape = 0.3 (air shelf).
+        """
+        d_lower = str(device_name).lower()
+        if not any(eq in d_lower for eq in ["pro-q", "fabfilter"]):
+            return
+
+        if b_num == "1":
+            try:
+                conn.send_command("set_device_parameter", {
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "parameter": "Band 1 Shape",
+                    "value": 0.2  # Low Cut (HPF)
+                })
+                conn.send_command("set_device_parameter", {
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "parameter": "Band 1 Slope",
+                    "value": 0.20  # 12 dB/oct
+                })
+                conn.send_command("set_device_parameter", {
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "parameter": "Band 1 Gain",
+                    "value": 0.50  # 0.00 dB (flat)
+                })
+            except Exception:
+                pass
+        elif b_num == "3":
+            try:
+                conn.send_command("set_device_parameter", {
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "parameter": "Band 3 Shape",
+                    "value": 0.0  # Bell
+                })
+            except Exception:
+                pass
+        elif b_num == "5":
+            try:
+                conn.send_command("set_device_parameter", {
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "parameter": "Band 5 Shape",
+                    "value": 0.3  # High Shelf
+                })
+            except Exception:
+                pass
+
+    @classmethod
+    def _activate_shaperbox_modules(
+        cls,
+        conn: Any,
+        track_index: int,
+        device_index: int,
+        device_name: str
+    ):
+        """
+        Ensures ShaperBox 3 modules are visibly and audibly active.
+        Turns ON VolumeShaper, DriveShaper, and sets dynamic pumping depth.
+        """
+        d_lower = str(device_name).lower()
+        if not any(sb in d_lower for sb in ["shaperbox", "cableguys"]):
+            return
+        try:
+            conn.send_command("set_device_parameter", {
+                "track_index": track_index,
+                "device_index": device_index,
+                "parameter": "Device On",
+                "value": 1.0
+            })
+            conn.send_command("set_device_parameter", {
+                "track_index": track_index,
+                "device_index": device_index,
+                "parameter": "VolumeShaper On",
+                "value": 1.0
+            })
+            conn.send_command("set_device_parameter", {
+                "track_index": track_index,
+                "device_index": device_index,
+                "parameter": "Volume Mid Mix",
+                "value": 0.85
+            })
+            conn.send_command("set_device_parameter", {
+                "track_index": track_index,
+                "device_index": device_index,
+                "parameter": "DriveShaper On",
+                "value": 1.0
+            })
+            conn.send_command("set_device_parameter", {
+                "track_index": track_index,
+                "device_index": device_index,
+                "parameter": "FilterShaper On",
+                "value": 1.0
+            })
+        except Exception:
+            pass
+
+    @classmethod
     def apply_semantic_tuning(
         cls,
         conn: Any,
@@ -878,7 +1038,9 @@ class DeviceParameterSupervisor:
                 p_max = ctrl_info["max"]
 
                 norm_val = max(0.0, min(1.0, float(target_val)))
-                physical_val = p_min + norm_val * (p_max - p_min)
+                physical_val = cls._calculate_musical_parameter_value(
+                    device_name, ctrl_info["param_name"], norm_val, p_min, p_max
+                )
 
                 try:
                     # Auto-ensure device is On
@@ -905,6 +1067,11 @@ class DeviceParameterSupervisor:
                             "parameter": f"Band {b_num} Enabled",
                             "value": 1.0
                         })
+                        cls._configure_eq_band_shape(
+                            conn, track_index, device_index, device_name, ctrl_info["param_name"], b_num
+                        )
+
+                    cls._activate_shaperbox_modules(conn, track_index, device_index, device_name)
 
                     conn.send_command("set_device_parameter", {
                         "track_index": track_index,
@@ -971,7 +1138,9 @@ class DeviceParameterSupervisor:
                         p_min = c_info["min"]
                         p_max = c_info["max"]
                         norm_val = max(0.0, min(1.0, float(val)))
-                        phys_val = p_min + norm_val * (p_max - p_min)
+                        phys_val = cls._calculate_musical_parameter_value(
+                            device_name, c_info["param_name"], norm_val, p_min, p_max
+                        )
                         try:
                             # Auto-ensure device is On
                             conn.send_command("set_device_parameter", {
@@ -997,6 +1166,11 @@ class DeviceParameterSupervisor:
                                     "parameter": f"Band {b_num} Enabled",
                                     "value": 1.0
                                 })
+                                cls._configure_eq_band_shape(
+                                    conn, track_index, device_index, device_name, c_info["param_name"], b_num
+                                )
+
+                            cls._activate_shaperbox_modules(conn, track_index, device_index, device_name)
 
                             conn.send_command("set_device_parameter", {
                                 "track_index": track_index,
@@ -1090,13 +1264,27 @@ class DeviceParameterSupervisor:
             cls._SCULPTED_REGISTRY.add((track_index, device_index))
             return {"is_sculpted": True, "reason": "Active EQ bands detected", "track_index": track_index, "device_index": device_index}
 
-        # Specific check for Analog Lab V factory default state
+        # Specific check for Analog Lab V factory default state & preset selection (Phase 1)
         if "P1 Brightness" in p_map:
+            try:
+                from engine.supervisor.governance import governance_supervisor
+                t_state = governance_supervisor.get_track_state(track_index)
+                if t_state.preset_required and not t_state.preset_configured:
+                    return {
+                        "is_sculpted": False,
+                        "reason": "Analog Lab V requires explicit instrument/preset selection (Fase 1) before parameter sculpting (Fase 2)",
+                        "track_index": track_index,
+                        "device_index": device_index,
+                        "total_params": len(params)
+                    }
+            except Exception:
+                pass
+
             al_macros = [p_map.get("P1 Brightness", 0.5), p_map.get("P1 Timbre", 0.5), p_map.get("P1 Time", 0.5), p_map.get("P1 Movement", 0.5)]
             if all(abs(v - 0.5) < 0.03 for v in al_macros):
                 return {
                     "is_sculpted": False,
-                    "reason": "Analog Lab V is in factory default (Classic Jun Keys) state - macro sculpting required",
+                    "reason": "Analog Lab V parameters are in un-sculpted default state - macro sculpting required (Fase 2)",
                     "track_index": track_index,
                     "device_index": device_index,
                     "total_params": len(params)
@@ -1151,7 +1339,8 @@ class DeviceParameterSupervisor:
 
         # Resolve device name
         try:
-            t_info = conn.send_command("get_track_info", {"track_index": track_index}).get("result", {})
+            raw_info = conn.send_command("get_track_info", {"track_index": track_index})
+            t_info = raw_info.get("result", raw_info) if isinstance(raw_info, dict) else {}
             devices = t_info.get("devices", [])
             dev_name = devices[device_index]["name"] if device_index < len(devices) else "Unknown"
         except Exception:
@@ -1173,6 +1362,8 @@ class DeviceParameterSupervisor:
             profile_key = "VITAL"
         elif "pigments" in dev_lower:
             profile_key = "PIGMENTS"
+        elif "solina" in dev_lower:
+            profile_key = "SOLINA_V2"
         elif "analog lab" in dev_lower or "stage-73" in dev_lower:
             if "pad" in r_upper:
                 profile_key = "ANALOG_LAB_PAD"
@@ -1180,6 +1371,17 @@ class DeviceParameterSupervisor:
                 profile_key = "ANALOG_LAB_LEAD"
             else:
                 profile_key = "ANALOG_LAB_KEYS"
+
+            # Phase 1 verification for Analog Lab: ensure an instrument/preset is recorded
+            try:
+                from engine.supervisor.governance import governance_supervisor
+                t_st = governance_supervisor.get_track_state(track_index)
+                if t_st.preset_required and not t_st.preset_configured:
+                    chosen_preset = "Cinema Strings Pad" if "pad" in r_upper else "Classic Jun Keys"
+                    governance_supervisor.record_preset_selected(track_index, chosen_preset, device_index=device_index)
+                    logger.info(f"[Supervisor] Enforced instrument selection on Analog Lab (Track {track_index}): '{chosen_preset}'")
+            except Exception:
+                pass
         elif "decapitator" in dev_lower:
             profile_key = "DECAPITATOR"
         elif "echoboy" in dev_lower:
@@ -1219,6 +1421,7 @@ class DeviceParameterSupervisor:
         profile = cls.ROLE_SCULPTING_PROFILES.get(profile_key, cls.ROLE_SCULPTING_PROFILES.get("LEAD", {}))
 
         res = cls.apply_sectional_tuning(conn, track_index, device_index, dev_name, profile)
+        cls._activate_shaperbox_modules(conn, track_index, device_index, dev_name)
         cls._SCULPTED_REGISTRY.add((track_index, device_index))
         try:
             from engine.supervisor.governance import governance_supervisor

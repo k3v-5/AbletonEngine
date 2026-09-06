@@ -81,7 +81,7 @@ class EngineGovernanceSupervisor:
     """
 
     PRESET_REQUIRED_INSTRUMENTS = {
-        "analog lab", "analog lab v",
+        "analog lab", "analog lab v", "analog lab pro",
         "omnisphere", "zenology", "fraction"
     }
 
@@ -141,6 +141,11 @@ class EngineGovernanceSupervisor:
         self._tracks: Dict[int, TrackState] = {}
         self._pending_effect_sculpting: Dict[int, int] = {}  # track_index -> device_index
 
+    def reset(self) -> None:
+        """Resets the supervisor state for a fresh production session."""
+        self._tracks.clear()
+        self._pending_effect_sculpting.clear()
+
     def register_track(self, track_index: int, name: str = "", role: Optional[str] = None) -> TrackState:
         if track_index not in self._tracks:
             self._tracks[track_index] = TrackState(track_index=track_index, name=name, role=role)
@@ -193,16 +198,21 @@ class EngineGovernanceSupervisor:
     def assert_instrument_sculpted(self, track_index: int, device_index: int = 0) -> None:
         """
         Enforces that the track's instrument has been actively sculpted.
+        Raises PresetSelectionRequiredError if preset selection was required but omitted.
         Raises UnconfiguredDeviceViolationError if un-sculpted.
         """
         track = self.get_track_state(track_index)
+        if track.preset_required and not track.preset_configured:
+            raise PresetSelectionRequiredError(
+                f"Track {track_index} ('{track.name}'): Instrument requires explicit instrument/preset selection (Fase 1) before validation!"
+            )
         if device_index >= len(track.devices):
             raise IndexError(f"Instrument device index {device_index} out of range on track {track_index}.")
         dev = track.devices[device_index]
         if not dev.is_sculpted:
             raise UnconfiguredDeviceViolationError(
                 f"Track {track_index} ('{track.name}'): Instrument '{dev.name}' is unconfigured! "
-                f"Governance Rule: The AI must explicitly sculpt oscillator, filter, or macro parameters."
+                f"Governance Rule: The AI must explicitly sculpt oscillator, filter, or macro parameters (Fase 2)."
             )
 
     # -------------------------------------------------------------------------
@@ -211,9 +221,15 @@ class EngineGovernanceSupervisor:
     def request_add_effect(self, track_index: int, effect_name: str) -> int:
         """
         Request permission to append an effect to a track.
-        Fails if a previously added effect is still un-sculpted.
+        Fails if instrument preset selection is pending or if a previously added effect is still un-sculpted.
         """
         track = self.get_track_state(track_index)
+
+        if track.preset_required and not track.preset_configured:
+            raise PresetSelectionRequiredError(
+                f"Cannot add effect '{effect_name}' to Track {track_index}! "
+                f"Track requires explicit instrument/preset selection (Fase 1) before adding effects."
+            )
 
         # Check if there's an unconfigured effect waiting for parameters
         if track_index in self._pending_effect_sculpting:
@@ -240,6 +256,7 @@ class EngineGovernanceSupervisor:
     def record_device_sculpted(self, track_index: int, device_index: int, parameters: Dict[str, float]) -> None:
         """
         Marks an instrument or effect as consciously tuned and sculpted.
+        Enforces Phase 1 (mandatory preset selection) before allowing Phase 2 (parameter sculpting).
         Blocks empty parameter assignments.
         """
         if not parameters:
@@ -252,6 +269,15 @@ class EngineGovernanceSupervisor:
         if device_index < len(track.devices):
             dev = track.devices[device_index]
             dev_name = dev.name
+            
+            # Check Phase 1: if instrument requires preset, ensure it was explicitly chosen
+            if dev.is_instrument and (track.preset_required or any(req in dev.name.lower() for req in self.PRESET_REQUIRED_INSTRUMENTS)):
+                if not track.preset_configured or dev.preset_selected is None:
+                    raise PresetSelectionRequiredError(
+                        f"Track {track_index} ('{track.name}'): Instrument '{dev.name}' requires explicit instrument/preset selection (Fase 1) "
+                        f"before parameters can be sculpted (Fase 2)! First call record_preset_selected or select the instrument."
+                    )
+            
             dev.is_sculpted = True
             dev.sculpted_parameters.update(parameters)
 

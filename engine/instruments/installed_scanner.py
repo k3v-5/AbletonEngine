@@ -167,6 +167,130 @@ class InstalledPluginScanner:
             "supported_roles": ["BASS", "808"],
             "description": "Specialized sub-bass and bass groove engine with analog saturation.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Bloom%20Bass%20Impulse",
+        },
+        "cyclop": {
+            "vendor": "Sugar Bytes",
+            "primary_role": "BASS",
+            "supported_roles": ["BASS", "FX"],
+            "description": "Twisted monophonic bass synthesizer for wobble, sub-growls, and heavy modulations.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Sugar%20Bytes:Cyclop",
+        },
+        # Synthesizers, Leads & Sound Design
+        "pigments": {
+            "vendor": "Arturia",
+            "primary_role": "LEAD",
+            "supported_roles": ["LEAD", "PAD", "KEYS", "FX"],
+            "description": "Polychrome software synthesizer with wavetable, virtual analog, sample, and granular engines.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Pigments",
+        },
+        "zenology": {
+            "vendor": "Roland Cloud",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "LEAD", "BASS", "PAD"],
+            "description": "Zen-Core synthesis system hosting Roland vintage synths, PCM acoustic keys, and modern leads.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Roland%20Cloud:ZENOLOGY",
+        },
+        "synplant": {
+            "vendor": "Sonic Charge",
+            "primary_role": "LEAD",
+            "supported_roles": ["LEAD", "PAD", "TEXTURE", "FX"],
+            "description": "Genetic synthesizer with DNA-based patch mutation for organic leads and alien sound design.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Sonic%20Charge:Synplant",
+        },
+        "aparillo": {
+            "vendor": "Sugar Bytes",
+            "primary_role": "LEAD",
+            "supported_roles": ["LEAD", "PAD", "TEXTURE"],
+            "description": "16-voice FM synthesizer for complex moving textures and microtonal leads.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Sugar%20Bytes:Aparillo",
+        },
+        "factory": {
+            "vendor": "Sugar Bytes",
+            "primary_role": "LEAD",
+            "supported_roles": ["LEAD", "KEYS"],
+            "description": "Poly-modular synthesizer with liquid modulation matrix.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Sugar%20Bytes:Factory",
+        },
+        "obscurium": {
+            "vendor": "Sugar Bytes",
+            "primary_role": "LEAD",
+            "supported_roles": ["LEAD", "ARP"],
+            "description": "Generative synthesis tool for organic evolving soundscapes and arpeggios.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Sugar%20Bytes:Obscurium",
+        },
+        # Vintage Keyboards & Organs
+        "b-3 v": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "ORGAN"],
+            "description": "Vintage tonewheel organ emulation.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:B-3%20V2",
+        },
+        "clavinet v": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "FUNK"],
+            "description": "Physical modeling of the vintage Hohner Clavinet D6.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Clavinet%20V",
+        },
+        "cp-70": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "PIANO"],
+            "description": "Electro-acoustic stage piano emulation.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:CP-70%20V",
+        },
+        "farfisa v": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "ORGAN"],
+            "description": "Vintage compact transistor combo organ.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Farfisa%20V",
+        },
+        "mellotron v": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "STRINGS", "FLUTE"],
+            "description": "Tape-based vintage keyboard for iconic flute, choir, and string sounds.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Mellotron%20V",
+        },
+        "solina v": {
+            "vendor": "Arturia",
+            "primary_role": "PAD",
+            "supported_roles": ["PAD", "STRINGS"],
+            "description": "String ensemble synth with lush ensemble chorus.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:Solina%20V2",
+        },
+        "vox continental": {
+            "vendor": "Arturia",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "ORGAN"],
+            "description": "Classic transistor organ sound of the 60s and 70s.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Arturia:VOX%20Continental%20V2",
+        },
+        # Atmospheric & Pads
+        "bloom synth": {
+            "vendor": "Bloom",
+            "primary_role": "PAD",
+            "supported_roles": ["PAD", "KEYS", "TEXTURE"],
+            "description": "Atmospheric and ambient synthesizer with lush reverb spaces.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Bloom%20Synth%20Atmosphere",
         },
         # Vocal Engines
         "bloom vocal": {
@@ -175,6 +299,7 @@ class InstalledPluginScanner:
             "supported_roles": ["VOCALS", "CHOIR", "HOOKS"],
             "description": "Atmospheric vocal chops, vocal pad beds, and choral synthesis.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Bloom%20Vocal%20Aether",
         },
         "antares": {
             "vendor": "Antares",
@@ -191,13 +316,22 @@ class InstalledPluginScanner:
             "supported_roles": ["DRUMS", "PERCUSSION", "BREAKS"],
             "description": "Dynamic drum breaks, groove generators, and modern percussion.",
             "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Bloom%20Drum%20Breaks",
+        },
+        "egoist": {
+            "vendor": "Sugar Bytes",
+            "primary_role": "DRUMS",
+            "supported_roles": ["DRUMS", "BASS", "PERCUSSION"],
+            "description": "Slicer, bass track, beat box, and multi-effect sequencer.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Sugar%20Bytes:Egoist",
         },
         # Mixing, Dynamics & Space FX
         "fabfilter": {
             "vendor": "FabFilter",
             "primary_role": "FX",
             "supported_roles": ["FX", "EQ", "DYNAMICS", "LIMITING"],
-            "description": "Precision surgical mixing suite (Pro-Q 3, Pro-C 2, Pro-L 2).",
+            "description": "Precision surgical mixing suite (Pro-Q 4, Pro-C 3, Pro-L 2).",
             "is_instrument": False,
         },
         "valhalla": {
@@ -234,6 +368,22 @@ class InstalledPluginScanner:
             "supported_roles": ["FX", "MULTIBAND_COMPRESSION"],
             "description": "Aggressive upward/downward multiband compressor for hyper-dense presence.",
             "is_instrument": False,
+        },
+        "portal": {
+            "vendor": "Output",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "GRANULAR", "SPACE"],
+            "description": "Granular audio effects processor for transformative spatial motion.",
+            "is_instrument": False,
+            "live_uri": "query:Plugins#VST3:Output:Portal",
+        },
+        "thermal": {
+            "vendor": "Output",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "DISTORTION", "DRIVE"],
+            "description": "Multi-stage interactive distortion engine with analog saturation.",
+            "is_instrument": False,
+            "live_uri": "query:Plugins#VST3:Output:Thermal",
         },
     }
 
@@ -287,6 +437,54 @@ class InstalledPluginScanner:
             uri="query:Drums#Drum%20Rack",
             is_instrument=True,
         ),
+        ScannedPlugin(
+            id="native_wavetable_pad",
+            name="Ableton Wavetable (Ambient Pad)",
+            vendor="Ableton",
+            path="Native/Wavetable",
+            category=PluginCategory.NATIVE,
+            primary_role="PAD",
+            supported_roles=["PAD", "KEYS", "LEAD"],
+            description="Modern wavetable polyphonic synthesizer with lush spatial harmonics.",
+            uri="query:Synths#Wavetable",
+            is_instrument=True,
+        ),
+        ScannedPlugin(
+            id="native_operator_sub",
+            name="Ableton Operator (808 Sub-Bass)",
+            vendor="Ableton",
+            path="Native/Operator",
+            category=PluginCategory.NATIVE,
+            primary_role="BASS",
+            supported_roles=["BASS"],
+            description="Pure sine/frequency-modulated 808 sub-bass with glide.",
+            uri="query:Synths#Operator",
+            is_instrument=True,
+        ),
+        ScannedPlugin(
+            id="native_meld_texture",
+            name="Ableton Meld (Macro Textures)",
+            vendor="Ableton",
+            path="Native/Meld",
+            category=PluginCategory.NATIVE,
+            primary_role="PAD",
+            supported_roles=["PAD", "LEAD", "TEXTURE"],
+            description="Dual-engine macro synth for evolving organic textures and bi-timbral sound design.",
+            uri="query:Synths#Meld",
+            is_instrument=True,
+        ),
+        ScannedPlugin(
+            id="native_electric_ep",
+            name="Ableton Electric (Vintage Keys)",
+            vendor="Ableton",
+            path="Native/Electric",
+            category=PluginCategory.NATIVE,
+            primary_role="KEYS",
+            supported_roles=["KEYS", "PIANO"],
+            description="Physical modeling of vintage electro-mechanical pianos (Rhodes/Wurli).",
+            uri="query:Synths#Electric",
+            is_instrument=True,
+        ),
     ]
 
     def __init__(self, scan_paths: Optional[List[str]] = None):
@@ -336,6 +534,10 @@ class InstalledPluginScanner:
 
         for sig, meta in self.SIGNATURE_MAP.items():
             if sig in lower_name:
+                # Avoid false positives like "supermassive" matching "massive"
+                if sig == "massive" and "supermassive" in lower_name:
+                    continue
+
                 plug_id = f"{category.value}_{lower_name.replace(' ', '_').replace('.', '_')}"
                 if plug_id in self._cache:
                     return
@@ -434,8 +636,30 @@ class InstalledPluginScanner:
             pass
         return self._cache
 
+    ROLE_PRIORITIES = {
+        "BASS": ["serum", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
+        "KEYS": ["analog lab", "stage-73", "piano v", "wurli", "keyscape", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
+        "LEAD": ["pigments", "serum", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
+        "PAD": ["omnisphere", "pigments", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
+        "DRUMS": ["drum_rack", "drum rack", "bloom drum", "egoist", "808", "boom bap", "909"],
+        "VOCALS": ["bloom vocal", "auto-tune", "vocal", "simpler"],
+        "FX": ["pro-q", "valhallavintageverb", "shaperbox", "thermal", "soothe", "valhalladelay", "saturn", "portal"],
+        "MASTER": ["god particle", "pro-l", "pro-mb", "limiter"],
+    }
+
+    def _get_relevance_score(self, plug: ScannedPlugin, role_upper: str) -> int:
+        keywords = self.ROLE_PRIORITIES.get(role_upper, [])
+        low_name = plug.name.lower()
+        low_id = plug.id.lower()
+        for rank, kw in enumerate(keywords):
+            if kw in low_name or kw in low_id:
+                return rank
+        if plug.primary_role == role_upper:
+            return 50
+        return 100
+
     def get_plugins_for_role(self, role: str) -> List[ScannedPlugin]:
-        """Returns all plugins suitable for a specific musical role."""
+        """Returns all plugins suitable for a specific musical role sorted by acoustic excellence and relevance."""
         self.scan()
         role_upper = role.upper()
         matches = []
@@ -443,13 +667,20 @@ class InstalledPluginScanner:
             if role_upper == plug.primary_role or role_upper in plug.supported_roles:
                 matches.append(plug)
 
-        matches.sort(key=lambda p: (0 if p.category == PluginCategory.VST3 else 1, p.name))
+        # Prioritize VST3 premier plugins and sort by semantic musical relevance
+        matches.sort(key=lambda p: (
+            0 if (p.category == PluginCategory.VST3 and not p.id.startswith("vst3_generic_"))
+            else 1 if p.category == PluginCategory.NATIVE
+            else 2,
+            self._get_relevance_score(p, role_upper),
+            p.name
+        ))
         return matches
 
     def get_catalog_summary(self) -> Dict[str, Any]:
         """Returns structured overview of all discovered plugins grouped by role."""
         self.scan()
-        roles = ["KEYS", "BASS", "LEAD", "DRUMS", "VOCALS", "FX", "MASTER"]
+        roles = ["KEYS", "BASS", "LEAD", "PAD", "DRUMS", "VOCALS", "FX", "MASTER"]
         catalog = {}
         for r in roles:
             catalog[r] = [p.to_dict() for p in self.get_plugins_for_role(r)]
@@ -467,6 +698,36 @@ class InstalledPluginScanner:
             "roles": catalog,
         }
 
+    def recommend_top_for_role(
+        self,
+        role: str,
+        limit: int = 5,
+        style: str = "neo_soul_trap"
+    ) -> Dict[str, Any]:
+        """
+        Returns the top 5 curated instrument/effect options for a role,
+        plus total available and guidance prompt to query more.
+        """
+        candidates = self.get_plugins_for_role(role)
+        top = candidates[:limit]
+        total = len(candidates)
+        has_more = total > limit
+        more_count = max(0, total - limit)
+        return {
+            "status": "SUCCESS",
+            "role": role.upper(),
+            "top_candidates": [c.to_dict() for c in top],
+            "top_count": len(top),
+            "total_available": total,
+            "has_more": has_more,
+            "more_count": more_count,
+            "query_more_prompt": (
+                f"Hay {more_count} opciones adicionales para {role.upper()}. "
+                f"Puedes consultar la lista completa con get_available_vst_and_presets(role='{role.lower()}')."
+                if has_more else "Todas las opciones disponibles están listadas."
+            )
+        }
+
     def recommend_for_role(self, role: str, style: str = "neo_soul_trap") -> ScannedPlugin:
         """Returns the optimal instrument recommendation for a given role and style."""
         candidates = self.get_plugins_for_role(role)
@@ -474,23 +735,27 @@ class InstalledPluginScanner:
 
         if role_upper == "KEYS":
             for c in candidates:
-                if "stage-73" in c.name.lower() or "analog lab" in c.name.lower() or "keyscape" in c.name.lower() or "kontakt" in c.name.lower():
+                if "analog lab" in c.name.lower() or "stage-73" in c.name.lower() or "keyscape" in c.name.lower() or "kontakt" in c.name.lower():
                     return c
         elif role_upper == "BASS":
             for c in candidates:
-                if "vital" in c.name.lower() or "serum" in c.name.lower() or "bloom bass" in c.name.lower():
+                if "serum" in c.name.lower() or "bloom bass" in c.name.lower() or "cyclop" in c.name.lower():
                     return c
         elif role_upper == "LEAD":
             for c in candidates:
-                if "analog lab" in c.name.lower() or "vital" in c.name.lower() or "serum" in c.name.lower():
+                if "pigments" in c.name.lower() or "analog lab" in c.name.lower() or "serum" in c.name.lower() or "synplant" in c.name.lower():
+                    return c
+        elif role_upper == "PAD":
+            for c in candidates:
+                if "omnisphere" in c.name.lower() or "pigments" in c.name.lower() or "bloom synth" in c.name.lower() or "wavetable" in c.name.lower():
                     return c
         elif role_upper == "VOCALS":
             for c in candidates:
-                if "vital" in c.name.lower() or "bloom vocal" in c.name.lower() or "auto-tune" in c.name.lower():
+                if "bloom vocal" in c.name.lower() or "auto-tune" in c.name.lower():
                     return c
         elif role_upper == "DRUMS":
             for c in candidates:
-                if "drum_rack" in c.id or "808" in c.name.lower():
+                if "bloom drum" in c.name.lower() or "egoist" in c.name.lower() or "drum_rack" in c.id or "808" in c.name.lower():
                     return c
 
         return candidates[0] if candidates else self.NATIVE_FALLBACKS[0]

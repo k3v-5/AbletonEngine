@@ -37,7 +37,7 @@ class SidechainManager:
         try:
             # Check existing devices
             track_info_res = conn.send_command("get_track_info", {"track_index": track_index})
-            track_info = track_info_res.get("result", {}) if isinstance(track_info_res, dict) else {}
+            track_info = track_info_res.get("result", track_info_res) if isinstance(track_info_res, dict) else {}
             devices = track_info.get("devices", [])
 
             for d_idx, d in enumerate(devices):
@@ -58,7 +58,7 @@ class SidechainManager:
 
             # Re-inspect to find new device index
             recheck_res = conn.send_command("get_track_info", {"track_index": track_index})
-            recheck_info = recheck_res.get("result", {}) if isinstance(recheck_res, dict) else {}
+            recheck_info = recheck_res.get("result", recheck_res) if isinstance(recheck_res, dict) else {}
             recheck_devices = recheck_info.get("devices", [])
 
             for d_idx, d in enumerate(recheck_devices):
@@ -98,7 +98,8 @@ class SidechainManager:
         ratio: float = 0.75,
         attack: float = 0.0,
         release: float = 0.16,
-        sc_gain: float = 0.4
+        sc_gain: float = 0.4,
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Configures physical sidechain parameters on the target track's Compressor.

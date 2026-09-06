@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE) — Índice Maestro y Sitemap
 
 > **Directorio de Referencia y Mapa Arquitectónico Integral del Proyecto**  
-> Última actualización: Hito 1 (Pasos 01 a 15) + Fase 7 (Audio Forensics) | 331 Tests (100% Verde) | 174 MCP Tools
+> Última actualización: Hito 1 + Fases 1 a 14 (Gobernanza, VST Sculpting, Ritmos de Género, Vocal Staging, Sidechain Físico Kick->808, Master 5 Etapas, Macro Finalize & Stem Auditor) | 706 Tests (100% Verde) | 273 MCP Tools
 
 ---
 

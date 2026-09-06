@@ -252,14 +252,31 @@ class StemAuditor:
         tracks = []
         bpm = 120.0
         if conn and hasattr(conn, "send_command"):
-            sess = conn.send_command("get_session_info", {})
-            if isinstance(sess, dict):
-                bpm = sess.get("tempo", 120.0)
-                num_tracks = sess.get("num_tracks", 0)
-                for i in range(num_tracks):
-                    t_info = conn.send_command("get_track_info", {"track_index": i})
-                    if isinstance(t_info, dict):
-                        tracks.append(t_info)
+            try:
+                sess = conn.send_command("get_session_info", {})
+                if isinstance(sess, dict) and not sess.get("error"):
+                    bpm = sess.get("tempo", 120.0)
+                    num_tracks = sess.get("num_tracks", 0)
+                    for i in range(num_tracks):
+                        t_info = conn.send_command("get_track_info", {"track_index": i})
+                        if isinstance(t_info, dict) and not t_info.get("error"):
+                            tracks.append(t_info)
+            except Exception:
+                pass
+
+            if not tracks:
+                for i in range(35):
+                    try:
+                        t_info = conn.send_command("get_track_info", {"track_index": i})
+                        if isinstance(t_info, dict) and not t_info.get("error") and "name" in t_info:
+                            tracks.append(t_info)
+                        else:
+                            if tracks:
+                                break
+                    except Exception:
+                        if tracks:
+                            break
+                        continue
 
         if not tracks:
             tracks = [

@@ -116,7 +116,7 @@ class ChannelStripEngine:
 
         # 1. Check if EQ Eight already exists on the track
         t_info = conn.send_command("get_track_info", {"track_index": track_index})
-        devices = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
+        devices = t_info.get("devices", t_info.get("result", {}).get("devices", [])) if isinstance(t_info, dict) else []
         eq_dev_idx = None
         for idx, d in enumerate(devices):
             if "EQ Eight" in d.get("name", ""):
@@ -135,7 +135,7 @@ class ChannelStripEngine:
             for _ in range(8):
                 time.sleep(0.25)
                 t_info = conn.send_command("get_track_info", {"track_index": track_index})
-                devices = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
+                devices = t_info.get("devices", t_info.get("result", {}).get("devices", [])) if isinstance(t_info, dict) else []
                 for idx, d in enumerate(devices):
                     if "EQ Eight" in d.get("name", ""):
                         eq_dev_idx = idx
@@ -219,7 +219,7 @@ class ChannelStripEngine:
 
             # Calibrate Drum Buss
             t_info = conn.send_command("get_track_info", {"track_index": group_track_index})
-            devices = t_info.get("result", {}).get("devices", [])
+            devices = t_info.get("devices", t_info.get("result", {}).get("devices", [])) if isinstance(t_info, dict) else []
             db_idx = None
             for idx, d in enumerate(devices):
                 if "Drum Buss" in d.get("name", ""):
@@ -248,7 +248,7 @@ class ChannelStripEngine:
                 results["devices_loaded"].append("Glue Compressor")
 
             t_info = conn.send_command("get_track_info", {"track_index": group_track_index})
-            devices = t_info.get("result", {}).get("devices", [])
+            devices = t_info.get("devices", t_info.get("result", {}).get("devices", [])) if isinstance(t_info, dict) else []
             glue_idx = None
             for idx, d in enumerate(devices):
                 if "Glue Compressor" in d.get("name", ""):
@@ -276,7 +276,7 @@ class ChannelStripEngine:
                 results["devices_loaded"].append("EQ Eight")
 
             t_info2 = conn.send_command("get_track_info", {"track_index": group_track_index})
-            devices2 = t_info2.get("result", {}).get("devices", [])
+            devices2 = t_info2.get("devices", t_info2.get("result", {}).get("devices", [])) if isinstance(t_info2, dict) else []
             eq_idx = None
             for idx, d in enumerate(devices2):
                 if "EQ Eight" in d.get("name", ""):

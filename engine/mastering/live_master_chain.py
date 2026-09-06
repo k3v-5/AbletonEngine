@@ -109,7 +109,8 @@ class LiveMasterChainEngine:
 
         def locate_devices():
             t_info = conn.send_command("get_track_info", {"track_index": track_index})
-            devs = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
+            t_data = t_info.get("result", t_info) if isinstance(t_info, dict) else {}
+            devs = t_data.get("devices", [])
             e, g, s, u, l = None, None, None, None, None
             for idx, d in enumerate(devs):
                 d_name = d.get("name", "")

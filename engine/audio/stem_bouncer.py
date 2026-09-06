@@ -174,3 +174,40 @@ class StemBouncer:
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         return manifest_path
+
+    def execute_stem_isolation_pass(
+        self,
+        conn: Any,
+        stem: StemDefinition,
+        all_track_indices: List[int]
+    ) -> Dict[str, Any]:
+        """
+        Orchestrates solo/mute state for rendering a single stem group cleanly in Live.
+        Mutes tracks not in stem and unmutes tracks in stem.
+        """
+        if not conn or not hasattr(conn, "send_command"):
+            return {"status": "MOCK_ISOLATED", "stem": stem.stem_id, "active_tracks": stem.track_indices}
+
+        isolated = []
+        for idx in all_track_indices:
+            try:
+                is_active = idx in stem.track_indices
+                conn.send_command("set_track_mute", {"track_index": idx, "mute": not is_active})
+                if is_active:
+                    isolated.append(idx)
+            except Exception:
+                continue
+
+        return {"status": "ISOLATED", "stem": stem.stem_id, "active_tracks": isolated}
+
+    def reset_session_mutes(self, conn: Any, all_track_indices: List[int]) -> bool:
+        """Unmutes all tracks after stem isolation passes are finished."""
+        if not conn or not hasattr(conn, "send_command"):
+            return True
+        for idx in all_track_indices:
+            try:
+                conn.send_command("set_track_mute", {"track_index": idx, "mute": False})
+            except Exception:
+                continue
+        return True
+

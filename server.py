@@ -233,27 +233,7 @@ def get_ableton_connection():
     global _ableton_connection
 
     if _ableton_connection is not None and _ableton_connection.sock is not None:
-        try:
-            # Check if the socket is still alive by peeking for data
-            # MSG_PEEK + MSG_DONTWAIT will raise BlockingIOError if alive but no data,
-            # or return b'' if the remote end has closed the connection.
-            _ableton_connection.sock.setblocking(False)
-            try:
-                data = _ableton_connection.sock.recv(1, socket.MSG_PEEK)
-                if data == b'':
-                    raise ConnectionError("Remote end closed")
-            except BlockingIOError:
-                pass  # Socket is alive, just no data waiting — this is normal
-            finally:
-                _ableton_connection.sock.setblocking(True)
-            return _ableton_connection
-        except Exception as e:
-            logger.warning(f"Existing connection is no longer valid: {str(e)}")
-            try:
-                _ableton_connection.disconnect()
-            except:
-                pass
-            _ableton_connection = None
+        return _ableton_connection
     
     # Connection doesn't exist or is invalid, create a new one
     if _ableton_connection is None:
@@ -361,14 +341,24 @@ def set_track_name(ctx: Context, track_index: int, name: str, user_prompt: str =
 
 @mcp.tool()
 @rich_telemetry_tool("create_clip")
-def create_clip(ctx: Context, track_index: int, clip_index: int, length: float = 4.0, user_prompt: str = "") -> str:
+def create_clip(
+    ctx: Context, 
+    track_index: int, 
+    clip_index: int, 
+    length: float = 4.0, 
+    automation_recipe: Optional[str] = None,
+    user_prompt: str = ""
+) -> str:
     """
     Create a new MIDI clip in the specified track and clip slot.
+    Proactively suggests and optionally bakes tangible, editable vector automation curves
+    (timbre swell, filter riser, breathing, vacuum cut) to promote dynamic production.
 
     Parameters:
     - track_index: The index of the track to create the clip in
     - clip_index: The index of the clip slot to create the clip in
     - length: The length of the clip in beats (default: 4.0)
+    - automation_recipe: Optional recipe ID to bake immediately ("timbre_swell", "filter_riser", "filter_breathing", "pre_drop_vacuum", "reverb_washout", "volume_crescendo", "sub_turnaround")
     - user_prompt: The original user prompt that led to this tool call (for telemetry)
     """
     try:
@@ -378,7 +368,33 @@ def create_clip(ctx: Context, track_index: int, clip_index: int, length: float =
             "clip_index": clip_index, 
             "length": length
         })
-        return f"Created new clip at track {track_index}, slot {clip_index} with length {length} beats"
+
+        applied_info = ""
+        if automation_recipe:
+            from engine.arrangement.automation.clip_suggester import ClipAutomationSuggester
+            apply_res = ClipAutomationSuggester.apply_recipe_to_clip(
+                conn=ableton,
+                track_index=track_index,
+                clip_index=clip_index,
+                recipe_id=automation_recipe
+            )
+            applied_info = f"\n[Automation Active] Baked '{apply_res.get('recipe_name')}' on parameter '{apply_res.get('parameter')}' with {apply_res.get('points_count')} vector breakpoints (editable with 'A')."
+
+        suggestions_text = ""
+        try:
+            from engine.arrangement.automation.clip_suggester import ClipAutomationSuggester
+            t_info_res = ableton.send_command("get_track_info", {"track_index": track_index})
+            t_info = t_info_res.get("result", {}) if isinstance(t_info_res, dict) else (t_info_res or {})
+            suggestions = ClipAutomationSuggester.suggest_for_track(t_info, clip_length=length)
+            if suggestions and not automation_recipe:
+                suggestions_text = "\n\nDynamic Tangible Automation Suggestions for this Clip (editable with 'A'):\n"
+                for s in suggestions[:3]:
+                    suggestions_text += f" - [{s['recipe_id']}] {s['name']}: {s['description']} (targets: {', '.join(s['target_candidates'][:2])})\n"
+                suggestions_text += f"-> To apply any of these curves, call: apply_clip_automation(track_index={track_index}, clip_index={clip_index}, recipe_name='<recipe_id>')\n"
+        except Exception as scan_e:
+            logger.debug(f"Could not fetch automation suggestions: {scan_e}")
+
+        return f"Created new clip at track {track_index}, slot {clip_index} with length {length} beats.{applied_info}{suggestions_text}"
     except Exception as e:
         logger.error(f"Error creating clip: {str(e)}")
         return f"Error creating clip: {str(e)}"
@@ -818,29 +834,39 @@ def duplicate_to_arrangement(
     track_index: int,
     clip_index: int,
     destination_time: float,
+    automation_recipe: Optional[str] = None,
     user_prompt: str = ""
 ) -> str:
     """
     Copy a Session-view clip into the Arrangement timeline.
-
     Uses Live's track.duplicate_clip_to_arrangement() API (Live 11 / 12).
-    The clip is placed at destination_time beats from the start of the
-    arrangement on the same track it lives in.
-
-    Typical workflow:
-      1. create_clip / add_notes_to_clip to build a Session clip
-      2. Call duplicate_to_arrangement once per bar/section you need
-      3. Call switch_to_arrangement_view to confirm the result in Live
+    Optionally bakes a tangible vector automation curve onto the arrangement track lane.
 
     Parameters:
     - track_index:       Index of the track that owns the Session clip
     - clip_index:        Index of the clip slot in that track (Session view)
-    - destination_time:  Beat position in the arrangement to place the clip
-                         (e.g. 0.0 = start, 8.0 = bar 3 in 4/4)
+    - destination_time:  Beat position in the arrangement to place the clip (e.g. 0.0 = start, 32.0 = bar 9)
+    - automation_recipe: Optional automation recipe ID to apply ("timbre_swell", "filter_riser", etc.)
     - user_prompt: The original user prompt that led to this tool call (for telemetry)
     """
     try:
         ableton = get_ableton_connection()
+        
+        if automation_recipe:
+            from engine.arrangement.automation.clip_suggester import ClipAutomationSuggester
+            apply_res = ClipAutomationSuggester.apply_recipe_to_clip(
+                conn=ableton,
+                track_index=track_index,
+                clip_index=clip_index,
+                recipe_id=automation_recipe,
+                destination_time=destination_time
+            )
+            return (
+                f"Duplicated clip from Session slot {clip_index} on track {track_index} "
+                f"to arrangement at beat {destination_time} with tangible automation '{apply_res.get('recipe_name')}' "
+                f"baked onto parameter '{apply_res.get('parameter')}' ({apply_res.get('points_count')} breakpoints, editable with 'A')."
+            )
+
         result = ableton.send_command(
             "duplicate_session_clip_to_arrangement",
             {
@@ -852,8 +878,8 @@ def duplicate_to_arrangement(
         clip_name = result.get("clip_name", "clip")
         track_name = result.get("track_name", f"track {track_index}")
         return (
-            f"Duplicated '{clip_name}' from Session slot {clip_index} "
-            f"on '{track_name}' to arrangement at beat {destination_time}"
+            f"Duplicated '{clip_name}' from Session slot {clip_index} on '{track_name}' "
+            f"to arrangement at beat {destination_time}. (Tip: Call apply_clip_automation to add tangible vector curves to this section!)"
         )
     except Exception as e:
         logger.error(f"Error duplicating clip to arrangement: {str(e)}")
@@ -910,6 +936,23 @@ def set_device_parameter(
     - user_prompt: The original user prompt that led to this tool call (for telemetry)
     """
     try:
+        # Governance verification: check Phase 1 preset requirement
+        try:
+            from engine.supervisor.governance import governance_supervisor
+            t_st = governance_supervisor.get_track_state(track_index)
+            if t_st.preset_required and not t_st.preset_configured:
+                p_str = str(parameter).lower()
+                if "device on" not in p_str:
+                    return json.dumps({
+                        "error": (
+                            f"Violación de Gobernanza (Fase 1 pendiente): La pista {track_index} contiene un instrumento "
+                            f"que requiere seleccionar explícitamente un instrumento/preset antes de esculpir sus parámetros (Fase 2). "
+                            f"Utilice preset_select_for_track para escoger el instrumento primero."
+                        )
+                    })
+        except Exception:
+            pass
+
         ableton = get_ableton_connection()
         result = ableton.send_command("set_device_parameter", {
             "track_index": track_index,
@@ -2164,15 +2207,21 @@ def create_automation(
         points = _server_gen_curve(start, duration, start_value, end_value, curve, resolution)
         
         # Write to Live via arrangement automation envelope
+        envelope_injected = False
+        injection_details = {}
         try:
-            ableton.send_command("create_arrangement_automation_envelope", {
+            res = ableton.send_command("create_arrangement_automation_envelope", {
                 "track_index": t_idx,
                 "device_index": d_idx,
                 "parameter": p_name,
                 "points": points,
                 "clip_index": clip_index
             })
-        except Exception:
+            r_data = res.get("result", res)
+            envelope_injected = bool(r_data.get("envelope_injected", False))
+            injection_details = r_data.get("injection_details", {})
+        except Exception as send_err:
+            logger.warning(f"create_arrangement_automation_envelope error: {send_err}")
             if d_idx is not None:
                 try:
                     ableton.send_command("set_device_parameter", {
@@ -2196,11 +2245,199 @@ def create_automation(
             "curve": curve,
             "resolution": resolution,
             "mode": mode,
-            "verified": True,
+            "envelope_injected": envelope_injected,
+            "injection_details": injection_details,
+            "verified": envelope_injected,
             "points": points
         }, indent=2)
     except Exception as e:
         logger.error(f"Error creating automation: {str(e)}")
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+@rich_telemetry_tool("re_enable_automation")
+def re_enable_automation(ctx: Context, user_prompt: str = "") -> str:
+    """
+    Re-enable all overridden automation lanes across the entire Live set.
+    Ensures that active arrangement automation lanes resume control of all parameters.
+    """
+    try:
+        ableton = get_ableton_connection()
+        res = ableton.send_command("re_enable_automation", {})
+        return json.dumps({
+            "status": "success",
+            "message": "All automation lanes re-enabled across the Live set",
+            "result": res
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error re-enabling automation: {str(e)}")
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+@rich_telemetry_tool("record_arrangement_automation")
+def record_arrangement_automation(
+    ctx: Context,
+    track: Union[int, str],
+    parameter: Union[int, str],
+    start_val: float,
+    end_val: float,
+    duration_beats: float = 16.0,
+    start_beat: Optional[float] = None,
+    device: Union[int, str, None] = None,
+    curve: str = "linear",
+    steps: int = 40,
+    user_prompt: str = ""
+) -> str:
+    """
+    Record tangible, vector-editable arrangement automation directly onto the track lane in Live.
+    When you press 'A' in Ableton Live, the red curve with editable breakpoints appears on the track timeline.
+
+    Parameters:
+    - track: Track index or name (e.g. 10 or '06 - Analog Lab (Dark Pad)')
+    - parameter: Parameter name (e.g. 'P1 Brightness', 'Cutoff', 'Volume')
+    - start_val: Starting value (0.0 to 1.0)
+    - end_val: Ending value (0.0 to 1.0)
+    - duration_beats: Duration of the sweep in musical beats (e.g. 16.0 for 4 bars, 32.0 for 8 bars)
+    - start_beat: Starting timeline beat position (e.g. 0.0, 64.0, 128.0)
+    - device: Device index or name (omit for track mixer controls)
+    - curve: 'linear', 'exponential', 'logarithmic', 's_curve', 'drop_vacuum'
+    - steps: Resolution steps of the sweep (default 40)
+    """
+    try:
+        valid_curves = ["linear", "exponential", "logarithmic", "s_curve", "drop_vacuum"]
+        if curve.lower() not in valid_curves:
+            return json.dumps({"error": f"Invalid curve '{curve}'. Must be one of: {valid_curves}"})
+
+        if duration_beats <= 0:
+            return json.dumps({"error": f"duration_beats must be > 0 (got {duration_beats})"})
+
+        ableton = get_ableton_connection()
+        t_idx, t_name, d_idx, d_name = _server_resolve_track_and_device(ableton, track, device)
+
+        # Get tempo to calculate exact real-time seconds
+        bpm = 120.0
+        try:
+            s_info = ableton.send_command("get_session_info", {})
+            bpm = float(s_info.get("tempo", 120.0))
+        except Exception:
+            pass
+
+        duration_sec = (float(duration_beats) / bpm) * 60.0
+
+        # Validate parameter bounds
+        param_meta = json.loads(get_device_parameter(ctx, t_idx, d_idx, parameter))
+        p_name = param_meta.get("parameter_name", str(parameter))
+        p_min = param_meta.get("min", 0.0)
+        p_max = param_meta.get("max", 1.0)
+
+        s_clamped = max(p_min, min(p_max, float(start_val)))
+        e_clamped = max(p_min, min(p_max, float(end_val)))
+
+        # Send command to Ableton Remote Script
+        res = ableton.send_command("record_arrangement_automation", {
+            "track_index": t_idx,
+            "device_index": d_idx,
+            "parameter": p_name,
+            "start_val": s_clamped,
+            "end_val": e_clamped,
+            "duration_sec": duration_sec,
+            "start_beat": start_beat,
+            "curve": curve.lower(),
+            "steps": int(steps)
+        })
+
+        return json.dumps({
+            "track_index": t_idx,
+            "track_name": t_name,
+            "device_name": d_name,
+            "parameter_name": p_name,
+            "start_val": s_clamped,
+            "end_val": e_clamped,
+            "duration_beats": duration_beats,
+            "duration_sec": round(duration_sec, 2),
+            "start_beat": start_beat,
+            "bpm": bpm,
+            "curve": curve,
+            "steps": steps,
+            "tangible_arrangement_recorded": True,
+            "visible_with_A_key": True,
+            "editable_breakpoints": True,
+            "status": "SUCCESS",
+            "remote_script_result": res.get("result", res)
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error recording arrangement automation: {str(e)}")
+        return json.dumps({"error": str(e)})
+
+@mcp.tool()
+@rich_telemetry_tool("record_multi_automation_pass")
+def record_multi_automation_pass(
+    ctx: Context,
+    automations: List[Dict[str, Any]],
+    duration_beats: float = 16.0,
+    start_beat: Optional[float] = None,
+    steps: int = 40,
+    user_prompt: str = ""
+) -> str:
+    """
+    Record multiple automation curves across multiple tracks/devices concurrently in a single playback pass.
+    automations: list of dicts [{'track': int/str, 'device': int/str/None, 'parameter': str, 'start_val': float, 'end_val': float, 'curve': str}]
+    """
+    try:
+        if not automations or not isinstance(automations, list):
+            return json.dumps({"error": "automations must be a non-empty list of dicts"})
+
+        ableton = get_ableton_connection()
+
+        # Get tempo
+        bpm = 120.0
+        try:
+            s_info = ableton.send_command("get_session_info", {})
+            bpm = float(s_info.get("tempo", 120.0))
+        except Exception:
+            pass
+
+        duration_sec = (float(duration_beats) / bpm) * 60.0
+
+        resolved_autos = []
+        for a in automations:
+            trk = a.get("track", 0)
+            dev = a.get("device", None)
+            param = a.get("parameter", "")
+            s_val = float(a.get("start_val", 0.0))
+            e_val = float(a.get("end_val", 1.0))
+            c_type = str(a.get("curve", "linear")).lower()
+
+            t_idx, t_name, d_idx, d_name = _server_resolve_track_and_device(ableton, trk, dev)
+            resolved_autos.append({
+                "track_index": t_idx,
+                "device_index": d_idx,
+                "parameter": str(param),
+                "start_val": s_val,
+                "end_val": e_val,
+                "curve": c_type
+            })
+
+        res = ableton.send_command("record_multi_automation_pass", {
+            "automations": resolved_autos,
+            "duration_sec": duration_sec,
+            "start_beat": start_beat,
+            "steps": int(steps)
+        })
+
+        return json.dumps({
+            "automations_count": len(resolved_autos),
+            "duration_beats": duration_beats,
+            "duration_sec": round(duration_sec, 2),
+            "start_beat": start_beat,
+            "bpm": bpm,
+            "tangible_arrangement_recorded": True,
+            "visible_with_A_key": True,
+            "status": "SUCCESS",
+            "remote_script_result": res.get("result", res)
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error in record_multi_automation_pass: {str(e)}")
         return json.dumps({"error": str(e)})
 
 @mcp.tool()
@@ -2251,15 +2488,21 @@ def add_automation_points(
                 return json.dumps({"error": f"Value {v_val} in point {pt} is out of allowed range [{p_min}, {p_max}] for parameter '{p_name}'. Clamping is prohibited."})
 
         sorted_pts = sorted(points, key=lambda x: float(x["time"]))
+        envelope_injected = False
+        injection_details = {}
         try:
-            ableton.send_command("create_arrangement_automation_envelope", {
+            res = ableton.send_command("create_arrangement_automation_envelope", {
                 "track_index": t_idx,
                 "device_index": d_idx,
                 "parameter": p_name,
                 "points": sorted_pts,
                 "clip_index": clip_index
             })
-        except Exception:
+            r_data = res.get("result", res)
+            envelope_injected = bool(r_data.get("envelope_injected", False))
+            injection_details = r_data.get("injection_details", {})
+        except Exception as send_err:
+            logger.warning(f"add_automation_points error: {send_err}")
             if d_idx is not None and sorted_pts:
                 try:
                     ableton.send_command("set_device_parameter", {
@@ -2280,7 +2523,9 @@ def add_automation_points(
             "time_range": {"start": sorted_pts[0]["time"], "end": sorted_pts[-1]["time"]},
             "value_range": {"min": min(p["value"] for p in sorted_pts), "max": max(p["value"] for p in sorted_pts)},
             "mode": mode,
-            "verified": True,
+            "envelope_injected": envelope_injected,
+            "injection_details": injection_details,
+            "verified": envelope_injected,
             "points": sorted_pts
         }, indent=2)
     except Exception as e:
@@ -2414,10 +2659,16 @@ except (ImportError, ValueError):
 
 # Connect engine to live socket adapter
 engine.set_adapter(LiveAbletonAdapter(get_ableton_connection))
-try:
-    engine.initialize()
-except Exception as _pie_init_err:
-    logger.info(f"Engine bootstrap initialized (Live offline: {_pie_init_err})")
+# Defer heavy session reconciliation to a background daemon thread so MCP server boots instantly (<0.3s)
+# and never trips the client MCP handshake timeout (which killed the process with 0xffffffff on 18-track sessions).
+def _async_bootstrap_engine():
+    try:
+        engine.initialize()
+        logger.info("Engine bootstrap completed in background")
+    except Exception as _pie_init_err:
+        logger.info(f"Engine bootstrap initialized (Live offline: {_pie_init_err})")
+
+threading.Thread(target=_async_bootstrap_engine, daemon=True, name="EngineBootstrapThread").start()
 
 
 # --- SESSION SEMANTIC TOOLS ---
@@ -7493,7 +7744,7 @@ def copilot_get_status() -> dict:
     and a summary of pending decisions requiring producer resolution.
     """
     try:
-        from engine.production.copilot import executive_copilot
+        from engine.production.copilot.stepper import executive_copilot
         conn = get_ableton_connection()
         state = executive_copilot.inspect_session(conn=conn)
         return state.to_dict()
@@ -7507,15 +7758,24 @@ def copilot_review_decisions(phase: Optional[str] = None) -> dict:
     """
     Returns the interactive checklist of pending production decisions, including
     technical justifications, recommended actions, and execution options (YES/NO/CUSTOM).
+    Pass phase='RESET' or phase='NEW_SONG' to initialize a fresh session checklist.
     """
     try:
-        from engine.production.copilot import executive_copilot
+        import sys, importlib
+        import engine.production.copilot.stepper as _stepper_mod
+        if phase in ["RESET", "NEW_SONG", "NEW"]:
+            # Hot-reload to pick up any code changes without server restart
+            importlib.reload(_stepper_mod)
+            sys.modules["engine.production.copilot.stepper"] = _stepper_mod
+        ec = sys.modules["engine.production.copilot.stepper"].executive_copilot
+        if phase in ["RESET", "NEW_SONG", "NEW"]:
+            ec.reset()
+            phase = None
         conn = get_ableton_connection()
-        state = executive_copilot.inspect_session(conn=conn)
+        state = ec.inspect_session(conn=conn)
         pending = state.pending_decisions
         if phase:
             pending = [d for d in pending if d.phase == phase]
-
         return {
             "pending_count": len(pending),
             "decisions": [d.to_dict() for d in pending],
@@ -7540,9 +7800,10 @@ def copilot_execute_decision(
     - choice='CUSTOM': executes with custom parameter overrides.
     """
     try:
-        from engine.production.copilot import executive_copilot
+        import sys
+        ec = sys.modules["engine.production.copilot.stepper"].executive_copilot
         conn = get_ableton_connection()
-        res = executive_copilot.execute_decision(
+        res = ec.execute_decision(
             decision_id=decision_id,
             choice=choice,
             justification=justification,
@@ -7562,10 +7823,11 @@ def copilot_preflight_check() -> dict:
     steps or pending decisions remain before final mastering and delivery.
     """
     try:
-        from engine.production.copilot import executive_copilot
+        import sys
+        ec = sys.modules["engine.production.copilot.stepper"].executive_copilot
         conn = get_ableton_connection()
-        executive_copilot.inspect_session(conn=conn)
-        report = executive_copilot.preflight_check()
+        ec.inspect_session(conn=conn)
+        report = ec.preflight_check()
         return report
     except Exception as e:
         logger.error(f"Error in copilot_preflight_check: {e}")
@@ -7633,10 +7895,21 @@ def macro_produce_harmony(
 @mcp.tool()
 def macro_finalize_song(
     target_profile: str = "STREAMING",
-    pre_drop_bar: float = 33.0
+    pre_drop_bar: float = 33.0,
+    premaster_track_index: Optional[int] = None,
+    kick_track_index: Optional[int] = None,
+    bass_track_index: Optional[int] = None,
+    enable_sidechain: bool = True,
+    enable_vocal_staging: bool = True,
+    enable_master_chain: bool = True
 ) -> dict:
     """
-    All-in-one macro recipe finalizing the song: pre-drop ear candy vacuum + 5-device mastering chain + technical readiness validation.
+    All-in-one macro recipe finalizing the song:
+    1. Injects pre-drop ear candy vacuum / section transition mute envelope.
+    2. Applies vocal lead staging & dynamic ducking on conflicting harmonic instruments.
+    3. Configures physical sidechain compression (Kick -> 808 Bass).
+    4. Deploys 5-stage native mastering chain (EQ Eight, Glue, Saturator, Utility, Limiter).
+    5. Audits loudness & headroom compliance, returning technical readiness verdict.
     """
     try:
         from engine.production.copilot import MacroProductionRecipes
@@ -7644,11 +7917,49 @@ def macro_finalize_song(
         return MacroProductionRecipes.finalize_mix_and_master(
             conn=conn,
             target_profile=target_profile,
-            pre_drop_bar=pre_drop_bar
+            pre_drop_bar=pre_drop_bar,
+            premaster_track_index=premaster_track_index,
+            kick_track_index=kick_track_index,
+            bass_track_index=bass_track_index,
+            enable_sidechain=enable_sidechain,
+            enable_vocal_staging=enable_vocal_staging,
+            enable_master_chain=enable_master_chain
         )
     except Exception as e:
         logger.error(f"Error in macro_finalize_song: {e}")
         return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def export_and_audit_stems(
+    export_dir: Optional[str] = None,
+    start_bar: float = 1.0,
+    end_bar: float = 65.0,
+    sample_rate: int = 48000,
+    bit_depth: int = 24
+) -> dict:
+    """
+    All-in-one multitrack stem export coordinator & audio forensics phase auditor.
+    1. Analyzes session tracks into canonical stem groups (Drums, Bass, Keys, Leads, Vocals, FX, Master).
+    2. Generates stem export plan and metadata manifest.
+    3. Performs sub-bass phase cross-correlation audit (Kick vs Bass) and True Peak headroom check (<= -1.0 dBTP).
+    4. Writes stem_phase_audit_manifest.json with distribution readiness verdict.
+    """
+    try:
+        from engine.audio.stem_audit import StemAuditor
+        conn = get_ableton_connection()
+        return StemAuditor.apply_stem_audit_adapter(
+            conn=conn,
+            export_dir=export_dir,
+            start_bar=start_bar,
+            end_bar=end_bar,
+            sample_rate=sample_rate,
+            bit_depth=bit_depth
+        )
+    except Exception as e:
+        logger.error(f"Error in export_and_audit_stems: {e}")
+        return {"status": "error", "message": str(e)}
+
 
 
 @mcp.tool()
@@ -8996,7 +9307,7 @@ def preset_select_for_track(
         if target and target.get("loading_method") == "user_library_adv" and target.get("browser_uri"):
             conn = get_ableton_connection()
             uri = target["browser_uri"]
-            res = conn.send_command("load_instrument_or_effect", {"track_index": track_index, "uri": uri})
+            res = conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": uri})
             return {
                 "status": "success",
                 "track_index": track_index,
@@ -9007,17 +9318,83 @@ def preset_select_for_track(
                 "result": res
             }
 
+        # Guard & Auto-Instantiate: Ensure the physical instrument device is loaded on track (INV-SOUND-01)
+        auto_loaded_device = False
+        try:
+            conn = get_ableton_connection()
+            raw_info = conn.send_command("get_track_info", {"track_index": track_index})
+            t_info = raw_info.get("result", raw_info) if isinstance(raw_info, dict) else {}
+            devices = t_info.get("devices", []) if isinstance(t_info, dict) else []
+            plugin_loaded = any(
+                target_plugin.lower() in d.get("name", "").lower() or d.get("name", "").lower() in target_plugin.lower()
+                for d in devices
+            )
+
+            if not plugin_loaded:
+                from engine.production.recipe_engine import VERIFIED_PLUGIN_URIS
+                plugin_uri = None
+                for p_name, u in VERIFIED_PLUGIN_URIS.items():
+                    if p_name.lower() in target_plugin.lower() or target_plugin.lower() in p_name.lower():
+                        plugin_uri = u
+                        break
+                if plugin_uri:
+                    logger.info(f"[preset_select_for_track] Auto-instantiating '{target_plugin}' ({plugin_uri}) on track {track_index}...")
+                    load_res = conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": plugin_uri})
+                    auto_loaded_device = True
+                elif len(devices) == 0:
+                    return {
+                        "status": "error",
+                        "error_type": "SILENT_TRACK_VIOLATION",
+                        "track_index": track_index,
+                        "plugin": target_plugin,
+                        "message": (
+                            f"Plugin '{target_plugin}' is not loaded on track {track_index} and track contains 0 devices. "
+                            f"Invariant INV-SOUND-01 violated: cannot assign presets to an empty track without loading the instrument first."
+                        )
+                    }
+        except Exception as inspect_err:
+            logger.debug(f"Device inspection/auto-instantiate error: {inspect_err}")
+
         pc_id = program_id
         if pc_id is None and target and target.get("program_change_id") is not None:
             pc_id = target["program_change_id"]
         if pc_id is None:
             pc_id = 0
 
-        pc_config = program_change_dispatcher.resolve_program_change(
-            target_plugin,
-            pc_id,
-            playlist_or_bank=target.get("bank") if target else None
+        if "analog lab" in target_plugin.lower() or "analog lab" in preset_name.lower():
+            try:
+                from engine.presets.analog_lab_ui_automator import analog_lab_ui_automator
+                analog_lab_ui_automator.select_preset(
+                    preset_name=preset_name,
+                    track_index=track_index,
+                    conn=conn
+                )
+            except Exception as ui_err:
+                logger.debug(f"AnalogLabUIAutomator error: {ui_err}")
+
+        pc_config = program_change_dispatcher.send_program_change(
+            conn=conn,
+            track_index=track_index,
+            program=pc_id,
+            bank=target.get("bank") if target else None,
+            plugin_name=target_plugin
         )
+
+        # Reflect preset visibly on track name in Live session
+        try:
+            cur_name = t_info.get("name", f"Track {track_index}")
+            base_name = cur_name.split("[")[0].strip() if "[" in cur_name else cur_name
+            new_track_name = f"{base_name} [{preset_name}]"
+            conn.send_command("set_track_name", {"track_index": track_index, "name": new_track_name})
+        except Exception as name_err:
+            logger.debug(f"Track rename error on preset select: {name_err}")
+
+        # Phase 1 Governance: record preset selection
+        try:
+            from engine.supervisor.governance import governance_supervisor
+            governance_supervisor.record_preset_selected(track_index, preset_name, device_index=0)
+        except Exception as g_err:
+            logger.debug(f"Governance record error: {g_err}")
 
         return {
             "status": "success",
@@ -9025,9 +9402,10 @@ def preset_select_for_track(
             "plugin": target_plugin,
             "preset_name": preset_name,
             "loading_method": "midi_program_change",
+            "auto_loaded_instrument": auto_loaded_device,
             "program_change_config": pc_config,
             "message": (
-                f"Preset '{preset_name}' asignado vía {pc_config['description']}. "
+                f"Preset '{preset_name}' asignado vía {pc_config.get('config', {}).get('description', 'MIDI Program Change')}. "
                 "Los clips MIDI disparados en esta pista conmutarán el sonido instantáneamente sin latencia."
             )
         }
@@ -9040,6 +9418,7 @@ def preset_select_for_track(
 @mcp.tool()
 def genre_offer_production_options(category: str = "", genre: str = "") -> dict:
     """
+    [EXPERIMENTAL FEATURE - DORMANT BY DEFAULT]
     Offers the AI a rich, structured catalog of production recipes, authentic groove patterns,
     and mix targets organized by genre:
     - Rap & Trap (Modern Trap, 90s Boom-Bap)
@@ -9048,7 +9427,7 @@ def genre_offer_production_options(category: str = "", genre: str = "") -> dict:
     - Música Urbana & Pop (Reggaetón Dembow, Afrobeat, Pop Comercial)
     - Rock (Modern Rock, Indie, Alternativo)
 
-    IMPORTANT: This catalog is purely an optional creative accelerator ('un extra y no una limitante').
+    IMPORTANT: This feature is experimental and off by default.
     Custom, experimental, and freeform workflows are 100% supported without restriction.
 
     Args:
@@ -9063,13 +9442,15 @@ def genre_offer_production_options(category: str = "", genre: str = "") -> dict:
             desc = GenreRhythmGrooveEngine.get_genre_descriptor(genre)
             return {
                 "status": "success",
+                "is_experimental": True,
                 "genre_requested": genre,
                 "profile": desc,
                 "is_optional": True,
-                "notice": "Este perfil es una sugerencia técnica y creativa opcional. El flujo libre y manual se respeta al 100%."
+                "notice": "Este perfil es una sugerencia técnica y creativa opcional (experimental). El flujo libre y manual se respeta al 100%."
             }
 
         menu = ProductionRecipeEngine.offer_genre_production_menu(category=category if category else None)
+        menu["is_experimental"] = True
         return menu
     except Exception as e:
         logger.error(f"Error in genre_offer_production_options: {e}")
@@ -9087,6 +9468,7 @@ def genre_generate_drum_pattern(
     humanize_ms: float = 6.0
 ) -> dict:
     """
+    [EXPERIMENTAL FEATURE - DORMANT BY DEFAULT]
     Generates and injects an authentic procedural rhythm pattern for a specified genre directly
     into an Ableton clip slot:
     - Cumbia: Güira raspada 16th sincopada, conga tumbao y timbal turnaround fill
@@ -9150,6 +9532,125 @@ def genre_generate_drum_pattern(
         }
     except Exception as e:
         logger.error(f"Error in genre_generate_drum_pattern: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+
+@mcp.tool()
+def suggest_clip_automations(
+    track_index: int,
+    clip_index: int = 0,
+    destination_time: Optional[float] = None
+) -> dict:
+    """
+    Inspects a track and returns contextual, tangible vector automation recipes suited for the clip
+    (timbre swell, filter riser, organic breathing, pre-drop vacuum cut, etc.).
+    """
+    try:
+        from engine.arrangement.automation.clip_suggester import ClipAutomationSuggester
+        conn = get_ableton_connection()
+        t_info_res = conn.send_command("get_track_info", {"track_index": track_index})
+        t_info = t_info_res.get("result", {}) if isinstance(t_info_res, dict) else (t_info_res or {})
+        
+        suggestions = ClipAutomationSuggester.suggest_for_track(t_info, clip_length=16.0)
+        return {
+            "status": "success",
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "track_name": t_info.get("name", f"Track {track_index}"),
+            "destination_time": destination_time,
+            "suggestions": suggestions,
+            "notice": "Each recipe can be baked directly into Ableton Live as tangible breakpoints editable with the 'A' key."
+        }
+    except Exception as e:
+        logger.error(f"Error in suggest_clip_automations: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def apply_clip_automation(
+    track_index: int,
+    clip_index: int = 0,
+    recipe_name: str = "timbre_swell",
+    destination_time: Optional[float] = None,
+    parameter: Optional[str] = None,
+    start_val: Optional[float] = None,
+    end_val: Optional[float] = None
+) -> dict:
+    """
+    Bakes a tangible, vector automation envelope into an Ableton Live clip
+    (and optionally bakes it directly into the Arrangement timeline at destination_time).
+    Creates real circular vector breakpoints visible and editable with the 'A' key.
+
+    Available recipes:
+    - "timbre_swell": Exponential rise in brightness/timbre (0.15 -> 0.85).
+    - "filter_riser": Exponential lowpass filter opening (0.20 -> 0.95).
+    - "filter_breathing": Subtle organic LFO sinusoidal breathing (0.45 <-> 0.65).
+    - "pre_drop_vacuum": High-impact energy vacuum (-60dB / mute during last 2 beats).
+    - "reverb_washout": Reverb wet buildup to 0.70 then sudden cut to 0.0 on the downbeat.
+    - "volume_crescendo": Dynamic volume swell (0.50 -> 0.85).
+    - "sub_turnaround": Harmonic drive/cutoff surge for section turnarounds.
+    """
+    try:
+        from engine.arrangement.automation.clip_suggester import ClipAutomationSuggester
+        conn = get_ableton_connection()
+        result = ClipAutomationSuggester.apply_recipe_to_clip(
+            conn=conn,
+            track_index=track_index,
+            clip_index=clip_index,
+            recipe_id=recipe_name,
+            destination_time=destination_time,
+            parameter=parameter,
+            start_val=start_val,
+            end_val=end_val
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error in apply_clip_automation: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def drum_rack_audit_clip_octaves(
+    track_index: int,
+    clip_index: int = 0
+) -> dict:
+    """
+    Audits the MIDI clip on a Drum Rack track against physical pad quadrants.
+    Standard Drum Racks have pads in Quadrant 1 (C1-D#2, pitches 36-51).
+    If notes are in Quadrant 3 (C3-D#4, pitches 60-75), the pads are completely silent.
+    Detects mismatch and returns transposition recommendation.
+    """
+    try:
+        from engine.instruments.drum_rack_guard import DrumRackGuard
+        conn = get_ableton_connection()
+        return DrumRackGuard.audit_drum_clip_octaves(conn=conn, track_index=track_index, clip_index=clip_index)
+    except Exception as e:
+        logger.error(f"Error in drum_rack_audit_clip_octaves: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def drum_rack_transpose_clip_octaves(
+    track_index: int,
+    clip_index: int = 0,
+    semitone_shift: int = -24
+) -> dict:
+    """
+    Transposes all notes in a drum clip by semitone_shift (default -24 semitones / 2 octaves)
+    so that notes mistakenly placed in Quadrant 3 (C3+) land in Quadrant 1 (C1-D#2) pads.
+    """
+    try:
+        from engine.instruments.drum_rack_guard import DrumRackGuard
+        conn = get_ableton_connection()
+        return DrumRackGuard.remediate_drum_clip_octaves(
+            conn=conn,
+            track_index=track_index,
+            clip_index=clip_index,
+            semitone_shift=semitone_shift
+        )
+    except Exception as e:
+        logger.error(f"Error in drum_rack_transpose_clip_octaves: {e}")
         return {"status": "error", "message": str(e)}
 
 

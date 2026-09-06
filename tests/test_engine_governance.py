@@ -240,3 +240,48 @@ def test_get_unconfigured_devices_tracking():
     assert len(gov.get_unconfigured_devices()) == 0
 
 
+def test_analog_lab_two_phase_governance_enforcement():
+    """
+    Guarantees strict two-phase governance for Analog Lab V:
+    Fase 1: AI is strictly required to choose an instrument/preset (even if default).
+            Parameter sculpting or adding effects before selecting a preset is blocked.
+    Fase 2: After choosing the instrument, AI is strictly required to sculpt its parameters.
+            Track cannot be validated until parameter sculpting is completed.
+    """
+    gov = EngineGovernanceSupervisor()
+    gov.register_track(10, name="Dark Pad Track", role="pad")
+    gov.notify_instrument_loaded(10, "Analog Lab V", device_index=0)
+
+    # 1. Attempting to sculpt parameters before choosing preset MUST fail (Phase 1 block)
+    with pytest.raises(PresetSelectionRequiredError):
+        gov.record_device_sculpted(10, 0, {"Brightness": 0.68, "Timbre": 0.62})
+
+    # 2. Attempting to add an effect before choosing preset MUST fail (Phase 1 block)
+    with pytest.raises(PresetSelectionRequiredError):
+        gov.request_add_effect(10, "ShaperBox 3")
+
+    # 3. Attempting to assert instrument sculpted before preset MUST fail (Phase 1 block)
+    with pytest.raises(PresetSelectionRequiredError):
+        gov.assert_instrument_sculpted(10, 0)
+
+    # 4. Phase 1: Explicitly select an instrument (e.g. Cinema Strings Pad or Classic Jun Keys)
+    gov.record_preset_selected(10, "Cinema Strings Pad", device_index=0)
+    gov.assert_preset_selection_valid(10)
+
+    # 5. Phase 2: Instrument is selected but parameters are NOT yet sculpted -> MUST fail
+    with pytest.raises(UnconfiguredDeviceViolationError):
+        gov.assert_instrument_sculpted(10, 0)
+
+    # 6. Phase 2: AI sculpts parameters of the chosen instrument
+    gov.record_device_sculpted(10, 0, {"Brightness": 0.68, "Timbre": 0.62, "Time": 0.70, "Movement": 0.55})
+
+    # 7. Now both Phase 1 and Phase 2 pass!
+    gov.assert_instrument_sculpted(10, 0)
+    gov.assert_track_fully_sculpted(10)
+
+    # 8. Now adding an effect succeeds
+    eff_idx = gov.request_add_effect(10, "ShaperBox 3")
+    assert eff_idx == 1
+
+
+

@@ -19,6 +19,8 @@ from engine.production.recipe_engine import (
     TrackBlueprint,
     ProductionRecipe,
     DeviceLoadFailureError,
+    ArrangementMissingClipsError,
+    DrumRackEmptyError,
     VERIFIED_PLUGIN_URIS
 )
 
@@ -86,13 +88,26 @@ class MockAbletonConnection:
                 self.tracks_data[t_idx]["volume"] = params.get("volume")
             return {"status": "success"}
 
-        elif cmd == "load_instrument_or_effect":
+        elif cmd in ("load_instrument_or_effect", "load_browser_item"):
             t_idx = params.get("track_index", 0)
-            uri = params.get("uri", "")
+            uri = params.get("item_uri") or params.get("uri", "")
             dev_name = uri.split("#")[-1].replace("%20", " ")
             if t_idx in self.tracks_data:
                 self.tracks_data[t_idx]["devices"].append({"name": dev_name})
             return {"status": "success", "loaded": dev_name}
+
+        elif cmd == "get_drum_rack_pads":
+            return {
+                "active_pad_count": 16,
+                "pads": [{"note": 36 + i, "name": f"Pad {i}"} for i in range(16)]
+            }
+
+        elif cmd == "get_arrangement_clips":
+            return {
+                "track_index": params.get("track_index", 0),
+                "clip_count": 4,
+                "clips": [{"name": "Clip", "start_time": 0.0, "end_time": 16.0}]
+            }
 
         elif cmd == "set_device_parameter":
             param = params.get("parameter")
@@ -188,6 +203,7 @@ def test_execute_physical_recipe_with_sections(monkeypatch):
                 role="keys",
                 instrument_name="Analog Lab V",
                 instrument_uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
+                preset_name="Stage-73 Warm Suitcase",
                 clip_notes=[{"pitch": 60, "start_time": 0.0, "duration": 4.0, "velocity": 85}],
                 effects=[{"name": "Efx FRAGMENTS", "uri": "query:Plugins#VST3:Arturia:Efx%20FRAGMENTS"}]
             ),
@@ -551,5 +567,79 @@ def test_apply_section_automations():
     assert auto_cmds[0]["params"]["track_index"] == 1
     assert auto_cmds[0]["params"]["parameter"] == "Cutoff"
     assert len(auto_cmds[0]["params"]["points"]) == 3
+
+
+def test_arrangement_missing_clips_assertion():
+    """
+    Confirms the engine strictly raises ArrangementMissingClipsError if any track
+    with notes has 0 clips in the Arrangement view timeline.
+    """
+    conn = MockAbletonConnection()
+    # Override get_arrangement_clips to return 0 clips
+    def mock_send(cmd: str, params: Dict[str, Any] = None):
+        params = params or {}
+        if cmd == "get_arrangement_clips":
+            return {"track_index": params.get("track_index", 0), "clip_count": 0, "clips": []}
+        return conn.send_command(cmd, params)
+
+    class CustomMock(MockAbletonConnection):
+        def send_command(self, cmd: str, params: Dict[str, Any] = None):
+            params = params or {}
+            if cmd == "get_arrangement_clips":
+                return {"track_index": params.get("track_index", 0), "clip_count": 0, "clips": []}
+            return super().send_command(cmd, params)
+
+    bad_conn = CustomMock()
+    recipe = ProductionRecipe(
+        title="Test Recipe",
+        genre_reference="Trap",
+        bpm=140.0,
+        key="C",
+        scale="minor",
+        chord_progression=["Cm"],
+        tracks=[
+            TrackBlueprint(
+                track_index=1,
+                name="Test Lead",
+                role="lead",
+                instrument_name="Serum 2",
+                clip_notes=[{"pitch": 60, "start_time": 0.0, "duration": 1.0, "velocity": 100}]
+            )
+        ]
+    )
+
+    with pytest.raises(ArrangementMissingClipsError):
+        ProductionRecipeEngine.execute_physical_recipe(bad_conn, recipe)
+
+
+def test_zomboy_brostep_recipe_and_0_to_100_flow():
+    """
+    Confirms the Zomboy Heavy Brostep recipe is properly structured and successfully executes
+    through the authoritative engine 0-to-100 pipeline.
+    """
+    conn = MockAbletonConnection()
+    recipe = ProductionRecipeEngine.build_zomboy_brostep_recipe()
+    assert recipe.bpm == 145.0
+    assert recipe.key == "F"
+    assert len(recipe.tracks) == 8
+    assert len(recipe.sections) == 6
+
+    # Verify track roles
+    roles = [t.role for t in recipe.tracks]
+    assert "drums" in roles
+    assert "growl" in roles
+    assert "lead" in roles
+    assert "bass" in roles
+    assert "pad" in roles
+    assert "master" in roles
+
+    manifest = ProductionRecipeEngine.produce_zomboy_full_song_0_to_100(conn)
+    assert manifest["status"] in ("SUCCESS", "SILENCE_WARNING")
+    assert "arrangement_clips_verified" in manifest
+    # Verify arrangement clips were recorded
+    for t_idx in (2, 4, 5, 6, 10, 12, 15):
+        assert t_idx in manifest["arrangement_clips_verified"]
+        assert manifest["arrangement_clips_verified"][t_idx]["clip_count"] > 0
+
 
 

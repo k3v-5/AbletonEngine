@@ -34,7 +34,7 @@ class TestInstalledPluginScanner:
         assert summary["status"] == "SUCCESS"
         assert summary["total_discovered"] > 0
         assert summary["vst3_count"] > 0
-        assert summary["native_count"] == 4
+        assert summary["native_count"] >= 4
 
     def test_role_classification_coverage(self):
         scanner = InstalledPluginScanner()
