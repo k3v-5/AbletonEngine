@@ -10003,6 +10003,37 @@ def orchestrate_role_track(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def copilot_auto_produce(
+    genre: str = "hip_hop_neo_soul",
+    bpm: float = 120.0,
+    key: str = "F",
+    scale: str = "natural_minor",
+    max_steps: int = 80
+) -> dict:
+    """
+    Autonomous End-to-End Copilot Producer:
+    Executes the entire native Copilot production pipeline from DNA to Final Delivery in a single command.
+    Iteratively resolves all decisions (Creative DNA -> Composition -> Sound Design -> Groove -> Transitions -> Mix -> Master),
+    enforces physical load verification and parameter sculpting (Capa 3), and audits with preflight_check.
+    The Copilot remains active and listening in the session for subsequent adjustments.
+    """
+    try:
+        from engine.production.copilot.stepper import executive_copilot
+        conn = get_ableton_connection()
+        return executive_copilot.run_autonomous_pipeline(
+            conn=conn,
+            genre=genre,
+            bpm=bpm,
+            key=key,
+            scale=scale,
+            max_steps=max_steps
+        )
+    except Exception as e:
+        logger.error(f"Error in copilot_auto_produce: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

@@ -593,3 +593,27 @@ def test_program_change_dispatcher_send_program_change():
     assert len(conn.commands) == 1
     assert conn.commands[0][0] == "execute_code"
 
+
+def test_copilot_run_autonomous_pipeline():
+    """Test autonomous pipeline execution in a single command."""
+    from engine.adapters.mock_adapter import MockAbletonAdapter
+    from engine.production.copilot.stepper import ExecutiveCopilotEngine
+
+    copilot = ExecutiveCopilotEngine()
+    adapter = MockAbletonAdapter()
+
+    res = copilot.run_autonomous_pipeline(
+        conn=adapter,
+        genre="hip_hop_neo_soul",
+        bpm=120.0,
+        key="F",
+        scale="natural_minor",
+        max_steps=30
+    )
+
+    assert res["status"] in ["SUCCESS", "COMPLETED_WITH_WARNINGS"]
+    assert res["steps_executed_count"] > 0
+    assert res["copilot_active"] is True
+    assert res["bpm"] == 120.0
+
+
