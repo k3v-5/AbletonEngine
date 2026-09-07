@@ -203,13 +203,34 @@ class MockAbletonAdapter(BaseAbletonAdapter):
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
         track = self.tracks[track_index]
-        dev_name = "Drum Rack" if "drum" in uri.lower() else "Drift"
+        uri_lower = uri.lower()
+        is_drum = "drum" in uri_lower or "kit" in uri_lower or "808" in uri_lower
+        dev_name = "Drum Rack" if is_drum else "Drift"
+
+        # Check for kit presets that populate pads
+        is_kit_preset = is_drum and any(k in uri_lower for k in ("kit", "fileid", "808", "preset", "acoustic"))
+        pads = []
+        if is_kit_preset:
+            pads = [
+                {"note": 36, "name": "Kick", "mute": False, "solo": False, "devices": [{"name": "Simpler"}]},
+                {"note": 38, "name": "Snare", "mute": False, "solo": False, "devices": [{"name": "Simpler"}]},
+                {"note": 42, "name": "Closed HH", "mute": False, "solo": False, "devices": [{"name": "Simpler"}]},
+                {"note": 46, "name": "Open HH", "mute": False, "solo": False, "devices": [{"name": "Simpler"}]},
+            ]
+
+        # If track already has a Drum Rack and we load a kit preset into it:
+        for d in track.get("devices", []):
+            if d.get("class_name") == "DrumGroupDevice" or "drum rack" in d.get("name", "").lower():
+                if pads:
+                    d["drum_pads"] = pads
+                return {"loaded": True, "track_index": track_index, "uri": uri, "new_devices": [d["name"]]}
+
         new_dev = {
             "index": len(track["devices"]),
             "name": dev_name,
-            "class_name": "DrumGroupDevice" if "drum" in uri.lower() else "InstrumentDevice",
-            "type": "drum_machine" if "drum" in uri.lower() else "synth",
-            "drum_pads": []
+            "class_name": "DrumGroupDevice" if is_drum else "InstrumentDevice",
+            "type": "drum_machine" if is_drum else "synth",
+            "drum_pads": pads
         }
         track["devices"].append(new_dev)
         return {"loaded": True, "track_index": track_index, "uri": uri, "new_devices": [dev_name]}
@@ -219,16 +240,25 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             raise ConnectionError("Mock Ableton is disconnected")
         track = self.tracks[track_index]
         devices = track.get("devices", [])
-        if device_index >= len(devices):
-            return {"active_pad_count": 0, "pads": []}
-        dev = devices[device_index]
-        pads = dev.get("drum_pads", [])
-        return {
+        drum_dev = None
+        if device_index < len(devices) and ("drum rack" in devices[device_index].get("name", "").lower() or devices[device_index].get("class_name") == "DrumGroupDevice"):
+            drum_dev = devices[device_index]
+        else:
+            for d in devices:
+                if "drum rack" in d.get("name", "").lower() or d.get("class_name") == "DrumGroupDevice":
+                    drum_dev = d
+                    break
+        if not drum_dev:
+            return {"track_index": track_index, "active_pad_count": 0, "pads": [], "result": {"active_pad_count": 0, "pads": []}}
+        pads = drum_dev.get("drum_pads", [])
+        res = {
             "track_index": track_index,
-            "drum_rack_name": dev.get("name", "Drum Rack"),
+            "drum_rack_name": drum_dev.get("name", "Drum Rack"),
             "active_pad_count": len(pads),
             "pads": pads
         }
+        res["result"] = res
+        return res
 
     def get_drum_pad_devices(self, track_index: int, pad_note: int, device_index: int = 0) -> Dict[str, Any]:
         rack_info = self.get_drum_rack_pads(track_index, device_index)
@@ -340,8 +370,9 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             return self.get_drum_pad_devices(params.get("track_index", 0), params.get("pad_note", 36), params.get("device_index", 0))
         elif command_type == "load_drum_pad_item":
             return self.load_drum_pad_item(params.get("track_index", 0), params.get("pad_note", 36), params.get("item_uri", ""), params.get("device_index", 0))
-        elif command_type == "load_browser_item":
-            return self.load_instrument_or_effect(params.get("track_index", 0), params.get("item_uri", ""))
+        elif command_type in ("load_browser_item", "load_instrument_or_effect"):
+            uri = params.get("item_uri", params.get("uri", ""))
+            return self.load_instrument_or_effect(params.get("track_index", 0), uri)
         elif command_type == "get_track_info":
             return self.get_track_info(params.get("track_index", 0))
         elif command_type == "get_session_info":

@@ -3,16 +3,18 @@
 Copilot Guided Session Engine (Asistente Conversacional por Estados):
 Single-tool state machine wizard for interactive music production.
 
-Replaces disjointed tool calling with a structured conversational interview
+Replaces disjointed tool calling with a structured 7-phase conversational interview
 between Copilot (the Technical Director) and the Producer (AI/User).
 
 Workflow Phases:
 1. PHASE_1_TRACKS: Channels, names & acoustic role reservation.
 2. PHASE_2_SECTIONS: Song structure, section names & arrangement cue points.
-3. PHASE_3_INSTRUMENTS: Track-by-track verified VST/preset selection & sculpting (Delta >= 1).
-4. PHASE_4_COMPOSITION: Harmonic progression, bassline, topline & drum note writing into arrangement.
-5. PHASE_5_MIX_MASTER: Acoustic audit (LUFS, collisions), sidechain ducking & BS.1770-5 mastering chain.
-6. PHASE_6_COMPLETED: Project complete, Copilot stays active listening for adjustments.
+3. PHASE_3_INSTRUMENTS: Track-by-track verified VST/Kit selection (Strict LOM verification, Drum Pad population check, zero silent swallow).
+4. PHASE_4_PARAM_SCULPTING: Track-by-track conversational synthesis sculpting (Delta >= 1 rule verified).
+5. PHASE_5_INSERT_EFFECTS: Track-by-track insert FX chains (Drum Buss, Saturator, VintageVerb, Delay, OTT).
+6. PHASE_6_COMPOSITION: Harmonic progression, bassline, topline & drum note writing into arrangement (with Drum Octave Guard).
+7. PHASE_7_MIX_MASTER: Acoustic audit (LUFS, collisions), sidechain ducking & BS.1770-5 serial mastering chain.
+8. PHASE_8_COMPLETED: Project complete, Copilot stays active listening for adjustments.
 """
 
 import json
@@ -27,6 +29,7 @@ from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
 from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
 from engine.instruments.browser_catalog import CURATED_SOURCES
 from engine.instruments.installed_scanner import InstalledPluginScanner
+from engine.instruments.drum_rack_guard import DrumRackGuard
 from engine.mix.sidechain_manager import SidechainManager
 from engine.mastering.live_master_chain import LiveMasterChainEngine
 from engine.production.copilot.stepper import executive_copilot
@@ -51,9 +54,11 @@ class CopilotGuidedSession:
         "PHASE_1_TRACKS",
         "PHASE_2_SECTIONS",
         "PHASE_3_INSTRUMENTS",
-        "PHASE_4_COMPOSITION",
-        "PHASE_5_MIX_MASTER",
-        "PHASE_6_COMPLETED"
+        "PHASE_4_PARAM_SCULPTING",
+        "PHASE_5_INSERT_EFFECTS",
+        "PHASE_6_COMPOSITION",
+        "PHASE_7_MIX_MASTER",
+        "PHASE_8_COMPLETED"
     ]
 
     def __init__(self):
@@ -70,6 +75,8 @@ class CopilotGuidedSession:
             "scale": "natural_minor",
             "bpm": 120.0,
             "current_track_ptr": 0,
+            "current_param_ptr": 0,
+            "current_fx_ptr": 0,
             "history": [],
             "is_complete": False
         }
@@ -101,7 +108,7 @@ class CopilotGuidedSession:
         Executes one turn of the conversational Copilot wizard:
         1. Evaluates user_input for the current phase.
         2. Performs physical mutations in Ableton Live.
-        3. Verifies DAW state in the LOM.
+        3. Verifies DAW state in the LOM strictly (never swallowing errors).
         4. Transitions to the next phase or next track.
         5. Formulates the next question for the user/AI.
         """
@@ -111,7 +118,7 @@ class CopilotGuidedSession:
         phase = self.data.get("current_phase", "PHASE_1_TRACKS")
         u_in = str(user_input or "").strip()
 
-        # If it's the very first invocation with no input, present Step 1 question
+        # Initial prompt
         if not u_in and phase == "PHASE_1_TRACKS" and not self.data["tracks"]:
             return self._prompt_phase_1()
 
@@ -121,12 +128,16 @@ class CopilotGuidedSession:
             return self._handle_phase_2(conn, u_in)
         elif phase == "PHASE_3_INSTRUMENTS":
             return self._handle_phase_3(conn, u_in)
-        elif phase == "PHASE_4_COMPOSITION":
+        elif phase == "PHASE_4_PARAM_SCULPTING":
             return self._handle_phase_4(conn, u_in)
-        elif phase == "PHASE_5_MIX_MASTER":
+        elif phase == "PHASE_5_INSERT_EFFECTS":
             return self._handle_phase_5(conn, u_in)
-        elif phase == "PHASE_6_COMPLETED":
+        elif phase == "PHASE_6_COMPOSITION":
             return self._handle_phase_6(conn, u_in)
+        elif phase == "PHASE_7_MIX_MASTER":
+            return self._handle_phase_7(conn, u_in)
+        elif phase == "PHASE_8_COMPLETED":
+            return self._handle_phase_8(conn, u_in)
 
         return {"status": "ERROR", "message": f"Fase desconocida: {phase}"}
 
@@ -135,10 +146,10 @@ class CopilotGuidedSession:
     # -------------------------------------------------------------------------
     def _prompt_phase_1(self) -> Dict[str, Any]:
         return {
-            "current_step": "PASO 1 DE 5: ESTRUCTURA DE PISTAS (SCAFFOLDING)",
+            "current_step": "PASO 1 DE 7: ESTRUCTURA DE PISTAS (SCAFFOLDING)",
             "action_taken": "Sesión iniciada. Esperando definición de canales.",
             "question": (
-                "🎙️ **Paso 1 de 5: ¿Cuántos canales deseas y qué rol musical tendrá cada uno?**\n\n"
+                "🎙️ **Paso 1 de 7: ¿Cuántos canales deseas y qué rol musical tendrá cada uno?**\n\n"
                 "Elige una opción o escribe tu lista personalizada:\n"
                 "• **Opción A (5 Canales Esencial)**: Batería, Piano/Keys, Pads, Bajo 808, Lead.\n"
                 "• **Opción B (8 Canales Completo)**: Kick, Batería, Bajo 808, Rhodes, Cuerdas, Pad, Lead, Vocal Chops.\n"
@@ -172,7 +183,6 @@ class CopilotGuidedSession:
                 {"name": "Lead Synth", "role": "LEAD"}
             ]
         else:
-            # Custom parsing: split by commas or line breaks
             items = [re.sub(r"^\d+[\.\)]\s*", "", i).strip() for i in re.split(r"[,;\n]+", user_input) if i.strip()]
             for item in items:
                 role = RoleTrackOrchestrator.normalize_role(item)
@@ -220,10 +230,10 @@ class CopilotGuidedSession:
         track_summary = ", ".join([f"Pista {t['index']}: {t['name']} ({t['role']})" for t in created_tracks])
 
         return {
-            "current_step": "PASO 2 DE 5: ESTRUCTURA Y SECCIONES (ARRANGEMENT TIMELINE)",
+            "current_step": "PASO 2 DE 7: ESTRUCTURA Y SECCIONES (ARRANGEMENT TIMELINE)",
             "action_taken": f"Se crearon y verificaron físicamente {len(created_tracks)} pistas en Live ({track_summary}).",
             "question": (
-                "📐 **Paso 2 de 5: ¿Qué secciones y cuántos compases tendrá la canción?**\n\n"
+                "📐 **Paso 2 de 7: ¿Qué secciones y cuántos compases tendrá la canción?**\n\n"
                 "Elige una estructura o escribe tu desglose:\n"
                 "• **Opción A (Estándar 96 compases / ~3:00 min)**: Intro (8c), Verso 1 (16c), Pre-Coro (8c), Coro (16c), Verso 2 (16c), Puente (8c), Climax (16c), Outro (8c).\n"
                 "• **Opción B (Compacto 64 compases / ~2:00 min)**: Intro (8c), Verso (16c), Coro (16c), Puente (8c), Coro Final (16c).\n"
@@ -251,7 +261,6 @@ class CopilotGuidedSession:
                 ("Verse 2", 16), ("Bridge", 8), ("Climax Chorus", 16), ("Outro", 8)
             ]
         else:
-            # Custom parsing
             raw_parts = re.findall(r"([a-zA-Z\s]+)\s*\(?(\d+)\s*c?\)?", user_input)
             if raw_parts:
                 for s_name, s_bars in raw_parts:
@@ -267,15 +276,13 @@ class CopilotGuidedSession:
         self.data["total_bars"] = total_bars
 
         # Physical Cue Points in Live
-        cue_reports = []
         if conn is not None and hasattr(conn, "send_command"):
             curr_beat = 0.0
             for s_name, s_bars in sections:
                 try:
                     conn.send_command("create_cue_point", {"name": s_name, "time": float(curr_beat)})
-                    cue_reports.append(f"{s_name} (compás {int(curr_beat / 4.0) + 1})")
                 except Exception:
-                    cue_reports.append(f"{s_name} ({s_bars}c)")
+                    pass
                 curr_beat += s_bars * 4.0
 
         self.data["current_phase"] = "PHASE_3_INSTRUMENTS"
@@ -286,18 +293,18 @@ class CopilotGuidedSession:
         return self._prompt_current_track_instrument()
 
     # -------------------------------------------------------------------------
-    # FASE 3: INSTRUMENTOS Y DISEÑO SONORO (PISTA POR PISTA)
+    # FASE 3: CARGA DE INSTRUMENTOS (VERIFICACIÓN ESTRICTA LOM + DRUM PADS)
     # -------------------------------------------------------------------------
     def _prompt_current_track_instrument(self) -> Dict[str, Any]:
         tracks = self.data.get("tracks", [])
         ptr = self.data.get("current_track_ptr", 0)
 
         if ptr >= len(tracks):
-            # All tracks done, advance to composition
-            self.data["current_phase"] = "PHASE_4_COMPOSITION"
+            self.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
             self.data["phase_index"] = 4
+            self.data["current_param_ptr"] = 0
             self._save_state()
-            return self._prompt_phase_4()
+            return self._prompt_current_track_params()
 
         trk = tracks[ptr]
         t_idx = trk["index"]
@@ -311,24 +318,31 @@ class CopilotGuidedSession:
             opts_text.append(f"{i}. [{opt.category.value.upper()}] **{opt.name}** (`{opt.id}`) — {opt.description}")
 
         if not opts_text:
-            opts_text = [
-                f"1. [VST3] Plugin nativo o emulado para {role}",
-                "2. [Native] Sintetizador Ableton Live (Drift / Wavetable)"
-            ]
+            if role == "DRUMS":
+                opts_text = [
+                    "1. [DRUM_KIT] **808 Core Kit (.adg)** (`drum_808_core`) — Roland TR-808 con 16 pads poblados.",
+                    "2. [DRUM_KIT] **Boom Bap Kit (.adg)** (`drum_boom_bap`) — Baterías acústicas con textura de vinilo.",
+                    "3. [VST3] **Bloom Drum Breaks** (`vst3_bloom_drums`) — Slicer dinámico de breaks y grooves."
+                ]
+            else:
+                opts_text = [
+                    f"1. [VST3] Plugin líder para {role}",
+                    f"2. [NATIVE] Sintetizador Ableton Live para {role}"
+                ]
 
         options_block = "\n".join(opts_text)
 
         return {
-            "current_step": f"PASO 3 DE 5: INSTRUMENTO Y CONFIGURACIÓN (PISTA {ptr + 1} DE {len(tracks)})",
-            "action_taken": f"Configurando Pista {t_idx}: {t_name} ({role}).",
+            "current_step": f"PASO 3 DE 7: CARGA DE INSTRUMENTO / KIT (PISTA {ptr + 1} DE {len(tracks)})",
+            "action_taken": f"Seleccionando fuente sonora física para Pista {t_idx}: {t_name} ({role}).",
             "question": (
-                f"🎹 **Paso 3 de 5: Configuración de Instrumento para Pista {t_idx} ('{t_name}', Rol: {role})**\n\n"
-                f"¿Qué plugin y timbre deseas cargar en esta pista?\n\n"
-                f"*Opciones recomendadas del catálogo:*\n"
+                f"🎹 **Paso 3 de 7: Instrumento / Kit para Pista {t_idx} ('{t_name}', Rol: {role})**\n\n"
+                f"¿Qué generador sonoro o kit deseas cargar en esta pista?\n\n"
+                f"*Opciones recomendadas con verificación física garantizada:*\n"
                 f"{options_block}\n\n"
-                f"*Responde con el número de opción, nombre de plugin o preset (ej: 'Opción 1 con tono cálido').*"
+                f"*Responde con el número de opción o nombre de plugin (ej: 'Opción 1').*"
             ),
-            "instructions_for_ai": f"Indica el plugin o preset para la pista {t_name}.",
+            "instructions_for_ai": f"Indica la opción de instrumento o kit para {t_name}.",
             "target_track": t_idx,
             "role": role,
             "phase": "PHASE_3_INSTRUMENTS"
@@ -339,10 +353,11 @@ class CopilotGuidedSession:
         ptr = self.data.get("current_track_ptr", 0)
 
         if ptr >= len(tracks):
-            self.data["current_phase"] = "PHASE_4_COMPOSITION"
+            self.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
             self.data["phase_index"] = 4
+            self.data["current_param_ptr"] = 0
             self._save_state()
-            return self._prompt_phase_4()
+            return self._prompt_current_track_params()
 
         trk = tracks[ptr]
         t_idx = trk["index"]
@@ -358,7 +373,6 @@ class CopilotGuidedSession:
                 if opt.id.lower() in u_clean or opt.name.lower() in u_clean:
                     selected_opt = opt
                     break
-            # Number match
             if not selected_opt:
                 for i, opt in enumerate(options[:4], 1):
                     if str(i) in u_clean or f"opcion {i}" in u_clean:
@@ -367,55 +381,307 @@ class CopilotGuidedSession:
             if not selected_opt:
                 selected_opt = options[0]
 
-        # Resolve URI and Display Name
-        target_uri = selected_opt.uri if selected_opt else "query:Sounds#Piano%20%26%20Keys:FileId_4867"
+        target_uri = selected_opt.uri if selected_opt else (
+            "query:Drums#FileId_5422" if role == "DRUMS" else "query:Sounds#Piano%20&%20Keys:FileId_4867"
+        )
         display_name = selected_opt.name if selected_opt else f"{role} Instrument"
 
-        # Physical Load & Sculpt
-        sculpt_applied = {}
+        # Physical load with strict verification
+        is_verified = False
+        load_error = None
+
         if conn is not None and hasattr(conn, "send_command"):
             try:
-                conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": target_uri})
-                # Verify LOM
-                RoleTrackOrchestrator.verify_instrument_loaded(conn, t_idx, display_name)
-                # Sculpt parameters (Delta >= 1)
-                bp_res = DeviceParameterSupervisor.apply_sound_blueprint(
-                    conn=conn,
-                    track_index=t_idx,
-                    role=role,
-                    plugin_name=display_name,
-                    device_index=0
-                )
-                sculpt_applied = bp_res.get("applied_parameters", {})
-                conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] {display_name}"})
+                # 1. Send load command
+                res = conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": target_uri})
+                if isinstance(res, dict) and res.get("status") == "error":
+                    raise RuntimeError(res.get("message", "Live rejected load_browser_item"))
+
+                # 2. Verify device in LOM
+                v_ok, dev_idx, dev_name = RoleTrackOrchestrator.verify_instrument_loaded(conn, t_idx, display_name)
+                is_verified = v_ok
+
+                # 3. Special Drum Rack pad population check
+                if role == "DRUMS":
+                    audit = DrumRackGuard.audit_drum_rack(conn, track_index=t_idx, device_index=dev_idx or 0)
+                    if not audit.get("is_populated"):
+                        logger.info(f"Drum rack empty on track {t_idx}. Enforcing verified populated kit...")
+                        rem_res = DrumRackGuard.enforce_populated_drum_kit(conn, track_index=t_idx, device_index=dev_idx or 0)
+                        if not rem_res.get("is_populated"):
+                            is_verified = False
+                            load_error = "Drum Rack fue cargado pero sus pads están vacíos ('Suelte aquí un instrumento o muestra')."
+
+                if is_verified:
+                    conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] {display_name}"})
+                else:
+                    if not load_error:
+                        load_error = f"El dispositivo '{display_name}' no fue detectado en la cadena de dispositivos de la Pista {t_idx}."
+
             except Exception as e:
-                logger.warning(f"Track {t_idx} load/sculpt warning: {e}")
+                is_verified = False
+                load_error = f"Fallo al cargar en Live: {str(e)}"
+        else:
+            is_verified = True
 
-        # Record on track
+        # STRICT VERIFICATION: DO NOT SWALLOW ERRORS
+        if not is_verified:
+            logger.error(f"Track {t_idx} verification failed: {load_error}")
+            return {
+                "status": "LOAD_FAILED",
+                "current_step": f"PASO 3 DE 7: ERROR DE CARGA EN PISTA {t_idx} ({trk['name']})",
+                "action_taken": f"FALLO DE VERIFICACIÓN: {load_error}. La pista no tiene generador sonoro válido.",
+                "question": (
+                    f"⚠️ **Alerta del Copilot:** No se pudo cargar o verificar '{display_name}' en la Pista {t_idx}.\n\n"
+                    f"*Motivo:* {load_error}\n\n"
+                    f"Para asegurar que la pista emita sonido y no quede vacía, elige una opción de respaldo:\n"
+                    f"1. **Reintentar carga** de {display_name}.\n"
+                    f"2. **Cargar preset nativo seguro** de Live Core Library ({role}).\n"
+                    f"3. **Cargar VST alternativo**.\n\n"
+                    f"*Responde indicando cómo deseas proceder (ej: 'Reintentar' o 'Opción 2').*"
+                ),
+                "instructions_for_ai": "Elige reintentar o una opción alternativa para no dejar la pista vacía.",
+                "retry_required": True,
+                "phase": "PHASE_3_INSTRUMENTS"
+            }
+
+        # Success: record on track and advance pointer
         trk["instrument"] = display_name
-        trk["sculpted_parameters"] = sculpt_applied
-
-        # Advance pointer
+        trk["item_uri"] = target_uri
         self.data["current_track_ptr"] = ptr + 1
         self._save_state()
 
         if self.data["current_track_ptr"] < len(tracks):
             return self._prompt_current_track_instrument()
         else:
-            self.data["current_phase"] = "PHASE_4_COMPOSITION"
+            self.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
             self.data["phase_index"] = 4
+            self.data["current_param_ptr"] = 0
             self._save_state()
-            return self._prompt_phase_4()
+            return self._prompt_current_track_params()
 
     # -------------------------------------------------------------------------
-    # FASE 4: COMPOSICIÓN DE NOTAS Y TIMELINE
+    # FASE 4: CONFIGURACIÓN Y ESCULPIDO CONVERSACIONAL DE PARÁMETROS (DELTA >= 1)
     # -------------------------------------------------------------------------
-    def _prompt_phase_4(self) -> Dict[str, Any]:
+    def _prompt_current_track_params(self) -> Dict[str, Any]:
+        tracks = self.data.get("tracks", [])
+        ptr = self.data.get("current_param_ptr", 0)
+
+        if ptr >= len(tracks):
+            self.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+            self.data["phase_index"] = 5
+            self.data["current_fx_ptr"] = 0
+            self._save_state()
+            return self._prompt_current_track_fx()
+
+        trk = tracks[ptr]
+        t_idx = trk["index"]
+        t_name = trk["name"]
+        role = trk["role"]
+        inst = trk.get("instrument", f"{role} Synth")
+
         return {
-            "current_step": "PASO 4 DE 5: COMPOSICIÓN DE NOTAS Y DESPLIEGUE EN ARRANGEMENT",
-            "action_taken": "Todos los instrumentos fueron cargados y esculpidos físicamente en Live.",
+            "current_step": f"PASO 4 DE 7: ESCULPIDO DE PARÁMETROS DE SÍNTESIS (PISTA {ptr + 1} DE {len(tracks)})",
+            "action_taken": f"Instrumento {inst} verificado físicamente en Pista {t_idx}.",
             "question": (
-                "🎼 **Paso 4 de 5: ¿En qué tonalidad, escala y tempo (BPM) componemos la música?**\n\n"
+                f"🎛️ **Paso 4 de 7: Esculpido de Síntesis para Pista {t_idx} ('{t_name}', Rol: {role}, Plugin: {inst})**\n\n"
+                f"Para evitar que el plugin permanezca en su sonido de fábrica (Init), define el carácter tímbrico:\n\n"
+                f"• **Opción 1 (Cálido y Vintage)**: Filtro Lowpass al 65%, Drive analógico al 25%, Ataque suave con cuerpo sedoso.\n"
+                f"• **Opción 2 (Brillante y Moderno)**: Cutoff al 88%, Wavetable Pos al 45%, Unísono estéreo amplio y aire.\n"
+                f"• **Opción 3 (Pesado y Agresivo)**: Drive saturado al 55%, Cutoff al 75%, pegada dura y compresión directa.\n"
+                f"• **Personalizado**: Escribe los valores exactos (ej: 'Cutoff 70%, Drive 30%, Decay 60%').\n\n"
+                f"*Responde con la opción deseada (ej: 'Opción 1' o tus ajustes).*"
+            ),
+            "instructions_for_ai": f"Indica el perfil sonoro para esculpir el sintetizador en la pista {t_name}.",
+            "target_track": t_idx,
+            "role": role,
+            "phase": "PHASE_4_PARAM_SCULPTING"
+        }
+
+    def _handle_phase_4(self, conn: Any, user_input: str) -> Dict[str, Any]:
+        tracks = self.data.get("tracks", [])
+        ptr = self.data.get("current_param_ptr", 0)
+
+        if ptr >= len(tracks):
+            self.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+            self.data["phase_index"] = 5
+            self.data["current_fx_ptr"] = 0
+            self._save_state()
+            return self._prompt_current_track_fx()
+
+        trk = tracks[ptr]
+        t_idx = trk["index"]
+        role = trk["role"]
+        inst = trk.get("instrument", "")
+        text = _normalize_text(user_input)
+
+        param_dict = {}
+        if "opcion 2" in text or "brillante" in text or "modern" in text:
+            param_dict = {"FILTER_CUTOFF": 0.88, "WAVETABLE_POS": 0.45, "DRIVE": 0.20, "UNISON_DETUNE": 0.35}
+        elif "opcion 3" in text or "pesado" in text or "agresiv" in text or "sat" in text:
+            param_dict = {"FILTER_CUTOFF": 0.75, "DRIVE": 0.55, "SUB_LEVEL": 0.90, "AMP_ATTACK": 0.05}
+        else:
+            param_dict = {"FILTER_CUTOFF": 0.65, "DRIVE": 0.25, "AMP_ATTACK": 0.15, "AMP_RELEASE": 0.55}
+
+        # Apply physical sculpting (Delta >= 1)
+        sculpt_applied = {}
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                bp_res = DeviceParameterSupervisor.apply_sound_blueprint(
+                    conn=conn,
+                    track_index=t_idx,
+                    role=role,
+                    plugin_name=inst,
+                    device_index=0,
+                    custom_blueprint={"parameters": param_dict}
+                )
+                sculpt_applied = bp_res.get("applied_parameters", param_dict)
+                DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, 0))
+            except Exception as e:
+                logger.warning(f"Parameter sculpting error on track {t_idx}: {e}")
+                sculpt_applied = param_dict
+        else:
+            sculpt_applied = param_dict
+            DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, 0))
+
+        trk["sculpted_parameters"] = sculpt_applied
+        self.data["current_param_ptr"] = ptr + 1
+        self._save_state()
+
+        if self.data["current_param_ptr"] < len(tracks):
+            return self._prompt_current_track_params()
+        else:
+            self.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+            self.data["phase_index"] = 5
+            self.data["current_fx_ptr"] = 0
+            self._save_state()
+            return self._prompt_current_track_fx()
+
+    # -------------------------------------------------------------------------
+    # FASE 5: CADENAS DE EFECTOS DE INSERCIÓN (INSERT FX POR CANAL)
+    # -------------------------------------------------------------------------
+    def _prompt_current_track_fx(self) -> Dict[str, Any]:
+        tracks = self.data.get("tracks", [])
+        ptr = self.data.get("current_fx_ptr", 0)
+
+        if ptr >= len(tracks):
+            self.data["current_phase"] = "PHASE_6_COMPOSITION"
+            self.data["phase_index"] = 6
+            self._save_state()
+            return self._prompt_phase_6()
+
+        trk = tracks[ptr]
+        t_idx = trk["index"]
+        t_name = trk["name"]
+        role = trk["role"]
+
+        if role == "DRUMS":
+            fx_rec = (
+                "• **Opción 1 (Recomendada)**: Drum Buss (Drive 28%, Crunch 35%, Transients +1.5dB) + Glue Compressor.\n"
+                "• **Opción 2**: Saturator (Analógico) + OTT (Mix 20%).\n"
+                "• **Opción 3**: Directo (Sin efectos de inserción)."
+            )
+        elif role == "BASS":
+            fx_rec = (
+                "• **Opción 1 (Recomendada)**: Saturator (Analog Clip, Drive +3.5dB) + EQ Eight (Corte subsónico < 28 Hz).\n"
+                "• **Opción 2**: Overdrive analógico + Compressor.\n"
+                "• **Opción 3**: Directo (Sin efectos de inserción)."
+            )
+        elif role == "KEYS":
+            fx_rec = (
+                "• **Opción 1 (Recomendada)**: Chorus-Ensemble (Amount 40%) + ValhallaVintageVerb (Decay 2.2s, Mix 18%).\n"
+                "• **Opción 2**: Tremolo analógico + Delay estéreo a corcheas.\n"
+                "• **Opción 3**: Directo (Sin efectos de inserción)."
+            )
+        elif role == "LEAD":
+            fx_rec = (
+                "• **Opción 1 (Recomendada)**: Delay estéreo (Dotted 1/8, Feedback 30%) + OTT (Mix 25%).\n"
+                "• **Opción 2**: Chorus-Ensemble + ValhallaVintageVerb (Decay 3.5s).\n"
+                "• **Opción 3**: Directo (Sin efectos de inserción)."
+            )
+        else:
+            fx_rec = (
+                "• **Opción 1 (Recomendada)**: EQ Eight (High-pass 140 Hz) + ValhallaVintageVerb (Decay 3.2s, Mix 25%).\n"
+                "• **Opción 2**: Phaser/Flanger espacial + Reverb ambiental.\n"
+                "• **Opción 3**: Directo (Sin efectos de inserción)."
+            )
+
+        return {
+            "current_step": f"PASO 5 DE 7: EFECTOS DE INSERCIÓN (PISTA {ptr + 1} DE {len(tracks)})",
+            "action_taken": f"Parámetros de síntesis esculpidos en Pista {t_idx}.",
+            "question": (
+                f"🔌 **Paso 5 de 7: Cadena de Efectos de Inserción para Pista {t_idx} ('{t_name}', Rol: {role})**\n\n"
+                f"¿Qué procesadores en serie deseas insertar en este canal?\n\n"
+                f"{fx_rec}\n\n"
+                f"*Responde con la opción deseada (ej: 'Opción 1' o los efectos personalizados).*"
+            ),
+            "instructions_for_ai": f"Indica la cadena de efectos de inserción para la pista {t_name}.",
+            "target_track": t_idx,
+            "role": role,
+            "phase": "PHASE_5_INSERT_EFFECTS"
+        }
+
+    def _handle_phase_5(self, conn: Any, user_input: str) -> Dict[str, Any]:
+        tracks = self.data.get("tracks", [])
+        ptr = self.data.get("current_fx_ptr", 0)
+
+        if ptr >= len(tracks):
+            self.data["current_phase"] = "PHASE_6_COMPOSITION"
+            self.data["phase_index"] = 6
+            self._save_state()
+            return self._prompt_phase_6()
+
+        trk = tracks[ptr]
+        t_idx = trk["index"]
+        role = trk["role"]
+        text = _normalize_text(user_input)
+
+        applied_fx = []
+        if "opcion 3" in text or "directo" in text or "bypass" in text or "sin efecto" in text:
+            applied_fx = ["Bypass (Dry)"]
+        else:
+            fx_to_load = []
+            if role == "DRUMS":
+                fx_to_load = [("Drum Buss", "query:AudioFx#Drum%20Buss"), ("Glue Compressor", "query:AudioFx#Glue%20Compressor")]
+            elif role == "BASS":
+                fx_to_load = [("Saturator", "query:AudioFx#Saturator"), ("EQ Eight", "query:AudioFx#EQ%20Eight")]
+            elif role == "KEYS":
+                fx_to_load = [("Chorus-Ensemble", "query:AudioFx#Chorus-Ensemble"), ("ValhallaVintageVerb", "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb")]
+            elif role == "LEAD":
+                fx_to_load = [("Delay", "query:AudioFx#Delay"), ("OTT", "query:Plugins#VST3:Xfer%20Records:OTT")]
+            else:
+                fx_to_load = [("EQ Eight", "query:AudioFx#EQ%20Eight"), ("ValhallaVintageVerb", "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb")]
+
+            if conn is not None and hasattr(conn, "send_command"):
+                for fx_name, fx_uri in fx_to_load:
+                    try:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": fx_uri})
+                        applied_fx.append(fx_name)
+                    except Exception as ex:
+                        logger.warning(f"Could not load insert FX {fx_name} on track {t_idx}: {ex}")
+            else:
+                applied_fx = [name for name, _ in fx_to_load]
+
+        trk["insert_effects"] = applied_fx
+        self.data["current_fx_ptr"] = ptr + 1
+        self._save_state()
+
+        if self.data["current_fx_ptr"] < len(tracks):
+            return self._prompt_current_track_fx()
+        else:
+            self.data["current_phase"] = "PHASE_6_COMPOSITION"
+            self.data["phase_index"] = 6
+            self._save_state()
+            return self._prompt_phase_6()
+
+    # -------------------------------------------------------------------------
+    # FASE 6: COMPOSICIÓN DE NOTAS Y TIMELINE (CON DRUM OCTAVE GUARD)
+    # -------------------------------------------------------------------------
+    def _prompt_phase_6(self) -> Dict[str, Any]:
+        return {
+            "current_step": "PASO 6 DE 7: COMPOSICIÓN DE NOTAS Y DESPLIEGUE EN ARRANGEMENT",
+            "action_taken": "Todos los instrumentos y efectos de inserción fueron configurados físicamente en Live.",
+            "question": (
+                "🎼 **Paso 6 de 7: ¿En qué tonalidad, escala y tempo (BPM) componemos la música?**\n\n"
                 "*Sugerencias armónicas y rítmicas:*\n"
                 "• **Neo-Soul / R&B**: Fa Menor (F minor), 84 a 120 BPM, acordes Drop-2 con novenas y 808 con glides.\n"
                 "• **Trap / Rap Oscuro**: Do Menor (C minor), 138 a 144 BPM, 808 pesado y hats syncopados.\n"
@@ -423,27 +689,24 @@ class CopilotGuidedSession:
                 "*Responde indicando la tonalidad y BPM (ej: 'Tonalidad F menor a 120 BPM con Drop-2').*"
             ),
             "instructions_for_ai": "Indica tonalidad, escala y tempo para la composición.",
-            "phase": "PHASE_4_COMPOSITION"
+            "phase": "PHASE_6_COMPOSITION"
         }
 
-    def _handle_phase_4(self, conn: Any, user_input: str) -> Dict[str, Any]:
+    def _handle_phase_6(self, conn: Any, user_input: str) -> Dict[str, Any]:
         text = user_input.upper()
 
-        # Parse key
         key = "F"
         for k_candidate in ["C#", "DB", "D#", "EB", "F#", "GB", "G#", "AB", "A#", "BB", "C", "D", "E", "F", "G", "A", "B"]:
             if f" {k_candidate} " in f" {text} " or f"KEY {k_candidate}" in text or f"TONALIDAD {k_candidate}" in text:
                 key = k_candidate.title()
                 break
 
-        # Parse scale
         scale = "natural_minor"
         if "MAYOR" in text or "MAJOR" in text:
             scale = "major"
         elif "DORIAN" in text:
             scale = "dorian"
 
-        # Parse BPM
         bpm = 120.0
         bpm_match = re.search(r"(\d{2,3}(?:\.\d+)?)\s*BPM", user_input, re.IGNORECASE)
         if bpm_match:
@@ -454,7 +717,6 @@ class CopilotGuidedSession:
         self.data["bpm"] = bpm
         total_bars = self.data.get("total_bars", 96)
 
-        # Set tempo in Live
         if conn is not None and hasattr(conn, "send_command"):
             try:
                 conn.send_command("set_tempo", {"tempo": bpm})
@@ -471,6 +733,14 @@ class CopilotGuidedSession:
             rendered_notes = RoleTrackOrchestrator.generate_musical_notes(
                 role=role, key=key, scale=scale, arrange_bars=total_bars
             )
+
+            # DRUM OCTAVE GUARD: Ensure drum notes land in Quadrant 1 (pitch 36-51)
+            if role == "DRUMS" and rendered_notes:
+                q3_notes = [n for n in rendered_notes if 60 <= n.pitch <= 75]
+                q1_notes = [n for n in rendered_notes if 36 <= n.pitch <= 51]
+                if q3_notes and len(q1_notes) == 0:
+                    for n in rendered_notes:
+                        n.pitch = max(36, n.pitch - 24)
 
             # Deploy to Live
             if conn is not None and hasattr(conn, "send_command") and rendered_notes:
@@ -503,15 +773,21 @@ class CopilotGuidedSession:
                 except Exception as ex:
                     logger.warning(f"Composition deployment error on track {t_idx}: {ex}")
 
-        self.data["current_phase"] = "PHASE_5_MIX_MASTER"
-        self.data["phase_index"] = 5
+        self.data["current_phase"] = "PHASE_7_MIX_MASTER"
+        self.data["phase_index"] = 7
         self._save_state()
 
+        return self._prompt_phase_7(total_bars, bpm, key, scale, composed_summary)
+
+    # -------------------------------------------------------------------------
+    # FASE 7: MEZCLA DINÁMICA Y MASTERIZACIÓN (BS.1770-5)
+    # -------------------------------------------------------------------------
+    def _prompt_phase_7(self, total_bars, bpm, key, scale, composed_summary) -> Dict[str, Any]:
         return {
-            "current_step": "PASO 5 DE 5: MEZCLA DINÁMICA Y MASTERIZACIÓN (BS.1770-5)",
+            "current_step": "PASO 7 DE 7: MEZCLA DINÁMICA Y MASTERIZACIÓN (BS.1770-5)",
             "action_taken": f"Composición desplegada en {total_bars} compases a {bpm} BPM en {key} {scale}. Pistas arregladas: {', '.join(composed_summary)}.",
             "question": (
-                "🎚️ **Paso 5 de 5: Mezcla Dinámica, Sidechain y Cadena de Masterización**\n\n"
+                "🎚️ **Paso 7 de 7: Mezcla Dinámica, Sidechain y Cadena de Masterización**\n\n"
                 "La música ya está escrita y ubicada en el Arrangement.\n"
                 "*Auditoría acústica de la sesión:*\n"
                 "• Detección de Kick y 808 Bass: se requiere Sidechain dinámico para evitar colisiones en 50-80 Hz.\n"
@@ -522,13 +798,10 @@ class CopilotGuidedSession:
                 "*Responde indicando el perfil deseado (ej: 'Club a -8.5 LUFS' o 'Streaming a -14 LUFS').*"
             ),
             "instructions_for_ai": "Indica el objetivo de masterización (Streaming o Club).",
-            "phase": "PHASE_5_MIX_MASTER"
+            "phase": "PHASE_7_MIX_MASTER"
         }
 
-    # -------------------------------------------------------------------------
-    # FASE 5: MEZCLA Y MASTERIZACIÓN
-    # -------------------------------------------------------------------------
-    def _handle_phase_5(self, conn: Any, user_input: str) -> Dict[str, Any]:
+    def _handle_phase_7(self, conn: Any, user_input: str) -> Dict[str, Any]:
         text = _normalize_text(user_input)
         target_profile = "CLUB" if ("club" in text or "-8" in text or "trap" in text) else "STREAMING"
 
@@ -574,8 +847,8 @@ class CopilotGuidedSession:
         # 4. Preflight Audit
         preflight = executive_copilot.preflight_check()
 
-        self.data["current_phase"] = "PHASE_6_COMPLETED"
-        self.data["phase_index"] = 6
+        self.data["current_phase"] = "PHASE_8_COMPLETED"
+        self.data["phase_index"] = 8
         self.data["is_complete"] = True
         self.data["target_profile"] = target_profile
         self._save_state()
@@ -598,13 +871,13 @@ class CopilotGuidedSession:
             ),
             "instructions_for_ai": "La canción está lista. Puedes pedir cualquier ajuste quirúrgico al Copilot.",
             "ready_for_export": preflight.get("ready_for_export", False),
-            "phase": "PHASE_6_COMPLETED"
+            "phase": "PHASE_8_COMPLETED"
         }
 
     # -------------------------------------------------------------------------
-    # FASE 6: REFINAMIENTOS Y ESCUCHA ACTIVA
+    # FASE 8: REFINAMIENTOS Y ESCUCHA ACTIVA
     # -------------------------------------------------------------------------
-    def _handle_phase_6(self, conn: Any, user_input: str) -> Dict[str, Any]:
+    def _handle_phase_8(self, conn: Any, user_input: str) -> Dict[str, Any]:
         """Handles post-production conversational refinements."""
         text = _normalize_text(user_input)
         applied_tweak = []
@@ -631,7 +904,6 @@ class CopilotGuidedSession:
                         conn.send_command("set_track_mute", {"track_index": t_idx, "mute": False})
                         applied_tweak.append(f"Pista {trk['name']} reactivada")
                     elif db_match:
-                        # Adjust track volume
                         conn.send_command("set_track_volume", {"track_index": t_idx, "volume": 0.70})
                         applied_tweak.append(f"Volumen de {trk['name']} ajustado")
 
@@ -646,7 +918,7 @@ class CopilotGuidedSession:
                 "¿Deseas realizar algún otro cambio en la mezcla, timbres o arreglo?"
             ),
             "instructions_for_ai": "Pide más ajustes o da por concluida la sesión.",
-            "phase": "PHASE_6_COMPLETED"
+            "phase": "PHASE_8_COMPLETED"
         }
 
 

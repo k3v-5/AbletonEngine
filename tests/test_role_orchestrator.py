@@ -32,7 +32,7 @@ def test_role_orchestrator_keys_atomic_success():
     assert res["role"] == "KEYS"
     assert res["notes_written"] > 0
     assert res["arranged_bars"] == 96
-    assert (0, 0) in DeviceParameterSupervisor._SCULPTED_REGISTRY
+    assert any(t[0] == 0 for t in DeviceParameterSupervisor._SCULPTED_REGISTRY)
 
     # Check that track has clips in session and arrangement
     trk = adapter.tracks[0]

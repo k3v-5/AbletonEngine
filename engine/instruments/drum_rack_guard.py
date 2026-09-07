@@ -58,7 +58,10 @@ class DrumRackGuard:
             "device_index": device_index
         })
 
-        data = res.get("result", {}) if isinstance(res, dict) else {}
+        if isinstance(res, dict):
+            data = res.get("result") if "result" in res and isinstance(res["result"], dict) else res
+        else:
+            data = {}
         pad_count = data.get("active_pad_count", 0)
         pads = data.get("pads", [])
 

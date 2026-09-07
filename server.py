@@ -42,7 +42,7 @@ class AbletonConnection:
     host: str
     port: int
     sock: socket.socket = None
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, init=False)
     
     def connect(self) -> bool:
         """Connect to the Ableton Remote Script socket server"""
@@ -124,20 +124,21 @@ class AbletonConnection:
 
     def _send_raw(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Low-level raw socket dispatch without governance interception for internal queries."""
-        if not self.sock and not self.connect():
-            raise ConnectionError("Not connected to Ableton")
-        
-        command = {
-            "type": command_type,
-            "params": params or {}
-        }
-        self.sock.sendall(json.dumps(command).encode('utf-8'))
-        self.sock.settimeout(5.0)
-        response_data = self.receive_full_response(self.sock)
-        response = json.loads(response_data.decode('utf-8'))
-        if response.get("status") == "error":
-            raise Exception(response.get("message", "Unknown error from Ableton"))
-        return response.get("result", {})
+        with self._lock:
+            if not self.sock and not self.connect():
+                raise ConnectionError("Not connected to Ableton")
+            
+            command = {
+                "type": command_type,
+                "params": params or {}
+            }
+            self.sock.sendall(json.dumps(command).encode('utf-8'))
+            self.sock.settimeout(5.0)
+            response_data = self.receive_full_response(self.sock)
+            response = json.loads(response_data.decode('utf-8'))
+            if response.get("status") == "error":
+                raise Exception(response.get("message", "Unknown error from Ableton"))
+            return response.get("result", {})
 
     def _enforce_immutable_governance(self, command_type: str, params: Dict[str, Any]) -> None:
         """
@@ -10040,14 +10041,16 @@ def copilot_guided_session(
     reset: bool = False
 ) -> dict:
     """
-    Conversational State Machine Wizard for Interactive Music Production.
+    Conversational State Machine Wizard for Interactive Music Production (Strict 7-Phase Flow).
     Conducts an interactive, step-by-step interview with the AI / User producer:
-    - Step 1: Track scaffolding and role allocation (Drums, Keys, 808, Pads, Lead).
-    - Step 2: Song arrangement sections & cue point locators on timeline.
-    - Step 3: Track-by-track verified instrument loading & synthesis sculpting (Delta >= 1).
-    - Step 4: Multi-section harmonic and melodic composition into arrangement timeline.
-    - Step 5: Dynamic mix, sidechain ducking & BS.1770-5 serial mastering chain.
-    - Step 6: Active listening for post-production natural language tweaks (volume, tempo, mutes, timbres).
+    - Step 1 (PHASE_1_TRACKS): Track scaffolding and role allocation (Drums, Keys, Pads, Bass, Lead).
+    - Step 2 (PHASE_2_SECTIONS): Song arrangement sections & cue point locators on timeline.
+    - Step 3 (PHASE_3_INSTRUMENTS): Track-by-track verified instrument loading & Drum Rack pad checks (Zero silent swallow).
+    - Step 4 (PHASE_4_PARAM_SCULPTING): Track-by-track conversational synthesis parameter sculpting (Delta >= 1 rule).
+    - Step 5 (PHASE_5_INSERT_EFFECTS): Track-by-track insert FX chains (Drum Buss, Saturator, VintageVerb, Delay, OTT).
+    - Step 6 (PHASE_6_COMPOSITION): Multi-section harmonic and melodic composition into arrangement timeline (Drum Octave Guard).
+    - Step 7 (PHASE_7_MIX_MASTER): Dynamic mix, sidechain ducking & BS.1770-5 serial mastering chain.
+    - Step 8 (PHASE_8_COMPLETED): Active listening for post-production natural language tweaks (volume, tempo, mutes, timbres).
 
     Each turn executes real DAW mutations in Ableton Live, verifies LOM state, and returns the next question.
     """

@@ -42,7 +42,12 @@ class RoleTrackOrchestrator:
     def normalize_role(cls, role: str) -> str:
         """Normalizes user role string to standard uppercase role."""
         cleaned = str(role or "").strip().upper()
-        return cls.ROLE_MAP.get(cleaned, cleaned or "KEYS")
+        if cleaned in cls.ROLE_MAP:
+            return cls.ROLE_MAP[cleaned]
+        for word in cleaned.replace("-", " ").replace("_", " ").split():
+            if word in cls.ROLE_MAP:
+                return cls.ROLE_MAP[word]
+        return "KEYS"
 
     @classmethod
     def resolve_instrument(
@@ -120,8 +125,17 @@ class RoleTrackOrchestrator:
             target_lower = inst_display_name.lower().replace("vst3_", "").replace("_", " ")
 
             for d_idx, d in enumerate(devices):
-                d_name = str(d.get("name", "")).lower()
+                d_type = str(d.get("type", "")).lower()
                 c_name = str(d.get("class_name", ""))
+                d_name = str(d.get("name", "")).lower()
+
+                # Exclude audio effects from being identified as instruments
+                if d_type == "audio_effect" or c_name in (
+                    "DrumBuss", "Saturator", "Chorus", "Delay", "Compressor", "Eq8",
+                    "AudioEffectGroupDevice", "AutoFilter", "Reverb", "Limiter"
+                ):
+                    continue
+
                 if (
                     target_lower in d_name or d_name in target_lower or
                     c_name in authentic_classes or "Instrument" in c_name or
