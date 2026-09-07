@@ -2,6 +2,7 @@
 from .models import ProductionPhase, DecisionStatus, ProductionDecision, CopilotState
 from .stepper import ExecutiveCopilotEngine, executive_copilot
 from .recipes import MacroProductionRecipes
+from .role_orchestrator import RoleTrackOrchestrator
 
 __all__ = [
     "ProductionPhase",
@@ -10,5 +11,6 @@ __all__ = [
     "CopilotState",
     "ExecutiveCopilotEngine",
     "executive_copilot",
-    "MacroProductionRecipes"
+    "MacroProductionRecipes",
+    "RoleTrackOrchestrator"
 ]

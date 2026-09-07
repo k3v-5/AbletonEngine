@@ -337,6 +337,30 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             return self.load_drum_pad_item(params.get("track_index", 0), params.get("pad_note", 36), params.get("item_uri", ""), params.get("device_index", 0))
         elif command_type == "load_browser_item":
             return self.load_instrument_or_effect(params.get("track_index", 0), params.get("item_uri", ""))
+        elif command_type == "get_track_info":
+            return self.get_track_info(params.get("track_index", 0))
+        elif command_type == "get_session_info":
+            return self.get_session_info()
+        elif command_type == "create_clip":
+            return self.create_clip(params.get("track_index", 0), params.get("clip_index", 0), params.get("length", 4.0))
+        elif command_type == "delete_clip":
+            return self.delete_clip(params.get("track_index", 0), params.get("clip_index", 0))
+        elif command_type == "add_notes_to_clip":
+            return self.add_notes_to_clip(params.get("track_index", 0), params.get("clip_index", 0), params.get("notes", []), params.get("mode", "create"))
+        elif command_type == "set_track_name":
+            return self.set_track_name(params.get("track_index", 0), params.get("name", ""))
+        elif command_type == "create_midi_track":
+            return self.create_midi_track(params.get("index", -1))
+        elif command_type == "set_track_volume":
+            return self.set_track_volume(params.get("track_index", 0), params.get("volume", 0.85))
+        elif command_type == "set_track_panning":
+            return self.set_track_panning(params.get("track_index", 0), params.get("panning", 0.0))
+        elif command_type == "set_track_mute":
+            return self.set_track_mute(params.get("track_index", 0), params.get("mute", False))
+        elif command_type == "set_track_solo":
+            return self.set_track_solo(params.get("track_index", 0), params.get("solo", False))
+        elif command_type == "set_tempo":
+            return self.set_tempo(params.get("tempo", 120.0))
         elif command_type == "fire_clip":
             return self.fire_clip(params.get("track_index", 0), params.get("clip_index", 0))
         elif command_type == "stop_clip":

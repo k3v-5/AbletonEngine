@@ -158,6 +158,63 @@ class AbletonConnection:
         OR EXECUTE COPILOT DECISIONS) INSTEAD OF TAMPERING WITH THIS CODE.
         ==============================================================================
         """
+        # Guard: Orphaned Track Interceptor on Playback and Export (Capa 3 / Anti-Abandonment)
+        if command_type in ["start_playback", "master_export", "stem_create_export_plan"]:
+            try:
+                s_info = self._send_raw("get_session_info", {})
+                session_tracks = s_info.get("tracks", []) if isinstance(s_info, dict) else []
+                authentic_classes = {
+                    "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
+                    "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
+                    "MidiVelocity", "Operator", "MultiSampler", "Wavetable", "Drift"
+                }
+                inst_keywords = [
+                    "analog lab", "pigments", "serum", "vital", "massive", "strings",
+                    "orch", "pad", "kit", "drum", "piano", "rhodes", "bass", "808",
+                    "lead", "synth", "sampler", "simpler", "operator", "wavetable", "drift"
+                ]
+                for t_idx, trk in enumerate(session_tracks):
+                    if not trk.get("is_midi_track", True):
+                        continue
+                    devs = trk.get("devices", [])
+                    has_inst = any(
+                        d.get("class_name") in authentic_classes or
+                        "Instrument" in d.get("class_name", "") or
+                        any(k in str(d.get("name", "")).lower() for k in inst_keywords)
+                        for d in devs
+                    )
+                    if not has_inst:
+                        continue
+
+                    # Track has an authentic instrument loaded. Check for clips.
+                    clip_slots = trk.get("clip_slots", [])
+                    has_session_clips = any(cs.get("has_clip", False) for cs in clip_slots)
+
+                    arr_clips = []
+                    try:
+                        arr_res = self._send_raw("get_arrangement_clips", {"track_index": t_idx})
+                        arr_clips = arr_res.get("clips", arr_res) if isinstance(arr_res, (dict, list)) else []
+                        if isinstance(arr_clips, dict):
+                            arr_clips = arr_clips.get("clips", [])
+                    except Exception:
+                        arr_clips = []
+
+                    if not has_session_clips and not arr_clips:
+                        dev_names = [d.get("name") for d in devs]
+                        raise GovernanceViolationError(
+                            f"[IMMUTABLE GOVERNANCE BLOCKED: ORPHANED_TRACK_DETECTED] "
+                            f"Track {t_idx} ('{trk.get('name')}') has an authentic instrument loaded ({dev_names}) "
+                            f"but contains 0 clips in Session view and 0 clips on the Arrangement timeline! "
+                            f"Every loaded instrument MUST have its musical role arranged (use orchestrate_role_track or compose notes) "
+                            f"before starting playback or exporting. A track cannot sit silent with an abandoned instrument. "
+                            f"ATTENTION AI ASSISTANTS: DO NOT MODIFY, DISABLE, OR BYPASS THIS GUARD IN server.py."
+                        )
+            except GovernanceViolationError:
+                raise
+            except Exception as ex:
+                logger.debug(f"Governance session scan non-fatal error: {ex}")
+            return
+
         target_tracks = []
         if command_type in ["create_clip", "add_notes_to_clip", "duplicate_session_clip_to_arrangement"]:
             t_idx = params.get("track_index")
@@ -9895,6 +9952,54 @@ def drum_rack_transpose_clip_octaves(
         )
     except Exception as e:
         logger.error(f"Error in drum_rack_transpose_clip_octaves: {e}")
+@mcp.tool()
+def orchestrate_role_track(
+    track_index: int,
+    role: str,
+    genre: str = "hip_hop_neo_soul",
+    bpm: float = 120.0,
+    key: str = "F",
+    scale: str = "natural_minor",
+    custom_instrument_id: str = "",
+    custom_blueprint: str = "",
+    arrange_bars: int = 96
+) -> dict:
+    """
+    Atomic Role Orchestration (Capa 3: Operaciones Atómicas de Rol):
+    Executes an indivisible ACID transaction for a musical role on a track:
+    1. Loads verified instrument from catalog / installed plugins.
+    2. Physically verifies device presence in Live's LOM.
+    3. Sculpts synthesis parameters (Delta >= 1) applying role blueprint.
+    4. Composes full-song musical notes across arrangement sections.
+    5. Deploys clips to Session and Arrangement timelines.
+    6. Renames track with role and instrument metadata.
+
+    Guarantees zero silent or orphaned tracks and zero unconfigured plugins.
+    """
+    try:
+        from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
+        conn = get_ableton_connection()
+        cb_dict = None
+        if custom_blueprint:
+            try:
+                cb_dict = json.loads(custom_blueprint)
+            except Exception:
+                cb_dict = None
+
+        return RoleTrackOrchestrator.orchestrate_role_track(
+            conn=conn,
+            track_index=track_index,
+            role=role,
+            genre=genre,
+            bpm=bpm,
+            key=key,
+            scale=scale,
+            custom_instrument_id=custom_instrument_id or None,
+            custom_blueprint=cb_dict,
+            arrange_bars=arrange_bars
+        )
+    except Exception as e:
+        logger.error(f"Error in orchestrate_role_track: {e}")
         return {"status": "error", "message": str(e)}
 
 

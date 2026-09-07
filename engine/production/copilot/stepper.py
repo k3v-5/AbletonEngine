@@ -49,6 +49,8 @@ class ExecutiveCopilotEngine:
             except Exception:
                 pass
 
+        self.last_session_tracks = session_tracks
+
         # Phase 1 DNA — Always generate on every fresh inspect (idempotent via resolved_decisions check)
         # 1. Sonic Identity & Mood
         dec_mood = ProductionDecision(
@@ -1376,6 +1378,41 @@ class ExecutiveCopilotEngine:
                 f"Unconfigured effect on Track {t_idx} (Device {d_idx}) - effect parameter tuning required"
             )
 
+        # Capa 3: Check for orphaned tracks (loaded instrument but 0 clips)
+        if hasattr(self, "last_session_tracks") and self.last_session_tracks:
+            authentic_classes = {
+                "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
+                "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
+                "Operator", "MultiSampler", "Wavetable", "Drift"
+            }
+            inst_keywords = [
+                "analog lab", "pigments", "serum", "vital", "massive", "strings",
+                "orch", "pad", "kit", "drum", "piano", "rhodes", "bass", "808",
+                "lead", "synth", "sampler", "simpler", "operator", "wavetable", "drift"
+            ]
+            for trk in self.last_session_tracks:
+                if not trk.get("is_midi_track", True):
+                    continue
+                devs = trk.get("devices", [])
+                has_inst = any(
+                    d.get("class_name") in authentic_classes or
+                    "Instrument" in d.get("class_name", "") or
+                    any(k in str(d.get("name", "")).lower() for k in inst_keywords)
+                    for d in devs
+                )
+                if not has_inst:
+                    continue
+                clip_slots = trk.get("clip_slots", [])
+                has_session_clip = any(cs.get("has_clip", False) for cs in clip_slots)
+                arr_clips = trk.get("arrangement_clips", [])
+                if not has_session_clip and not arr_clips:
+                    t_idx = trk.get("track_index", trk.get("index", 0))
+                    t_name = trk.get("name", f"Track {t_idx}")
+                    blockers.append(
+                        f"CRITICAL_ORPHANED_TRACK: Track {t_idx} ('{t_name}') has an instrument loaded but contains 0 clips or notes. "
+                        f"Must orchestrate role notes via orchestrate_role_track(track_index={t_idx}, role=...)"
+                    )
+
         return CopilotState(
             current_phase=curr_phase,
             completed_phases=[],
@@ -1705,6 +1742,24 @@ class ExecutiveCopilotEngine:
                         custom_blueprint=cb,
                         device_index=d_idx
                     )
+                elif dec.action_tool == "orchestrate_role_track":
+                    from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
+                    orch_res = RoleTrackOrchestrator.orchestrate_role_track(
+                        conn=conn,
+                        track_index=int(args.get("track_index", 0)),
+                        role=str(args.get("role", "KEYS")),
+                        genre=str(args.get("genre", "hip_hop_neo_soul")),
+                        bpm=float(args.get("bpm", 120.0)),
+                        key=str(args.get("key", "F")),
+                        scale=str(args.get("scale", "natural_minor")),
+                        custom_instrument_id=args.get("custom_instrument_id"),
+                        custom_blueprint=args.get("custom_blueprint"),
+                        arrange_bars=int(args.get("arrange_bars", 96))
+                    )
+                    execution_res.update(orch_res)
+                    if orch_res.get("status") == "FAILED":
+                        execution_res["load_failed"] = True
+                        execution_res["load_error"] = orch_res.get("error", "Atomic role orchestration failed")
                 elif dec.action_tool == "sound_load_role_instrument":
                     from engine.instruments.installed_scanner import InstalledPluginScanner
                     from engine.instruments.browser_catalog import CURATED_SOURCES
