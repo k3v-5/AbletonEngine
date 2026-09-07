@@ -10034,6 +10034,32 @@ def copilot_auto_produce(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def copilot_guided_session(
+    user_input: str = "",
+    reset: bool = False
+) -> dict:
+    """
+    Conversational State Machine Wizard for Interactive Music Production.
+    Conducts an interactive, step-by-step interview with the AI / User producer:
+    - Step 1: Track scaffolding and role allocation (Drums, Keys, 808, Pads, Lead).
+    - Step 2: Song arrangement sections & cue point locators on timeline.
+    - Step 3: Track-by-track verified instrument loading & synthesis sculpting (Delta >= 1).
+    - Step 4: Multi-section harmonic and melodic composition into arrangement timeline.
+    - Step 5: Dynamic mix, sidechain ducking & BS.1770-5 serial mastering chain.
+    - Step 6: Active listening for post-production natural language tweaks (volume, tempo, mutes, timbres).
+
+    Each turn executes real DAW mutations in Ableton Live, verifies LOM state, and returns the next question.
+    """
+    try:
+        from engine.production.copilot.guided_session import copilot_guided_session_engine
+        conn = get_ableton_connection()
+        return copilot_guided_session_engine.step(conn=conn, user_input=user_input, reset=reset)
+    except Exception as e:
+        logger.error(f"Error in copilot_guided_session: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def main():
 
 

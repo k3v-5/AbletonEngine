@@ -323,8 +323,13 @@ class MockAbletonAdapter(BaseAbletonAdapter):
                 params.get("clip_index", 0),
                 params.get("destination_time", 0.0)
             )
+        elif command_type == "create_cue_point":
+            if not hasattr(self, "cue_points"):
+                self.cue_points = []
+            self.cue_points.append({"name": params.get("name", ""), "time": params.get("time", 0.0)})
+            return {"status": "success", "cue_point": params}
         elif command_type == "get_cue_points":
-            return getattr(self, "_cue_points", {"cue_points": []})
+            return {"cue_points": getattr(self, "cue_points", [])}
         return self._send(command_type, params)
 
     def _send(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
