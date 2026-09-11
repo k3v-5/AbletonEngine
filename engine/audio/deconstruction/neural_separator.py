@@ -10,9 +10,11 @@ Also extracts multi-stem arrangement energy profiles across timeline bars.
 import os
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List, Union
 import numpy as np
 import soundfile as sf
+
+Union_Path = Union[str, Path]
 
 from engine.audio.deconstruction.models import DeconstructedStem, StemCategory
 from engine.audio.deconstruction.separator import AudioStemSeparator

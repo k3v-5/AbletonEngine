@@ -21,6 +21,8 @@ AbletonEngine/
 │   ├── production_failure_injection.md      # Resiliencia caótica y casos de fallo (Paso 15)
 │   ├── USER_GUIDE.md                        # Manual operativo para el usuario y agentes
 │   ├── NEXT_STEPS.md                        # Hoja de ruta y especificación de pasos siguientes
+│   ├── DOCUMENTACION_COMPLETA.md            # Documentación exhaustiva a nivel de código de todos los módulos Python
+│   ├── PROJECT_ARCHITECTURE.md              # Diagrama Mermaid detallando las dependencias internas del proyecto
 │   └── INDEX.md                             # El presente índice maestro
 ├── documentation/                           # Copia simétrica de especificaciones operativas
 ├── engine/                                  # Núcleo del motor de producción
