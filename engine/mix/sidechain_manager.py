@@ -163,3 +163,19 @@ class SidechainManager:
             "sidechain_active": True,
             "routing_summary": f"Track {bass_track_index} (Bass) ducked against Track {kick_track_index} (Kick) with fast transient clamp (attack 0.01ms) and 50ms release"
         }
+
+    @classmethod
+    def setup_sidechain(
+        cls,
+        conn: Any,
+        source_track_index: int,
+        destination_track_index: int,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Convenience wrapper mapping source and destination to configure_sidechain."""
+        return cls.configure_sidechain(
+            conn=conn,
+            bass_track_index=destination_track_index,
+            kick_track_index=source_track_index,
+            **kwargs
+        )

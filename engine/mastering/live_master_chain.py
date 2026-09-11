@@ -282,3 +282,18 @@ class LiveMasterChainEngine:
                 "limiter": lim_idx
             }
         }
+
+    @classmethod
+    def deploy_master_chain(
+        cls,
+        conn: Any,
+        target_profile: str = "STREAMING",
+        master_track_index: int = 0,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Convenience alias for setup_live_mastering_chain."""
+        return cls.setup_live_mastering_chain(
+            conn=conn,
+            track_index=master_track_index,
+            target_profile=target_profile
+        )

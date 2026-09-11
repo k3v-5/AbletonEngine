@@ -17,6 +17,7 @@ class PocketStyle(str, Enum):
     NEO_SOUL_DILLA = "neo_soul_dilla"
     BOOM_BAP = "boom_bap"
     DARK_RAGE = "dark_rage"
+    FRENCH_PUMP = "french_pump"
     ORGANIC_HUMAN = "organic_human"
 
 
@@ -78,6 +79,20 @@ ROLE_POCKET_BUDGETS: Dict[PocketStyle, Dict[str, tuple]] = {
         "lead": (0.0, 1.5),
         "chords": (1.0, 1.5),
     },
+    PocketStyle.FRENCH_PUMP: {
+        "kick": (0.0, 0.5),           # Hard quantized 4-on-the-floor
+        "sub_bass": (2.0, 1.5),       # Tight French sidechain feel
+        "bass": (2.0, 1.5),
+        "snare": (2.0, 1.5),
+        "clap": (2.0, 1.5),
+        "hihat": (1.5, 2.5),          # Micro-pushed 16th hats
+        "hat_closed": (1.5, 2.0),
+        "hat_open": (2.5, 2.5),
+        "percussion": (2.0, 3.0),
+        "piano": (1.5, 2.0),
+        "lead": (1.0, 1.8),
+        "chords": (1.0, 1.5),
+    },
     PocketStyle.ORGANIC_HUMAN: {
         "kick": (0.0, 2.5),
         "sub_bass": (2.0, 3.0),
@@ -97,6 +112,22 @@ ROLE_POCKET_BUDGETS: Dict[PocketStyle, Dict[str, tuple]] = {
 
 class GroovePocketEngine:
     """Orchestrates musical micro-timing, genre swing, and chord humanization."""
+
+    @classmethod
+    def producer_to_pocket_style(cls, producer_name: Optional[str]) -> PocketStyle:
+        """Maps a producer name or stylistic prompt to a canonical PocketStyle."""
+        name = str(producer_name or "").lower()
+        if "dilla" in name or "soul" in name:
+            return PocketStyle.NEO_SOUL_DILLA
+        elif "metro" in name or "boomin" in name or "trap" in name:
+            return PocketStyle.ATLANTA_TRAP
+        elif "daft" in name or "punk" in name or "french" in name or "house" in name:
+            return PocketStyle.FRENCH_PUMP
+        elif "dean" in name or "rage" in name or "travis" in name:
+            return PocketStyle.DARK_RAGE
+        elif "bap" in name or "vinyl" in name or "lofi" in name or "lo-fi" in name:
+            return PocketStyle.BOOM_BAP
+        return PocketStyle.ORGANIC_HUMAN
 
     @staticmethod
     def apply_pocket_to_notes(

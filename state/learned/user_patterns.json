@@ -1,0 +1,66 @@
+{
+  "bassline": [
+    {
+      "name": "Drill 808 Dark",
+      "notes": [
+        {
+          "pitch": 36
+        }
+      ],
+      "genre": "trap",
+      "key": "",
+      "bpm": 0.0,
+      "rating": 5,
+      "user_notes": "",
+      "created_at": "2026-09-10T20:27:53.639051"
+    },
+    {
+      "name": "Test 808 Phonk Dark",
+      "notes": [
+        {
+          "pitch": 36,
+          "start_time": 0.0,
+          "duration": 1.0,
+          "velocity": 110
+        }
+      ],
+      "genre": "phonk",
+      "key": "",
+      "bpm": 0.0,
+      "rating": 5,
+      "user_notes": "Hard punchy 808",
+      "created_at": "2026-09-10T21:46:00.455536"
+    }
+  ],
+  "drums": [
+    {
+      "name": "dilla_boom_bap_core",
+      "notes": [
+        {
+          "pitch": 36,
+          "start_time": 0.0,
+          "duration": 0.5,
+          "velocity": 105
+        },
+        {
+          "pitch": 38,
+          "start_time": 1.05,
+          "duration": 0.45,
+          "velocity": 96
+        },
+        {
+          "pitch": 42,
+          "start_time": 1.85,
+          "duration": 0.25,
+          "velocity": 64
+        }
+      ],
+      "genre": "hiphop",
+      "key": "C",
+      "bpm": 90.0,
+      "rating": 5,
+      "user_notes": "Quintessential lazy Dilla pocket",
+      "created_at": "2026-09-10T20:55:04.258758"
+    }
+  ]
+}

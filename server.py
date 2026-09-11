@@ -6,7 +6,10 @@ _pkg_root = str(Path(__file__).resolve().parent)
 if _pkg_root not in sys.path:
     sys.path.insert(0, _pkg_root)
 
-from mcp.server.fastmcp import FastMCP, Context
+try:
+    from mcp.server.fastmcp import FastMCP, Context
+except (ImportError, ModuleNotFoundError):
+    from mcp.server.mcpserver import MCPServer as FastMCP, Context
 import socket
 import json
 import logging
@@ -75,10 +78,11 @@ class AbletonConnection:
         """Check if connection socket is active"""
         return self.sock is not None
 
-    def receive_full_response(self, sock, buffer_size=8192):
+    def receive_full_response(self, sock, buffer_size=8192, timeout=None):
         """Receive the complete response, potentially in multiple chunks"""
         chunks = []
-        sock.settimeout(6.0)  # Increased timeout for operations that might take longer (reduced to 6.0s to avoid Claude's 10s timeout crash)
+        current_timeout = timeout if timeout is not None else (sock.gettimeout() or 15.0)
+        sock.settimeout(current_timeout)
         
         try:
             while True:
@@ -332,9 +336,27 @@ class AbletonConnection:
     
             # Commands whose work on Live's main thread can take noticeably longer
             # than the default modifying-command budget (e.g. importing/decoding a
-            # large audio file). Give them a wider socket timeout so we don't time
-            # out before the Remote Script's own queue does.
-            long_running_commands = {"create_audio_clip": 65.0}
+            # large audio file or loading heavy VST3 plugins like Serum, Vital, Massive X).
+            long_running_commands = {
+                "create_audio_clip": 65.0,
+                "load_browser_item": 45.0,
+                "load_instrument_or_effect": 45.0,
+                "load_drum_kit": 45.0,
+                "record_arrangement_automation": 60.0,
+                "record_multi_automation_pass": 90.0
+            }
+
+            # Plugin and device interaction commands (inspecting parameters,
+            # setting parameters, drum pad queries, etc.) configured with 15s timeout limit.
+            plugin_commands = {
+                "set_device_parameter": 15.0,
+                "get_device_parameters": 15.0,
+                "get_device_parameter": 15.0,
+                "get_drum_rack_pads": 15.0,
+                "get_drum_pad_devices": 15.0,
+                "set_drum_pad_parameter": 15.0,
+                "set_drum_pad_mute_solo": 15.0
+            }
             
             try:
                 logger.info(f"Sending command: {command_type} with params: {params}")
@@ -343,11 +365,13 @@ class AbletonConnection:
                 self.sock.sendall(json.dumps(command).encode('utf-8'))
                 logger.info(f"Command sent, waiting for response...")
                 
-                # Set timeout based on command type
+                # Set timeout based on command type (15.0s for plugin/modifying commands instead of 7.0s)
                 if command_type in long_running_commands:
                     timeout = long_running_commands[command_type]
+                elif command_type in plugin_commands:
+                    timeout = plugin_commands[command_type]
                 else:
-                    timeout = 7.0 if is_modifying_command else 5.0
+                    timeout = 15.0 if is_modifying_command else 5.0
                 self.sock.settimeout(timeout)
     
                 # Receive the response
@@ -10055,12 +10079,314 @@ def copilot_guided_session(
     Each turn executes real DAW mutations in Ableton Live, verifies LOM state, and returns the next question.
     """
     try:
-        from engine.production.copilot.guided_session import copilot_guided_session_engine
+        import sys, importlib
+        if reset:
+            for mod_name in list(sys.modules.keys()):
+                if mod_name.startswith("engine."):
+                    try:
+                        importlib.reload(sys.modules[mod_name])
+                    except Exception:
+                        pass
+        import engine.production.copilot.guided_session as _gs_mod
+        if reset:
+            importlib.reload(_gs_mod)
+        copilot_guided_session_engine = _gs_mod.copilot_guided_session_engine
         conn = get_ableton_connection()
         return copilot_guided_session_engine.step(conn=conn, user_input=user_input, reset=reset)
     except Exception as e:
         logger.error(f"Error in copilot_guided_session: {e}")
         return {"status": "error", "message": str(e)}
+
+
+
+# ============================================================================
+# PERSISTENT MEMORY, KNOWLEDGE BASE, SAMPLE INDEXER & STATIC MIX TOOLS
+# ============================================================================
+
+@mcp.tool()
+def save_favorite_pattern(
+    pattern_type: str,
+    name: str,
+    notes: list,
+    genre: str = "",
+    key: str = "",
+    bpm: float = 0.0,
+    rating: int = 5,
+    user_notes: str = ""
+) -> dict:
+    """Save an approved or high-rated MIDI pattern into user persistent memory."""
+    try:
+        from engine.memory.user_learning import save_favorite_pattern as _save_pat
+        msg = _save_pat(
+            pattern_type=pattern_type,
+            name=name,
+            notes=notes,
+            genre=genre,
+            key=key,
+            bpm=bpm,
+            rating=rating,
+            user_notes=user_notes
+        )
+        return {"status": "success", "message": msg}
+    except Exception as e:
+        logger.error(f"Error in save_favorite_pattern: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_favorite_patterns(
+    pattern_type: str = "",
+    genre: str = "",
+    min_rating: int = 4,
+    limit: int = 10
+) -> list:
+    """Retrieve top-rated user patterns from persistent memory for inspiration."""
+    try:
+        from engine.memory.user_learning import get_favorite_patterns as _get_pat
+        return _get_pat(pattern_type=pattern_type, genre=genre, min_rating=min_rating, limit=limit)
+    except Exception as e:
+        logger.error(f"Error in get_favorite_patterns: {e}")
+        return []
+
+
+@mcp.tool()
+def save_user_preference(
+    category: str,
+    key: str,
+    value: str
+) -> dict:
+    """Persist a user taste/preference (scales, mixing, default headroom, VSTs)."""
+    try:
+        from engine.memory.user_learning import save_user_preference as _save_pref
+        msg = _save_pref(category=category, key=key, value=value)
+        return {"status": "success", "message": msg}
+    except Exception as e:
+        logger.error(f"Error in save_user_preference: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_user_preferences(
+    category: str = "",
+    key: str = ""
+) -> dict:
+    """Retrieve saved preferences from user persistent memory."""
+    try:
+        from engine.memory.user_learning import get_user_preferences as _get_pref
+        res = _get_pref(category=category, key=key)
+        return {"status": "success", "preferences": res}
+    except Exception as e:
+        logger.error(f"Error in get_user_preferences: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def search_samples_in_library(
+    sample_type: str = "",
+    subtype: str = "",
+    genre: str = "",
+    mood: str = "",
+    key: str = "",
+    bpm: int = 0,
+    limit: int = 20
+) -> list:
+    """Search the Apache Parquet sample manifest by multi-attribute tags (type, mood, BPM, key)."""
+    try:
+        from engine.indexer.manifest import search_samples as _search
+        from engine.indexer.paths import default_manifest_path
+        m_path = default_manifest_path()
+        return _search(
+            manifest_path=m_path,
+            sample_type=sample_type or None,
+            subtype=subtype or None,
+            genre=genre or None,
+            mood=mood or None,
+            key=key or None,
+            bpm=bpm if bpm > 0 else None,
+            limit=limit
+        )
+    except Exception as e:
+        logger.error(f"Error in search_samples_in_library: {e}")
+        return []
+
+
+@mcp.tool()
+def reindex_sample_library(samples_root: str = "") -> dict:
+    """Reindex sample library into Apache Parquet incrementally with tokenized tag extraction."""
+    try:
+        from engine.indexer.manifest import build_manifest
+        from engine.indexer.paths import default_samples_root, default_manifest_path
+        s_root = samples_root or str(default_samples_root())
+        m_path = default_manifest_path()
+        stats = build_manifest(packs_root=s_root, manifest_path=m_path)
+        return {"status": "success", "stats": stats}
+    except Exception as e:
+        logger.error(f"Error in reindex_sample_library: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def analyze_mix_static(genre: str = "streaming") -> dict:
+    """Run a pre-flight static mix audit checking for fader clipping, silent active tracks, and FX overload."""
+    try:
+        from engine.mix.static_auditor import StaticMixAuditor
+        conn = get_ableton_connection()
+        s_info = conn.send_command("get_session_info", {}) if conn else {}
+        s_data = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
+        report = StaticMixAuditor.audit_session(s_data, genre=genre)
+        report["formatted_es"] = StaticMixAuditor.format_report_es(report)
+        return report
+    except Exception as e:
+        logger.error(f"Error in analyze_mix_static: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_producer_info(producer_name: str) -> dict:
+    """Get signature production blueprint, drum selection, swing, and hardware emulation for 13 legendary producers."""
+    try:
+        from engine.knowledge.producers.producers import get_producer_profile
+        profile = get_producer_profile(producer_name)
+        return {"status": "success", "profile": profile}
+    except Exception as e:
+        logger.error(f"Error in get_producer_info: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_serum_patch(patch_name: str) -> dict:
+    """Get step-by-step synthesis patch recipe for Serum 2 (808s, leads, keys, pads, plucks)."""
+    try:
+        from engine.knowledge.plugins.serum2 import get_patch_recipe
+        recipe = get_patch_recipe(patch_name)
+        return {"status": "success", "recipe": recipe}
+    except Exception as e:
+        logger.error(f"Error in get_serum_patch: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_fabfilter_preset(plugin: str, element: str) -> dict:
+    """Get surgical presets for FabFilter Pro-Q 4, Pro-C 3, or Saturn 2 by instrument element."""
+    try:
+        from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_preset
+        p_lower = plugin.lower()
+        if "eq" in p_lower or "q" in p_lower:
+            res = get_eq_preset(element)
+        else:
+            res = get_compressor_preset(element)
+        return {"status": "success", "preset": res}
+    except Exception as e:
+        logger.error(f"Error in get_fabfilter_preset: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_vocal_chain_guide(style: str = "trap_lead") -> dict:
+    """Get complete 10-slot vocal chain order with Auto-Tune Pro, RX 11, EQ, and dynamics settings."""
+    try:
+        from engine.knowledge.plugins.vocal_chains import get_vocal_chain
+        chain = get_vocal_chain(style)
+        return {"status": "success", "vocal_chain": chain}
+    except Exception as e:
+        logger.error(f"Error in get_vocal_chain_guide: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def audio_semantic_sample_match(prompt: str, sample_paths: Optional[List[str]] = None, top_k: int = 5) -> dict:
+    """Matches natural language intent ('punchy kick', 'dark boomy 808', 'crisp snap') to audio samples using physical 6D acoustic signatures."""
+    try:
+        from engine.audio.semantic_sample_matcher import AcousticFeatureExtractor, SemanticSampleMatcher
+        import glob
+        paths = sample_paths or []
+        if not paths:
+            # Look in local project cache or sample library
+            paths = glob.glob(r"F:\Dev\AbletonEngine\**\*.wav", recursive=True)[:30]
+        
+        signatures = {}
+        for p in paths:
+            sig = AcousticFeatureExtractor.extract_from_file(p)
+            if sig:
+                signatures[p] = sig
+                
+        results = SemanticSampleMatcher.rank_candidates(prompt, signatures, top_k=top_k)
+        return {"status": "success", "prompt": prompt, "matches": results}
+    except Exception as e:
+        logger.error(f"Error in audio_semantic_sample_match: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def audio_deconstruct_reference(audio_path: str, prefer_neural: bool = True, bpm: float = 120.0) -> dict:
+    """Separates reference track into drums, bass, vocals, other stems (via Meta Demucs or DSP fallback) and extracts arrangement energy profile."""
+    try:
+        from engine.audio.deconstruction.neural_separator import HybridStemSeparator
+        sep = HybridStemSeparator()
+        stems = sep.separate(audio_path, prefer_neural=prefer_neural)
+        profile = sep.profile_arrangement_energy(stems, tempo_bpm=bpm)
+        return {
+            "status": "success",
+            "stems": {k: v.to_dict() for k, v in stems.items()},
+            "arrangement_profile": profile
+        }
+    except Exception as e:
+        logger.error(f"Error in audio_deconstruct_reference: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def audio_transcribe_to_midi(audio_path: str, track_index: Optional[int] = None, tempo_bpm: float = 120.0) -> dict:
+    """Transcribes monophonic audio recording into expressive MIDI notes with pitch bends and velocity dynamics."""
+    try:
+        from engine.audio.deconstruction.expressive_transcriber import ExpressiveAudioTranscriber
+        transcriber = ExpressiveAudioTranscriber()
+        events = transcriber.transcribe_file(audio_path, tempo_bpm=tempo_bpm)
+        
+        # If track_index provided, inject into Ableton Live
+        if track_index is not None:
+            conn = get_ableton_connection()
+            if conn and hasattr(conn, "send_command") and events:
+                clip_notes = [
+                    {"pitch": e.pitch, "start_time": e.start_time_beats, "duration": e.duration_beats, "velocity": e.velocity, "mute": False}
+                    for e in events
+                ]
+                total_beats = max(4.0, math.ceil(max(e.start_time_beats + e.duration_beats for e in events) / 4.0) * 4.0)
+                conn.send_command("create_clip", {"track_index": track_index, "clip_index": 0, "length": total_beats})
+                conn.send_command("add_notes_to_clip", {"track_index": track_index, "clip_index": 0, "notes": clip_notes})
+                
+        return {
+            "status": "success",
+            "notes_count": len(events),
+            "events": [e.to_dict() for e in events[:20]]
+        }
+    except Exception as e:
+        logger.error(f"Error in audio_transcribe_to_midi: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def mix_audit_psychoacoustic_masking(masker_audio_path: str, target_audio_path: str, masker_role: str = "DRUMS", target_role: str = "BASS") -> dict:
+    """Audits full-spectrum psychoacoustic masking (Zwicker 24 Bark critical bands) and calculates surgical dynamic EQ carving parameters."""
+    try:
+        import soundfile as sf
+        from engine.mix.psychoacoustic_masking import PsychoacousticMaskingAuditor
+        m_audio, sr1 = sf.read(masker_audio_path, always_2d=False, dtype="float32")
+        t_audio, sr2 = sf.read(target_audio_path, always_2d=False, dtype="float32")
+        sr = sr1
+        
+        report = PsychoacousticMaskingAuditor.audit_masking_conflict(
+            masker_audio=m_audio,
+            target_audio=t_audio,
+            sr=sr,
+            masker_role=masker_role,
+            target_role=target_role
+        )
+        return {"status": "success", "report": report.to_dict()}
+    except Exception as e:
+        logger.error(f"Error in mix_audit_psychoacoustic_masking: {e}")
+        return {"status": "error", "message": str(e)}
+
 
 
 def main():

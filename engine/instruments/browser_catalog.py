@@ -47,7 +47,137 @@ class SoundSourceOption:
 
 # Curated catalog mapping verified on user environment
 CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
+    "GUITAR": [
+        SoundSourceOption(
+            id="native_flamenco_nylon",
+            name="Nylon Flamenco Guitar (.adv)",
+            role="GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_6432",
+            vendor="Ableton",
+            description="Authentic nylon acoustic flamenco guitar with expressive dynamics and woody resonance (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Tone": 0.65, "Resonance": 0.50, "Attack": 0.05, "Release": 0.40},
+                "description": "Authentic nylon acoustic flamenco guitar."
+            },
+        ),
+        SoundSourceOption(
+            id="native_basic_nylon",
+            name="Basic Nylon Concerto Guitar (.adg)",
+            role="GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_5060",
+            vendor="Ableton",
+            description="Concert classical acoustic nylon guitar with warm low end and clear plucking (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Warmth": 0.70, "Brightness": 0.55, "Decay": 0.60},
+                "description": "Concert classical acoustic nylon guitar."
+            },
+        ),
+        SoundSourceOption(
+            id="native_acoustic_guitar",
+            name="Guitar Acoustic (.adg)",
+            role="GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_5066",
+            vendor="Ableton",
+            description="Dynamic steel-string acoustic guitar with realistic finger noise and presence (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Brightness": 0.60, "Dynamic Range": 0.70, "Body": 0.65},
+                "description": "Dynamic steel-string acoustic guitar."
+            },
+        ),
+        SoundSourceOption(
+            id="native_steel_basic_guitar",
+            name="Steel Basic Guitar (.adv)",
+            role="GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_6444",
+            vendor="Ableton",
+            description="Pure acoustic steel string guitar with bright chime (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Brightness": 0.70, "Attack": 0.05},
+                "description": "Pure acoustic steel string guitar."
+            },
+        ),
+        SoundSourceOption(
+            id="native_strum_o_matic",
+            name="Strum-o-Matic (.adg)",
+            role="GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_5078",
+            vendor="Ableton",
+            description="Acoustic and electric rhythmic guitar strumming rack (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Tone": 0.60, "Strum Speed": 0.50},
+                "description": "Rhythmic guitar strum engine."
+            },
+        ),
+    ],
+    "PERCUSSION": [
+        SoundSourceOption(
+            id="native_perc_core",
+            name="Percussion Core Kit (.adg)",
+            role="PERCUSSION",
+            category=InstrumentSourceCategory.DRUM_KIT,
+            uri="query:Drums#FileId_5437",
+            vendor="Ableton",
+            description="World percussion, acoustic claps, palmas, shakers, and ethnic hand drums (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Snap": 0.70, "Room Space": 0.40, "Pitch": 0.50},
+                "description": "Acoustic claps, palmas, and hand percussion."
+            },
+        ),
+        SoundSourceOption(
+            id="native_perc_spirit",
+            name="Percussion Spirit Kit (.adg)",
+            role="PERCUSSION",
+            category=InstrumentSourceCategory.DRUM_KIT,
+            uri="query:Drums#FileId_5438",
+            vendor="Ableton",
+            description="Organic and ethnic hand drums, frame drums, and wooden percussion (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Tone": 0.60, "Decay": 0.50},
+                "description": "Organic wooden hand drums."
+            },
+        ),
+        SoundSourceOption(
+            id="native_perc_tamuz",
+            name="Perc Tamuz Kit (.adg)",
+            role="PERCUSSION",
+            category=InstrumentSourceCategory.DRUM_KIT,
+            uri="query:Drums#FileId_5436",
+            vendor="Ableton",
+            description="Dynamic acoustic hand percussion and shakers (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Snap": 0.65, "Brightness": 0.60},
+                "description": "Acoustic percussion and shakers."
+            },
+        ),
+    ],
     "KEYS": [
+        SoundSourceOption(
+            id="native_flamenco_nylon",
+            name="Nylon Flamenco Guitar (.adv)",
+            role="KEYS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_6432",
+            vendor="Ableton",
+            description="Authentic nylon acoustic flamenco guitar with expressive dynamics and woody resonance (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Tone": 0.65, "Resonance": 0.50, "Attack": 0.05, "Release": 0.40},
+                "description": "Authentic nylon acoustic flamenco guitar."
+            },
+        ),
         SoundSourceOption(
             id="vst3_analog_lab",
             name="Arturia Analog Lab V",
@@ -223,7 +353,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             name="Bloom Bass Impulse",
             role="BASS",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Bloom%20Bass%20Impulse",
+            uri="query:Plugins#VST3:Excite%20Audio:Bloom%20Bass%20Impulse",
             vendor="Bloom",
             description="Specialized modern sub-bass and 808 engine with warm analog drive.",
             blueprint={
@@ -262,6 +392,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
         ),
     ],
     "LEAD": [
+        SoundSourceOption(
+            id="vst3_massive_x",
+            name="Native Instruments Massive X",
+            role="LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Native%20Instruments:Massive%20X",
+            vendor="Native Instruments",
+            description="Aggressive cutting wavetable syncopated stabs and leads.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.75, "DRIVE": 0.35, "AMP_ATTACK": 0.01, "AMP_RELEASE": 0.25},
+                "description": "Aggressive wavetable syncopated stabs."
+            },
+        ),
         SoundSourceOption(
             id="vst3_pigments",
             name="Arturia Pigments",
@@ -349,6 +493,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     ],
     "STRINGS": [
         SoundSourceOption(
+            id="vst3_vital_strings",
+            name="Vital Audio Celestial Strings",
+            role="STRINGS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Lush wavetable synthesizer strings ensemble with slow emotional swell.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.68, "AMP_ATTACK": 0.35, "AMP_RELEASE": 0.65, "CHORUS_MIX": 0.40},
+                "description": "Lush spectral wavetable strings ensemble."
+            },
+        ),
+        SoundSourceOption(
             id="native_strings_orch",
             name="Ac Strings Orch (.adg)",
             role="STRINGS",
@@ -421,6 +579,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     ],
     "PAD": [
         SoundSourceOption(
+            id="vst3_vital_pad",
+            name="Vital Audio Poly Shimmer Pad",
+            role="PAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Lush spectral warp wavetable pad with ethereal stereo shimmer.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.65, "AMP_ATTACK": 0.35, "AMP_RELEASE": 0.60, "CHORUS_MIX": 0.35},
+                "description": "Lush spectral wavetable shimmer pad."
+            },
+        ),
+        SoundSourceOption(
             id="native_warm_analog_pad",
             name="Warm Analog Pad (.adg)",
             role="PAD",
@@ -481,7 +653,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             name="Bloom Synth Atmosphere",
             role="PAD",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Bloom%20Synth%20Atmosphere",
+            uri="query:Plugins#VST3:Excite%20Audio:Bloom%20Synth%20Atmosphere",
             vendor="Bloom",
             description="Immersive ambient pad bed with organic pitch breathing and shimmer reverb.",
             blueprint={
@@ -506,6 +678,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
         ),
     ],
     "DRUMS": [
+        SoundSourceOption(
+            id="native_perc_core",
+            name="Percussion Core Kit (.adg)",
+            role="DRUMS",
+            category=InstrumentSourceCategory.DRUM_KIT,
+            uri="query:Drums#FileId_5437",
+            vendor="Ableton",
+            description="World percussion, acoustic claps, palmas, shakers, and ethnic hand drums (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Snap": 0.70, "Room Space": 0.40, "Pitch": 0.50},
+                "description": "Acoustic claps, palmas, and hand percussion."
+            },
+        ),
         SoundSourceOption(
             id="drum_808_core",
             name="808 Core Kit (.adg)",
@@ -539,7 +725,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             name="Bloom Drum Breaks",
             role="DRUMS",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Bloom%20Drum%20Breaks",
+            uri="query:Plugins#VST3:Excite%20Audio:Bloom%20Drum%20Breaks",
             vendor="Bloom",
             description="Dynamic modern breakbeat slicer and groove generator.",
             blueprint={
@@ -563,11 +749,25 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             },
         ),
         SoundSourceOption(
+            id="drum_sliced_break",
+            name="Sliced Break Kit (.adg)",
+            role="DRUMS",
+            category=InstrumentSourceCategory.DRUM_KIT,
+            uri="query:Drums#FileId_5350",
+            vendor="Ableton",
+            description="Organic sliced breakbeat drum rack for jungle and breakcore breaks.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Drive": 0.35, "Pitch": 0.50},
+                "description": "Sliced breakbeat kit."
+            },
+        ),
+        SoundSourceOption(
             id="drum_909_core",
             name="909 Core Kit (.adg)",
             role="DRUMS",
             category=InstrumentSourceCategory.DRUM_KIT,
-            uri="query:Drums#909%20Core%20Kit.adg",
+            uri="query:Drums#FileId_5423",
             vendor="Ableton",
             description="Classic techno and house TR-909 kit with punchy attack.",
             blueprint={
@@ -583,7 +783,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             name="Bloom Vocal Aether",
             role="VOCALS",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Bloom%20Vocal%20Aether",
+            uri="query:Plugins#VST3:Excite%20Audio:Bloom%20Vocal%20Aether",
             vendor="Bloom",
             description="Atmospheric vocal chops, vocal pad beds, and choral synthesis.",
             blueprint={
@@ -611,7 +811,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             name="Bloom Vocal Choir",
             role="VOCALS",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Bloom%20Vocal%20Choir",
+            uri="query:Plugins#VST3:Excite%20Audio:Bloom%20Vocal%20Choir",
             vendor="Bloom",
             description="Harmonic vocal ensemble with dynamic formant shaping and space.",
             blueprint={
@@ -625,7 +825,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             name="Bloom Vocal Edit",
             role="VOCALS",
             category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Bloom%20Vocal%20Edit",
+            uri="query:Plugins#VST3:Excite%20Audio:Bloom%20Vocal%20Edit",
             vendor="Bloom",
             description="Creative vocal slicing, pitch glides, and rhythm gated chops.",
             blueprint={
@@ -806,12 +1006,62 @@ class LiveBrowserCatalogEngine:
         cls,
         role: str,
         conn: Any = None,
+        filter_installed: bool = True
     ) -> List[SoundSourceOption]:
         """
-        Returns sound options for a musical role (KEYS, BASS, LEAD, PAD, DRUMS, VOCALS, FX, MASTER).
+        Returns sound options for a musical role (KEYS, BASS, LEAD, PAD, DRUMS, VOCALS, FX, MASTER, GUITAR, PERCUSSION).
+        Intelligently filters out uninstalled third-party VST3s and guarantees verified native Live 12 devices.
         """
-        role_key = role.upper()
-        return CURATED_SOURCES.get(role_key, CURATED_SOURCES["KEYS"])
+        role_key = role.upper().strip()
+        from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
+        norm_role = RoleTrackOrchestrator.normalize_role(role_key)
+        
+        raw_sources = CURATED_SOURCES.get(norm_role, CURATED_SOURCES.get(role_key, CURATED_SOURCES.get("KEYS", [])))
+        if not filter_installed:
+            return raw_sources
+
+        # Cross-reference with InstalledPluginScanner
+        try:
+            from engine.instruments.installed_scanner import InstalledPluginScanner
+            scanner = InstalledPluginScanner()
+            scanned = scanner.scan()
+            scanned_uris = {p.uri.lower() for p in scanned.values() if p.uri}
+            scanned_names = {p.name.lower() for p in scanned.values() if p.name}
+            scanned_keys = {k.lower() for k in scanned.keys()}
+        except Exception:
+            scanned = {}
+            scanned_uris, scanned_names, scanned_keys = set(), set(), set()
+
+        verified = []
+        for opt in raw_sources:
+            # 1. Native Live presets and devices are verified on Live 12 Suite
+            if opt.category in (InstrumentSourceCategory.NATIVE_SYNTH, InstrumentSourceCategory.DRUM_KIT, InstrumentSourceCategory.AUDIO_EFFECT):
+                if opt.vendor == "Ableton" or opt.uri.startswith("query:Sounds#") or opt.uri.startswith("query:Drums#") or opt.uri.startswith("query:AudioFx#") or opt.uri.startswith("query:Synths#"):
+                    verified.append(opt)
+                    continue
+
+            # 2. VST3 plugins: must be physically scanned and confirmed on system
+            if opt.category == InstrumentSourceCategory.VST3:
+                opt_uri = opt.uri.lower()
+                opt_name = opt.name.lower()
+                opt_id = opt.id.lower()
+                is_present = (
+                    opt_uri in scanned_uris or
+                    any(sn in opt_name or opt_name in sn for sn in scanned_names) or
+                    any(sk in opt_id or opt_id in sk for sk in scanned_keys)
+                )
+                if is_present:
+                    verified.append(opt)
+                else:
+                    logger.debug(f"Filtering out uninstalled VST: {opt.name} ({opt.uri})")
+            else:
+                verified.append(opt)
+
+        # Fallback safeguard: if all VSTs were filtered out, ensure native instruments are present
+        if not verified:
+            verified = [opt for opt in raw_sources if opt.category in (InstrumentSourceCategory.NATIVE_SYNTH, InstrumentSourceCategory.DRUM_KIT)]
+
+        return verified or raw_sources
 
     @classmethod
     def get_role_suggestions(

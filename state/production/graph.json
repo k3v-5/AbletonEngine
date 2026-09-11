@@ -52,6 +52,11 @@
     },
     {
       "edge_type": "MEASURED_BY",
+      "source_id": "act_7c2558f4",
+      "target_id": "meas_post_55fe741c"
+    },
+    {
+      "edge_type": "MEASURED_BY",
       "source_id": "act_7f0a9bf9",
       "target_id": "meas_post_0da5bc59"
     },
@@ -64,6 +69,11 @@
       "edge_type": "MEASURED_BY",
       "source_id": "act_983e3f83",
       "target_id": "meas_post_064bbb90"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "act_9d443911",
+      "target_id": "meas_post_7dc5d3b8"
     },
     {
       "edge_type": "MEASURED_BY",
@@ -106,6 +116,16 @@
       "target_id": "meas_post_d65147b5"
     },
     {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "analysis_1dda074c",
+      "target_id": "hypo_64a9fbcf"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "analysis_20336954",
+      "target_id": "hypo_092fbd13"
+    },
+    {
       "edge_type": "EXECUTED_BY",
       "source_id": "dec_1313274d",
       "target_id": "act_4cca90a1"
@@ -128,6 +148,26 @@
     {
       "edge_type": "REJECTED_BY",
       "source_id": "dec_1313274d",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_1533c112",
+      "target_id": "act_30529391"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_1533c112",
+      "target_id": "act_9d443911"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_1533c112",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_1533c112",
       "target_id": "rej_cand_excessive_limiter"
     },
     {
@@ -542,6 +582,26 @@
     },
     {
       "edge_type": "EXECUTED_BY",
+      "source_id": "dec_bafba6bc",
+      "target_id": "act_12ee0838"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
+      "source_id": "dec_bafba6bc",
+      "target_id": "act_7c2558f4"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_bafba6bc",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "dec_bafba6bc",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "EXECUTED_BY",
       "source_id": "dec_ca49b9cb",
       "target_id": "act_53950eab"
     },
@@ -652,6 +712,11 @@
     },
     {
       "edge_type": "CAUSED_BY",
+      "source_id": "intent_6be48391",
+      "target_id": "obs_9a7dbe52"
+    },
+    {
+      "edge_type": "CAUSED_BY",
       "source_id": "intent_6d1badbc",
       "target_id": "obs_85ff07d1"
     },
@@ -684,6 +749,11 @@
       "edge_type": "CAUSED_BY",
       "source_id": "intent_970d0818",
       "target_id": "obs_5a967321"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "intent_a2c0fc46",
+      "target_id": "obs_9f12cdfc"
     },
     {
       "edge_type": "CAUSED_BY",
@@ -822,6 +892,26 @@
     },
     {
       "edge_type": "DERIVED_FROM",
+      "source_id": "meas_5650086c",
+      "target_id": "analysis_1dda074c"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_5650086c",
+      "target_id": "dec_bafba6bc"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_5650086c",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_5650086c",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
       "source_id": "meas_5a3e09be",
       "target_id": "dec_ca49b9cb"
     },
@@ -893,6 +983,26 @@
     {
       "edge_type": "REJECTED_BY",
       "source_id": "meas_965351e9",
+      "target_id": "rej_cand_excessive_limiter"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_97366e2d",
+      "target_id": "analysis_20336954"
+    },
+    {
+      "edge_type": "DERIVED_FROM",
+      "source_id": "meas_97366e2d",
+      "target_id": "dec_1533c112"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_97366e2d",
+      "target_id": "rej_cand_aggressive_master_eq"
+    },
+    {
+      "edge_type": "REJECTED_BY",
+      "source_id": "meas_97366e2d",
       "target_id": "rej_cand_excessive_limiter"
     },
     {
@@ -1127,6 +1237,11 @@
     },
     {
       "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_55fe741c",
+      "target_id": "ver_17bdb288"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
       "source_id": "meas_post_6a6390e4",
       "target_id": "ver_a0cb24a8"
     },
@@ -1134,6 +1249,11 @@
       "edge_type": "VERIFIED_BY",
       "source_id": "meas_post_7d97e39e",
       "target_id": "ver_b0d7f752"
+    },
+    {
+      "edge_type": "VERIFIED_BY",
+      "source_id": "meas_post_7dc5d3b8",
+      "target_id": "ver_95c96b85"
     },
     {
       "edge_type": "VERIFIED_BY",
@@ -1242,6 +1362,16 @@
     },
     {
       "edge_type": "MEASURED_BY",
+      "source_id": "obs_9a7dbe52",
+      "target_id": "meas_5650086c"
+    },
+    {
+      "edge_type": "MEASURED_BY",
+      "source_id": "obs_9f12cdfc",
+      "target_id": "meas_97366e2d"
+    },
+    {
+      "edge_type": "MEASURED_BY",
       "source_id": "obs_ab62bcc9",
       "target_id": "meas_a48a7712"
     },
@@ -1287,6 +1417,11 @@
     },
     {
       "edge_type": "CAUSED_BY",
+      "source_id": "ver_17bdb288",
+      "target_id": "res_51521883"
+    },
+    {
+      "edge_type": "CAUSED_BY",
       "source_id": "ver_19a241dd",
       "target_id": "res_416c6a39"
     },
@@ -1324,6 +1459,11 @@
       "edge_type": "CAUSED_BY",
       "source_id": "ver_9567f9f5",
       "target_id": "res_836b1412"
+    },
+    {
+      "edge_type": "CAUSED_BY",
+      "source_id": "ver_95c96b85",
+      "target_id": "res_28a0b893"
     },
     {
       "edge_type": "CAUSED_BY",
@@ -1386,7 +1526,7 @@
       "target_id": "res_86a504c9"
     }
   ],
-  "graph_version": 495,
+  "graph_version": 545,
   "nodes": {
     "act_09963de8": {
       "confidence": 1.0,
@@ -1437,6 +1577,31 @@
       "source": "engine",
       "status": null,
       "transaction_id": "tx_583e2f2e"
+    },
+    "act_12ee0838": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:12.945548+00:00",
+      "evidence": [],
+      "evidence_type": "ACTION",
+      "metadata": {},
+      "node_id": "act_12ee0838",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_353c02b8"
     },
     "act_15a255d1": {
       "confidence": null,
@@ -1637,6 +1802,31 @@
       "source": "engine",
       "status": null,
       "transaction_id": "tx_871df636"
+    },
+    "act_30529391": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:34.674188+00:00",
+      "evidence": [],
+      "evidence_type": "ACTION",
+      "metadata": {},
+      "node_id": "act_30529391",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Ceiling",
+          "value": -0.5
+        },
+        "action_index": 0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_0a38cc3f"
     },
     "act_32e0b433": {
       "confidence": 1.0,
@@ -1888,6 +2078,31 @@
       "status": "ACTIVE",
       "transaction_id": "tx_98ae53fd"
     },
+    "act_7c2558f4": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:12.945584+00:00",
+      "evidence": [],
+      "evidence_type": "ACTION",
+      "metadata": {},
+      "node_id": "act_7c2558f4",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_353c02b8"
+    },
     "act_7f0a9bf9": {
       "confidence": 1.0,
       "created_at": "2026-09-04T17:39:32.069273+00:00",
@@ -2012,6 +2227,31 @@
       "source": "engine",
       "status": null,
       "transaction_id": "tx_0e0113dc"
+    },
+    "act_9d443911": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:34.674227+00:00",
+      "evidence": [],
+      "evidence_type": "ACTION",
+      "metadata": {},
+      "node_id": "act_9d443911",
+      "node_type": "ACTION",
+      "parent_nodes": [],
+      "payload": {
+        "action": {
+          "device": "Limiter",
+          "op_type": "set_device_parameter",
+          "parameter": "Gain",
+          "value": 2.0
+        },
+        "action_index": 1
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_0a38cc3f"
     },
     "act_a06c86a8": {
       "confidence": 1.0,
@@ -2438,6 +2678,50 @@
       "status": null,
       "transaction_id": "tx_88b1579e"
     },
+    "analysis_1dda074c": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:04.701207+00:00",
+      "evidence": [],
+      "evidence_type": "INFERENCE",
+      "metadata": {},
+      "node_id": "analysis_1dda074c",
+      "node_type": "ANALYSIS",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "diagnostic": "HEADROOM_AVAILABLE",
+        "gap_lufs": 12.5,
+        "target_lufs": -6.0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
+    "analysis_20336954": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:10.835607+00:00",
+      "evidence": [],
+      "evidence_type": "INFERENCE",
+      "metadata": {},
+      "node_id": "analysis_20336954",
+      "node_type": "ANALYSIS",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "diagnostic": "HEADROOM_AVAILABLE",
+        "gap_lufs": 12.5,
+        "target_lufs": -6.0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
     "dec_1313274d": {
       "confidence": 1.0,
       "created_at": "2026-09-04T17:39:32.069131+00:00",
@@ -2465,6 +2749,34 @@
       "source": "engine",
       "status": "ACTIVE",
       "transaction_id": "tx_1fb7c70c"
+    },
+    "dec_1533c112": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:34.673861+00:00",
+      "evidence": [],
+      "evidence_type": "DECISION",
+      "metadata": {},
+      "node_id": "dec_1533c112",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_1533c112",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_a2c0fc46",
+        "plan_id": "plan_0d5422cc",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_0a38cc3f"
     },
     "dec_1c0affd8": {
       "confidence": 1.0,
@@ -2942,6 +3254,34 @@
       "status": "ACTIVE",
       "transaction_id": "tx_c468e65e"
     },
+    "dec_bafba6bc": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:12.945273+00:00",
+      "evidence": [],
+      "evidence_type": "DECISION",
+      "metadata": {},
+      "node_id": "dec_bafba6bc",
+      "node_type": "DECISION",
+      "parent_nodes": [],
+      "payload": {
+        "decision_id": "dec_bafba6bc",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "intent_id": "intent_6be48391",
+        "plan_id": "plan_2cdafcfe",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_353c02b8"
+    },
     "dec_ca49b9cb": {
       "confidence": 1.0,
       "created_at": "2026-09-04T17:38:19.281871+00:00",
@@ -3025,6 +3365,46 @@
       "source": "engine",
       "status": "ACTIVE",
       "transaction_id": "tx_c724430e"
+    },
+    "hypo_092fbd13": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:10.835629+00:00",
+      "evidence": [],
+      "evidence_type": "INFERENCE",
+      "metadata": {},
+      "node_id": "hypo_092fbd13",
+      "node_type": "HYPOTHESIS",
+      "parent_nodes": [],
+      "payload": {
+        "hypothesis": "Loudness can be adjusted by 12.5 LUFS to meet target",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
+    "hypo_64a9fbcf": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:04.701227+00:00",
+      "evidence": [],
+      "evidence_type": "INFERENCE",
+      "metadata": {},
+      "node_id": "hypo_64a9fbcf",
+      "node_type": "HYPOTHESIS",
+      "parent_nodes": [],
+      "payload": {
+        "hypothesis": "Loudness can be adjusted by 12.5 LUFS to meet target",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
     },
     "intent_0baf1782": {
       "confidence": null,
@@ -3173,6 +3553,27 @@
       "status": "ACTIVE",
       "transaction_id": null
     },
+    "intent_6be48391": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:04.701121+00:00",
+      "evidence": [],
+      "evidence_type": "DECISION",
+      "metadata": {},
+      "node_id": "intent_6be48391",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Subir el master de -7.5 LUFS estimado (perfil CLUB) a exactamente -6 LUFS. Ajustar Gain del Limiter en el master chain.",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
     "intent_6d1badbc": {
       "confidence": 1.0,
       "created_at": "2026-09-04T17:39:32.060507+00:00",
@@ -3318,6 +3719,27 @@
       "session_id": "default_session",
       "source": "engine",
       "status": "ACTIVE",
+      "transaction_id": null
+    },
+    "intent_a2c0fc46": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:10.835490+00:00",
+      "evidence": [],
+      "evidence_type": "DECISION",
+      "metadata": {},
+      "node_id": "intent_a2c0fc46",
+      "node_type": "INTENT",
+      "parent_nodes": [],
+      "payload": {
+        "domain": "master",
+        "intent": "Quiero el master a exactamente -6 LUFS integrado. Ya tenemos el CLUB profile aplicado con -7.5 LUFS estimated. Necesito subir el Gain del Limiter en el Master Limiter y calibrar el Glue Compressor para alcanzar -6 LUFS en cancion de trap a 145 BPM.",
+        "target": "Master"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
       "transaction_id": null
     },
     "intent_ad2b9a65": {
@@ -3677,6 +4099,34 @@
       "status": null,
       "transaction_id": null
     },
+    "meas_5650086c": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:04.701185+00:00",
+      "evidence": [],
+      "evidence_type": "MEASUREMENT",
+      "metadata": {},
+      "node_id": "meas_5650086c",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-06T15:33:04.701097+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
     "meas_5a3e09be": {
       "confidence": 1.0,
       "created_at": "2026-09-04T17:38:19.272653+00:00",
@@ -3836,6 +4286,34 @@
         "standard": "ITU-R BS.1770-5",
         "target": "Master",
         "timestamp": "2026-09-04T18:28:01.676622+00:00",
+        "true_peak_dbtp": -1.2
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
+    "meas_97366e2d": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:10.835583+00:00",
+      "evidence": [],
+      "evidence_type": "MEASUREMENT",
+      "metadata": {},
+      "node_id": "meas_97366e2d",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -18.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-06T15:09:10.835450+00:00",
         "true_peak_dbtp": -1.2
       },
       "project_id": "default_project",
@@ -4517,6 +4995,34 @@
       "status": "ACTIVE",
       "transaction_id": "tx_c724430e"
     },
+    "meas_post_55fe741c": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:12.945624+00:00",
+      "evidence": [],
+      "evidence_type": "MEASUREMENT",
+      "metadata": {},
+      "node_id": "meas_post_55fe741c",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-06T15:33:12.941363+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_353c02b8"
+    },
     "meas_post_6a6390e4": {
       "confidence": null,
       "created_at": "2026-09-04T18:28:50.843062+00:00",
@@ -4572,6 +5078,34 @@
       "source": "engine",
       "status": "ACTIVE",
       "transaction_id": "tx_9f8189b0"
+    },
+    "meas_post_7dc5d3b8": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:34.674264+00:00",
+      "evidence": [],
+      "evidence_type": "MEASUREMENT",
+      "metadata": {},
+      "node_id": "meas_post_7dc5d3b8",
+      "node_type": "MEASUREMENT",
+      "parent_nodes": [],
+      "payload": {
+        "integrated_lufs": -16.5,
+        "is_compliant": false,
+        "lra": 6.5,
+        "momentary_max_lufs": -14.0,
+        "sample_peak_dbfs": -1.5,
+        "short_term_max_lufs": -16.0,
+        "standard": "ITU-R BS.1770-5",
+        "target": "Master",
+        "timestamp": "2026-09-06T15:09:34.670739+00:00",
+        "true_peak_dbtp": -1.0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_0a38cc3f"
     },
     "meas_post_867cd67e": {
       "confidence": 1.0,
@@ -5048,6 +5582,48 @@
         "current_lufs": -18.5,
         "target": "Master",
         "target_lufs": -14.0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
+    "obs_9a7dbe52": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:04.701165+00:00",
+      "evidence": [],
+      "evidence_type": "FACT",
+      "metadata": {},
+      "node_id": "obs_9a7dbe52",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -6.0
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": null
+    },
+    "obs_9f12cdfc": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:10.835559+00:00",
+      "evidence": [],
+      "evidence_type": "FACT",
+      "metadata": {},
+      "node_id": "obs_9f12cdfc",
+      "node_type": "OBSERVATION",
+      "parent_nodes": [],
+      "payload": {
+        "current_lufs": -18.5,
+        "target": "Master",
+        "target_lufs": -6.0
       },
       "project_id": "default_project",
       "references": [],
@@ -5988,6 +6564,26 @@
       "status": "ACTIVE",
       "transaction_id": "tx_9f8189b0"
     },
+    "res_28a0b893": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:34.679037+00:00",
+      "evidence": [],
+      "evidence_type": "RESULT",
+      "metadata": {},
+      "node_id": "res_28a0b893",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_0a38cc3f"
+    },
     "res_3e77b071": {
       "confidence": 1.0,
       "created_at": "2026-09-04T17:13:50.575203+00:00",
@@ -6067,6 +6663,26 @@
       "source": "engine",
       "status": "ACTIVE",
       "transaction_id": "tx_1fb7c70c"
+    },
+    "res_51521883": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:12.950085+00:00",
+      "evidence": [],
+      "evidence_type": "RESULT",
+      "metadata": {},
+      "node_id": "res_51521883",
+      "node_type": "RESULT",
+      "parent_nodes": [],
+      "payload": {
+        "status": "SUCCESS",
+        "verification_status": "PASS"
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_353c02b8"
     },
     "res_6c920013": {
       "confidence": 1.0,
@@ -6364,6 +6980,291 @@
       "source": "engine",
       "status": "ACTIVE",
       "transaction_id": "tx_8d402f94"
+    },
+    "ver_17bdb288": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:33:12.945981+00:00",
+      "evidence": [],
+      "evidence_type": "RESULT",
+      "metadata": {},
+      "node_id": "ver_17bdb288",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-06T15:33:12.941363+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-06T15:33:12.941363+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "report": {
+          "after": {
+            "algorithm_version": "1.0.0",
+            "captured_at": "2026-09-06T15:33:12.945731+00:00",
+            "metadata": {},
+            "metrics": {
+              "integrated_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "integrated_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945705+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -16.5
+              },
+              "lra": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "lra",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945718+00:00",
+                "unit": "LU",
+                "valid": true,
+                "value": 6.5
+              },
+              "momentary_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "momentary_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945714+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -14.0
+              },
+              "sample_peak_dbfs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "sample_peak_dbfs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945726+00:00",
+                "unit": "dBFS",
+                "valid": true,
+                "value": -1.5
+              },
+              "short_term_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "short_term_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945709+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -16.0
+              },
+              "true_peak_dbtp": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "true_peak_dbtp",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945722+00:00",
+                "unit": "dBTP",
+                "valid": true,
+                "value": -1.0
+              }
+            },
+            "session_fingerprint": "",
+            "source": "CONTEXT",
+            "valid": true
+          },
+          "before": {
+            "algorithm_version": "1.0.0",
+            "captured_at": "2026-09-06T15:33:12.945697+00:00",
+            "metadata": {},
+            "metrics": {
+              "integrated_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "integrated_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945662+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -18.5
+              },
+              "lra": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "lra",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945677+00:00",
+                "unit": "LU",
+                "valid": true,
+                "value": 6.5
+              },
+              "momentary_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "momentary_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945673+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -14.0
+              },
+              "sample_peak_dbfs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "sample_peak_dbfs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945686+00:00",
+                "unit": "dBFS",
+                "valid": true,
+                "value": -1.5
+              },
+              "short_term_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "short_term_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945668+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -16.0
+              },
+              "true_peak_dbtp": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "true_peak_dbtp",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:33:12.945682+00:00",
+                "unit": "dBTP",
+                "valid": true,
+                "value": -1.2
+              }
+            },
+            "session_fingerprint": "",
+            "source": "CONTEXT",
+            "valid": true
+          },
+          "confidence": 1.0,
+          "created_at": "2026-09-06T15:33:12.945755+00:00",
+          "decision_id": "dec_5dc0754f",
+          "deltas": {
+            "integrated_lufs": {
+              "after": -16.5,
+              "before": -18.5,
+              "delta": 2.0,
+              "details": {},
+              "expected_delta": 2.0,
+              "metric_name": "integrated_lufs",
+              "tolerance": 0.5,
+              "unit": "LUFS",
+              "within_expectation": true
+            },
+            "lra": {
+              "after": 6.5,
+              "before": 6.5,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "lra",
+              "tolerance": null,
+              "unit": "LU",
+              "within_expectation": true
+            },
+            "momentary_max_lufs": {
+              "after": -14.0,
+              "before": -14.0,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "momentary_max_lufs",
+              "tolerance": null,
+              "unit": "LUFS",
+              "within_expectation": true
+            },
+            "sample_peak_dbfs": {
+              "after": -1.5,
+              "before": -1.5,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "sample_peak_dbfs",
+              "tolerance": null,
+              "unit": "dBFS",
+              "within_expectation": true
+            },
+            "short_term_max_lufs": {
+              "after": -16.0,
+              "before": -16.0,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "short_term_max_lufs",
+              "tolerance": null,
+              "unit": "LUFS",
+              "within_expectation": true
+            },
+            "true_peak_dbtp": {
+              "after": -1.0,
+              "before": -1.2,
+              "delta": 0.19999999999999996,
+              "details": {},
+              "expected_delta": 0.2,
+              "metric_name": "true_peak_dbtp",
+              "tolerance": 0.5,
+              "unit": "dBTP",
+              "within_expectation": true
+            }
+          },
+          "details": {
+            "has_critical_regression": false,
+            "has_error_regression": false,
+            "profile_max_tp": null
+          },
+          "objective_met": true,
+          "policy_compliant": true,
+          "reasons": [],
+          "regression_free": true,
+          "regressions": [],
+          "report_hash": "88635408b34d8ea083aa6ef74133c047f42c9115d010efbecbc2916d3435d486",
+          "unexpected_side_effects": [],
+          "verdict": "VERIFIED",
+          "verification_id": "ver_1e9089c5",
+          "warnings": []
+        },
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_353c02b8"
     },
     "ver_19a241dd": {
       "confidence": 1.0,
@@ -6820,6 +7721,291 @@
       "source": "engine",
       "status": null,
       "transaction_id": "tx_be1d6391"
+    },
+    "ver_95c96b85": {
+      "confidence": null,
+      "created_at": "2026-09-06T15:09:34.674653+00:00",
+      "evidence": [],
+      "evidence_type": "RESULT",
+      "metadata": {},
+      "node_id": "ver_95c96b85",
+      "node_type": "VERIFICATION",
+      "parent_nodes": [],
+      "payload": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "details": {
+          "after": {
+            "integrated_lufs": -16.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-06T15:09:34.670739+00:00",
+            "true_peak_dbtp": -1.0
+          },
+          "before": {
+            "integrated_lufs": -18.5,
+            "is_compliant": false,
+            "lra": 6.5,
+            "momentary_max_lufs": -14.0,
+            "sample_peak_dbfs": -1.5,
+            "short_term_max_lufs": -16.0,
+            "standard": "ITU-R BS.1770-5",
+            "target": "Master",
+            "timestamp": "2026-09-06T15:09:34.670739+00:00",
+            "true_peak_dbtp": -1.2
+          }
+        },
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "passed": true,
+        "primary_metric": "integrated_lufs",
+        "regressions": [],
+        "report": {
+          "after": {
+            "algorithm_version": "1.0.0",
+            "captured_at": "2026-09-06T15:09:34.674385+00:00",
+            "metadata": {},
+            "metrics": {
+              "integrated_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "integrated_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674357+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -16.5
+              },
+              "lra": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "lra",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674370+00:00",
+                "unit": "LU",
+                "valid": true,
+                "value": 6.5
+              },
+              "momentary_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "momentary_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674366+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -14.0
+              },
+              "sample_peak_dbfs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "sample_peak_dbfs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674379+00:00",
+                "unit": "dBFS",
+                "valid": true,
+                "value": -1.5
+              },
+              "short_term_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "short_term_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674361+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -16.0
+              },
+              "true_peak_dbtp": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "true_peak_dbtp",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674374+00:00",
+                "unit": "dBTP",
+                "valid": true,
+                "value": -1.0
+              }
+            },
+            "session_fingerprint": "",
+            "source": "CONTEXT",
+            "valid": true
+          },
+          "before": {
+            "algorithm_version": "1.0.0",
+            "captured_at": "2026-09-06T15:09:34.674346+00:00",
+            "metadata": {},
+            "metrics": {
+              "integrated_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "integrated_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674304+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -18.5
+              },
+              "lra": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "lra",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674327+00:00",
+                "unit": "LU",
+                "valid": true,
+                "value": 6.5
+              },
+              "momentary_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "momentary_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674321+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -14.0
+              },
+              "sample_peak_dbfs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "sample_peak_dbfs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674336+00:00",
+                "unit": "dBFS",
+                "valid": true,
+                "value": -1.5
+              },
+              "short_term_max_lufs": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "short_term_max_lufs",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674314+00:00",
+                "unit": "LUFS",
+                "valid": true,
+                "value": -16.0
+              },
+              "true_peak_dbtp": {
+                "algorithm_version": "1.0.0",
+                "details": {},
+                "metric_name": "true_peak_dbtp",
+                "source": "CONTEXT",
+                "timestamp": "2026-09-06T15:09:34.674332+00:00",
+                "unit": "dBTP",
+                "valid": true,
+                "value": -1.2
+              }
+            },
+            "session_fingerprint": "",
+            "source": "CONTEXT",
+            "valid": true
+          },
+          "confidence": 1.0,
+          "created_at": "2026-09-06T15:09:34.674414+00:00",
+          "decision_id": "dec_bd04a3d4",
+          "deltas": {
+            "integrated_lufs": {
+              "after": -16.5,
+              "before": -18.5,
+              "delta": 2.0,
+              "details": {},
+              "expected_delta": 2.0,
+              "metric_name": "integrated_lufs",
+              "tolerance": 0.5,
+              "unit": "LUFS",
+              "within_expectation": true
+            },
+            "lra": {
+              "after": 6.5,
+              "before": 6.5,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "lra",
+              "tolerance": null,
+              "unit": "LU",
+              "within_expectation": true
+            },
+            "momentary_max_lufs": {
+              "after": -14.0,
+              "before": -14.0,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "momentary_max_lufs",
+              "tolerance": null,
+              "unit": "LUFS",
+              "within_expectation": true
+            },
+            "sample_peak_dbfs": {
+              "after": -1.5,
+              "before": -1.5,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "sample_peak_dbfs",
+              "tolerance": null,
+              "unit": "dBFS",
+              "within_expectation": true
+            },
+            "short_term_max_lufs": {
+              "after": -16.0,
+              "before": -16.0,
+              "delta": 0.0,
+              "details": {},
+              "expected_delta": null,
+              "metric_name": "short_term_max_lufs",
+              "tolerance": null,
+              "unit": "LUFS",
+              "within_expectation": true
+            },
+            "true_peak_dbtp": {
+              "after": -1.0,
+              "before": -1.2,
+              "delta": 0.19999999999999996,
+              "details": {},
+              "expected_delta": 0.2,
+              "metric_name": "true_peak_dbtp",
+              "tolerance": 0.5,
+              "unit": "dBTP",
+              "within_expectation": true
+            }
+          },
+          "details": {
+            "has_critical_regression": false,
+            "has_error_regression": false,
+            "profile_max_tp": null
+          },
+          "objective_met": true,
+          "policy_compliant": true,
+          "reasons": [],
+          "regression_free": true,
+          "regressions": [],
+          "report_hash": "29932d12f1e324d9e2c663514b0261549435d8a1eb6f8b8441695f96976d0ca6",
+          "unexpected_side_effects": [],
+          "verdict": "VERIFIED",
+          "verification_id": "ver_0086b29d",
+          "warnings": []
+        },
+        "status": "PASS",
+        "warnings": []
+      },
+      "project_id": "default_project",
+      "references": [],
+      "session_id": "default_session",
+      "source": "engine",
+      "status": null,
+      "transaction_id": "tx_0a38cc3f"
     },
     "ver_98dc9ce8": {
       "confidence": 1.0,

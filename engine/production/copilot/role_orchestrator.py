@@ -26,27 +26,65 @@ logger = logging.getLogger("RoleTrackOrchestrator")
 
 
 class RoleTrackOrchestrator:
-    """Atomic ACID orchestrator for role instantiation on Ableton tracks."""
-
     ROLE_MAP = {
-        "KEY": "KEYS", "KEYS": "KEYS", "PIANO": "KEYS", "RHODES": "KEYS", "CHORDS": "KEYS",
-        "BASS": "BASS", "808": "BASS", "SUB": "BASS", "SUBBASS": "BASS",
-        "LEAD": "LEAD", "MELODY": "LEAD", "TOPLINE": "LEAD", "SYNTH": "LEAD",
-        "STRING": "STRINGS", "STRINGS": "STRINGS", "ORCHESTRA": "STRINGS", "CELLO": "STRINGS",
-        "PAD": "PAD", "ATMOSPHERE": "PAD", "AMBIENT": "PAD", "TEXTURE": "PAD",
-        "DRUM": "DRUMS", "DRUMS": "DRUMS", "KIT": "DRUMS", "BEAT": "DRUMS", "PERC": "DRUMS",
-        "VOCAL": "VOCALS", "VOCALS": "VOCALS", "VOX": "VOCALS", "CHOPS": "VOCALS"
+        # Compound Terms
+        "SYNTH BASS": "BASS", "SYNTH_BASS": "BASS", "BASS SYNTH": "BASS", "BASS_SYNTH": "BASS",
+        "808 BASS": "BASS", "808_BASS": "BASS", "808 SUB": "BASS", "808_SUB": "BASS", "SUB BASS": "BASS", "SUB_BASS": "BASS",
+        "DRUM PAD": "DRUMS", "DRUM_PAD": "DRUMS", "DRUM SYNTH": "DRUMS", "DRUM_SYNTH": "DRUMS", "DRUM RACK": "DRUMS", "DRUM_RACK": "DRUMS",
+        "VOCAL CHOPS": "VOCALS", "VOCAL_CHOPS": "VOCALS", "VOCAL LEAD": "VOCALS", "VOCAL_LEAD": "VOCALS", "VOCAL HOOK": "VOCALS",
+        "FLAMENCO GUITAR": "GUITAR", "FLAMENCO_GUITAR": "GUITAR", "GUITARRA FLAMENCA": "GUITAR", "GUITARRA_FLAMENCA": "GUITAR",
+        "ACOUSTIC GUITAR": "GUITAR", "ACOUSTIC_GUITAR": "GUITAR", "GUITARRA ACUSTICA": "GUITAR", "GUITARRA_ACUSTICA": "GUITAR",
+        "EURO LEAD": "LEAD", "EURO LEAD SYNTH": "LEAD", "EURO_LEAD_SYNTH": "LEAD", "SYNTH LEAD": "LEAD", "SYNTH_LEAD": "LEAD",
+        "CHANSON STRINGS": "STRINGS", "CHANSON_STRINGS": "STRINGS", "ORCHESTRAL STRINGS": "STRINGS", "ORCHESTRAL_STRINGS": "STRINGS",
+        "DANCE KEYS": "KEYS", "DANCE_KEYS": "KEYS", "HOUSE PIANO": "KEYS", "HOUSE_PIANO": "KEYS",
+        # Single-token vocabulary
+        "KEY": "KEYS", "KEYS": "KEYS", "PIANO": "KEYS", "RHODES": "KEYS", "CHORDS": "KEYS", "ACORDE": "KEYS", "ACORDES": "KEYS",
+        "GUITAR": "GUITAR", "GUITARS": "GUITAR", "GUITARRA": "GUITAR", "GUITARRAS": "GUITAR",
+        "FLAMENCA": "GUITAR", "NYLON": "GUITAR", "PLUCK": "GUITAR", "PLUCKS": "GUITAR", "STRUM": "GUITAR",
+        "BASS": "BASS", "808": "BASS", "SUB": "BASS", "SUBBASS": "BASS", "BAJO": "BASS", "LOW_END": "BASS", "REESE": "BASS",
+        "LEAD": "LEAD", "MELODY": "LEAD", "TOPLINE": "LEAD", "SYNTH": "LEAD", "SOLO": "LEAD", "HOOK": "LEAD",
+        "STRING": "STRINGS", "STRINGS": "STRINGS", "ORCHESTRA": "STRINGS", "CELLO": "STRINGS", "CUERDAS": "STRINGS", "ORQUESTA": "STRINGS",
+        "PAD": "PAD", "ATMOSPHERE": "PAD", "AMBIENT": "PAD", "TEXTURE": "PAD", "ATMOSFERA": "PAD", "COLCHON": "PAD",
+        "DRUM": "DRUMS", "DRUMS": "DRUMS", "KIT": "DRUMS", "BEAT": "DRUMS", "PERC": "PERCUSSION", "PERCUSSION": "PERCUSSION",
+        "PERCUSION": "PERCUSSION", "PALMAS": "PERCUSSION", "PALMA": "PERCUSSION", "CLAP": "PERCUSSION", "CLAPS": "PERCUSSION",
+        "CASTANUELAS": "PERCUSSION", "CASTANUELA": "PERCUSSION", "CAJON": "PERCUSSION", "BONGO": "PERCUSSION", "CONGA": "PERCUSSION",
+        "TIMBAL": "PERCUSSION", "SHAKER": "PERCUSSION", "TAMBOR": "PERCUSSION", "BREAK": "DRUMS", "BREAKBEAT": "DRUMS",
+        "VOCAL": "VOCALS", "VOCALS": "VOCALS", "VOX": "VOCALS", "VOZ": "VOCALS", "VOCES": "VOCALS", "CHOPS": "VOCALS",
+        "STAB": "LEAD", "STABS": "LEAD",
+        "FX": "FX", "EFFECT": "FX", "EFFECTS": "FX", "GLITCH": "FX", "GLITCHEADO": "FX", "GLITCHES": "FX",
+        "STUTTER": "FX", "NOISE": "FX", "SWEEP": "FX", "RISER": "FX", "IMPACT": "FX", "DOWNLIFTER": "FX", "EAR_CANDY": "FX"
     }
+
+    # Strict lexical precedence priority categories:
+    # Low-end fundamental roles ALWAYS take precedence over generic timbre descriptors (like 'SYNTH')
+    PRIORITY_CATEGORIES = [
+        ("BASS", {"BASS", "SUB", "808", "BAJO", "LOW_END", "REESE", "SUBBASS"}),
+        ("PERCUSSION", {"PALMAS", "PALMA", "CLAP", "CLAPS", "CASTANUELAS", "CASTANUELA", "CAJON", "BONGO", "CONGA", "TIMBAL", "SHAKER", "TAMBOR", "PERC", "PERCUSSION", "PERCUSION"}),
+        ("DRUMS", {"DRUM", "DRUMS", "KIT", "BEAT", "BREAK", "BREAKBEAT", "KICK", "SNARE", "HIHAT", "HIHATS"}),
+        ("VOCALS", {"VOCAL", "VOCALS", "VOX", "VOZ", "VOCES", "CHOPS"}),
+        ("GUITAR", {"GUITAR", "GUITARS", "GUITARRA", "GUITARRAS", "FLAMENCA", "NYLON", "PLUCK", "PLUCKS", "STRUM"}),
+        ("STRINGS", {"STRING", "STRINGS", "ORCHESTRA", "CELLO", "CUERDAS", "ORQUESTA"}),
+        ("PAD", {"PAD", "ATMOSPHERE", "AMBIENT", "TEXTURE", "ATMOSFERA", "COLCHON"}),
+        ("FX", {"FX", "EFFECT", "EFFECTS", "GLITCH", "GLITCHEADO", "GLITCHES", "STUTTER", "NOISE", "SWEEP", "RISER", "IMPACT", "DOWNLIFTER", "EAR_CANDY"}),
+        ("LEAD", {"LEAD", "MELODY", "TOPLINE", "SOLO", "HOOK", "STAB", "STABS"}),
+        ("KEYS", {"KEY", "KEYS", "PIANO", "RHODES", "CHORDS", "ACORDE", "ACORDES"}),
+        ("LEAD", {"SYNTH"})  # Generic 'SYNTH' falls back to LEAD only if no other role matched
+    ]
 
     @classmethod
     def normalize_role(cls, role: str) -> str:
-        """Normalizes user role string to standard uppercase role."""
+        """Normalizes user role string to standard uppercase role with strict lexical precedence."""
         cleaned = str(role or "").strip().upper()
         if cleaned in cls.ROLE_MAP:
             return cls.ROLE_MAP[cleaned]
-        for word in cleaned.replace("-", " ").replace("_", " ").split():
-            if word in cls.ROLE_MAP:
-                return cls.ROLE_MAP[word]
+        cleaned_under = cleaned.replace(" ", "_").replace("-", "_")
+        if cleaned_under in cls.ROLE_MAP:
+            return cls.ROLE_MAP[cleaned_under]
+
+        words = set(cleaned.replace("-", " ").replace("_", " ").split())
+        for role_name, token_set in cls.PRIORITY_CATEGORIES:
+            if words.intersection(token_set):
+                return role_name
         return "KEYS"
 
     @classmethod
@@ -83,10 +121,35 @@ class RoleTrackOrchestrator:
         if rec and rec.uri:
             return rec.uri, rec.name
 
-        # 3. Fallback to first option in curated catalog
+        # 3. Fallback to verified options in curated catalog
         cat_list = CURATED_SOURCES.get(norm_role, [])
+        if not cat_list and norm_role == "GUITAR":
+            cat_list = CURATED_SOURCES.get("KEYS", [])
+        elif not cat_list and norm_role == "PERCUSSION":
+            cat_list = CURATED_SOURCES.get("DRUMS", [])
+            
         if cat_list:
+            # Prefer native instruments to guarantee 100% loading stability
+            for opt in cat_list:
+                if getattr(opt, "category", None) and str(opt.category.value) in ("native_synth", "drum_kit"):
+                    return opt.uri, opt.name
             return cat_list[0].uri, cat_list[0].name
+
+        # Absolute default native URIs for Ableton Live 12 Suite
+        DEFAULTS = {
+            "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
+            "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
+            "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
+            "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
+            "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
+            "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
+            "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
+            "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
+            "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
+        }
+        if norm_role in DEFAULTS:
+            return DEFAULTS[norm_role]
 
         return None, f"Generic_{norm_role}"
 
@@ -268,6 +331,54 @@ class RoleTrackOrchestrator:
                     for p, off, dur, vel in motif:
                         notes.append(NoteEvent(pitch=p, start=sec_beat + off, duration=dur, velocity=vel))
 
+        elif norm_role == "GUITAR":
+            # Acoustic / Spanish / Flamenco guitar voicing with realistic micro-staggered rasgueado
+            chords = FullSongHarmonyEngine.generate_full_song_progression(key_root=key, scale=scale)
+            current_beat = 0.0
+            for chord in chords:
+                bar = current_beat / 4.0
+                voicing = FullSongHarmonyEngine.build_drop2_voicing(chord.root, chord.quality)
+                g_voicing = [p if 45 <= p <= 76 else (p - 12 if p > 76 else p + 12) for p in voicing]
+                strum_offsets = [(0.0, 1.25, 105), (1.5, 0.75, 92), (2.5, 0.65, 110), (3.25, 0.65, 98)]
+                for off, dur, base_vel in strum_offsets:
+                    for s_idx, pitch in enumerate(g_voicing):
+                        stagger = s_idx * 0.015
+                        vel = min(127, max(40, base_vel + (s_idx * 2) - 4))
+                        notes.append(NoteEvent(
+                            pitch=pitch,
+                            start=current_beat + off + stagger,
+                            duration=max(0.2, dur - stagger),
+                            velocity=vel
+                        ))
+                current_beat += chord.duration
+
+        elif norm_role == "PERCUSSION":
+            # Polyrhythmic palmas / claps / ethnic percussion pattern with dynamic accents
+            # MIDI 39 = Clap / Palma sorda, 37 = Side stick / Palma seca, 42 = Closed hat
+            for bar in range(4):
+                b = bar * 4.0
+                notes.append(NoteEvent(pitch=39, start=b + 0.5, duration=0.2, velocity=90))
+                notes.append(NoteEvent(pitch=39, start=b + 1.0, duration=0.25, velocity=118))
+                notes.append(NoteEvent(pitch=39, start=b + 1.75, duration=0.15, velocity=85))
+                notes.append(NoteEvent(pitch=39, start=b + 2.0, duration=0.25, velocity=122))
+                notes.append(NoteEvent(pitch=39, start=b + 2.75, duration=0.15, velocity=88))
+                notes.append(NoteEvent(pitch=39, start=b + 3.0, duration=0.25, velocity=120))
+                notes.append(NoteEvent(pitch=39, start=b + 3.5, duration=0.2, velocity=95))
+                for s16 in range(16):
+                    if s16 % 4 != 0:
+                        s_pos = b + (s16 * 0.25)
+                        s_vel = 75 if s16 % 2 == 1 else 95
+                        notes.append(NoteEvent(pitch=37, start=s_pos, duration=0.15, velocity=s_vel))
+
+        elif norm_role == "FX":
+            # Rhythmic glitch textures and riser impacts at section boundaries
+            sections_start = [0.0, 32.0, 64.0, 72.0, 88.0]
+            for s_bar in sections_start:
+                s_beat = s_bar * 4.0
+                notes.append(NoteEvent(pitch=60, start=max(0.0, s_beat - 4.0), duration=3.8, velocity=100))
+                notes.append(NoteEvent(pitch=72, start=max(0.0, s_beat - 2.0), duration=1.9, velocity=110))
+                notes.append(NoteEvent(pitch=84, start=s_beat, duration=1.0, velocity=120))
+
         # Absolute fallback: guarantee non-empty notes so track is NEVER silent
         if not notes:
             root_semi = FullSongHarmonyEngine.SEMITONES.get(key.upper().strip(), 5)
@@ -331,9 +442,40 @@ class RoleTrackOrchestrator:
                 }
 
         # -------------------------------------------------------------
-        # STEP 2: PHYSICAL LOM VERIFICATION
+        # STEP 2: PHYSICAL LOM VERIFICATION & AUTONOMOUS NATIVE FALLBACK
         # -------------------------------------------------------------
         verified, inst_device_idx, actual_dev_name = cls.verify_instrument_loaded(conn, track_index, inst_display_name)
+        if not verified and conn is not None and hasattr(conn, "send_command"):
+            logger.warning(
+                f"Physical LOM verification failed for '{inst_display_name}' ({uri}) on Track {track_index}. "
+                f"Engaging autonomous native fallback to guarantee non-empty, authentic track."
+            )
+            NATIVE_FALLBACKS = {
+                "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
+                "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
+                "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
+                "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
+                "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
+                "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+                "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
+                "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
+                "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
+                "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
+            }
+            fb_uri, fb_name = NATIVE_FALLBACKS.get(norm_role, ("query:Synths#Simpler", "Ableton Simpler"))
+            try:
+                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": fb_uri})
+                fb_verified, fb_idx, fb_dev = cls.verify_instrument_loaded(conn, track_index, fb_name)
+                if fb_verified:
+                    verified = True
+                    inst_device_idx = fb_idx
+                    actual_dev_name = fb_dev or fb_name
+                    inst_display_name = fb_name
+                    uri = fb_uri
+                    logger.info(f"Successfully recovered Track {track_index} with native fallback '{fb_name}'.")
+            except Exception as fb_err:
+                logger.error(f"Fallback attempt failed on Track {track_index}: {fb_err}")
+
         if not verified:
             return {
                 "status": "FAILED",

@@ -1,6 +1,7 @@
 {
   "decision_to_memory": {
     "dec_1313274d": "mem_649ed9a0deec",
+    "dec_1533c112": "mem_9d720e1982cd",
     "dec_1c0affd8": "mem_dff5b2b222b1",
     "dec_3c1adc33": "mem_67986f30846d",
     "dec_3ca77201": "mem_6951e667069f",
@@ -18,6 +19,7 @@
     "dec_a41c3fd8": "mem_0d225234dd46",
     "dec_a8e5f067": "mem_d5afd1a1d09f",
     "dec_b88365ef": "mem_ee7ce9cdc9cd",
+    "dec_bafba6bc": "mem_328a72ff55d8",
     "dec_ca49b9cb": "mem_381d298fb982",
     "dec_d241129e": "mem_0fe59c3cd435",
     "dec_fd7fdc85": "mem_98d391e5947b"
@@ -26,6 +28,7 @@
     "mem_0d225234dd46": [],
     "mem_0fe59c3cd435": [],
     "mem_26e5c81b57d2": [],
+    "mem_328a72ff55d8": [],
     "mem_381d298fb982": [],
     "mem_567c98ab091b": [],
     "mem_649ed9a0deec": [],
@@ -33,6 +36,7 @@
     "mem_6951e667069f": [],
     "mem_6cf0d3383c7b": [],
     "mem_98d391e5947b": [],
+    "mem_9d720e1982cd": [],
     "mem_a0f552a1bf76": [],
     "mem_a113c6677314": [],
     "mem_a986c69cae79": [],
@@ -388,6 +392,125 @@
           "standard": "ITU-R BS.1770-5",
           "target": "Master",
           "timestamp": "2026-09-04T17:56:34.575647+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "regression": false,
+        "status": "COMMITTED"
+      },
+      "project_id": "default_project",
+      "reason": "Plan executed and verified: PASS",
+      "regression": false,
+      "status": "VALID",
+      "superseded_by": null,
+      "target": "Master"
+    },
+    "mem_328a72ff55d8": {
+      "auto_executable": false,
+      "confidence": 1.0,
+      "context": {
+        "conditions": {},
+        "devices": [],
+        "genre": "generic",
+        "key": "C",
+        "measurements": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:33:12.941363+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "profile": "STREAMING",
+        "section": "UNKNOWN",
+        "tempo": 120.0,
+        "time_signature": "4/4",
+        "tracks": []
+      },
+      "created_at": "2026-09-06T15:33:12.950183+00:00",
+      "decision": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "candidate_actions": [],
+        "category": "MIX_CORRECTION",
+        "confidence": 1.0,
+        "created_at": "2026-09-06T15:33:12.950137+00:00",
+        "decision_id": "dec_bafba6bc",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "evidence": {},
+        "evidence_ids": [
+          "meas_post_55fe741c"
+        ],
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "hypothesis": "Applying CORRECT to Master satisfies acoustic target",
+        "intent_id": "intent_6be48391",
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:33:12.941363+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "measurements_before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:33:12.941363+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "parent_decision_id": null,
+        "project_id": "default_project",
+        "rationale": "Plan executed and verified: PASS",
+        "reason": "Plan executed and verified: PASS",
+        "regression": false,
+        "rollback_available": true,
+        "rollback_id": null,
+        "selected_action": {},
+        "selected_candidate_id": "cand_limiter_minimal",
+        "status": "COMMITTED",
+        "target": "Master",
+        "transaction_id": "tx_353c02b8"
+      },
+      "decision_id": "dec_bafba6bc",
+      "decision_type": "CORRECT",
+      "domain": "master",
+      "invalidation_reason": null,
+      "is_candidate_only": true,
+      "memory_id": "mem_328a72ff55d8",
+      "outcome": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:33:12.941363+00:00",
           "true_peak_dbtp": -1.0
         },
         "regression": false,
@@ -1166,6 +1289,125 @@
           "standard": "ITU-R BS.1770-5",
           "target": "Master",
           "timestamp": "2026-09-04T17:29:16.588069+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "regression": false,
+        "status": "COMMITTED"
+      },
+      "project_id": "default_project",
+      "reason": "Plan executed and verified: PASS",
+      "regression": false,
+      "status": "VALID",
+      "superseded_by": null,
+      "target": "Master"
+    },
+    "mem_9d720e1982cd": {
+      "auto_executable": false,
+      "confidence": 1.0,
+      "context": {
+        "conditions": {},
+        "devices": [],
+        "genre": "generic",
+        "key": "C",
+        "measurements": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:09:34.670739+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "profile": "STREAMING",
+        "section": "UNKNOWN",
+        "tempo": 120.0,
+        "time_signature": "4/4",
+        "tracks": []
+      },
+      "created_at": "2026-09-06T15:09:34.679124+00:00",
+      "decision": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "candidate_actions": [],
+        "category": "MIX_CORRECTION",
+        "confidence": 1.0,
+        "created_at": "2026-09-06T15:09:34.679083+00:00",
+        "decision_id": "dec_1533c112",
+        "decision_type": "CORRECT",
+        "domain": "master",
+        "evidence": {},
+        "evidence_ids": [
+          "meas_post_7dc5d3b8"
+        ],
+        "expected_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "hypothesis": "Applying CORRECT to Master satisfies acoustic target",
+        "intent_id": "intent_a2c0fc46",
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:09:34.670739+00:00",
+          "true_peak_dbtp": -1.0
+        },
+        "measurements_before": {
+          "integrated_lufs": -18.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:09:34.670739+00:00",
+          "true_peak_dbtp": -1.2
+        },
+        "parent_decision_id": null,
+        "project_id": "default_project",
+        "rationale": "Plan executed and verified: PASS",
+        "reason": "Plan executed and verified: PASS",
+        "regression": false,
+        "rollback_available": true,
+        "rollback_id": null,
+        "selected_action": {},
+        "selected_candidate_id": "cand_limiter_minimal",
+        "status": "COMMITTED",
+        "target": "Master",
+        "transaction_id": "tx_0a38cc3f"
+      },
+      "decision_id": "dec_1533c112",
+      "decision_type": "CORRECT",
+      "domain": "master",
+      "invalidation_reason": null,
+      "is_candidate_only": true,
+      "memory_id": "mem_9d720e1982cd",
+      "outcome": {
+        "actual_delta": {
+          "integrated_lufs": 2.0,
+          "true_peak_dbtp": 0.2
+        },
+        "measurements_after": {
+          "integrated_lufs": -16.5,
+          "is_compliant": false,
+          "lra": 6.5,
+          "momentary_max_lufs": -14.0,
+          "sample_peak_dbfs": -1.5,
+          "short_term_max_lufs": -16.0,
+          "standard": "ITU-R BS.1770-5",
+          "target": "Master",
+          "timestamp": "2026-09-06T15:09:34.670739+00:00",
           "true_peak_dbtp": -1.0
         },
         "regression": false,

@@ -167,7 +167,7 @@ class InstalledPluginScanner:
             "supported_roles": ["BASS", "808"],
             "description": "Specialized sub-bass and bass groove engine with analog saturation.",
             "is_instrument": True,
-            "live_uri": "query:Plugins#VST3:Bloom%20Bass%20Impulse",
+            "live_uri": "query:Plugins#VST3:Excite%20Audio:Bloom%20Bass%20Impulse",
         },
         "cyclop": {
             "vendor": "Sugar Bytes",
@@ -290,7 +290,7 @@ class InstalledPluginScanner:
             "supported_roles": ["PAD", "KEYS", "TEXTURE"],
             "description": "Atmospheric and ambient synthesizer with lush reverb spaces.",
             "is_instrument": True,
-            "live_uri": "query:Plugins#VST3:Bloom%20Synth%20Atmosphere",
+            "live_uri": "query:Plugins#VST3:Excite%20Audio:Bloom%20Synth%20Atmosphere",
         },
         # Vocal Engines
         "bloom vocal": {
@@ -299,7 +299,7 @@ class InstalledPluginScanner:
             "supported_roles": ["VOCALS", "CHOIR", "HOOKS"],
             "description": "Atmospheric vocal chops, vocal pad beds, and choral synthesis.",
             "is_instrument": True,
-            "live_uri": "query:Plugins#VST3:Bloom%20Vocal%20Aether",
+            "live_uri": "query:Plugins#VST3:Excite%20Audio:Bloom%20Vocal%20Aether",
         },
         "antares": {
             "vendor": "Antares",
@@ -316,7 +316,7 @@ class InstalledPluginScanner:
             "supported_roles": ["DRUMS", "PERCUSSION", "BREAKS"],
             "description": "Dynamic drum breaks, groove generators, and modern percussion.",
             "is_instrument": True,
-            "live_uri": "query:Plugins#VST3:Bloom%20Drum%20Breaks",
+            "live_uri": "query:Plugins#VST3:Excite%20Audio:Bloom%20Drum%20Breaks",
         },
         "egoist": {
             "vendor": "Sugar Bytes",

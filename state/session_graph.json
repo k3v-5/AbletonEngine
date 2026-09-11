@@ -1,21 +1,21 @@
 {
-  "version": 8,
+  "version": 7,
   "project_state": {
-    "tempo": 82.0,
+    "tempo": 128.0,
     "time_signature": "4/4",
     "current_scene": null,
     "current_song_time": 0.0,
     "is_playing": false,
-    "track_count": 18,
-    "version": 8,
+    "track_count": 2,
+    "version": 7,
     "sync_status": "SYNCHRONIZED"
   },
   "tracks": {
-    "track_2c3d9b69": {
-      "id": "track_2c3d9b69",
+    "track_944246df": {
+      "id": "track_944246df",
       "ableton_index": 0,
-      "name": "Drums",
-      "type": "audio",
+      "name": "Kick",
+      "type": "midi",
       "parent_id": null,
       "children_ids": [],
       "metadata": {
@@ -34,9 +34,9 @@
       "solo": false,
       "arm": false,
       "clips": {
-        "clip_1bd00a1a": {
-          "id": "clip_1bd00a1a",
-          "track_id": "track_2c3d9b69",
+        "clip_56ec7dff": {
+          "id": "clip_56ec7dff",
+          "track_id": "track_944246df",
           "ableton_track_index": 0,
           "ableton_slot_index": 0,
           "name": "Kick 4x4",
@@ -47,9 +47,9 @@
         }
       },
       "devices": {
-        "device_052a94dc": {
-          "id": "device_052a94dc",
-          "track_id": "track_2c3d9b69",
+        "device_8aae9ef2": {
+          "id": "device_8aae9ef2",
+          "track_id": "track_944246df",
           "ableton_track_index": 0,
           "ableton_device_index": 0,
           "name": "Drum Buss",
@@ -59,10 +59,10 @@
         }
       }
     },
-    "track_ebc88ab4": {
-      "id": "track_ebc88ab4",
+    "track_87b4e4dc": {
+      "id": "track_87b4e4dc",
       "ableton_index": 1,
-      "name": "Loop",
+      "name": "Bass",
       "type": "midi",
       "parent_id": null,
       "children_ids": [],
@@ -76,15 +76,15 @@
       },
       "is_foldable": false,
       "is_grouped": false,
-      "volume": 0.85,
+      "volume": 0.75,
       "panning": 0.0,
       "mute": false,
       "solo": false,
       "arm": false,
       "clips": {
-        "clip_fcb40b93": {
-          "id": "clip_fcb40b93",
-          "track_id": "track_ebc88ab4",
+        "clip_aaf981a7": {
+          "id": "clip_aaf981a7",
+          "track_id": "track_87b4e4dc",
           "ableton_track_index": 1,
           "ableton_slot_index": 0,
           "name": "Rolling Sub",
@@ -95,9 +95,9 @@
         }
       },
       "devices": {
-        "device_546d9609": {
-          "id": "device_546d9609",
-          "track_id": "track_ebc88ab4",
+        "device_5bd4235d": {
+          "id": "device_5bd4235d",
+          "track_id": "track_87b4e4dc",
           "ableton_track_index": 1,
           "ableton_device_index": 0,
           "name": "Drift",
@@ -106,427 +106,6 @@
           "parameters_cache": {}
         }
       }
-    },
-    "track_4d14b6f9": {
-      "id": "track_4d14b6f9",
-      "ableton_index": 2,
-      "name": "Drums",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": "HIHAT",
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.85,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_034d61e4": {
-      "id": "track_034d61e4",
-      "ableton_index": 3,
-      "name": "Synths / Instruments",
-      "type": "audio",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_7264f34e": {
-      "id": "track_7264f34e",
-      "ableton_index": 4,
-      "name": "Lead 1",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.85,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": true,
-      "clips": {},
-      "devices": {
-        "device_73cd3973": {
-          "id": "device_73cd3973",
-          "track_id": "track_7264f34e",
-          "ableton_track_index": 4,
-          "ableton_device_index": 0,
-          "name": "Vital",
-          "class_name": "PluginDevice",
-          "type": "unknown",
-          "parameters_cache": {}
-        },
-        "device_3eccb2d2": {
-          "id": "device_3eccb2d2",
-          "track_id": "track_7264f34e",
-          "ableton_track_index": 4,
-          "ableton_device_index": 1,
-          "name": "Pro-Q 4",
-          "class_name": "PluginDevice",
-          "type": "unknown",
-          "parameters_cache": {}
-        }
-      }
-    },
-    "track_400eda67": {
-      "id": "track_400eda67",
-      "ableton_index": 5,
-      "name": "Lead 2",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_aaf5c2e2": {
-      "id": "track_aaf5c2e2",
-      "ableton_index": 6,
-      "name": "Synth 1",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.85,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_51408952": {
-      "id": "track_51408952",
-      "ableton_index": 7,
-      "name": "Synth 2",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_d2b8b11c": {
-      "id": "track_d2b8b11c",
-      "ableton_index": 8,
-      "name": "Strings",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_1f836372": {
-      "id": "track_1f836372",
-      "ableton_index": 9,
-      "name": "Piano",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_562cb544": {
-      "id": "track_562cb544",
-      "ableton_index": 10,
-      "name": "Pad 1",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_59e3821e": {
-      "id": "track_59e3821e",
-      "ableton_index": 11,
-      "name": "Vocals",
-      "type": "audio",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_c9d6af14": {
-      "id": "track_c9d6af14",
-      "ableton_index": 12,
-      "name": "13-Audio",
-      "type": "audio",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_e2859d8a": {
-      "id": "track_e2859d8a",
-      "ableton_index": 13,
-      "name": "14-MIDI",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_fb2a4c0b": {
-      "id": "track_fb2a4c0b",
-      "ableton_index": 14,
-      "name": "FX",
-      "type": "audio",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_c657eeaf": {
-      "id": "track_c657eeaf",
-      "ableton_index": 15,
-      "name": "16-Audio",
-      "type": "audio",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_af2ee5dd": {
-      "id": "track_af2ee5dd",
-      "ableton_index": 16,
-      "name": "17-MIDI",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
-    },
-    "track_e5c06d34": {
-      "id": "track_e5c06d34",
-      "ableton_index": 17,
-      "name": "18-MIDI",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.8500000238418579,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {},
-      "devices": {}
     }
   },
   "sections": {}

@@ -360,6 +360,17 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             return {"status": "success", "cue_point": params}
         elif command_type == "get_cue_points":
             return {"cue_points": getattr(self, "cue_points", [])}
+        elif command_type in ("create_arrangement_automation_envelope", "record_arrangement_automation"):
+            if not hasattr(self, "automation_envelopes"):
+                self.automation_envelopes = []
+            self.automation_envelopes.append(params)
+            return {"status": "success", "envelope": params}
+        elif command_type == "record_multi_automation_pass":
+            if not hasattr(self, "automation_envelopes"):
+                self.automation_envelopes = []
+            for a in params.get("automations", []):
+                self.automation_envelopes.append(a)
+            return {"status": "success", "result": {"status": "completed", "automations_recorded": len(params.get("automations", []))}}
         return self._send(command_type, params)
 
     def _send(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:

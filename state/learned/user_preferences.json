@@ -1,0 +1,28 @@
+{
+  "mixing": {
+    "headroom_target": {
+      "value": -6.0,
+      "updated_at": "2026-09-10T20:27:53.644236"
+    },
+    "default_headroom_db": {
+      "value": 6.0,
+      "updated_at": "2026-09-10T20:55:04.257849"
+    }
+  },
+  "sound_design": {
+    "favorite_synth": {
+      "value": "Serum 2",
+      "updated_at": "2026-09-10T21:46:00.463490"
+    }
+  },
+  "style": {
+    "favorite_producer": {
+      "value": "J Dilla",
+      "updated_at": "2026-09-10T20:44:18.417983"
+    },
+    "preferred_producer": {
+      "value": "J Dilla",
+      "updated_at": "2026-09-10T20:55:04.250165"
+    }
+  }
+}

@@ -381,5 +381,34 @@ def test_socket_governance_blocks_init_synth():
     assert "Serum 2" in str(exc_info.value)
 
 
+def test_plugin_call_timeout_is_15s():
+    """Verifies that plugin and modifying commands enforce a 15.0s timeout instead of the legacy 7.0s."""
+    from unittest.mock import MagicMock
+    from server import AbletonConnection
+    import json
 
+    conn = AbletonConnection('localhost', 9877)
+    mock_sock = MagicMock()
+    conn.sock = mock_sock
+    conn.receive_full_response = MagicMock(return_value=json.dumps({"status": "success", "result": {}}).encode("utf-8"))
+
+    # 1. Plugin parameter modification command
+    conn.send_command("set_device_parameter", {"track_index": 0, "device_index": 0, "parameter": "Cutoff", "value": 0.7})
+    mock_sock.settimeout.assert_called_with(15.0)
+
+    # 2. Plugin parameter query/inspection command
+    conn.send_command("get_device_parameters", {"track_index": 0, "device_index": 0})
+    mock_sock.settimeout.assert_called_with(15.0)
+
+    # 3. Drum pad plugin query
+    conn.send_command("get_drum_rack_pads", {"track_index": 0, "device_index": 0})
+    mock_sock.settimeout.assert_called_with(15.0)
+
+    # 4. Modifying command (was previously 7.0s, now 15.0s)
+    conn.send_command("create_midi_track", {"index": 0})
+    mock_sock.settimeout.assert_called_with(15.0)
+
+    # 5. Non-modifying query command (e.g. get_session_info) retains fast 5.0s budget
+    conn.send_command("get_session_info", {})
+    mock_sock.settimeout.assert_called_with(5.0)
 
