@@ -14,6 +14,8 @@
 - 🔬 [**Documento 14: Integration Tests & Golden Pipeline**](docs/production_integration.md)
 - 🔌 [**Documento 13: Superficie FastMCP de Gobernanza**](docs/production_mcp.md)
 - ⏪ [**Documento 12: Rollback de Primera Clase**](docs/production_rollback.md)
+- 📚 [**Documentación Exhaustiva de Código**](docs/DOCUMENTACION_COMPLETA.md)
+- 🏗️ [**Arquitectura de Dependencias (Mermaid)**](docs/PROJECT_ARCHITECTURE.md)
 
 ---
 
