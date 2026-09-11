@@ -68,7 +68,7 @@ class StemBouncer:
         ("01_Drums", "Drums", ["drum", "kick", "snare", "hat", "clap", "perc", "tom", "cymbal", "808 kit"]),
         ("02_Bass", "Bass", ["bass", "sub", "808", "reese", "low end"]),
         ("05_Vocals", "Vocals", ["vocal", "vox", "lead vox", "adlib", "backing", "choir"]),
-        ("03_Keys", "Keys & Chords", ["keys", "chord", "piano", "rhodes", "epiano", "pad", "organ"]),
+        ("03_Keys", "Keys & Chords", ["keys", "chord", "piano", "rhodes", "epiano", "pad", "organ", "string", "strings", "orchestra"]),
         ("04_Lead", "Leads & Synths", ["lead", "synth", "hook", "arp", "melody", "vital", "guitar"]),
         ("06_FX", "FX & Transitions", ["fx", "sweep", "riser", "impact", "noise", "transition", "crash"])
     ]

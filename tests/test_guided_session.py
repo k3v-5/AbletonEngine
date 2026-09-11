@@ -309,6 +309,8 @@ def test_guided_session_phase_8_mix_master_and_phase_9(clean_session):
         assert clean_session.data["target_profile"] == "CLUB"
         assert "PRODUCCIÓN FINALIZADA" in res["question"]
         assert "El Copilot permanece activo y escuchando" in res["question"]
+        assert "psychoacoustic_report" in res["lufs_audit"]
+        assert clean_session.data.get("psychoacoustic_report") is not None
 
         # Step 3: Test on-demand live tweak and automation in Phase 9
         res_tweak = clean_session.step(conn=adapter, user_input="Cambia el tempo a 128 BPM")
@@ -319,6 +321,15 @@ def test_guided_session_phase_8_mix_master_and_phase_9(clean_session):
         res_auto_live = clean_session.step(conn=adapter, user_input="Automatiza el sweep de filtro en el Lead")
         assert res_auto_live["phase"] == "PHASE_9_COMPLETED"
         assert "Automatización" in res_auto_live["action_taken"]
+
+        # Step 4: Test Stem Export & Forensic Quality Gatekeeper in Phase 9
+        res_stems = clean_session.step(conn=adapter, user_input="Exportar paquete de stems")
+        assert res_stems["phase"] == "PHASE_9_COMPLETED"
+        assert res_stems["current_step"] == "AUDITORÍA Y EXPORTACIÓN DE STEMS COMPLETADA"
+        assert res_stems["ready_for_distribution"] is True
+        assert "stems_export" in res_stems
+        assert res_stems["stems_export"]["stems_count"] >= 5
+        assert Path(res_stems["stems_export"]["manifest_path"]).exists()
     finally:
         if test_wav.exists():
             try:
@@ -514,4 +525,94 @@ def test_no_suggested_values_and_ranges_displayed(clean_session):
     assert "Rango de Sonoridad Integrada" in p8["question"]
     assert "Rango de True Peak" in p8["question"]
     assert "valor sugerido" not in p8["question"].lower()
+
+
+def test_modular_sections_all_genres_and_progressions():
+    """Validates that all 13 drum genres and 11 harmonic progressions synthesize authentic notes."""
+    from engine.production.copilot.guided_session import generate_modular_section_notes, resolve_genre_style
+    from engine.music.drums.genre_grooves import GenreDrumStyle
+    from engine.knowledge.composition.chords import PROGRESSION_DEFINITIONS
+
+    # 1. Test all 13 drum genres in Drop 1 (16 bars)
+    for style in GenreDrumStyle:
+        d_notes = generate_modular_section_notes(
+            role="DRUMS",
+            section_index=3,
+            section_name="Drop 1",
+            section_bars=16,
+            key="F",
+            scale="natural_minor",
+            bpm=120.0,
+            genre=style.value
+        )
+        assert len(d_notes) >= 200, f"Genre {style.value} failed density contract: {len(d_notes)} notes"
+        assert max(n.velocity for n in d_notes) == 127, f"Genre {style.value} missing accent 127"
+
+    # 2. Test all harmonic progressions for Keys, Bass and Lead
+    all_progressions = list(PROGRESSION_DEFINITIONS.keys()) + ["royal_road", "dorian", "harmonic_minor", "natural_minor"]
+    for prog in all_progressions:
+        # Keys (Drop-2 voiced and strummed)
+        k_notes = generate_modular_section_notes(
+            role="KEYS",
+            section_index=1,
+            section_name="Verse 1",
+            section_bars=16,
+            key="G",
+            scale=prog,
+            bpm=125.0
+        )
+        assert len(k_notes) >= 16, f"Progression {prog} failed keys note generation"
+        # Bass (Sub-range MIDI 24-38 with 808 groove)
+        b_notes = generate_modular_section_notes(
+            role="BASS",
+            section_index=3,
+            section_name="Drop 1",
+            section_bars=16,
+            key="G",
+            scale=prog,
+            bpm=125.0
+        )
+        assert len(b_notes) >= 20, f"Progression {prog} failed bass density: {len(b_notes)}"
+        assert all(23 <= n.pitch <= 50 for n in b_notes), f"Progression {prog} bass pitch out of sub range"
+
+        # Lead (Call-and-response melodic statement)
+        l_notes = generate_modular_section_notes(
+            role="LEAD",
+            section_index=3,
+            section_name="Drop 1",
+            section_bars=16,
+            key="G",
+            scale=prog,
+            bpm=125.0
+        )
+        assert len(l_notes) >= 16, f"Progression {prog} failed lead generation"
+
+
+def test_guided_session_genre_detection_and_composition(clean_session):
+    """Validates that user genre and progression inputs are captured and utilized in guided production."""
+    adapter = MockAbletonAdapter()
+
+    # Step 1: Detect genre in Phase 1
+    res1 = clean_session.step(conn=adapter, user_input="Quiero un tema de Trap a 140 BPM con Drums, Keys, Pad, Bass, Lead")
+    assert clean_session.data.get("genre") == "trap"
+
+    # Step 2: Set sections
+    clean_session.step(conn=adapter, user_input="Opción B")
+
+    # Steps 3..5: Fast-forward instruments and insert effects
+    for _ in range(5):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+    for _ in range(5):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+    for _ in range(10):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+
+    # Step 6: Compose with specific harmonic progression and genre
+    res6 = clean_session.step(conn=adapter, user_input="Trap en F classic_dark a 140 BPM")
+    assert clean_session.data["key"] == "F"
+    assert clean_session.data["scale"] == "classic_dark"
+    assert clean_session.data["genre"] == "trap"
+    assert clean_session.data["bpm"] == 140.0
+    assert res6["phase"] == "PHASE_7_AUTOMATION"
+
 
