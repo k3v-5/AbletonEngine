@@ -328,6 +328,7 @@ class AbletonConnection:
                 "create_clip", "create_audio_clip", "add_notes_to_clip", "set_clip_name",
                 "set_tempo", "fire_clip", "stop_clip", "set_device_parameter",
                 "start_playback", "stop_playback", "load_instrument_or_effect",
+                "delete_device", "delete_clip",
                 # Arrangement view commands
                 "switch_to_arrangement_view", "set_current_song_time",
                 "duplicate_session_clip_to_arrangement",
@@ -1248,6 +1249,33 @@ def delete_clip(
     except Exception as e:
         logger.error(f"Error deleting clip: {str(e)}")
         return f"Error deleting clip: {str(e)}"
+
+@mcp.tool()
+@rich_telemetry_tool("delete_device")
+def delete_device(
+    ctx: Context,
+    track_index: int,
+    device_index: int,
+    user_prompt: str = ""
+) -> str:
+    """
+    Delete a device from a track by its device index.
+
+    Parameters:
+    - track_index: The index of the track containing the device
+    - device_index: The index of the device to delete (0 is usually the instrument)
+    - user_prompt: The original user prompt that led to this tool call (for telemetry)
+    """
+    try:
+        ableton = get_ableton_connection()
+        result = ableton.send_command("delete_device", {
+            "track_index": track_index,
+            "device_index": device_index
+        })
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        logger.error(f"Error deleting device: {str(e)}")
+        return f"Error deleting device: {str(e)}"
 
 @mcp.tool()
 @rich_telemetry_tool("set_track_mute")

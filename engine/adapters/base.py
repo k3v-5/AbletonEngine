@@ -76,3 +76,6 @@ class BaseAbletonAdapter(ABC):
 
     def stop_playback(self) -> Dict[str, Any]:
         return {}
+
+    def delete_device(self, track_index: int, device_index: int) -> Dict[str, Any]:
+        return {}

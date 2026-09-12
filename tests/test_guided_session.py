@@ -191,6 +191,62 @@ def test_guided_session_phase_5_insert_effects(clean_session):
     assert "tonalidad" in res_fx_final["question"].lower()
 
 
+def test_guided_session_phase_5_no_duplicate_insert_effects(clean_session):
+    """Verifies that revisiting Phase 5 or processing tracks with existing devices does not duplicate insert effects."""
+    adapter = MockAbletonAdapter()
+    clean_session.step(conn=adapter, user_input="Opción A")
+    clean_session.step(conn=adapter, user_input="Opción B")
+    for _ in range(5):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+    for _ in range(5):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+
+    assert clean_session.data["current_phase"] == "PHASE_5_INSERT_EFFECTS"
+
+    # Step through all 10 effects in Phase 5
+    for _ in range(10):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+
+    # Verify each track has exactly 2 insert effects
+    for t_idx in range(5):
+        t_devs = adapter.tracks[t_idx]["devices"]
+        fx_devs = [d for d in t_devs if d.get("type") == "audio_effect"]
+        assert len(fx_devs) == 2, f"Track {t_idx} has {len(fx_devs)} insert effects, expected 2"
+        assert len(clean_session.data["tracks"][t_idx].get("insert_effects", [])) == 2
+
+    # Deliberately inject a duplicate "Drum Buss" on track 0
+    adapter.tracks[0]["devices"].append({
+        "index": len(adapter.tracks[0]["devices"]),
+        "name": "Drum Buss",
+        "class_name": "DrumBuss",
+        "type": "audio_effect"
+    })
+    assert len([d for d in adapter.tracks[0]["devices"] if d.get("name") == "Drum Buss"]) == 2
+
+    # Now simulate re-visiting Phase 5 with pre-existing effects and duplicate
+    clean_session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+    clean_session.data["phase_index"] = 5
+    clean_session.data["current_fx_ptr"] = 0
+    clean_session.data["current_fx_track_ptr"] = 0
+    clean_session.data["current_fx_dev_ptr"] = 0
+    clean_session._save_state()
+
+    # Step through all 10 effects again
+    for _ in range(10):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+
+    # Verify duplicate was purged and tracks still have exactly 2 insert effects
+    drum_busses = [d for d in adapter.tracks[0]["devices"] if d.get("name") == "Drum Buss"]
+    assert len(drum_busses) == 1, f"Expected 1 Drum Buss after purge, found {len(drum_busses)}"
+
+    for t_idx in range(5):
+        t_devs = adapter.tracks[t_idx]["devices"]
+        fx_devs = [d for d in t_devs if d.get("type") == "audio_effect"]
+        assert len(fx_devs) == 2, f"Track {t_idx} has {len(fx_devs)} insert effects after second run, expected 2"
+        trk_state = clean_session.data["tracks"][t_idx]
+        assert len(trk_state.get("insert_effects", [])) == 2
+
+
 def test_guided_session_phase_6_composition(clean_session):
     adapter = MockAbletonAdapter()
     clean_session.step(conn=adapter, user_input="Opción A")

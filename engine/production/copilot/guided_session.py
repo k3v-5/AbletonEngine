@@ -1244,10 +1244,46 @@ class CopilotGuidedSession:
 
             if conn is not None and hasattr(conn, "send_command"):
                 try:
-                    conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff_uri})
                     t_info = conn.send_command("get_track_info", {"track_index": t_idx})
                     raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
-                    dev_idx = len(raw_devs) - 1 if raw_devs else dev_ptr + 1
+
+                    # Idempotency check: find existing device matching eff_name or class (protect instruments)
+                    matching_indices = []
+                    for d_i in range(len(raw_devs)):
+                        d = raw_devs[d_i]
+                        d_type = str(d.get("type", "")).lower()
+                        d_class = str(d.get("class_name", "")).lower()
+                        d_name = d.get("name", "").strip().lower()
+                        e_name = eff_name.strip().lower()
+
+                        # Never treat an authentic instrument / drum kit as an insert effect
+                        if d_type in ("instrument", "synth", "drum_machine") or d_class in ("drumgroupdevice", "instrumentgroupdevice", "drift", "originalsimpler"):
+                            continue
+
+                        if (e_name in d_name or d_name in e_name or
+                            (e_name == "drum buss" and "drumbuss" in d_class) or
+                            (e_name == "glue compressor" and "gluecompressor" in d_class) or
+                            (e_name == "eq eight" and "eq8" in d_class) or
+                            (e_name == "saturator" and "saturator" in d_class) or
+                            (e_name == "chorus-ensemble" and ("chorus" in d_class or "chorus" in d_name)) or
+                            (e_name == "delay" and "delay" in d_class) or
+                            (e_name == "ott" and "ott" in d_name) or
+                            (e_name == "valhallavintageverb" and ("valhalla" in d_name or "vintageverb" in d_name))):
+                            matching_indices.append(d_i)
+
+                    if matching_indices:
+                        dev_idx = matching_indices[0]
+                        # Remove extra duplicates from highest index to lowest
+                        for extra_idx in sorted(matching_indices[1:], reverse=True):
+                            try:
+                                conn.send_command("delete_device", {"track_index": t_idx, "device_index": extra_idx})
+                            except Exception:
+                                pass
+                    else:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff_uri})
+                        t_info_after = conn.send_command("get_track_info", {"track_index": t_idx})
+                        after_devs = t_info_after.get("result", {}).get("devices", t_info_after.get("devices", [])) if isinstance(t_info_after, dict) else []
+                        dev_idx = len(after_devs) - 1 if after_devs else dev_ptr + 1
 
                     for p_key, p_val in applied_params.items():
                         try:
@@ -1269,11 +1305,18 @@ class CopilotGuidedSession:
 
         if "insert_effects" not in trk:
             trk["insert_effects"] = []
-        trk["insert_effects"].append({
-            "name": eff_name,
-            "bypass": is_bypass,
-            "parameters": applied_params
-        })
+        if dev_ptr < len(trk["insert_effects"]):
+            trk["insert_effects"][dev_ptr] = {
+                "name": eff_name,
+                "bypass": is_bypass,
+                "parameters": applied_params
+            }
+        else:
+            trk["insert_effects"].append({
+                "name": eff_name,
+                "bypass": is_bypass,
+                "parameters": applied_params
+            })
 
         self.data["current_fx_dev_ptr"] = dev_ptr + 1
         self.data["current_fx_ptr"] = self.data.get("current_fx_ptr", 0) + 1

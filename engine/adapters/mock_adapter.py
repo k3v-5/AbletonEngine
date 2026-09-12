@@ -204,6 +204,57 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             raise ConnectionError("Mock Ableton is disconnected")
         track = self.tracks[track_index]
         uri_lower = uri.lower()
+
+        # Check if loading an audio effect
+        is_effect = ("audiofx" in uri_lower or "audio_effects" in uri_lower or
+                     any(e in uri_lower for e in ("drum%20buss", "glue", "eq%20eight", "saturator", "delay", "ott", "valhalla", "chorus", "compressor", "fragments")))
+
+        if is_effect:
+            eff_name = "Audio Effect"
+            c_name = "AudioEffectGroupDevice"
+            if "drum" in uri_lower and "buss" in uri_lower:
+                eff_name = "Drum Buss"
+                c_name = "DrumBuss"
+            elif "glue" in uri_lower:
+                eff_name = "Glue Compressor"
+                c_name = "GlueCompressor"
+            elif "eq" in uri_lower:
+                eff_name = "EQ Eight"
+                c_name = "Eq8"
+            elif "saturator" in uri_lower:
+                eff_name = "Saturator"
+                c_name = "Saturator"
+            elif "chorus" in uri_lower:
+                eff_name = "Chorus-Ensemble"
+                c_name = "Chorus"
+            elif "valhalla" in uri_lower:
+                eff_name = "ValhallaVintageVerb"
+                c_name = "PluginDevice"
+            elif "delay" in uri_lower:
+                eff_name = "Delay"
+                c_name = "Delay"
+            elif "ott" in uri_lower:
+                eff_name = "OTT"
+                c_name = "PluginDevice"
+            elif "fragments" in uri_lower:
+                eff_name = "Efx FRAGMENTS"
+                c_name = "PluginDevice"
+            elif "compressor" in uri_lower:
+                eff_name = "Compressor"
+                c_name = "Compressor"
+            elif "#" in uri:
+                eff_name = uri.split("#")[-1].replace("%20", " ").strip()
+
+            new_dev = {
+                "index": len(track["devices"]),
+                "name": eff_name,
+                "class_name": c_name,
+                "type": "audio_effect"
+            }
+            track["devices"].append(new_dev)
+            return {"loaded": True, "track_index": track_index, "uri": uri, "new_devices": [eff_name]}
+
+        # Otherwise, loading an instrument
         is_drum = "drum" in uri_lower or "kit" in uri_lower or "808" in uri_lower
         dev_name = "Drum Rack" if is_drum else "Drift"
 
@@ -234,6 +285,21 @@ class MockAbletonAdapter(BaseAbletonAdapter):
         }
         track["devices"].append(new_dev)
         return {"loaded": True, "track_index": track_index, "uri": uri, "new_devices": [dev_name]}
+
+    def delete_device(self, track_index: int, device_index: int) -> Dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("Mock Ableton is disconnected")
+        if track_index < 0 or track_index >= len(self.tracks):
+            raise IndexError(f"Track index {track_index} out of range")
+        track = self.tracks[track_index]
+        devices = track.get("devices", [])
+        if device_index < 0 or device_index >= len(devices):
+            raise IndexError(f"Device index {device_index} out of range")
+        deleted = devices.pop(device_index)
+        for idx, dev in enumerate(devices):
+            dev["index"] = idx
+        return {"status": "success", "track_index": track_index, "device_index": device_index, "deleted_device": deleted.get("name", "")}
+
 
     def get_drum_rack_pads(self, track_index: int, device_index: int = 0) -> Dict[str, Any]:
         if not self._connected:
@@ -392,6 +458,8 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             return self.create_clip(params.get("track_index", 0), params.get("clip_index", 0), params.get("length", 4.0))
         elif command_type == "delete_clip":
             return self.delete_clip(params.get("track_index", 0), params.get("clip_index", 0))
+        elif command_type == "delete_device":
+            return self.delete_device(params.get("track_index", 0), params.get("device_index", 0))
         elif command_type == "add_notes_to_clip":
             return self.add_notes_to_clip(params.get("track_index", 0), params.get("clip_index", 0), params.get("notes", []), params.get("mode", "create"))
         elif command_type == "set_track_name":
