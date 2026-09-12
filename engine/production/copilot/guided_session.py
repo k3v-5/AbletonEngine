@@ -202,7 +202,8 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             "name": "Saturator",
             "uri": "query:AudioFx#Saturator",
             "params": [
-                {"id": "Drive", "name": "Drive (Saturación Punzante)", "range": "0.0 a 1.0 (0 dB a +36 dB)", "behavior": "Saturación armónica para presencia extrema in-your-face.", "default": 0.25}
+                {"id": "Drive", "name": "Drive (Saturación Punzante)", "range": "0.0 a 1.0 (0 dB a +36 dB)", "behavior": "Saturación armónica para presencia extrema in-your-face.", "default": 0.25},
+                {"id": "Output", "name": "Output Trim", "range": "0.0 a 1.0 (-inf a 0 dB)", "behavior": "Atenuación de salida para conservar el headroom de mezcla.", "default": 0.70}
             ]
         }
     ],
@@ -670,7 +671,8 @@ class CopilotGuidedSession:
             valid_midi_indices: List[int] = []
             try:
                 s_info = conn.send_command("get_session_info", {})
-                existing_cnt = int(s_info.get("track_count", 0))
+                res_s = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
+                existing_cnt = int(res_s.get("track_count", 0))
                 for idx in range(existing_cnt):
                     try:
                         ti = conn.send_command("get_track_info", {"track_index": idx})
@@ -1278,6 +1280,7 @@ class CopilotGuidedSession:
         gs = trk.get("gain_staging", {})
         lvl_str = f"{gs.get('target_peak_dbfs', -14.0):.1f} dBFS" if gs else "-14.0 dBFS"
 
+        p_examples = ", ".join([f"{p['id']}: X" for p in eff.get("params", [])[:2]]) or "Parameter: Value"
         return {
             "current_step": f"PASO 5 DE 7: EFECTO {dev_ptr + 1} DE {len(fx_list)} (PISTA {t_ptr + 1} DE {len(tracks)}: '{t_name}')",
             "action_taken": f"Configurando procesador #{dev_ptr + 1} ({eff_name}) en Pista {t_idx}. Nivel actual: {lvl_str}.",
@@ -1288,7 +1291,7 @@ class CopilotGuidedSession:
                 f"{params_text}\n\n"
                 f"🧠 **Decisión Técnica Requerida:**\n"
                 f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla, o indica 'Bypass' si determinas que este procesador no es necesario en este canal.\n\n"
-                f"*Especifica tus valores de configuración (ej: '{eff['params'][0]['id']}: X, {eff['params'][1]['id']}: Y...') o indica 'Bypass'.*"
+                f"*Especifica tus valores de configuración (ej: '{p_examples}') o indica 'Bypass'.*"
             ),
             "instructions_for_ai": f"Define los parámetros para {eff_name} en la pista {t_name} o indica Bypass.",
             "target_track": t_idx,
