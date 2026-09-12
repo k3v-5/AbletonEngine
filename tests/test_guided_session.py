@@ -220,6 +220,71 @@ def test_guided_session_phase_6_composition(clean_session):
     assert "automatizaciones" in res["question"].lower()
 
 
+def test_guided_session_phase_6_custom_ai_notes(clean_session):
+    """
+    Validates that when the AI provides direct custom MIDI notes in Phase 6,
+    the engine uses the exact AI composition without procedural database overrides.
+    """
+    import json
+    adapter = MockAbletonAdapter()
+    clean_session.step(conn=adapter, user_input="Opción A")
+    clean_session.step(conn=adapter, user_input="Opción B")
+    for _ in range(5):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+    for _ in range(5):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+    for _ in range(10):
+        clean_session.step(conn=adapter, user_input="Opción 1")
+
+    ai_payload = {
+        "bpm": 128.0,
+        "key": "F",
+        "scale": "minor",
+        "composition": {
+            "0": {
+                "0": [
+                    {"pitch": 36, "start_time": 0.0, "duration": 0.25, "velocity": 127},
+                    {"pitch": 38, "start_time": 1.0, "duration": 0.5, "velocity": 115}
+                ]
+            },
+            "BASS": {
+                "0": [
+                    {"pitch": 29, "start_time": 0.0, "duration": 0.5, "velocity": 120},
+                    {"pitch": 41, "start_time": 0.75, "duration": 0.25, "velocity": 110}
+                ]
+            }
+        }
+    }
+    custom_input = f"Aquí está mi composición directa:\n```json\n{json.dumps(ai_payload)}\n```"
+    res = clean_session.step(conn=adapter, user_input=custom_input)
+
+    assert res["phase"] == "PHASE_7_AUTOMATION"
+    assert clean_session.data["phase_index"] == 7
+    assert clean_session.data["bpm"] == 128.0
+    assert clean_session.data["key"] == "F"
+    assert clean_session.data["ai_composed"] is True
+
+    # Validate that track 0 clip 0 has the exact 2 notes composed by the AI
+    clip0_notes = adapter.get_clip_notes(0, 0)
+    assert len(clip0_notes) == 2
+    assert clip0_notes[0]["pitch"] == 36
+    assert clip0_notes[0]["velocity"] == 127
+    assert clip0_notes[1]["pitch"] == 38
+    assert clip0_notes[1]["velocity"] == 115
+
+    # Validate that BASS track clip 0 has the exact 2 bass notes composed by the AI
+    bass_idx = None
+    for trk_info in clean_session.data.get("tracks", []):
+        if trk_info["role"] == "BASS":
+            bass_idx = trk_info["index"]
+            break
+    assert bass_idx is not None
+    bass_notes = adapter.get_clip_notes(bass_idx, 0)
+    assert len(bass_notes) == 2
+    assert bass_notes[0]["pitch"] == 29
+    assert bass_notes[1]["pitch"] == 41
+
+
 def test_guided_session_phase_7_automation_and_bypass(clean_session):
     """Validates track automation injection and bypass option in Phase 7."""
     adapter = MockAbletonAdapter()

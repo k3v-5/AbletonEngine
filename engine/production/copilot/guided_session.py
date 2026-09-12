@@ -672,6 +672,30 @@ class CopilotGuidedSession:
                 {"name": "Bridge", "bars": 8, "start_bar": 40},
                 {"name": "Final Chorus", "bars": 16, "start_bar": 48}
             ]
+        elif "opcion c" in text or "128" in text or "club" in text or "edm" in text:
+            total_bars = 128
+            sections = [
+                {"name": "Intro", "bars": 16, "start_bar": 0},
+                {"name": "Verse 1", "bars": 16, "start_bar": 16},
+                {"name": "Buildup", "bars": 8, "start_bar": 32},
+                {"name": "Drop 1", "bars": 24, "start_bar": 40},
+                {"name": "Puente (Breakdown)", "bars": 16, "start_bar": 64},
+                {"name": "Buildup 2", "bars": 8, "start_bar": 80},
+                {"name": "Drop 2 (Climax)", "bars": 24, "start_bar": 88},
+                {"name": "Outro", "bars": 16, "start_bar": 112}
+            ]
+        elif "opcion d" in text or "88" in text or "boom" in text:
+            total_bars = 88
+            sections = [
+                {"name": "Intro", "bars": 4, "start_bar": 0},
+                {"name": "Verse 1", "bars": 16, "start_bar": 4},
+                {"name": "Hook 1", "bars": 8, "start_bar": 20},
+                {"name": "Verse 2", "bars": 16, "start_bar": 28},
+                {"name": "Hook 2", "bars": 8, "start_bar": 44},
+                {"name": "Puente (Bridge)", "bars": 8, "start_bar": 52},
+                {"name": "Hook 3", "bars": 8, "start_bar": 60},
+                {"name": "Outro", "bars": 4, "start_bar": 68}
+            ]
         else:
             total_bars = 96
             sections = [
@@ -1250,86 +1274,298 @@ class CopilotGuidedSession:
             return self._prompt_phase_6()
 
     # -------------------------------------------------------------------------
-    # FASE 6: COMPOSICIÓN MODULAR DE NOTAS (RANURAS 0..6 CON SILENCIOS ESTRUCTURALES)
+    # FASE 6: COMPOSICIÓN MODULAR DE NOTAS (DIRECTA POR IA / ASISTIDA)
     # -------------------------------------------------------------------------
     def _prompt_phase_6(self) -> Dict[str, Any]:
+        tracks = self.data.get("tracks", [])
+        sections = self.data.get("sections", [])
+        total_bars = self.data.get("total_bars", 96)
+
+        track_lines = [f"• Pista {t.get('index')}: **{t.get('name')}** (Rol: `{t.get('role')}`)" for t in tracks]
+        sec_lines = [f"• Sección {i}: **{s.get('name')}** ({s.get('bars')} compases, inicio: c.{s.get('start_bar', i*8)})" for i, s in enumerate(sections)]
+
         return {
             "current_step": "PASO 6 DE 7: COMPOSICIÓN MODULAR DE NOTAS Y DESPLIEGUE EN ARRANGEMENT",
             "action_taken": "Todos los instrumentos y efectos de inserción fueron configurados y afinados físicamente en Live.",
             "question": (
-                "🎼 **Paso 6 de 7: Parámetros Armónicos, Escala, Género y Tempo de Composición**\n\n"
-                "**Rangos Musicales y Acústicos del Motor:**\n"
-                "• **Tonalidades**: Las 12 notas fundamentales (C, C#, D, Eb, E, F, F#, G, Ab, A, Bb, B). Para producción moderna con subgraves contundentes (808 en 30-45 Hz), fundamentales entre D y G ofrecen la mayor respuesta acústica.\n"
-                "• **13 Estilos de Groove Rítmico Auténtico** (`GenreRhythmGrooveEngine`):\n"
-                "  `trap`, `house`, `neo_soul`, `reggaeton`, `synthwave`, `boom_bap`, `techno`, `cumbia`, `afrobeat`, `edm`, `drum_and_bass`, `pop`, `rock`.\n"
-                "  *(Equipados con micro-timing de groove-pool, ghost notes y acelerando dinámico en buildups)*.\n"
-                "• **11 Progresiones Armónicas y Modales de la Enciclopedia** (`PROGRESSION_DEFINITIONS`):\n"
-                "  • `classic_dark`: i - bVII - bVI - V (Mobb Deep, Shook Ones, Trap Oscuro)\n"
-                "  • `jazz_hiphop`: i - iv - i - v (Pete Rock, A Tribe Called Quest)\n"
-                "  • `soul_feel`: i - bVI - bIII - bVII (9th Wonder, J Dilla)\n"
-                "  • `melancholic`: i - bVII - iv - bVI (Nas, Eminem)\n"
-                "  • `minimal_jazz`: im7 - iv7 (Madlib, Dilla Donuts)\n"
-                "  • `phrygian_dark`: i - bII - i - bII (Wu-Tang, Phonk)\n"
-                "  • `neo_soul`: im9 - IVmaj7 (Nujabes, Robert Glasper)\n"
-                "  • `royal_road`: IVmaj7 - V - iii7 - vi (J-Pop / Emotional Anime)\n"
-                "  • `dorian`: i7 - IV7 - VII - i (French Touch, UK Garage)\n"
-                "  • `harmonic_minor`: i - VI - iv - V (Tensión clásica dramática)\n"
-                "  • `natural_minor`: i - VI - III - VII (Progresión universal)\n\n"
-                "• **Voicings Drop-2 y Conducción de Voces**: Acordes abiertos con separación armónica en medios y rasgueo humano dinámico (`PhysicalChordStrummer`).\n"
-                "• **Sub-Bajo 808 Inteligente**: Saltos de octava, aproximaciones cromáticas y silencios estructurales en Intro, Buildup y Puente (`Intelligent808BassEngine`).\n"
-                "• **Melodía Vocal Call-and-Response**: Frases de 8 compases con arco emocional y respiración vocal (`TopLineMelodyEngine`).\n\n"
+                "🎼 **Paso 6 de 7: Composición de Notas MIDI Directa por IA**\n\n"
+                "**Dotación Instrumental en Live:**\n"
+                + "\n".join(track_lines) + "\n\n"
+                f"**Estructura del Arreglo ({total_bars} compases totales):**\n"
+                + "\n".join(sec_lines) + "\n\n"
                 "🧠 **Decisión Técnica Requerida:**\n"
-                "Evalúa la narrativa musical y determina la tonalidad, escala/progresión, género y tempo exacto en BPM.\n\n"
-                "*Especifica la tonalidad, escala y BPM (ej: 'Tonalidad F menor a 120 BPM' o 'Trap en F classic_dark a 140 BPM').*"
+                "Como Director Musical y Productor, define directamente las notas MIDI (`pitch`, `start_time`, `duration`, `velocity`) de cada clip.\n"
+                "No dependemos de bases de datos fijas ni generadores genéricos: tus notas son desplegadas fielmente en la sesión.\n\n"
+                "**Formato de Composición Directa (JSON):**\n"
+                "```json\n"
+                "{\n"
+                "  \"bpm\": 128,\n"
+                "  \"key\": \"F\",\n"
+                "  \"scale\": \"natural_minor\",\n"
+                "  \"composition\": {\n"
+                "    \"0\": {\n"
+                "      \"0\": [{\"pitch\": 36, \"start_time\": 0.0, \"duration\": 0.25, \"velocity\": 120}],\n"
+                "      \"1\": [...]\n"
+                "    },\n"
+                "    \"BASS\": {\n"
+                "      \"3\": [{\"pitch\": 29, \"start_time\": 0.0, \"duration\": 0.5, \"velocity\": 127}]\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```\n"
+                "*O especifica la tonalidad, escala y BPM (ej: 'Tonalidad F menor a 120 BPM') para composición procedural asistida.*"
             ),
-            "instructions_for_ai": "Determina tonalidad, escala y tempo para la composición modular.",
+            "instructions_for_ai": "Determina tonalidad, escala y tempo, o envía la composición directa de notas MIDI en JSON.",
             "phase": "PHASE_6_COMPOSITION"
         }
 
+    def _parse_ai_composition(self, user_input: str) -> Tuple[Dict[str, Any], Dict[Tuple[Any, Any], List[Dict[str, Any]]], bool]:
+        """
+        Parses direct MIDI note composition payloads provided by AI/Producer.
+        Supports multiple schemas (composition dict, tracks list/dict, roles dict, clips list).
+        """
+        meta: Dict[str, Any] = {}
+        custom_map: Dict[Tuple[Any, Any], List[Dict[str, Any]]] = {}
+
+        def _norm_notes(raw_notes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            res = []
+            for n in raw_notes:
+                if not isinstance(n, dict):
+                    continue
+                pitch = int(n.get("pitch", 60))
+                st = float(n.get("start_time", n.get("start", 0.0)))
+                dur = float(n.get("duration", 1.0))
+                vel = int(n.get("velocity", 100))
+                res.append({
+                    "pitch": max(0, min(127, pitch)),
+                    "start_time": round(st, 4),
+                    "duration": round(dur, 4),
+                    "velocity": max(1, min(127, vel)),
+                    "mute": bool(n.get("mute", False))
+                })
+            return res
+
+        json_str = None
+        fence_m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", user_input, re.DOTALL)
+        if fence_m:
+            json_str = fence_m.group(1)
+        else:
+            brace_m = re.search(r"(\{[\s\S]*\})", user_input, re.DOTALL)
+            if brace_m:
+                json_str = brace_m.group(1)
+
+        if not json_str:
+            return meta, custom_map, False
+
+        try:
+            data = json.loads(json_str)
+        except Exception:
+            return meta, custom_map, False
+
+        if not isinstance(data, dict):
+            return meta, custom_map, False
+
+        for k in ["bpm", "key", "scale", "genre"]:
+            if k in data:
+                meta[k] = data[k]
+
+        # 1. 'composition' dict: {track_key: {section_key: [notes]}} or {track_key: [notes]}
+        comp = data.get("composition")
+        if isinstance(comp, dict):
+            for t_k, sec_val in comp.items():
+                if isinstance(sec_val, dict):
+                    for s_k, n_list in sec_val.items():
+                        try:
+                            s_idx = int(s_k)
+                        except ValueError:
+                            s_idx = str(s_k).lower()
+                        if isinstance(n_list, list):
+                            custom_map[(t_k, s_idx)] = _norm_notes(n_list)
+                elif isinstance(sec_val, list):
+                    custom_map[(t_k, "all")] = _norm_notes(sec_val)
+
+        # 2. 'tracks' list or dict
+        trks = data.get("tracks")
+        if isinstance(trks, dict):
+            for t_k, sec_val in trks.items():
+                if isinstance(sec_val, dict):
+                    for s_k, n_list in sec_val.items():
+                        try:
+                            s_idx = int(s_k)
+                        except ValueError:
+                            s_idx = str(s_k).lower()
+                        if isinstance(n_list, list):
+                            custom_map[(t_k, s_idx)] = _norm_notes(n_list)
+                elif isinstance(sec_val, list):
+                    custom_map[(t_k, "all")] = _norm_notes(sec_val)
+        elif isinstance(trks, list):
+            for trk_item in trks:
+                if not isinstance(trk_item, dict):
+                    continue
+                t_ident = trk_item.get("index", trk_item.get("track_index", trk_item.get("name", trk_item.get("role"))))
+                if "clips" in trk_item and isinstance(trk_item["clips"], list):
+                    for c_idx, clip in enumerate(trk_item["clips"]):
+                        if isinstance(clip, dict):
+                            s_idx = clip.get("section_index", clip.get("section", c_idx))
+                            try:
+                                s_idx = int(s_idx)
+                            except ValueError:
+                                s_idx = str(s_idx).lower()
+                            custom_map[(t_ident, s_idx)] = _norm_notes(clip.get("notes", []))
+                elif "notes" in trk_item and isinstance(trk_item["notes"], list):
+                    custom_map[(t_ident, "all")] = _norm_notes(trk_item["notes"])
+
+        # 3. 'roles' dict
+        roles = data.get("roles")
+        if isinstance(roles, dict):
+            for r_k, r_val in roles.items():
+                r_upper = str(r_k).upper()
+                if isinstance(r_val, dict):
+                    for s_k, n_list in r_val.items():
+                        try:
+                            s_idx = int(s_k)
+                        except ValueError:
+                            s_idx = str(s_k).lower()
+                        if isinstance(n_list, list):
+                            custom_map[(r_upper, s_idx)] = _norm_notes(n_list)
+                elif isinstance(r_val, list):
+                    custom_map[(r_upper, "all")] = _norm_notes(r_val)
+
+        # 4. 'clips' list
+        clips = data.get("clips")
+        if isinstance(clips, list):
+            for clip in clips:
+                if isinstance(clip, dict):
+                    t_ident = clip.get("track", clip.get("track_index", clip.get("role", clip.get("name"))))
+                    s_idx = clip.get("section", clip.get("section_index", 0))
+                    try:
+                        s_idx = int(s_idx)
+                    except ValueError:
+                        s_idx = str(s_idx).lower()
+                    custom_map[(t_ident, s_idx)] = _norm_notes(clip.get("notes", []))
+
+        return meta, custom_map, len(custom_map) > 0
+
+    def _find_custom_notes_for_track_section(
+        self,
+        custom_map: Dict[Tuple[Any, Any], List[Dict[str, Any]]],
+        trk: Dict[str, Any],
+        s_idx: int,
+        s_name: str,
+        s_beats: float
+    ) -> Optional[List[Dict[str, Any]]]:
+        t_idx = trk.get("index")
+        t_name = str(trk.get("name", "")).lower()
+        t_role = str(trk.get("role", "")).upper()
+        s_name_lower = str(s_name).lower()
+
+        keys_to_check = [
+            (t_idx, s_idx),
+            (str(t_idx), s_idx),
+            (str(t_idx), str(s_idx)),
+            (t_role, s_idx),
+            (t_role, str(s_idx)),
+            (t_name, s_idx),
+            (t_name, str(s_idx)),
+            (t_idx, s_name_lower),
+            (str(t_idx), s_name_lower),
+            (t_role, s_name_lower),
+            (t_name, s_name_lower),
+        ]
+        for k in keys_to_check:
+            if k in custom_map:
+                return list(custom_map[k])
+
+        # Check fallback to "all"
+        all_keys = [
+            (t_idx, "all"),
+            (str(t_idx), "all"),
+            (t_role, "all"),
+            (t_name, "all"),
+        ]
+        for k in all_keys:
+            if k in custom_map:
+                base_notes = custom_map[k]
+                if not base_notes:
+                    return []
+                # If the base pattern is shorter than section beats, tile it to fill section
+                max_reach = max(n["start_time"] + n["duration"] for n in base_notes)
+                if max_reach > 0 and s_beats > max_reach:
+                    pattern_len = 16.0 if max_reach <= 16.0 else max_reach
+                    tiled = []
+                    offset = 0.0
+                    while offset < s_beats:
+                        for n in base_notes:
+                            n_st = n["start_time"] + offset
+                            if n_st < s_beats:
+                                n_copy = dict(n)
+                                n_copy["start_time"] = round(n_st, 4)
+                                n_dur = min(n["duration"], s_beats - n_st)
+                                n_copy["duration"] = round(n_dur, 4)
+                                tiled.append(n_copy)
+                        offset += pattern_len
+                    return tiled
+                else:
+                    return list(base_notes)
+
+        return None
+
     def _handle_phase_6(self, conn: Any, user_input: str) -> Dict[str, Any]:
+        ai_meta, custom_notes_map, has_custom_notes = self._parse_ai_composition(user_input)
         text = user_input.upper()
 
-        key = "F"
-        for k_candidate in ["C#", "DB", "D#", "EB", "F#", "GB", "G#", "AB", "A#", "BB", "C", "D", "E", "F", "G", "A", "B"]:
-            if f" {k_candidate} " in f" {text} " or f"KEY {k_candidate}" in text or f"TONALIDAD {k_candidate}" in text:
-                key = k_candidate.title()
-                break
+        key = ai_meta.get("key")
+        if not key:
+            key = "F"
+            for k_candidate in ["C#", "DB", "D#", "EB", "F#", "GB", "G#", "AB", "A#", "BB", "C", "D", "E", "F", "G", "A", "B"]:
+                if f" {k_candidate} " in f" {text} " or f"KEY {k_candidate}" in text or f"TONALIDAD {k_candidate}" in text:
+                    key = k_candidate.title()
+                    break
 
-        scale = "natural_minor"
-        if "ROYAL" in text or "JPOP" in text or "J-POP" in text or "ROYAL_ROAD" in text:
-            scale = "royal_road"
-        elif "DORIAN" in text or "DORICA" in text:
-            scale = "dorian"
-        elif "ARMONICA" in text or "HARMONIC" in text:
-            scale = "harmonic_minor"
-        elif "MAYOR" in text or "MAJOR" in text:
-            scale = "major"
-        elif "CLASSIC_DARK" in text or "OSCURA" in text or "CLASSIC DARK" in text:
-            scale = "classic_dark"
-        elif "JAZZ_HIPHOP" in text or "JAZZ HIPHOP" in text or "JAZZ" in text:
-            scale = "jazz_hiphop"
-        elif "SOUL_FEEL" in text or "SOUL FEEL" in text or "SOUL" in text:
-            scale = "soul_feel"
-        elif "MELANCHOLIC" in text or "MELANCOLICA" in text:
-            scale = "melancholic"
-        elif "MINIMAL_JAZZ" in text or "MINIMAL" in text:
-            scale = "minimal_jazz"
-        elif "PHRYGIAN" in text or "FRIGIA" in text:
-            scale = "phrygian_dark"
-        elif "NEO_SOUL" in text or "NEOSOUL" in text:
-            scale = "neo_soul"
+        scale = ai_meta.get("scale")
+        if not scale:
+            scale = "natural_minor"
+            if "ROYAL" in text or "JPOP" in text or "J-POP" in text or "ROYAL_ROAD" in text:
+                scale = "royal_road"
+            elif "DORIAN" in text or "DORICA" in text:
+                scale = "dorian"
+            elif "ARMONICA" in text or "HARMONIC" in text:
+                scale = "harmonic_minor"
+            elif "MAYOR" in text or "MAJOR" in text:
+                scale = "major"
+            elif "CLASSIC_DARK" in text or "OSCURA" in text or "CLASSIC DARK" in text:
+                scale = "classic_dark"
+            elif "JAZZ_HIPHOP" in text or "JAZZ HIPHOP" in text or "JAZZ" in text:
+                scale = "jazz_hiphop"
+            elif "SOUL_FEEL" in text or "SOUL FEEL" in text or "SOUL" in text:
+                scale = "soul_feel"
+            elif "MELANCHOLIC" in text or "MELANCOLICA" in text:
+                scale = "melancholic"
+            elif "MINIMAL_JAZZ" in text or "MINIMAL" in text:
+                scale = "minimal_jazz"
+            elif "PHRYGIAN" in text or "FRIGIA" in text:
+                scale = "phrygian_dark"
+            elif "NEO_SOUL" in text or "NEOSOUL" in text:
+                scale = "neo_soul"
 
         bpm = 120.0
-        bpm_match = re.search(r"(\d{2,3}(?:\.\d+)?)\s*BPM", user_input, re.IGNORECASE)
-        if bpm_match:
-            bpm = float(bpm_match.group(1))
+        if "bpm" in ai_meta:
+            try:
+                bpm = float(ai_meta["bpm"])
+            except (ValueError, TypeError):
+                bpm = 120.0
+        else:
+            bpm_match = re.search(r"(\d{2,3}(?:\.\d+)?)\s*BPM", user_input, re.IGNORECASE)
+            if bpm_match:
+                bpm = float(bpm_match.group(1))
 
-        # Detect genre from user input or fallback to BPM inference
-        detected_genre = None
-        for g_candidate in ["trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
-            if g_candidate.upper() in text:
-                detected_genre = g_candidate.replace(" ", "_").replace("hip_hop", "trap").replace("lofi", "boom_bap").replace("dnb", "drum_and_bass")
-                break
+        # Detect genre from user input, ai_meta or fallback to BPM inference
+        detected_genre = ai_meta.get("genre")
+        if not detected_genre:
+            for g_candidate in ["trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
+                if g_candidate.upper() in text:
+                    detected_genre = g_candidate.replace(" ", "_").replace("hip_hop", "trap").replace("lofi", "boom_bap").replace("dnb", "drum_and_bass")
+                    break
         if detected_genre:
             self.data["genre"] = detected_genre
         elif "genre" not in self.data:
@@ -1338,6 +1574,7 @@ class CopilotGuidedSession:
         self.data["key"] = key
         self.data["scale"] = scale
         self.data["bpm"] = bpm
+        self.data["ai_composed"] = bool(has_custom_notes)
         total_bars = self.data.get("total_bars", 96)
 
         if conn is not None and hasattr(conn, "send_command"):
@@ -1372,63 +1609,81 @@ class CopilotGuidedSession:
                 s_bars = int(sec.get("bars", 8))
                 s_beats = float(s_bars * 4.0)
 
-                s_notes = generate_modular_section_notes(
-                    role=role,
-                    section_index=s_idx,
-                    section_name=s_name,
-                    section_bars=s_bars,
-                    key=key,
-                    scale=scale,
-                    bpm=bpm,
-                    genre=self.data.get("genre")
-                )
+                if has_custom_notes:
+                    # Direct AI composition branch: pure AI-composed notes without database overrides
+                    raw_notes = self._find_custom_notes_for_track_section(
+                        custom_map=custom_notes_map,
+                        trk=trk,
+                        s_idx=s_idx,
+                        s_name=s_name,
+                        s_beats=s_beats
+                    )
+                    s_notes_dicts = raw_notes if raw_notes is not None else []
 
-                if role == "DRUMS" and s_notes:
-                    q3_notes = [n for n in s_notes if 60 <= n.pitch <= 75]
-                    q1_notes = [n for n in s_notes if 36 <= n.pitch <= 51]
-                    if q3_notes and len(q1_notes) == 0:
-                        for n in s_notes:
-                            n.pitch = max(36, n.pitch - 24)
+                    if role == "DRUMS" and s_notes_dicts:
+                        q3_notes = [d for d in s_notes_dicts if 60 <= d["pitch"] <= 75]
+                        q1_notes = [d for d in s_notes_dicts if 36 <= d["pitch"] <= 51]
+                        if q3_notes and len(q1_notes) == 0:
+                            for d in s_notes_dicts:
+                                d["pitch"] = max(36, d["pitch"] - 24)
+                else:
+                    # Fallback procedural generation branch for backwards compatibility
+                    s_notes = generate_modular_section_notes(
+                        role=role,
+                        section_index=s_idx,
+                        section_name=s_name,
+                        section_bars=s_bars,
+                        key=key,
+                        scale=scale,
+                        bpm=bpm,
+                        genre=self.data.get("genre")
+                    )
 
-                total_notes_trk += len(s_notes)
+                    if role == "DRUMS" and s_notes:
+                        q3_notes = [n for n in s_notes if 60 <= n.pitch <= 75]
+                        q1_notes = [n for n in s_notes if 36 <= n.pitch <= 51]
+                        if q3_notes and len(q1_notes) == 0:
+                            for n in s_notes:
+                                n.pitch = max(36, n.pitch - 24)
+
+                    pref_prod = self.data.get("producer_style") or get_user_preferences().get("style", {}).get("preferred_producer", "J Dilla")
+                    pocket_style = GroovePocketEngine.producer_to_pocket_style(pref_prod)
+                    s_notes = GroovePocketEngine.apply_pocket_to_notes(
+                        notes=s_notes,
+                        role=role,
+                        pocket_style=pocket_style,
+                        tempo=bpm,
+                        strength=0.85,
+                        seed=s_idx * 100 + t_idx
+                    )
+                    raw_dict_notes = [
+                        {"pitch": int(n.pitch), "start_time": round(float(n.start), 4), "duration": round(float(n.duration), 4), "velocity": int(n.velocity)}
+                        for n in s_notes
+                    ]
+                    if role == "DRUMS":
+                        s_notes_dicts, _ = MusicMutationEngine.mutate_drum_pattern(raw_dict_notes, humanize_strength=0.25)
+                    else:
+                        s_notes_dicts, _ = MusicMutationEngine.mutate_bass_or_melody_pattern(raw_dict_notes, key_root=36, humanize_strength=0.25)
+
+                total_notes_trk += len(s_notes_dicts)
 
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
                         conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": s_idx})
-                        if s_notes:
+                        if s_notes_dicts:
                             conn.send_command("create_clip", {"track_index": t_idx, "clip_index": s_idx, "length": s_beats})
-                            # Layer 5 AI: Style-conditioned micro-timing pocket
-                            pref_prod = self.data.get("producer_style") or get_user_preferences().get("style", {}).get("preferred_producer", "J Dilla")
-                            pocket_style = GroovePocketEngine.producer_to_pocket_style(pref_prod)
-                            s_notes = GroovePocketEngine.apply_pocket_to_notes(
-                                notes=s_notes,
-                                role=role,
-                                pocket_style=pocket_style,
-                                tempo=bpm,
-                                strength=0.85,
-                                seed=s_idx * 100 + t_idx
-                            )
-                            # Anti-Cliché & Mandatory Variation Pipeline
-                            raw_dict_notes = [
-                                {"pitch": int(n.pitch), "start_time": round(float(n.start), 4), "duration": round(float(n.duration), 4), "velocity": int(n.velocity)}
-                                for n in s_notes
-                            ]
-                            if role == "DRUMS":
-                                mutated_dict, _ = MusicMutationEngine.mutate_drum_pattern(raw_dict_notes, humanize_strength=0.25)
-                            else:
-                                mutated_dict, _ = MusicMutationEngine.mutate_bass_or_melody_pattern(raw_dict_notes, key_root=36, humanize_strength=0.25)
-                            
-                            # Audit notes against flat clichés and unmutated repetitions
-                            audit_ok, audit_msg, _ = AntiClicheGuard.audit_midi_clip(mutated_dict, role=role)
-                            if not audit_ok:
-                                logger.info(f"AntiClicheGuard notice for {trk['name']} section {s_idx}: {audit_msg}")
-
                             conn.send_command("add_notes_to_clip", {
                                 "track_index": t_idx,
                                 "clip_index": s_idx,
                                 "notes": [
-                                    {"pitch": int(d["pitch"]), "start_time": round(float(d["start_time"]), 3), "duration": round(float(d["duration"]), 3), "velocity": int(d["velocity"]), "mute": False}
-                                    for d in mutated_dict
+                                    {
+                                        "pitch": int(d["pitch"]),
+                                        "start_time": round(float(d.get("start_time", d.get("start", 0.0))), 3),
+                                        "duration": round(float(d.get("duration", 1.0)), 3),
+                                        "velocity": int(d.get("velocity", 100)),
+                                        "mute": bool(d.get("mute", False))
+                                    }
+                                    for d in s_notes_dicts
                                 ]
                             })
                             conn.send_command("duplicate_session_clip_to_arrangement", {
@@ -1909,7 +2164,9 @@ class CopilotGuidedSession:
             clash_hz = psycho_report.get("clash_center_freq_hz", 0.0)
             smr_db = psycho_report.get("min_smr_db", 0.0)
             cuts = psycho_report.get("recommended_eq_cuts", [])
-            cut_txt = f" (Muesca quirúrgica en EQ: {cuts[0]['suggested_gain_reduction_db']:.1f} dB @ {cuts[0]['center_freq_hz']:.0f} Hz)" if cuts else ""
+            cut_val = cuts[0].get("gain_reduction_db", cuts[0].get("suggested_gain_reduction_db", 0.0)) if cuts else 0.0
+            cut_hz = cuts[0].get("center_freq_hz", 0.0) if cuts else 0.0
+            cut_txt = f" (Muesca quirúrgica en EQ: {cut_val:.1f} dB @ {cut_hz:.0f} Hz)" if cuts else ""
             psycho_line = f"• **Auditoría Psicoacústica (24 Bandas Bark):** Conflicto evaluado en {clash_hz:.1f} Hz (SMR: {smr_db:.1f} dB){cut_txt}.\n"
 
         q_success = (
