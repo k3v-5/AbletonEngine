@@ -10088,8 +10088,7 @@ def copilot_guided_session(
                     except Exception:
                         pass
         import engine.production.copilot.guided_session as _gs_mod
-        if reset:
-            importlib.reload(_gs_mod)
+        importlib.reload(_gs_mod)
         copilot_guided_session_engine = _gs_mod.copilot_guided_session_engine
         conn = get_ableton_connection()
         return copilot_guided_session_engine.step(conn=conn, user_input=user_input, reset=reset)

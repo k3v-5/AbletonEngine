@@ -504,12 +504,31 @@ class CopilotGuidedSession:
     def step(self, conn: Any, user_input: str = "", reset: bool = False) -> Dict[str, Any]:
         if reset:
             self.reset()
+        else:
+            self.data = self._load_state()
 
         phase = self.data.get("current_phase", "PHASE_1_TRACKS")
         u_in = str(user_input or "").strip()
 
-        if not u_in and phase == "PHASE_1_TRACKS" and not self.data["tracks"]:
-            return self._prompt_phase_1()
+        if not u_in:
+            if phase == "PHASE_1_TRACKS":
+                return self._prompt_phase_1()
+            elif phase == "PHASE_2_SECTIONS":
+                return self._prompt_phase_2(self.data.get("tracks", []))
+            elif phase == "PHASE_3_INSTRUMENTS":
+                return self._prompt_current_track_instrument()
+            elif phase == "PHASE_4_PARAM_SCULPTING":
+                return self._prompt_current_track_params()
+            elif phase == "PHASE_5_INSERT_EFFECTS":
+                return self._prompt_current_fx_device()
+            elif phase == "PHASE_6_COMPOSITION":
+                return self._prompt_phase_6()
+            elif phase == "PHASE_7_AUTOMATION":
+                return self._prompt_phase_7()
+            elif phase == "PHASE_8_MIX_MASTER":
+                return self._prompt_phase_8()
+            elif phase == "PHASE_9_COMPLETED":
+                return self._handle_phase_9(conn, "")
 
         if phase == "PHASE_1_TRACKS":
             return self._handle_phase_1(conn, u_in)
