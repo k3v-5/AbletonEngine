@@ -180,6 +180,65 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Decay", "name": "Decay (Cola larga)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Sustain sedoso que une las transiciones de notas.", "default": 0.32}
             ]
         }
+    ],
+    "VOCALS": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Filtro pasa-altos en 150 Hz para limpiar graves vocales.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia de Corte 150 Hz", "range": "0.0 a 1.0 (20 Hz a 500 Hz)", "behavior": "Corte de graves estricto a 150 Hz.", "default": 0.35}
+            ]
+        },
+        {
+            "name": "Compressor",
+            "uri": "query:AudioFx#Compressor",
+            "params": [
+                {"id": "Threshold", "name": "Threshold (Umbral)", "range": "-40.0 dB a 0.0 dB", "behavior": "Nivel de activación de compresión vocal agresiva.", "default": -18.0},
+                {"id": "Ratio", "name": "Ratio (Relación 10:1)", "range": "1.0 a 10.0", "behavior": "Compresión punzante para voz in-your-face.", "default": 10.0}
+            ]
+        },
+        {
+            "name": "Saturator",
+            "uri": "query:AudioFx#Saturator",
+            "params": [
+                {"id": "Drive", "name": "Drive (Saturación Punzante)", "range": "0.0 a 1.0 (0 dB a +36 dB)", "behavior": "Saturación armónica para presencia extrema in-your-face.", "default": 0.25}
+            ]
+        }
+    ],
+    "PAD": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Filtro pasa-altos para evitar colisión con subgraves.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia de Corte", "range": "0.0 a 1.0 (20 Hz a 500 Hz)", "behavior": "Corte por encima de 120 Hz.", "default": 0.30}
+            ]
+        },
+        {
+            "name": "ValhallaVintageVerb",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": [
+                {"id": "Mix", "name": "Mix (Ambiente estéreo)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Profundidad ambiental para texturas de fondo.", "default": 0.30},
+                {"id": "Decay", "name": "Decay (Sostenimiento largo)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Cola extendida para colchón armónico.", "default": 0.35}
+            ]
+        }
+    ],
+    "GUITAR": [
+        {
+            "name": "Saturator",
+            "uri": "query:AudioFx#Saturator",
+            "params": [
+                {"id": "Drive", "name": "Drive (Amp Emulation)", "range": "0.0 a 1.0 (0 dB a +36 dB)", "behavior": "Distorsión agresiva de amplificador para lead de guitarra.", "default": 0.35}
+            ]
+        },
+        {
+            "name": "Delay",
+            "uri": "query:AudioFx#Delay",
+            "params": [
+                {"id": "Dry/Wet", "name": "Dry/Wet (Eco rítmico)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Repeticiones rítmicas para el motivo pentatónico.", "default": 0.25}
+            ]
+        }
     ]
 }
 
@@ -682,7 +741,45 @@ class CopilotGuidedSession:
 
     def _handle_phase_2(self, conn: Any, user_input: str) -> Dict[str, Any]:
         text = _normalize_text(user_input)
-        if "opcion b" in text or "64" in text or "compact" in text:
+        parsed_custom = None
+        if isinstance(user_input, dict) and "sections" in user_input:
+            parsed_custom = user_input["sections"]
+        elif isinstance(user_input, list):
+            parsed_custom = user_input
+        elif isinstance(user_input, str):
+            try:
+                js = json.loads(user_input)
+                if isinstance(js, dict) and "sections" in js:
+                    parsed_custom = js["sections"]
+                elif isinstance(js, list):
+                    parsed_custom = js
+            except Exception:
+                pass
+
+        if parsed_custom and isinstance(parsed_custom, list):
+            sections = []
+            curr_bar = 0
+            for s in parsed_custom:
+                bars = int(s.get("bars", 8))
+                sections.append({
+                    "name": s.get("name", "Section"),
+                    "bars": bars,
+                    "start_bar": curr_bar
+                })
+                curr_bar += bars
+            total_bars = curr_bar
+        elif "drumstep" in text or "175" in text or "intro: 16" in text or "intro 16" in text:
+            total_bars = 96
+            sections = [
+                {"name": "Intro", "bars": 16, "start_bar": 0},
+                {"name": "Buildup 1", "bars": 8, "start_bar": 16},
+                {"name": "Drop 1", "bars": 16, "start_bar": 24},
+                {"name": "Breakdown", "bars": 16, "start_bar": 40},
+                {"name": "Buildup 2", "bars": 8, "start_bar": 56},
+                {"name": "Drop 2", "bars": 16, "start_bar": 64},
+                {"name": "Outro", "bars": 16, "start_bar": 80}
+            ]
+        elif "opcion b" in text or "64" in text or "compact" in text:
             total_bars = 64
             sections = [
                 {"name": "Intro", "bars": 8, "start_bar": 0},
