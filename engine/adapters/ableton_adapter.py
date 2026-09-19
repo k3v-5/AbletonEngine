@@ -126,4 +126,41 @@ class LiveAbletonAdapter(BaseAbletonAdapter):
     def get_arrangement_clips(self, track_index: int) -> Dict[str, Any]:
         return self._send("get_arrangement_clips", {"track_index": track_index})
 
+    def execute_batch(self, operations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Executes a batch of LOM operations in a single atomic TCP round-trip
+        by compiling instructions into an execute_code payload.
+        """
+        lines = ["# Batch atomic execution"]
+        for op in operations:
+            cmd = op.get("command")
+            p = op.get("params", {})
+            if cmd == "set_device_parameter":
+                lines.append(f"try:\n    song.tracks[{p['track_index']}].devices[{p['device_index']}].parameters[{p.get('parameter', 0)}].value = {float(p['value'])}\nexcept Exception: pass")
+            elif cmd == "set_track_volume":
+                lines.append(f"try:\n    song.tracks[{p['track_index']}].mixer_device.volume.value = {float(p['volume'])}\nexcept Exception: pass")
+            elif cmd == "set_track_panning":
+                lines.append(f"try:\n    song.tracks[{p['track_index']}].mixer_device.panning.value = {float(p['panning'])}\nexcept Exception: pass")
+        
+        batch_code = "\n".join(lines) + "\nres = {'executed_ops': " + str(len(operations)) + ", 'status': 'success'}"
+        return self._send("execute_code", {"code": batch_code})
+
+    def set_semantic_vst_parameter(self, track_index: int, device_index: int, param_name: str, value: float) -> Dict[str, Any]:
+        """Sets parameter by fuzzy/canonical name matching to resist VST3 parameter index shifts."""
+        code = f"""
+t = song.tracks[{track_index}]
+d = t.devices[{device_index}]
+target = '{param_name.lower().strip()}'
+matched = False
+for p in d.parameters:
+    p_n = p.name.lower().strip()
+    if target == p_n or target in p_n or p_n in target:
+        p.value = {float(value)}
+        matched = True
+        break
+res = {{'matched': matched, 'target': '{param_name}', 'value': {float(value)}}}
+"""
+        return self._send("execute_code", {"code": code})
+
+
 

@@ -12,7 +12,7 @@
   "sound_design": {
     "favorite_synth": {
       "value": "Serum 2",
-      "updated_at": "2026-09-10T21:46:00.463490"
+      "updated_at": "2026-09-12T20:23:17.870120"
     }
   },
   "style": {
@@ -23,6 +23,18 @@
     "preferred_producer": {
       "value": "J Dilla",
       "updated_at": "2026-09-10T20:55:04.250165"
+    }
+  },
+  "composition": {
+    "mode": {
+      "value": "track_by_track",
+      "updated_at": "2026-09-19T14:34:00.695223"
+    }
+  },
+  "automation": {
+    "mode": {
+      "value": "express",
+      "updated_at": "2026-09-19T14:33:47.606066"
     }
   }
 }

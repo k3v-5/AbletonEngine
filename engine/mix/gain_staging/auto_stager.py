@@ -39,24 +39,33 @@ class AutoGainStagingEngine:
     }
 
     @classmethod
-    def classify_role(cls, track_name: str) -> str:
+    def classify_role(cls, track_name: str, devices: Optional[List[Any]] = None) -> str:
         tn = track_name.lower().strip()
-        if "kick" in tn:
-            return "kick"
-        if "808" in tn or "bass" in tn or "sub" in tn:
+        dev_str = " ".join([str(d).lower() for d in (devices or [])])
+        full = f"{tn} {dev_str}"
+
+        if any(w in full for w in ["808", "bass", "bajo", "sub", "sublab", "trilian"]):
             return "bass"
-        if "snare" in tn or "clap" in tn:
+        if "kick" in full or "bombo" in full:
+            return "kick"
+        if "snare" in full or "clap" in full:
             return "snare"
-        if "break" in tn:
+        if "break" in full or "loop" in full or "sliced break" in full:
             return "break"
-        if any(w in tn for w in ["drum", "kit", "perc"]):
+        if any(w in full for w in ["drum", "kit", "perc", "warehouse"]):
             return "drums"
-        if any(w in tn for w in ["piano", "key", "rhodes", "chord"]):
+        if any(w in full for w in ["piano", "key", "rhodes"]):
             return "piano"
-        if any(w in tn for w in ["lead", "vocal", "vox", "hook", "synth"]):
+        if any(w in full for w in ["pad", "string", "cuerda", "atmos", "ambient"]):
+            return "pad"
+        if any(w in full for w in ["lead", "pluck", "arp"]):
             return "lead"
-        if any(w in tn for w in ["foley", "texture", "rain", "vinyl"]):
+        if any(w in full for w in ["vocal", "vox", "hook", "chop"]):
+            return "vocal"
+        if any(w in full for w in ["foley", "texture", "rain", "vinyl"]):
             return "foley"
+        if "synth" in full:
+            return "synth"
         return "lead"
 
     @classmethod

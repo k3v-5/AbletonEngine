@@ -337,26 +337,33 @@ class AbletonConnection:
     
             # Commands whose work on Live's main thread can take noticeably longer
             # than the default modifying-command budget (e.g. importing/decoding a
-            # large audio file or loading heavy VST3 plugins like Serum, Vital, Massive X).
+            # Commands whose work on Live's main thread can take noticeably longer
+            # than the default modifying-command budget (e.g. importing/decoding a
+            # large audio file or loading heavy VST3 plugins like Serum, Vital, Massive X,
+            # or executing multi-operation LOM batches).
             long_running_commands = {
-                "create_audio_clip": 65.0,
-                "load_browser_item": 45.0,
-                "load_instrument_or_effect": 45.0,
-                "load_drum_kit": 45.0,
-                "record_arrangement_automation": 60.0,
-                "record_multi_automation_pass": 90.0
+                "execute_code": 180.0,
+                "create_audio_clip": 90.0,
+                "load_browser_item": 60.0,
+                "load_instrument_or_effect": 60.0,
+                "load_drum_kit": 60.0,
+                "record_arrangement_automation": 180.0,
+                "record_multi_automation_pass": 240.0,
+                "setup_full_mastering_chain": 180.0,
+                "master_apply": 180.0,
+                "copilot_guided_session": 180.0
             }
 
             # Plugin and device interaction commands (inspecting parameters,
-            # setting parameters, drum pad queries, etc.) configured with 15s timeout limit.
+            # setting parameters, drum pad queries, etc.) configured with 20s timeout limit.
             plugin_commands = {
-                "set_device_parameter": 15.0,
-                "get_device_parameters": 15.0,
-                "get_device_parameter": 15.0,
-                "get_drum_rack_pads": 15.0,
-                "get_drum_pad_devices": 15.0,
-                "set_drum_pad_parameter": 15.0,
-                "set_drum_pad_mute_solo": 15.0
+                "set_device_parameter": 20.0,
+                "get_device_parameters": 20.0,
+                "get_device_parameter": 20.0,
+                "get_drum_rack_pads": 20.0,
+                "get_drum_pad_devices": 20.0,
+                "set_drum_pad_parameter": 20.0,
+                "set_drum_pad_mute_solo": 20.0
             }
             
             try:
@@ -366,13 +373,13 @@ class AbletonConnection:
                 self.sock.sendall(json.dumps(command).encode('utf-8'))
                 logger.info(f"Command sent, waiting for response...")
                 
-                # Set timeout based on command type (15.0s for plugin/modifying commands instead of 7.0s)
+                # Set timeout based on command type (extended budgets for high-load operations)
                 if command_type in long_running_commands:
                     timeout = long_running_commands[command_type]
                 elif command_type in plugin_commands:
                     timeout = plugin_commands[command_type]
                 else:
-                    timeout = 15.0 if is_modifying_command else 5.0
+                    timeout = 30.0 if is_modifying_command else 15.0
                 self.sock.settimeout(timeout)
     
                 # Receive the response
@@ -10122,6 +10129,48 @@ def copilot_guided_session(
         return copilot_guided_session_engine.step(conn=conn, user_input=user_input, reset=reset)
     except Exception as e:
         logger.error(f"Error in copilot_guided_session: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def copilot_session_doctor(
+    user_input: str = "",
+    reset: bool = False
+) -> dict:
+    """
+    Studio Doctor & Clinical Acoustic Repair for Existing Ableton Live Projects.
+    Conducts a non-destructive multi-dimensional audit of the active session and resolves
+    issues interactively, one detail at a time, with pre-repair snapshots and rollback:
+    
+    1. Structural LOM Audit: Track volumes / gain staging headroom, empty MIDI/audio clips,
+       orphan/dead tracks, muted tracks containing active material, duplicate redundant FX plugins.
+    2. Acoustic & Spatial Audit: Stereo phase correlation (<0.2 mono cancellation), low-end mono
+       incompatibility (<120 Hz should be mono), sub-bass collision (Kick vs 808 in 40-90 Hz without sidechain),
+       stereo center panning congestion, harsh spectral resonances (2.5-5 kHz / 200-400 Hz mud).
+    3. Master Bus Compliance: True peak & headroom to prevent converter clipping (-6 dBFS headroom target).
+    4. Interactive Issue Stepper: Compiles a prioritized list of findings, presents each one-by-one to
+       the user/AI asking if it should be corrected, allows applying the recommendation or customizing the value,
+       and executes surgical repairs in Live.
+    5. Safety Snapshot & Rollback: Takes a session snapshot before repairs and supports 'Deshacer' / 'Rollback'.
+    
+    Totally independent from guided_session (never wipes session, never creates compositions).
+    """
+    try:
+        import sys, importlib
+        if reset:
+            for mod_name in list(sys.modules.keys()):
+                if mod_name.startswith("engine.production.doctor"):
+                    try:
+                        importlib.reload(sys.modules[mod_name])
+                    except Exception:
+                        pass
+        import engine.production.doctor.session_doctor as _sd_mod
+        importlib.reload(_sd_mod)
+        copilot_session_doctor_engine = _sd_mod.copilot_session_doctor_engine
+        conn = get_ableton_connection()
+        return copilot_session_doctor_engine.step(conn=conn, user_input=user_input, reset=reset)
+    except Exception as e:
+        logger.error(f"Error in copilot_session_doctor: {e}")
         return {"status": "error", "message": str(e)}
 
 

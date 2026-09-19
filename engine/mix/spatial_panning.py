@@ -1,0 +1,297 @@
+# engine/mix/spatial_panning.py
+"""
+Instrument Panning Evaluator and Anti-Masking Spatial Architecture:
+Evaluates instrument stereo distribution prior to the vocal stage.
+Prevents frequency and spatial collisions by clearing the phantom center
+strictly for Lead Vocals, Kick, and Sub-Bass, while distributing harmonic
+and rhythmic elements into complementary stereo pockets.
+"""
+
+from typing import Dict, Any, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger("InstrumentPanningEvaluator")
+
+
+class InstrumentPanningEvaluator:
+    """
+    Evaluates stereo field occupancy of instrumental tracks, detects center clumping /
+    masking conflicts, and designs an anti-overlap panning blueprint before vocal introduction.
+    """
+
+    # Target panning positions [-1.0 .. 1.0]
+    # -1.0 = 50L (Hard Left), 0.0 = Center, +1.0 = 50R (Hard Right)
+    DEFAULT_ROLE_PAN_TARGETS = {
+        "KICK": 0.0,
+        "DRUMS": 0.0,
+        "BASS": 0.0,
+        "SUB": 0.0,
+        "808": 0.0,
+        "VOCALS": 0.0,
+        "LEAD_VOCAL": 0.0,
+        "SNARE": 0.0,
+        "CLAP": 0.0,
+        "KEYS": -0.24,       # ~24L (Left pocket for harmonic chords)
+        "PIANO": -0.24,
+        "CHORDS": -0.24,
+        "LEAD": 0.24,        # ~24R (Right pocket for melodic topline/accent)
+        "SYNTH": 0.24,
+        "PLUCK": 0.22,
+        "GUITAR": 0.25,
+        "HI_HATS": 0.16,     # ~16R (Air and rhythm offset)
+        "HATS": 0.16,
+        "PERCUSSION": -0.18, # ~18L (Polyrhythmic counter-balance)
+        "SHAKER": -0.18,
+        "TOMS": -0.15,
+        "PAD": -0.32,        # ~32L (Atmospheric width pushed to sides)
+        "STRINGS": 0.30,
+        "ATMOSPHERE": -0.35,
+        "FX": 0.28,
+        "EAR_CANDY": 0.32
+    }
+
+    @classmethod
+    def classify_role(cls, name: str, role: str = "") -> str:
+        """Determines acoustic role category from track name and metadata."""
+        n = str(name or "").lower()
+        r = str(role or "").upper()
+
+        if "kick" in n or "bombo" in n:
+            return "KICK"
+        if any(k in n for k in ["sub", "808"]):
+            return "SUB"
+        if "bass" in n or "bajo" in n or r == "BASS":
+            return "BASS"
+        if any(k in n for k in ["vocal", "vox", "voz", "lead vocal"]) or r == "VOCALS":
+            return "VOCALS"
+        if any(k in n for k in ["snare", "caja", "clap", "tarola"]):
+            return "SNARE"
+        if any(k in n for k in ["hat", "hihat", "hh", "cymbal", "ride"]):
+            return "HI_HATS"
+        if any(k in n for k in ["perc", "shaker", "tom", "bongo", "conga"]):
+            return "PERCUSSION"
+        if any(k in n for k in ["key", "piano", "chord", "teclado", "rhodes", "epiano"]) or r in ("KEYS", "CHORDS"):
+            return "KEYS"
+        if any(k in n for k in ["lead", "topline", "synth lead", "guitar", "guitarra", "solo", "pluck"]) or r in ("LEAD", "SYNTH"):
+            return "LEAD"
+        if any(k in n for k in ["pad", "string", "atmos", "ambient", "texture", "colchon"]) or r in ("PAD", "STRINGS"):
+            return "PAD"
+        if any(k in n for k in ["drum", "bateria", "kit"]) or r == "DRUMS":
+            return "DRUMS"
+        if any(k in n for k in ["candy", "fx", "riser", "sweep", "impact"]):
+            return "EAR_CANDY"
+
+        return r or "INSTRUMENT"
+
+    @classmethod
+    def pan_to_display(cls, pan_val: float) -> str:
+        """Converts float [-1.0 .. 1.0] to readable pan position (e.g. '24L', 'Center', '16R')."""
+        if abs(pan_val) < 0.02:
+            return "Center"
+        val_int = int(round(abs(pan_val) * 100))
+        return f"{val_int}L" if pan_val < 0 else f"{val_int}R"
+
+    @classmethod
+    def evaluate_session_panning(
+        cls,
+        tracks: List[Dict[str, Any]],
+        conn: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Audits the stereo panning layout across all tracks in the session.
+        Detects center clumping, stereo masking conflicts, and calculates
+        an anti-overlap panning plan.
+        """
+        # 1. Fetch current panning from Live connection if available
+        live_pans = {}
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                s_info = conn.send_command("get_session_info", {})
+                s_data = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
+                t_count = s_data.get("track_count", 0)
+                for i in range(t_count):
+                    t_info = conn.send_command("get_track_info", {"track_index": i})
+                    t_d = t_info.get("result", t_info) if isinstance(t_info, dict) else {}
+                    if "panning" in t_d:
+                        live_pans[i] = float(t_d["panning"])
+            except Exception as e:
+                logger.debug(f"Could not read live panning via connection: {e}")
+
+        # 2. Build list of candidate tracks
+        track_items = []
+        for trk in tracks:
+            idx = trk.get("index", 0)
+            name = trk.get("name", f"Track {idx}")
+            role = trk.get("role", "")
+            classified_role = cls.classify_role(name, role)
+            current_pan = live_pans.get(idx, trk.get("panning", 0.0))
+            track_items.append({
+                "track_index": idx,
+                "name": name,
+                "original_role": role,
+                "classified_role": classified_role,
+                "current_pan": float(current_pan),
+                "is_audio": trk.get("is_audio_track", False) or trk.get("is_audio", False)
+            })
+
+        # 3. Dynamic complimentary assignment
+        panning_directives = []
+        conflicts = []
+        center_clump_count = 0
+
+        harmonic_left_count = 0
+        harmonic_right_count = 0
+
+        for t in track_items:
+            role = t["classified_role"]
+            cur_p = t["current_pan"]
+            idx = t["track_index"]
+            name = t["name"]
+
+            rec_p = cls.DEFAULT_ROLE_PAN_TARGETS.get(role, 0.0)
+            rationale = ""
+
+            if role in ("KICK", "DRUMS"):
+                rec_p = 0.0
+                rationale = "Ancla rítmica central (0.0). Preserva pegada transiente y energía mono en club."
+            elif role in ("SUB", "BASS", "808"):
+                rec_p = 0.0
+                rationale = "Graves monofónicos (<120 Hz) centrados. Previene cancelaciones de fase acústicas."
+            elif role == "VOCALS":
+                rec_p = 0.0
+                rationale = "Centro puro reservado para la presencia in-your-face de la voz principal."
+            elif role == "SNARE":
+                rec_p = 0.0
+                rationale = "Golpe central con el bombo para sostener el pulso principal del compás."
+            elif role == "KEYS":
+                rec_p = -0.24
+                harmonic_left_count += 1
+                rationale = "Apertura a la izquierda (24L). Despeja el centro para la voz y crea bolsillo para el lead."
+                if abs(cur_p) < 0.05:
+                    center_clump_count += 1
+                    conflicts.append(f"Pista {idx} ('{name}'): Chords/Keys centrados enmascaran el centro espectral de la voz (300 Hz - 2.5 kHz).")
+            elif role == "LEAD":
+                rec_p = 0.24
+                harmonic_right_count += 1
+                rationale = "Apertura a la derecha (24R). Posición simétrica complementaria respecto a Keys; centro libre para voz."
+                if abs(cur_p) < 0.05:
+                    center_clump_count += 1
+                    conflicts.append(f"Pista {idx} ('{name}'): Sintetizador Lead centrado compite directamente con la futura melodía vocal.")
+            elif role == "HI_HATS":
+                rec_p = 0.16
+                rationale = "Apertura a la derecha (16R). Simulación acústica natural; libera aire y brillo central."
+                if abs(cur_p) < 0.05:
+                    center_clump_count += 1
+                    conflicts.append(f"Pista {idx} ('{name}'): Hi-Hats en el centro saturan frecuencias altas donde respiran los formantes vocales.")
+            elif role == "PERCUSSION":
+                rec_p = -0.18
+                rationale = "Apertura a la izquierda (18L). Contrapeso rítmico frente a Hi-Hats; espacialidad orgánica."
+                if abs(cur_p) < 0.05:
+                    center_clump_count += 1
+            elif role == "PAD":
+                rec_p = -0.32
+                rationale = "Amplitud lateral (32L). Colchón atmosférico empujado a los extremos estéreo."
+                if abs(cur_p) < 0.05:
+                    center_clump_count += 1
+                    conflicts.append(f"Pista {idx} ('{name}'): Pad atmosférico centrado ahoga la profundidad de la sesión.")
+            elif role == "EAR_CANDY":
+                rec_p = 0.32
+                rationale = "Efecto espacial lateral (32R). Dinamismo periférico sin tocar el canal medio."
+            else:
+                if harmonic_left_count <= harmonic_right_count:
+                    rec_p = -0.15
+                    harmonic_left_count += 1
+                else:
+                    rec_p = 0.15
+                    harmonic_right_count += 1
+                rationale = "Separación estéreo secundaria equilibrada."
+
+            is_optimized = abs(cur_p - rec_p) < 0.04
+            status = "OPTIMIZADO" if is_optimized else "SOLAPAMIENTO_DETECTADO" if abs(cur_p) < 0.05 and rec_p != 0.0 else "AJUSTE_RECOMENDADO"
+
+            panning_directives.append({
+                "track_index": idx,
+                "name": name,
+                "role": role,
+                "current_pan": round(cur_p, 2),
+                "current_display": cls.pan_to_display(cur_p),
+                "recommended_pan": round(rec_p, 2),
+                "recommended_display": cls.pan_to_display(rec_p),
+                "status": status,
+                "rationale": rationale
+            })
+
+        left_energy = sum(abs(d["recommended_pan"]) for d in panning_directives if d["recommended_pan"] < 0)
+        right_energy = sum(abs(d["recommended_pan"]) for d in panning_directives if d["recommended_pan"] > 0)
+        balance_ratio = round(left_energy / max(0.01, right_energy), 2)
+
+        table_lines = [
+            "| Pista | Nombre | Rol | Paneo Actual | Paneo Recomendado | Diagnóstico Acústico |",
+            "| :---: | :--- | :---: | :---: | :---: | :--- |"
+        ]
+        for d in panning_directives:
+            t_idx = d["track_index"]
+            t_name = d["name"]
+            t_role = d["role"]
+            cur_dsp = d["current_display"]
+            rec_dsp = d["recommended_display"]
+            rat = d["rationale"]
+            table_lines.append(f"| {t_idx} | **{t_name}** | `{t_role}` | `{cur_dsp}` | **`{rec_dsp}`** | {rat} |")
+
+        table_md = "\n".join(table_lines)
+        has_masking_risk = len(conflicts) > 0 or center_clump_count >= 2
+
+        return {
+            "status": "PANNING_AUDIT_COMPLETED",
+            "has_masking_risk": has_masking_risk,
+            "center_clumping_tracks_count": center_clump_count,
+            "conflicts": conflicts,
+            "directives": panning_directives,
+            "balance_ratio": balance_ratio,
+            "summary_table": table_md,
+            "center_reserved_for": ["Lead Vocal", "Kick", "Sub-Bass", "Snare"]
+        }
+
+    @classmethod
+    def apply_panning_plan(
+        cls,
+        conn: Any,
+        directives: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Sends set_track_panning commands to Ableton Live for each directive in the plan.
+        """
+        applied = []
+        errors = []
+
+        if conn is None:
+            return {"status": "BYPASS", "applied_count": 0, "message": "Conexión a Live no disponible."}
+
+        for d in directives:
+            idx = d.get("track_index", 0)
+            pan = float(d.get("recommended_pan", 0.0))
+            name = d.get("name", f"Track {idx}")
+            disp = d.get("recommended_display", cls.pan_to_display(pan))
+
+            try:
+                res = conn.send_command("set_track_panning", {
+                    "track_index": idx,
+                    "panning": pan
+                })
+                applied.append({
+                    "track_index": idx,
+                    "name": name,
+                    "panning": pan,
+                    "display": disp,
+                    "result": res
+                })
+            except Exception as e:
+                logger.warning(f"Error setting panning on track {idx}: {e}")
+                errors.append({"track_index": idx, "error": str(e)})
+
+        return {
+            "status": "SUCCESS" if not errors else "PARTIAL_SUCCESS",
+            "applied_count": len(applied),
+            "applied": applied,
+            "errors": errors
+        }

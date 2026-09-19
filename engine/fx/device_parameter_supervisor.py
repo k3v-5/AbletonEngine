@@ -229,6 +229,12 @@ class DeviceParameterSupervisor:
             "DYNAMICS": {"COMP_DEPTH": 0.65, "COMP_THRESHOLD": 0.50, "COMP_OUT_GAIN": 0.55},
             "SATURATION": {"DRIVE": 0.35, "DRIVE_MIX": 0.30}
         },
+        "VOCALS": {
+            "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.22, "EQ_MUD_CUT": 0.45, "EQ_AIR_SHELF": 0.54},
+            "DYNAMICS": {"COMP_THRESHOLD": 0.45, "COMP_DEPTH": 0.60},
+            "SATURATION": {"DRIVE": 0.20, "DRIVE_MIX": 0.70},
+            "SPACE_MODULATION": {"REVERB_MIX": 0.18, "REVERB_DECAY": 0.25}
+        },
         "VOCAL": {
             "MACROS_MASTER": {"MACRO_1": 0.80, "MACRO_2": 0.60},
             "SURGICAL_EQ": {"EQ_HPF_FREQ": 0.25, "EQ_MUD_CUT": 0.46, "EQ_AIR_SHELF": 0.53},
@@ -1494,6 +1500,8 @@ class DeviceParameterSupervisor:
             profile_key = "THE_GOD_PARTICLE"
         elif "pro-l" in dev_lower:
             profile_key = "PRO_L2"
+        elif "auto-tune" in dev_lower or "autotune" in dev_lower:
+            profile_key = "VOCALS"
         elif "pro-q" in dev_lower or "eq eight" in dev_lower or "eq" in dev_lower:
             profile_key = "SURGICAL_EQ"
         elif "ott" in dev_lower or "glue" in dev_lower or "compressor" in dev_lower:

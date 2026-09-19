@@ -184,12 +184,24 @@ class StemAuditor:
         start_bar: float = 1.0,
         end_bar: float = 65.0,
         audio_buffers: Optional[Dict[str, List[float]]] = None,
+        commercial_delivery_5: bool = False,
+        sample_rate: int = 44100,
+        bit_depth: int = 24
     ) -> StemPhaseAuditResult:
         """
         Full orchestration of stem export plan, audio buffers inspection, and phase forensics.
+        Supports standard multi-stem or commercial 5-stem delivery package at 24-bit / 44.1 kHz.
         """
         bouncer = StemBouncer(export_dir=export_dir)
-        plan = bouncer.create_export_plan(tracks, bpm=bpm, start_bar=start_bar, end_bar=end_bar)
+        if commercial_delivery_5:
+            plan = bouncer.create_commercial_delivery_plan(
+                tracks, bpm=bpm, start_bar=start_bar, end_bar=end_bar,
+                sample_rate=sample_rate, bit_depth=bit_depth
+            )
+            # Also generate actual 24-bit / 44.1 kHz delivery files and manifest
+            bouncer.export_commercial_delivery_package(plan)
+        else:
+            plan = bouncer.create_export_plan(tracks, bpm=bpm, start_bar=start_bar, end_bar=end_bar)
 
         audio_buffers = audio_buffers or {}
         stem_metrics: List[StemMetric] = []
@@ -201,12 +213,13 @@ class StemAuditor:
             s_name = stem.stem_id
             if s_name not in audio_buffers:
                 # Synthesize typical amplitude envelope
-                if "Drums" in s_name:
-                    buf = [0.8 * math.sin(2.0 * math.pi * 60.0 * (i / 48000.0)) * math.exp(-0.01 * (i % 600)) for i in range(default_len)]
-                elif "Bass" in s_name:
-                    buf = [0.75 * math.sin(2.0 * math.pi * 55.0 * (i / 48000.0)) for i in range(default_len)]
+                s_lower = s_name.lower()
+                if "drum" in s_lower:
+                    buf = [0.8 * math.sin(2.0 * math.pi * 60.0 * (i / float(sample_rate))) * math.exp(-0.01 * (i % 600)) for i in range(default_len)]
+                elif "bass" in s_lower:
+                    buf = [0.75 * math.sin(2.0 * math.pi * 55.0 * (i / float(sample_rate))) for i in range(default_len)]
                 else:
-                    buf = [0.5 * math.sin(2.0 * math.pi * 440.0 * (i / 48000.0)) for i in range(default_len)]
+                    buf = [0.5 * math.sin(2.0 * math.pi * 440.0 * (i / float(sample_rate))) for i in range(default_len)]
                 audio_buffers[s_name] = buf
 
             metric = cls.audit_stem_loudness(audio_buffers[s_name], stem_name=s_name)
@@ -216,16 +229,16 @@ class StemAuditor:
 
         # Inter-Stem Phase Forensics: Check Drums vs Bass
         phase_correlations = []
-        drums_buf = next((audio_buffers[k] for k in audio_buffers if "Drums" in k), None)
-        bass_buf = next((audio_buffers[k] for k in audio_buffers if "Bass" in k), None)
+        drums_buf = next((audio_buffers[k] for k in audio_buffers if "drum" in k.lower()), None)
+        bass_buf = next((audio_buffers[k] for k in audio_buffers if "bass" in k.lower()), None)
 
         if drums_buf and bass_buf:
-            phase_audit = cls.audit_stem_phase(drums_buf, bass_buf, "01_Drums", "02_Bass")
+            phase_audit = cls.audit_stem_phase(drums_buf, bass_buf, "01_DRUMS", "02_BASS")
             phase_correlations.append(phase_audit)
             if phase_audit["status"] == PhaseCorrelationStatus.DESTRUCTIVE_CANCEL.value:
                 risk_warnings.append(phase_audit["recommendation"])
 
-        master_metric = next((m for m in stem_metrics if "Master" in m.stem_name), None)
+        master_metric = next((m for m in stem_metrics if "master" in m.stem_name.lower()), None)
         master_lufs = master_metric.integrated_lufs if master_metric else -14.0
 
         ready = (len([w for w in risk_warnings if "CRITICAL" in w]) == 0) and (len(stem_metrics) > 0)

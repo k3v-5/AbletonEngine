@@ -61,3 +61,70 @@ def test_apply_bus_processing_mock():
     synth_res = ChannelStripEngine.apply_bus_processing(conn=None, group_track_index=3, bus_type="synths")
     assert synth_res["status"] == "SUCCESS"
     assert synth_res["group_track_index"] == 3
+
+
+def test_pitch_and_freq_conversions():
+    """Verify musical pitch to physical frequency calculations."""
+    assert ChannelStripEngine.pitch_to_hz(69) == 440.0   # A4 = 440 Hz
+    assert ChannelStripEngine.pitch_to_hz(33) == 55.0    # A1 = 55 Hz (SubLab fundamental)
+    assert ChannelStripEngine.pitch_to_hz(45) == 110.0   # A2 = 110 Hz (Piano fundamental)
+    assert ChannelStripEngine.pitch_to_hz(57) == 220.0   # A3 = 220 Hz
+    assert ChannelStripEngine.pitch_to_hz(81) == 880.0   # A5 = 880 Hz (Lead 1 fundamental)
+
+    # Normalized round-trip test
+    for hz in [25.0, 55.0, 110.0, 440.0, 1000.0, 5000.0, 12000.0]:
+        norm = ChannelStripEngine.freq_to_normalized(hz)
+        back = ChannelStripEngine.normalized_to_freq(norm)
+        assert abs(back - hz) / hz < 0.05  # Within 5% accuracy
+
+
+def test_adaptive_eq_protects_sublab_sub_bass():
+    """Verify that SubLabXL sub-bass at 55 Hz receives HPF <= 25 Hz and preserves fundamental."""
+    profile = {
+        "track_index": 6,
+        "track_name": "Synth 1",
+        "devices": ["SubLabXL", "EQ Eight"],
+        "note_count": 576,
+        "min_pitch": 33,
+        "max_pitch": 38,
+        "dominant_pitch": 33,
+        "min_hz": 55.0,
+        "max_hz": 73.4,
+        "dominant_hz": 55.0,
+        "detected_role": "bass"
+    }
+    settings = ChannelStripEngine.get_adaptive_eq_settings(profile)
+    assert settings["role"] == "bass"
+    assert settings["hpf_hz"] <= 25.0  # Cut rumble ONLY, leaving 55 Hz 100% intact!
+    assert settings["f1_freq"] <= ChannelStripEngine.freq_to_normalized(25.0)
+    # Band 2 body boost centered at sub fundamental
+    f2_hz = ChannelStripEngine.normalized_to_freq(settings["f2_freq"])
+    assert 50.0 <= f2_hz <= 60.0
+
+
+def test_adaptive_eq_piano_and_leads():
+    """Verify that harmonic instruments preserve their lowest musical notes."""
+    # Piano at 110 Hz
+    piano_profile = {
+        "track_name": "Piano",
+        "devices": ["Omnisphere"],
+        "min_hz": 110.0,
+        "max_hz": 349.2,
+        "detected_role": "piano"
+    }
+    piano_settings = ChannelStripEngine.get_adaptive_eq_settings(piano_profile)
+    assert piano_settings["hpf_hz"] < 110.0  # HPF must be below fundamental 110 Hz
+    assert 70.0 <= piano_settings["hpf_hz"] <= 90.0
+
+    # Lead 1 at 880 Hz
+    lead_profile = {
+        "track_name": "Lead 1",
+        "devices": ["Wavetable"],
+        "min_hz": 880.0,
+        "max_hz": 1760.0,
+        "detected_role": "lead"
+    }
+    lead_settings = ChannelStripEngine.get_adaptive_eq_settings(lead_profile)
+    assert lead_settings["hpf_hz"] <= 350.0
+    assert lead_settings["hpf_hz"] < 880.0  # Leaves 880 Hz fundamental untouched
+

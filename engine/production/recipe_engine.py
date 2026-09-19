@@ -875,6 +875,99 @@ class ProductionRecipeEngine:
         }
 
     @classmethod
+    def optimize_points_for_clip(
+        cls,
+        points: List[Dict[str, float]],
+        min_points: int = 2,
+        max_points: int = 8
+    ) -> List[Dict[str, float]]:
+        """
+        Optimiza curvas de automatización complejas reduciéndolas a segmentos estratégicos clave
+        (entre min_points y max_points, típicamente de 2 a 8 puntos por clip).
+        Garantiza transiciones musicales limpias y evita la sobrecarga del hilo principal de Ableton Live.
+
+        Conserva estrictamente los puntos extremos (inicio y fin), localiza picos/valles y puntos de
+        inflexión geométrica mediante algoritmo de máxima desviación perpendicular (Ramer-Douglas-Peucker).
+        """
+        if not points:
+            return []
+
+        cleaned: List[Dict[str, float]] = []
+        for p in points:
+            if isinstance(p, dict) and "time" in p and "value" in p:
+                try:
+                    cleaned.append({
+                        "time": round(float(p["time"]), 3),
+                        "value": round(float(p["value"]), 4)
+                    })
+                except (ValueError, TypeError):
+                    continue
+
+        if not cleaned:
+            return []
+
+        cleaned.sort(key=lambda x: x["time"])
+
+        # Eliminar duplicados temporales consecutivos inmediatos
+        unique_pts = [cleaned[0]]
+        for p in cleaned[1:]:
+            if abs(p["time"] - unique_pts[-1]["time"]) > 0.001:
+                unique_pts.append(p)
+            else:
+                unique_pts[-1] = p
+
+        if len(unique_pts) <= max_points:
+            if len(unique_pts) < min_points and len(unique_pts) == 1:
+                p0 = unique_pts[0]
+                unique_pts.append({"time": round(p0["time"] + 1.0, 3), "value": p0["value"]})
+            return unique_pts
+
+        # Reducción estratégica por desviación geométrica a max_points
+        selected_indices = {0, len(unique_pts) - 1}
+
+        while len(selected_indices) < max_points:
+            sorted_idx = sorted(list(selected_indices))
+            best_dist = -1.0
+            best_cand_idx = -1
+
+            for seg_i in range(len(sorted_idx) - 1):
+                idx_a = sorted_idx[seg_i]
+                idx_b = sorted_idx[seg_i + 1]
+
+                if idx_b - idx_a <= 1:
+                    continue
+
+                ta, va = unique_pts[idx_a]["time"], unique_pts[idx_a]["value"]
+                tb, vb = unique_pts[idx_b]["time"], unique_pts[idx_b]["value"]
+
+                dx = tb - ta
+                dy = vb - va
+                seg_len_sq = dx * dx + dy * dy
+
+                for k in range(idx_a + 1, idx_b):
+                    tk, vk = unique_pts[k]["time"], unique_pts[k]["value"]
+                    if seg_len_sq > 1e-9:
+                        dist = abs(dy * tk - dx * vk + tb * va - ta * vb) / (seg_len_sq ** 0.5)
+                    else:
+                        dist = abs(vk - va)
+
+                    if dist > best_dist:
+                        best_dist = dist
+                        best_cand_idx = k
+
+            if best_cand_idx != -1 and best_cand_idx not in selected_indices:
+                selected_indices.add(best_cand_idx)
+            else:
+                remaining_candidates = [i for i in range(len(unique_pts)) if i not in selected_indices]
+                if remaining_candidates:
+                    selected_indices.add(remaining_candidates[len(remaining_candidates) // 2])
+                else:
+                    break
+
+        optimized = [unique_pts[i] for i in sorted(list(selected_indices))]
+        return optimized
+
+    @classmethod
     def apply_section_automations(
         cls,
         conn: Any,
@@ -882,7 +975,9 @@ class ProductionRecipeEngine:
     ) -> Dict[str, Any]:
         """
         Aplica físicamente las curvas de automatización seleccionadas en el Arrangement de Ableton Live.
-        Agrupa las curvas por transición y ejecuta pases multi-pista tangibles con record_multi_automation_pass.
+        Utiliza create_arrangement_automation_envelope para inyectar los puntos de envolvente en el LOM.
+        Optimiza automáticamente cada envolvente en 2 a 8 puntos clave para garantizar transiciones musicales
+        sin bloquear la interfaz de Live.
         """
         applied = []
         errors = []
@@ -891,74 +986,46 @@ class ProductionRecipeEngine:
         if not automations:
             return {"status": "SUCCESS", "applied_count": 0, "applied": [], "errors": []}
 
-        # 1. Agrupar automatizaciones por compás/tiempo de transición para grabación paralela
-        transitions: Dict[float, List[Dict[str, Any]]] = {}
         for auto in automations:
-            pts = auto.get("points", [])
-            s_beat = float(pts[0]["time"]) if pts else float(auto.get("start_bar", 0.0)) * 4.0
-            # Redondear a múltiplo de compás (4 beats) para sincronía estructural
-            t_key = round(s_beat / 4.0) * 4.0
-            if t_key not in transitions:
-                transitions[t_key] = []
-            transitions[t_key].append(auto)
+            t_idx = auto["track_index"]
+            param = auto["parameter_name"]
+            raw_points = auto.get("points", [])
+            points = cls.optimize_points_for_clip(raw_points, min_points=2, max_points=8)
+            auto["points"] = points
+            auto_id = auto.get("id", f"auto_{t_idx}_{param}")
+            dev_idx = auto.get("device_index", None)
+            if param.lower() in ["volume", "panning", "send"]:
+                dev_idx = None
+            elif dev_idx is None:
+                dev_idx = 0
 
-        # 2. Ejecutar hasta 4 transiciones clave en pases multi-pista
-        sorted_keys = sorted(transitions.keys())[:4]
-        for trans_beat in sorted_keys:
-            group_autos = transitions[trans_beat]
-            multi_items = []
-            for auto in group_autos:
-                pts = auto.get("points", [])
-                if not pts:
-                    continue
-                t_idx = auto["track_index"]
-                param = auto["parameter_name"]
-                s_val = float(pts[0]["value"])
-                e_val = float(pts[-1]["value"])
-                curve_type = auto.get("curve", "exponential")
-                multi_items.append({
-                    "track_index": t_idx,
-                    "device_index": None,
-                    "parameter": param,
-                    "start_val": s_val,
-                    "end_val": e_val,
-                    "curve": curve_type
-                })
-
-            if multi_items and conn is not None and hasattr(conn, "send_command"):
+            if conn is not None and hasattr(conn, "send_command"):
                 try:
-                    res = conn.send_command("record_multi_automation_pass", {
-                        "automations": multi_items,
-                        "duration_sec": 2.0,
-                        "start_beat": trans_beat,
-                        "steps": 15
+                    res = conn.send_command("create_arrangement_automation_envelope", {
+                        "track_index": t_idx,
+                        "device_index": dev_idx,
+                        "parameter": param,
+                        "points": points,
+                        "clip_index": auto.get("clip_index", None)
                     })
-                    status_res = res.get("status", "") if isinstance(res, dict) else ""
-                    if status_res == "success" or "automations_recorded" in str(res):
-                        for auto in group_autos:
-                            applied.append({
-                                "id": auto.get("id"),
-                                "track_index": auto["track_index"],
-                                "parameter": auto["parameter_name"],
-                                "response": res
-                            })
-                    else:
-                        # Registro de aviso y adición como aplicado si el comando fue aceptado
-                        for auto in group_autos:
-                            applied.append({"id": auto.get("id"), "track_index": auto["track_index"], "parameter": auto["parameter_name"]})
-                except Exception as pass_err:
-                    logger.warning(f"Aviso en pase multi-automatización en compás {trans_beat/4.0}: {pass_err}")
-                    errors.append({"transition_beat": trans_beat, "error": str(pass_err)})
+                    applied.append({
+                        "id": auto_id,
+                        "track_index": t_idx,
+                        "parameter": param,
+                        "points_count": len(points),
+                        "start_time": points[0]["time"] if points else 0.0,
+                        "end_time": points[-1]["time"] if points else 0.0,
+                        "response": res
+                    })
+                    logger.info(f"  -> Automatización '{auto_id}' ({param}) inyectada exitosamente en pista {t_idx} ({len(points)} puntos).")
+                except Exception as err:
+                    logger.warning(f"Aviso al aplicar automatización '{auto_id}' en pista {t_idx}: {err}")
+                    errors.append({"id": auto_id, "error": str(err)})
             else:
-                for auto in group_autos:
-                    applied.append({"id": auto.get("id"), "track_index": auto["track_index"], "parameter": auto["parameter_name"]})
-
-        # Si hubo automations pero no se agruparon o conn es mock, garantizar applied completo
-        if not applied and automations:
-            applied = [{"id": a.get("id"), "track_index": a["track_index"], "parameter": a.get("parameter_name")} for a in automations]
+                applied.append({"id": auto_id, "track_index": t_idx, "parameter": param})
 
         return {
-            "status": "SUCCESS" if applied else ("PARTIAL_SUCCESS" if not errors else "FAILED"),
+            "status": "SUCCESS" if applied and not errors else ("PARTIAL_SUCCESS" if applied else "FAILED"),
             "applied_count": len(applied),
             "error_count": len(errors),
             "applied": applied,

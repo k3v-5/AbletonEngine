@@ -131,6 +131,14 @@ class InstalledPluginScanner:
             "is_instrument": True,
         },
         # Bass & 808 Synthesizers
+        "sublab": {
+            "vendor": "FutureAudioWorkshop",
+            "primary_role": "BASS",
+            "supported_roles": ["BASS", "808", "SUB"],
+            "description": "Premier sub-bass and 808 synthesizer with analog kick layer, X-Sub psychoacoustic engine, and distortion.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:FutureAudioWorkshop:SubLabXL",
+        },
         "serum": {
             "vendor": "Xfer Records",
             "primary_role": "BASS",
@@ -292,7 +300,7 @@ class InstalledPluginScanner:
             "is_instrument": True,
             "live_uri": "query:Plugins#VST3:Excite%20Audio:Bloom%20Synth%20Atmosphere",
         },
-        # Vocal Engines
+        # Vocal Engines & Pitch Processors
         "bloom vocal": {
             "vendor": "Bloom",
             "primary_role": "VOCALS",
@@ -301,13 +309,40 @@ class InstalledPluginScanner:
             "is_instrument": True,
             "live_uri": "query:Plugins#VST3:Excite%20Audio:Bloom%20Vocal%20Aether",
         },
+        "auto-tune": {
+            "vendor": "Antares",
+            "primary_role": "VOCALS",
+            "supported_roles": ["VOCALS", "PITCH_CORRECTION", "FX"],
+            "description": "Industry-standard Auto-Tune pitch correction and vocal formatting.",
+            "is_instrument": False,
+        },
+        "autotune": {
+            "vendor": "Antares",
+            "primary_role": "VOCALS",
+            "supported_roles": ["VOCALS", "PITCH_CORRECTION", "FX"],
+            "description": "Industry-standard Auto-Tune pitch correction and vocal formatting.",
+            "is_instrument": False,
+        },
         "antares": {
             "vendor": "Antares",
             "primary_role": "VOCALS",
-            "supported_roles": ["VOCALS", "PITCH_CORRECTION"],
+            "supported_roles": ["VOCALS", "PITCH_CORRECTION", "FX"],
             "description": "Industry-standard Auto-Tune pitch correction and vocal formatting.",
             "is_instrument": False,
-            "live_uri": "query:Plugins#VST3:Antares:Auto-Tune%20Pro",
+        },
+        "melodyne": {
+            "vendor": "Celemony",
+            "primary_role": "VOCALS",
+            "supported_roles": ["VOCALS", "PITCH_CORRECTION"],
+            "description": "Grammy-winning surgical polyphonic and monophonic pitch editing.",
+            "is_instrument": False,
+        },
+        "alterboy": {
+            "vendor": "Soundtoys",
+            "primary_role": "VOCALS",
+            "supported_roles": ["VOCALS", "PITCH_CORRECTION", "HARMONY", "FX"],
+            "description": "Vocal formant shifting, hard pitch quantization, and robotic tube drive.",
+            "is_instrument": False,
         },
         # Drums
         "bloom drum": {
@@ -327,6 +362,34 @@ class InstalledPluginScanner:
             "live_uri": "query:Plugins#VST3:Sugar%20Bytes:Egoist",
         },
         # Mixing, Dynamics & Space FX
+        "pro-ds": {
+            "vendor": "FabFilter",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "DEESSER", "VOCALS", "DYNAMICS"],
+            "description": "Intelligent, highly transparent de-esser for vocal sibilance control.",
+            "is_instrument": False,
+        },
+        "pro-q": {
+            "vendor": "FabFilter",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "EQ", "SURGICAL_EQ", "VOCALS", "MASTER"],
+            "description": "Top-tier precision surgical equalizer with dynamic EQ and phase matching.",
+            "is_instrument": False,
+        },
+        "pro-c": {
+            "vendor": "FabFilter",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "DYNAMICS", "COMPRESSOR", "VOCALS"],
+            "description": "Versatile high-end compressor with vocal, opto, and punch styles.",
+            "is_instrument": False,
+        },
+        "saturn": {
+            "vendor": "FabFilter",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "SATURATION", "WARMTH", "VOCALS"],
+            "description": "Multiband analog tape, tube, and transformer saturation and warmth.",
+            "is_instrument": False,
+        },
         "fabfilter": {
             "vendor": "FabFilter",
             "primary_role": "FX",
@@ -337,7 +400,7 @@ class InstalledPluginScanner:
         "valhalla": {
             "vendor": "Valhalla DSP",
             "primary_role": "FX",
-            "supported_roles": ["FX", "REVERB", "DELAY", "SPACE"],
+            "supported_roles": ["FX", "REVERB", "DELAY", "SPACE", "VOCALS"],
             "description": "World-class algorithmic reverbs and delays (VintageVerb, Delay, Supermassive).",
             "is_instrument": False,
         },
@@ -525,6 +588,24 @@ class InstalledPluginScanner:
             except Exception:
                 pass
 
+        # Check dedicated manufacturer installations
+        faw_path = r"C:\Program Files\FAW\SubLabXL"
+        if os.path.exists(faw_path):
+            sig = self.SIGNATURE_MAP.get("sublab", {})
+            if sig:
+                self._cache["vst3_sublab_xl"] = ScannedPlugin(
+                    id="vst3_sublab_xl",
+                    name="FutureAudioWorkshop SubLab XL",
+                    vendor="FutureAudioWorkshop",
+                    path=os.path.join(faw_path, "SubLabXL.exe"),
+                    category=PluginCategory.VST3,
+                    primary_role=sig.get("primary_role", "BASS"),
+                    supported_roles=sig.get("supported_roles", ["BASS", "808", "SUB"]),
+                    description=sig.get("description", "Premier sub-bass and 808 synthesizer with analog kick layer, X-Sub psychoacoustic engine, and distortion."),
+                    uri=sig.get("live_uri", "query:Plugins#VST3:FutureAudioWorkshop:SubLabXL"),
+                    is_instrument=True,
+                )
+
         self._scanned = True
         return self._cache
 
@@ -547,8 +628,12 @@ class InstalledPluginScanner:
                 supported_roles = meta["supported_roles"]
                 desc = meta["description"]
                 is_inst = meta["is_instrument"]
-
-                uri = meta.get("live_uri") or f"query:Plugins#{category.value.upper()}:{vendor}:{clean_name}"
+                clean_item = clean_name
+                if clean_item.lower().startswith(vendor.lower()):
+                    clean_item = clean_item[len(vendor):].strip()
+                encoded_item = clean_item.replace(" ", "%20")
+                encoded_vendor = vendor.replace(" ", "%20")
+                uri = meta.get("live_uri") or f"query:Plugins#{category.value.upper()}:{encoded_vendor}:{encoded_item}"
 
                 plugin = ScannedPlugin(
                     id=plug_id,
@@ -614,7 +699,7 @@ class InstalledPluginScanner:
                             is_inst = True
                         elif any(w in low_name for w in ["vocal", "auto-tune", "tune", "vox"]):
                             role = "VOCALS"
-                            is_inst = True
+                            is_inst = "bloom vocal" in low_name or "synth" in low_name
                         elif any(w in low_name for w in ["god particle", "limiter", "pro-l"]):
                             role = "MASTER"
                             is_inst = False
@@ -627,7 +712,7 @@ class InstalledPluginScanner:
                             path=f"Live/VST3/{v_name}/{p_name}",
                             category=PluginCategory.VST3,
                             primary_role=role,
-                            supported_roles=[role, "FX"],
+                            supported_roles=[role, "FX", "PITCH_CORRECTION"] if "tune" in low_name else [role, "FX"],
                             description=f"Host-installed {v_name} {p_name} in Ableton Live.",
                             uri=p_uri,
                             is_instrument=is_inst
@@ -642,7 +727,8 @@ class InstalledPluginScanner:
         "LEAD": ["pigments", "serum", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
         "PAD": ["omnisphere", "pigments", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
         "DRUMS": ["drum_rack", "drum rack", "bloom drum", "egoist", "808", "boom bap", "909"],
-        "VOCALS": ["bloom vocal", "auto-tune", "vocal", "simpler"],
+        "VOCALS": ["auto-tune", "autotune", "antares", "bloom vocal", "melodyne", "vocal", "simpler"],
+        "PITCH_CORRECTION": ["auto-tune", "autotune", "antares", "melodyne", "alterboy"],
         "FX": ["pro-q", "valhallavintageverb", "shaperbox", "thermal", "soothe", "valhalladelay", "saturn", "portal"],
         "MASTER": ["god particle", "pro-l", "pro-mb", "limiter"],
     }

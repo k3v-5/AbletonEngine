@@ -139,3 +139,49 @@ class AutoSidechainDucker:
             "points_generated": len(points),
             "adapter_response": res
         }
+
+    @classmethod
+    def auto_setup_session_sidechain(
+        cls,
+        conn: Any,
+        tracks: List[Dict[str, Any]],
+        tempo: float = 120.0
+    ) -> Dict[str, Any]:
+        """
+        Discovers Kick track and applies sidechain ducking to Bass and Pad tracks automatically.
+        """
+        kick_idx = None
+        target_indices = []
+
+        for trk in tracks:
+            r = str(trk.get("role", "")).upper()
+            t_name = str(trk.get("name", "")).upper()
+            idx = trk.get("index", 0)
+
+            if ("KICK" in t_name or r == "DRUMS") and kick_idx is None:
+                kick_idx = idx
+            elif r in ("BASS", "PAD") or any(k in t_name for k in ["BASS", "808", "SUB", "PAD"]):
+                target_indices.append(idx)
+
+        # Standard 4-on-the-floor kick strikes for 16 bars as baseline reference
+        standard_kicks = [b for b in range(64)]
+        applied = []
+
+        if kick_idx is not None and target_indices:
+            for t_idx in target_indices:
+                res = cls.apply_sidechain_to_track(
+                    adapter=conn,
+                    bass_track_index=t_idx,
+                    kick_strike_beats=standard_kicks,
+                    tempo=tempo,
+                    ducking_depth_db=-10.0,
+                    release_ms=90.0
+                )
+                applied.append({"target_track": t_idx, "result": res})
+
+        return {
+            "status": "SUCCESS",
+            "kick_track_index": kick_idx,
+            "targets_count": len(applied),
+            "configured_targets": applied
+        }

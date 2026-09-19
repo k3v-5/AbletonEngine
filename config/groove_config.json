@@ -1,0 +1,37 @@
+{
+  "default_profile": "SUTIL_MINIMA",
+  "profiles": {
+    "SUTIL_MINIMA": {
+      "name": "Sutil M\u00ednima",
+      "description": "Humanizaci\u00f3n microsc\u00f3pica y transparente. A\u00f1ade vida org\u00e1nica sin desfasar la rejilla de cuantizaci\u00f3n.",
+      "timing_jitter_ms": 3.0,
+      "velocity_jitter": 4,
+      "swing_ratio": 0.51,
+      "push_pull_ms": 0.0
+    },
+    "MPC_60_SWING": {
+      "name": "Roger Linn MPC60 Swing",
+      "description": "Aut\u00e9ntico swing hardware de la MPC 60 cl\u00e1sica (16th swing 54-58%). Golpes apretados y cortantes.",
+      "timing_jitter_ms": 5.0,
+      "velocity_jitter": 8,
+      "swing_ratio": 0.56,
+      "push_pull_ms": 0.0
+    },
+    "DANGELO_LAID_BACK": {
+      "name": "D'Angelo / J Dilla Laid Back",
+      "description": "Bolsillo r\u00edtmico arrastrado y relajado. Redoblantes y hi-hats retrasados detr\u00e1s del pulso.",
+      "timing_jitter_ms": 7.0,
+      "velocity_jitter": 9,
+      "swing_ratio": 0.53,
+      "push_pull_ms": 15.0
+    },
+    "ENERGETIC_PUSH": {
+      "name": "Energetic Push / Driving Ahead",
+      "description": "Tensi\u00f3n y anticipaci\u00f3n r\u00edtmica hacia adelante. Los hi-hats y cajas se anticipan al tempo.",
+      "timing_jitter_ms": 4.0,
+      "velocity_jitter": 6,
+      "swing_ratio": 0.50,
+      "push_pull_ms": -6.0
+    }
+  }
+}

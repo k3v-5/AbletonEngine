@@ -50,6 +50,19 @@ class SnapshotManager:
                     "timestamp": s.timestamp,
                     "version": s.version
                 })
-        return sorted(result, key=lambda x: x["timestamp"], reverse=True)
+
+        def _sort_key(snap_dict: Dict[str, Any]) -> str:
+            ts = snap_dict.get("timestamp")
+            if ts is None:
+                return ""
+            if isinstance(ts, (int, float)):
+                import datetime
+                try:
+                    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).isoformat()
+                except Exception:
+                    return str(ts)
+            return str(ts)
+
+        return sorted(result, key=_sort_key, reverse=True)
 
 snapshot_manager = SnapshotManager()

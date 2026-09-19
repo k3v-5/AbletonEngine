@@ -66,3 +66,57 @@ class TestLUFSValidationGate:
 
         assert club_gate.profile.integrated_target == -7.5
         assert club_gate.profile.max_true_peak == -0.3
+
+    def test_audit_channel_compliant_and_non_compliant(self):
+        gate = LUFSValidationGate()
+        # 1. Compliant channel audio (~ -18 LUFS, peak < -3 dBTP)
+        ch_audio = self._generate_tone(freq_hz=440.0, duration_s=1.0, amplitude=0.15)
+        res_pass = gate.audit_channel(ch_audio, sr=44100, target_lufs=-18.0, max_true_peak_dbtp=-3.0, channel_name="Lead Vocal")
+        assert res_pass.passed is True
+        assert res_pass.true_peak_dbtp < -3.0
+        assert "COMPATIBLE" in res_pass.certificate
+
+        # 2. Overloaded channel audio (peaking near 0 dBFS, exceeding -3 dBTP ceiling)
+        ch_loud = self._generate_tone(freq_hz=440.0, duration_s=1.0, amplitude=0.95)
+        res_fail = gate.audit_channel(ch_loud, sr=44100, target_lufs=-18.0, max_true_peak_dbtp=-3.0, channel_name="Lead Vocal")
+        assert res_fail.passed is False
+        assert any("True Peak en canal" in v or "Sonoridad en canal" in v for v in res_fail.violations)
+
+    def test_audit_dual_channel_and_master(self):
+        gate = LUFSValidationGate(profile=ProfileRegistry.STREAMING)
+        ch_audio = self._generate_tone(freq_hz=440.0, duration_s=1.0, amplitude=0.15)
+        m_audio = self._generate_tone(freq_hz=1000.0, duration_s=1.0, amplitude=0.20)
+
+        dual_res = gate.audit_dual(
+            channel_audio=ch_audio,
+            master_audio=m_audio,
+            sr=44100,
+            channel_target_lufs=-18.0,
+            channel_max_tp=-3.0,
+            channel_name="[VOCALS] Lead Vocal",
+            master_profile=ProfileRegistry.STREAMING
+        )
+
+        assert dual_res.passed is True
+        assert dual_res.channel_audit.target_lufs == -18.0
+        assert dual_res.master_audit.target_lufs == -14.0
+        assert "| **Canal Individual** |" in dual_res.summary_table
+        assert "| **Master General** |" in dual_res.summary_table
+        assert "CERTIFICACIÓN DOBLE ETAPA APROBADA" in dual_res.certificate
+        assert isinstance(dual_res.to_dict(), dict)
+
+    def test_audit_dual_autonomous_fallback(self):
+        dual_res = LUFSValidationGate.audit_dual_channel_and_master(
+            conn=None,
+            track_index=12,
+            channel_name="Lead Vocal",
+            channel_audio=None,
+            master_audio=None,
+            sr=44100,
+            master_profile_name="STREAMING"
+        )
+        assert dual_res is not None
+        assert dual_res.channel_audit is not None
+        assert dual_res.master_audit is not None
+        assert "| **Canal Individual** |" in dual_res.summary_table
+

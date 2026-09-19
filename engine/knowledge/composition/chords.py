@@ -1,6 +1,7 @@
 """Chord progressions, voicings, and generation helpers for FL Studio MCP."""
 
 from typing import List, Dict, Tuple, Optional
+import re
 from engine.knowledge.constants import NOTE_NAMES, note_to_midi
 
 
@@ -140,30 +141,129 @@ PROGRESSION_DEFINITIONS = {
             (5, "maj7"),   # IVmaj7
         ],
     },
+    "dorian_lift": {
+        "name": "Dorian Lift (Intercambio Modal)",
+        "numerals": "i - IV - bVII - i",
+        "description": "Brillo modal del IV mayor prestado del modo Dorico en contexto menor.",
+        "genre_tags": ["trap", "lofi", "house"],
+        "mood": "mysterious_uplifting",
+        "reference_tracks": ["Get Lucky (Daft Punk)", "Billie Jean (Michael Jackson)"],
+        "chords": [
+            (0, "min7"),   # i
+            (5, "major"),  # IV (Dorian major IV)
+            (10, "major"), # bVII
+            (0, "min7"),   # i
+        ],
+    },
+    "neapolitan_dark": {
+        "name": "Acorde Napolitano",
+        "numerals": "i - bII - V - i",
+        "description": "Tension cinematografica dramatica generada por el acorde de bII mayor.",
+        "genre_tags": ["cinematic", "drill", "trap"],
+        "mood": "dramatic_tension",
+        "reference_tracks": ["Moonlight Sonata", "Ennio Morricone"],
+        "chords": [
+            (0, "minor"),  # i
+            (1, "major"),  # bII (Neapolitan)
+            (7, "major"),  # V
+            (0, "minor"),  # i
+        ],
+    },
+    "modal_borrow_iv": {
+        "name": "Subdominante Menor Prestada",
+        "numerals": "I - IV - iv - I",
+        "description": "Progresion romantica y nostálgica con iv menor prestado del paralelo menor.",
+        "genre_tags": ["rnb", "pop", "neo_soul"],
+        "mood": "bittersweet",
+        "reference_tracks": ["Creep (Radiohead)", "In My Life (The Beatles)"],
+        "chords": [
+            (0, "major"),  # I
+            (5, "major"),  # IV
+            (5, "minor"),  # iv (borrowed from minor)
+            (0, "major"),  # I
+        ],
+    },
+    "picardy_third": {
+        "name": "Tercera de Picardi",
+        "numerals": "i - iv - V7 - I",
+        "description": "Resolucion luminosa en tónica mayor al final de una cadencia menor.",
+        "genre_tags": ["classical", "gospel", "neo_soul"],
+        "mood": "triumphant_resolution",
+        "reference_tracks": ["Bach Chaconne", "Neo-soul Cadences"],
+        "chords": [
+            (0, "minor"),  # i
+            (5, "minor"),  # iv
+            (7, "dom7"),   # V7
+            (0, "major"),  # I (Picardy third)
+        ],
+    },
+    "secondary_dominant": {
+        "name": "Dominante Secundario",
+        "numerals": "i - V/V - V - i",
+        "description": "Uso de V del V (II mayor/7) para empujar con fuerza gravitacional al dominante.",
+        "genre_tags": ["jazz", "boom_bap", "soul"],
+        "mood": "jazzy_drive",
+        "reference_tracks": ["Autumn Leaves", "Take the A Train"],
+        "chords": [
+            (0, "min7"),   # i
+            (2, "dom7"),   # V/V (II7)
+            (7, "dom7"),   # V7
+            (0, "min7"),   # i
+        ],
+    },
 }
+
+ROMAN_NUMERAL_CHORD_MAP = {
+    "i": (0, "minor"), "I": (0, "major"), "im7": (0, "min7"), "IM7": (0, "maj7"), "im9": (0, "min9"), "Imaj7": (0, "maj7"),
+    "bII": (1, "major"), "bii": (1, "minor"), "bIImaj7": (1, "maj7"), "N": (1, "major"),
+    "II": (2, "major"), "ii": (2, "minor"), "ii7": (2, "min7"), "II7": (2, "dom7"), "V/V": (2, "dom7"),
+    "bIII": (3, "major"), "biii": (3, "minor"), "bIIImaj7": (3, "maj7"),
+    "III": (4, "major"), "iii": (4, "minor"), "III7": (4, "dom7"),
+    "IV": (5, "major"), "iv": (5, "minor"), "IVmaj7": (5, "maj7"), "iv7": (5, "min7"),
+    "#IV": (6, "dim"), "bV": (6, "dim"), "#iv": (6, "dim"),
+    "V": (7, "major"), "v": (7, "minor"), "V7": (7, "dom7"), "v7": (7, "min7"),
+    "bVI": (8, "major"), "bvi": (8, "minor"), "bVImaj7": (8, "maj7"),
+    "VI": (9, "major"), "vi": (9, "minor"), "vi7": (9, "min7"),
+    "bVII": (10, "major"), "bvii": (10, "minor"), "bVII7": (10, "dom7"),
+    "VII": (11, "major"), "vii": (11, "minor"), "viio": (11, "dim"), "viiø": (11, "min7b5")
+}
+
+
+def parse_roman_numeral_progression(prog_string: str) -> List[Tuple[int, str]]:
+    """Parses a Roman numeral progression string (e.g. 'i - bVII - IV - V')."""
+    tokens = [t.strip() for t in re.split(r"[\s\-,]+", prog_string) if t.strip()]
+    chords = []
+    for tok in tokens:
+        if tok in ROMAN_NUMERAL_CHORD_MAP:
+            chords.append(ROMAN_NUMERAL_CHORD_MAP[tok])
+        else:
+            # Fallback minor / major
+            clean_tok = tok.replace("b", "").replace("#", "")
+            is_min = clean_tok.islower()
+            chords.append((0 if is_min else 0, "minor" if is_min else "major"))
+    return chords
 
 
 def get_progression_chords(progression_id: str, key: str,
                            octave: int = 3) -> List[Dict]:
     """Get chord voicings for a progression in a specific key.
-
-    Args:
-        progression_id: Key from PROGRESSION_DEFINITIONS
-        key: Root note of the key (e.g. "A", "C", "D")
-        octave: Base octave for voicings
-
-    Returns:
-        List of dicts with chord name, notes (MIDI), and interval info
+    Supports predefined IDs, modal interchange, and dynamic Roman numeral strings.
     """
-    if progression_id not in PROGRESSION_DEFINITIONS:
-        raise ValueError(f"Unknown progression: {progression_id}. "
-                         f"Available: {list(PROGRESSION_DEFINITIONS.keys())}")
+    key_root = NOTE_NAMES.get(key, 0)
 
-    prog = PROGRESSION_DEFINITIONS[progression_id]
-    key_root = NOTE_NAMES[key]
+    if progression_id in PROGRESSION_DEFINITIONS:
+        prog_chords = PROGRESSION_DEFINITIONS[progression_id]["chords"]
+    else:
+        # Dynamic Roman numeral parsing
+        parsed = parse_roman_numeral_progression(progression_id)
+        if parsed:
+            prog_chords = parsed
+        else:
+            raise ValueError(f"Unknown progression: {progression_id}. "
+                             f"Available: {list(PROGRESSION_DEFINITIONS.keys())}")
     result = []
 
-    for interval, quality in prog["chords"]:
+    for interval, quality in prog_chords:
         chord_root_semitone = (key_root + interval) % 12
         # Find the note name for this semitone
         from engine.knowledge.constants import SEMITONE_TO_NAME

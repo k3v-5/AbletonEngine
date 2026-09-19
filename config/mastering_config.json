@@ -1,0 +1,7 @@
+{
+  "target_lufs": -6.0,
+  "tolerance_lufs": 1.0,
+  "max_true_peak_dbtp": -0.3,
+  "profile_name": "HIGH_ENERGY_EDM",
+  "description": "Mastering comercial competitivo agresivo para Brostep / EDM / Club (-6.0 LUFS \u00b11.0, Max True Peak -0.3 dBTP)"
+}

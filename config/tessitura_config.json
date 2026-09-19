@@ -1,0 +1,37 @@
+{
+  "default_level": "MINIMA",
+  "strictness_levels": {
+    "MINIMA": {
+      "name": "M\u00ednima",
+      "description": "Verificaci\u00f3n b\u00e1sica de registros. El bajo no supera C3, la melod\u00eda no baja de C3 y se evitan colisiones de lodo en 100-250 Hz.",
+      "allow_sub_harmonics_below_c1": false,
+      "max_bass_pitch": 48,
+      "min_lead_pitch": 55,
+      "forbid_low_interval_thirds_below_midi": 36,
+      "max_adjacent_voice_gap_semitones": 19,
+      "enforce_parallel_fifths_ban": false
+    },
+    "MODERADA": {
+      "name": "Moderada",
+      "description": "Est\u00e1ndar ac\u00fastico profesional. Voicings abiertos, sin terceras graves bajo E2 (MIDI 40) para evitar enturbiamiento, distancia m\u00ednima de quinta con el bajo.",
+      "allow_sub_harmonics_below_c1": false,
+      "max_bass_pitch": 45,
+      "min_lead_pitch": 60,
+      "forbid_low_interval_thirds_below_midi": 40,
+      "max_adjacent_voice_gap_semitones": 14,
+      "min_bass_to_harmony_gap_semitones": 7,
+      "enforce_parallel_fifths_ban": false
+    },
+    "ESTRICTA": {
+      "name": "Estricta",
+      "description": "Conducci\u00f3n de voces cl\u00e1sica/orquestal completa. Prohibici\u00f3n de quintas y octavas paralelas, l\u00edmites estrictos de tesitura coral y movimiento conjunto estricto.",
+      "allow_sub_harmonics_below_c1": false,
+      "max_bass_pitch": 43,
+      "min_lead_pitch": 60,
+      "forbid_low_interval_thirds_below_midi": 43,
+      "max_adjacent_voice_gap_semitones": 12,
+      "min_bass_to_harmony_gap_semitones": 12,
+      "enforce_parallel_fifths_ban": true
+    }
+  }
+}

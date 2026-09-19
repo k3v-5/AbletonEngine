@@ -177,12 +177,22 @@ class FullSongHarmonyEngine:
             "Verse 2", "Bridge", "Final Chorus", "Outro"
         ]
 
+        SEMITONE_TO_NAME = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        delta = (cls.SEMITONES.get(key_root.upper().strip(), 5) - cls.SEMITONES["F"]) % 12
+
         for sec_name in section_sequence:
             sec_spec = cls.SECTION_HARMONY_BLUEPRINTS.get(sec_name, [])
             for root, quality, dur_beats in sec_spec:
                 dur_bars = dur_beats / 4.0
+                # Transpose root from base F to requested key_root
+                if delta != 0:
+                    orig_semi = cls.SEMITONES.get(root.upper().strip(), 5)
+                    trans_root = SEMITONE_TO_NAME[(orig_semi + delta) % 12]
+                else:
+                    trans_root = root
+
                 c = Chord(
-                    root=root,
+                    root=trans_root,
                     quality=quality,
                     duration=dur_beats
                 )

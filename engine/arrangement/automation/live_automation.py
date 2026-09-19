@@ -36,15 +36,17 @@ class LiveAutomationEngine:
         """
         try:
             track_info_res = conn.send_command("get_track_info", {"track_index": track_index})
-            track_info = track_info_res.get("result", {}) if isinstance(track_info_res, dict) else {}
+            track_info = track_info_res.get("result", track_info_res) if isinstance(track_info_res, dict) else {}
             devices = track_info.get("devices", [])
-
+            # Pass 1: Exact match across all devices
+            cached_params = {}
             for d_idx, d in enumerate(devices):
                 params_res = conn.send_command("get_device_parameters", {
                     "track_index": track_index,
                     "device_index": d_idx
                 })
-                params_list = params_res.get("result", {}).get("parameters", []) if isinstance(params_res, dict) else []
+                params_list = params_res.get("parameters", params_res.get("result", {}).get("parameters", [])) if isinstance(params_res, dict) else []
+                cached_params[d_idx] = params_list
 
                 for p in params_list:
                     p_name = p.get("name", "")
@@ -52,11 +54,17 @@ class LiveAutomationEngine:
                         if candidate.lower() == p_name.lower():
                             return (d_idx, p.get("index", 0), p_name)
 
-                # Partial match fallback
+            # Pass 2: Partial match fallback
+            for d_idx, params_list in cached_params.items():
                 for p in params_list:
                     p_name = p.get("name", "")
                     for candidate in candidates:
-                        if candidate.lower() in p_name.lower():
+                        c_low = candidate.lower()
+                        p_low = p_name.lower()
+                        if c_low in p_low:
+                            # Avoid matching 'macro 1' to 'macro 10', 'macro 11', etc.
+                            if c_low[-1].isdigit() and c_low != p_low:
+                                continue
                             return (d_idx, p.get("index", 0), p_name)
 
             return None

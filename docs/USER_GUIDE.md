@@ -8,13 +8,14 @@ A diferencia de los asistentes basados exclusivamente en modelos de lenguaje que
 $$\text{El LLM decide la intención musical} \longrightarrow \text{PIE planifica, valida y verifica acústicamente} \longrightarrow \text{Ableton Live ejecuta}$$
 
 ### Capacidades Globales:
-- **273 herramientas FastMCP** expuestas a clientes de IA (Claude Desktop, Antigravity, agentes autónomos).
-- **706 pruebas automatizadas** de integración, aceptación, modelos DSP, producción musical e inyección de fallos (100% de éxito).
+- **301 herramientas FastMCP** expuestas a clientes de IA (Claude Desktop, Antigravity, agentes autónomos).
+- **956 pruebas automatizadas** de integración, aceptación, modelos DSP, producción musical e inyección de fallos (100% de éxito).
+- **El Doctor de Sesión (`copilot_session_doctor`)**: Motor de auditoría clínica en 8 dominios y reparación quirúrgica no destructiva con rollback instantáneo.
+- **Producción Guiada de 10 Fases (`copilot_guided_session`)**: Flujo completo de 0 a 100 con 13 roles acústicos dinámicos, compás 63-64 fadeout, malla anti-barro a 441.4 Hz y exportación de stems comerciales.
 - **Medición de sonoridad ITU-R BS.1770-5 / EBU R 128** con sobremuestreo sinc FIR $4\times$ para detección de True Peak inter-sample.
 - **Transacciones ACID con Write-Ahead Logging (WAL)** y auto-rollback garantizado ante regresiones acústicas o caídas de red.
-- **Grafo Causal Aclíclico (`ProductionGraph`)** que registra el linaje completo de *por qué* se tomó cada decisión.
-- **Memoria de Decisiones (`DecisionMemory`)** contextual e indexada con el invariante *Candidate-Only* (la memoria proporciona evidencia, jamás se auto-ejecuta de forma autónoma).
-- **Motor Forense de Audio (Fase 7)** con diagnóstico localizado en tiempo y frecuencia vía STFT.
+- **Grafo Causal Acíclico (`ProductionGraph`)** que registra el linaje completo de *por qué* se tomó cada decisión.
+- **Memoria de Decisiones (`DecisionMemory`)** contextual e indexada con el invariante *Candidate-Only*.
 
 ---
 
@@ -52,14 +53,14 @@ python server.py
 ```
 
 ### 3.2 Configuración en Claude Desktop / Antigravity
-Agrega la configuración del servidor en tu archivo `claude_desktop_config.json` o configuración de MCP:
+Agrega la configuración del servidor en tu archivo de configuración de MCP:
 ```json
 {
   "mcpServers": {
-    "ableton-pie": {
+    "AbletonMCP": {
       "command": "python",
       "args": [
-        "D:/Proyectos/TEST/AbletonEngine/server.py"
+        "F:/Dev/AbletonEngine/server.py"
       ],
       "env": {
         "ABLETON_HOST": "localhost",
@@ -73,221 +74,115 @@ Agrega la configuración del servidor en tu archivo `claude_desktop_config.json`
 ### 3.3 Verificación de la Suite de Pruebas
 Puedes ejecutar la suite completa de pruebas de manera offline (no requiere tener Ableton abierto, gracias al `MockAbletonAdapter`):
 ```bash
-python tests/run_all_tests.py
+python -m pytest
 ```
-Resultado esperado: **331 passed in ~45s (0 failures, 0 regressions)**.
+Resultado esperado: **956 passed (100% Verde, 0 failures, 0 regressions)**.
 
 ---
 
-## 4. Guía Operativa por Dominios Funcionales
+## 4. ¿Cuándo usar cada Copiloto? (Guía de Decisión Rápida)
 
-### 4.1 Dominio 1: Núcleo de Sesión y Control Directo (Fase 1)
-Permite inspeccionar, navegar y manipular pistas, clips, dispositivos y parámetros de Live.
+PIE ofrece dos grandes motores inteligentes que resuelven dos problemas completamente distintos:
 
-**Herramientas Clave:**
-- `get_session_info`: Información global de tempo, signatura de compás, estado de reproducción y pistas.
-- `get_track_info(track_id)`: Inspección detallada de volumen, panorama, mute, solo y cadena de dispositivos.
-- `create_midi_track(name, index)` / `create_audio_track(name, index)`: Creación controlada de canales.
-- `set_track_volume(track_id, volume)` / `set_track_pan(track_id, pan)`: Ajuste de faders y paneo.
-- `lock_object(object_id, reason)`: Protege una pista o clip contra cualquier modificación automática.
-- `tx_begin()` / `tx_commit()` / `tx_rollback()`: Transacciones manuales para agrupar múltiples cambios atómicamente.
-
----
-
-### 4.2 Dominio 2: Teoría Musical, Armonía y Ritmo (Fase 2)
-Genera contenido musical fundamentado en teoría de la armonía tonal, funciones tonales y conducción de voces.
-
-**Herramientas Clave:**
-- `music_generate_progression(key, scale, style, length)`: Diseña progresiones de acordes basadas en números romanos (ej. `I - vi - IV - V`), resolviendo tensiones armónicas.
-- `music_apply_voice_leading(notes, root)`: Aplica conducción estricta de voces para minimizar saltos interválicos y evitar quintas/octavas paralelas.
-- `music_apply_groove(clip_id, groove_template, amount)`: Inyecta micro-tiempos, acentuaciones y swing (16th swing, MPC feel, triplet shuffle).
-- `music_humanize(clip_id, timing_range_ms, velocity_range)`: Aplica variaciones sutiles de timing y velocidad dentro de tolerancias musicales.
-
----
-
-### 4.3 Dominio 3: Instrumentos y Sound Racks (Fase 2.5 y 3)
-Resuelve y construye racks de instrumentos nativos de Ableton Live.
-
-**Herramientas Clave:**
-- `load_drum_kit(genre, kit_type)`: Carga kits de percusión balanceados según el estilo.
-- `rack_build_drum_kit(target_track, samples)`: Ensambla un Drum Rack asignando pads canónicos (C1: Kick, D1: Snare, F#1: Closed Hat, etc.).
-- `rack_map_macro(track_id, device_index, macro_index, param_name)`: Mapea parámetros profundos a las perillas Macro del rack para control macro-estructural.
-
----
-
-### 4.4 Dominio 4: Arreglo y Macro-Estructura (Fase 4)
-Orquesta la progresión de energía y la narrativa musical del track.
-
-**Herramientas Clave:**
-- `arrangement_generate(genre, bpm, energy_profile)`: Construye la línea temporal de secciones (Intro, Build, Drop, Breakdown, Drop 2, Outro).
-- `arrangement_curve(section_name, target_energy)`: Modula densidad rítmica y capas tímbricas según la curva de energía deseada.
-- `drop_design(drop_number, intensity)`: Aplica técnicas de contraste de frecuencia (corte de sub-graves previo al impacto, ensanchamiento estéreo en el drop).
-- `arrangement_lint()`: Analiza el arreglo detectando secciones monótonas o transiciones abruptas sin preparación.
-
----
-
-### 4.5 Dominio 5: Digital Ear & Motor de Mezcla (Fase 5)
-Proporciona análisis acústico y resolución de conflictos de frecuencia.
-
-**Herramientas Clave:**
-- `mix_analyze(target_tracks)`: Extrae mediciones de RMS, pico, balance espectral en 8 bandas y correlación de fase estéreo.
-- `mix_diagnose(context)`: Detecta enmascaramiento kick/bass, exceso de subgraves o desbalance lateral.
-- `mix_conflict_graph()`: Construye el grafo de colisión entre pistas concurrentes.
-- `mix_suggest_correction(conflict_id)`: Sugiere correcciones mínimas (sidechain, EQ dinámico, ducking espectral).
-- `mix_apply_correction(correction_id)`: Aplica la corrección dentro de una transacción reversible.
-
----
-
-### 4.6 Dominio 6: Masterización y Compliance Acústico (Fase 6 & BS.1770-5)
-Prepara el master final cumpliendo normativas internacionales y perfiles de streaming.
-
-**Herramientas Clave:**
-- `master_readiness()`: Audita la mezcla previa (headroom disponible $\ge 3\text{ dB}$, ausencia de clipping, balance de graves).
-- `master_create_chain(style, delivery_target)`: Configura la cadena de 5 procesadores de masterización:
-  1. EQ Correctivo (High-pass sub-sónico a 30 Hz).
-  2. Compresor de Bus (Glue, ratio 2:1 o 4:1, ataque lento, release automático).
-  3. EQ Tonal / Tonal Balance (Coloración analógica suave).
-  4. Procesador Estéreo (Mono maker sub-120 Hz, ensanchador de altas).
-  5. Limitador True Peak (Techo a $-1.0\text{ dBTP}$ o $-0.3\text{ dBTP}$).
-- `master_evaluate(profile_name)`: Evalúa el audio renderizado contra `EBU_R128`, `STREAMING` o `CLUB`.
-- `master_translation_test()`: Simula la reproducción en 6 sistemas (Club PA, Smartphones, Auriculares, Coche, Monitores de estudio, Bluetooth speaker).
-
----
-
-### 4.7 Dominio 7: Audio Forensics Engine (Fase 7)
-Diagnóstico de alta precisión localizado en tiempo y frecuencia.
-
-**Herramientas Clave:**
-- `forensics_analyze_track(track_id)`: Análisis STFT multi-resolución.
-- `forensics_detect_anomalies()`: Localiza clics, pops, cortes de señal (dropouts), offsets de corriente continua (DC Offset) e inversiones de fase.
-- `forensics_spectral_percentiles()`: Calcula percentiles $p_{10}$, $p_{50}$ y $p_{90}$ de energía espectral por banda.
-- `forensics_export_report()`: Genera un reporte forense inmutable con firma criptográfica SHA-256.
-
----
-
-### 4.8 Dominio 8: Production Governance Layer (Hito 1)
-La capa de supervisión que asegura que ninguna acción se ejecute sin justificación, políticas y verificación.
-
-**Herramientas Clave:**
-1. `production_status`: Retorna el estado global, versión del grafo y total de decisiones registradas.
-2. `production_plan(intent, target, domain)`: Genera un plan formal evaluando candidatos bajo el Principio de Mínima Intervención. **No muta la sesión**.
-3. `production_validate(plan_id)`: Verifica frescura del fingerprint (`STALE`), ausencia de locks y cumplimiento de políticas.
-4. `production_execute(plan_id)`: Ejecuta atómicamente, captura mediciones posteriores, evalúa la matriz de verificación y confirma (`COMMIT`) o revierte (`ROLLBACK`).
-5. `production_explain(decision_id)`: Genera el informe causal de auditoría (FACT, MEASUREMENT, INFERENCE, DECISION, ACTION, RESULT).
-6. `production_history(limit)`: Lista cronológica de decisiones previas.
-7. `production_graph(scope)`: Inspección del DAG causal.
-8. `production_rollback(decision_id_or_tx)`: Reversión atómica de primera clase sin pérdida de historial.
-9. `production_memory_search(query, context)`: Recuperación de precedentes técnicos (siempre como evidencia, jamás como auto-ejecución).
-
----
-
-## 5. Ejemplo de Flujo de Trabajo Completo (Golden E2E)
-
-### Caso: "Quiero que el master tenga más volumen para Spotify"
-
-1. **Paso 1: Generar el Plan**
-   ```json
-   // Tool: production_plan
-   {
-     "intent": "Quiero que el master tenga más volumen para Spotify",
-     "target": "Master",
-     "domain": "mastering"
-   }
-   ```
-   *Respuesta de PIE:*
-   - Analiza medición base (-14.8 LUFS, True Peak -1.0 dBTP).
-   - Target para streaming: -14.0 LUFS (delta requerido: +0.8 LUFS).
-   - Genera candidatos (Limitador +0.8 dB, Limitador +3.5 dB, Master EQ +1.5 dB).
-   - Aplica `ProductionPolicyEngine`: descarta Limitador +3.5 dB (exceso de GR) y EQ (exceso de ganancia).
-   - Selecciona Limitador +0.8 dB y genera `plan_id = "plan_1234abcd"`.
-
-2. **Paso 2: Validar el Plan**
-   ```json
-   // Tool: production_validate
-   {
-     "plan_id": "plan_1234abcd"
-   }
-   ```
-   *Respuesta:* `{"status": "VALID", "valid": true}`.
-
-3. **Paso 3: Ejecutar con Verificación Acústica**
-   ```json
-   // Tool: production_execute
-   {
-     "plan_id": "plan_1234abcd"
-   }
-   ```
-   *Comportamiento interno:*
-   - Abre transacción atómica con snapshot previo.
-   - Aplica ajuste de limitador en Ableton Live.
-   - Captura medición posterior: -14.0 LUFS, -0.4 dBTP.
-   - Evalúa `VerificationMatrix`: Objetivo cumplido (+0.8 LUFS), sin regresión de True Peak.
-   - Ejecuta `commit()`, actualiza el `ProductionGraph` con nodo `RESULT` e indexa en `DecisionMemory`.
-   *Respuesta:* `{"success": true, "status": "COMMITTED", "actual_delta": {"integrated_lufs": 0.8}}`.
-
-4. **Paso 4: Auditoría Causal**
-   ```json
-   // Tool: production_explain
-   {
-     "decision_id": "dec_5678ef01"
-   }
-   ```
-   *Respuesta:* Informe estructurado con la evidencia acústica, reglas aplicadas y alternativas rechazadas.
-
----
-
-## 5. Módulos de Producción Musical Avanzada y Finalización Comercial (Fases 8 a 14)
-
-### 5.1 Catálogo y Generación de Ritmos por Género
-El motor ofrece herramientas inteligentes que actúan como aceleradores opcionales (sin limitar la libertad creativa del usuario):
-- `genre_offer_production_options()`: Consulta menús estructurados para **Rap/Trap**, **Cumbia** (güira con acento sincopado "ch-ch-CHII-ka"), **Electro** (House, Techno, Synthwave, EDM, DnB), **Música Urbana/Pop** (Reggaetón, Afrobeat) y **Rock**.
-- `genre_generate_drum_pattern(genre, bpm, bars)`: Genera clips MIDI con microtiming auténtico y swing MPC determinista.
-
-### 5.2 Enrutamiento Físico de Sidechain (Kick -> 808 Bass)
-- Detecta automáticamente las pistas de Bombo y Sub Bass.
-- Carga y configura el procesador `Compressor` nativo en la pista de graves con parámetros óptimos de contorno:
-  - `Device On = 1.0`, `S/C On = 1.0` (Sidechain activado).
-  - `Attack = 0.0 ms` (Ataque ultra rápido para evitar colisiones de transientes).
-  - `Release = 0.16 s` (~30-50 ms musical).
-  - `Ratio = 4:1`, `Threshold = -18 dB`.
-
-### 5.3 Cadena Nativa de Masterización de 5 Etapas en Live 12
-Configura en el bus `Master` o `Premaster`:
-1. **EQ Eight**: HPF a 25 Hz para limpieza de subgraves e infra-frecuencias, corte notch anti-mud a 250 Hz.
-2. **Glue Compressor**: Pegada analógica con peak clip activado y ratio 2:1.
-3. **Saturator**: Saturación cálida *Analog Warm* para densidad armónica.
-4. **Utility**: `Bass Mono = 1.0` activo con corte a 120 Hz y preservación de campo estéreo (`Stereo Width = 1.0`).
-5. **Limiter**: Techo True Peak transparente con lookahead de 5.0 ms.
-
-### 5.4 Macro de Finalización de Canción (`macro_finalize_song`)
-Ejecuta la preparación integral del tema en un solo paso:
-```json
-// Tool: macro_finalize_song
-{
-  "target_profile": "STREAMING",
-  "pre_drop_bar": 33.0
-}
 ```
-*Orquestación interna:*
-1. Inyección de pre-drop ear candy vacuum (corte de silencio antes del drop).
-2. Tallado espectral vocal (-3 dB a 2.8 kHz en acompañamiento) y ducking dinámico.
-3. Configuración del sidechain físico Kick -> 808.
-4. Despliegue y calibración de la cadena de masterización de 5 etapas.
-5. Veredicto técnico de entrega (`READY`).
-
-### 5.5 Exportador y Auditor Forense de Stems Multitrack (`export_and_audit_stems`)
-Exporta y audita stems comerciales listos para mezcla, remix o distribución:
-```json
-// Tool: export_and_audit_stems
-{
-  "start_bar": 1.0,
-  "end_bar": 65.0,
-  "sample_rate": 48000,
-  "bit_depth": 24
-}
+                  ¿QUÉ NECESITAS HACER EN ABLETON LIVE?
+                                    │
+           ┌────────────────────────┴────────────────────────┐
+           ▼                                                 ▼
+¿Auditar, limpiar o arreglar                    ¿Crear una canción completa
+una sesión/mezcla existente?                    desde cero (0 a 100)?
+           │                                                 │
+           ▼                                                 ▼
+[ copilot_session_doctor ]                      [ copilot_guided_session ]
+• Clínico, no destructivo.                      • Creativo, 10 fases.
+• Jamás borra canales ni notas.                 • Compone ritmos, bajos, acordes.
+• Faders, colisiones, efectos duplicados.       • Diseña sonido, transiciones, stems.
+• Snapshots de reversión ("Deshacer").          • Master Gain Boost y 13 roles.
 ```
-*Capacidades:*
-- Agrupamiento en 8 stems canónicos: `01_Drums`, `02_Bass`, `03_Keys`, `04_Lead`, `05_Vocals`, `06_FX`, `07_Other`, `00_Master`.
-- Auditoría forense de correlación de fase en subgraves ($\rho \ge +0.30$ requerido para suma mono sin cancelaciones).
-- Auditoría de margen True Peak ($\le -1.0\text{ dBTP}$) por stem.
-- Generación del manifiesto `stem_phase_audit_manifest.json` con veredicto `ready_for_distribution: true`.
+
+---
+
+## 5. El Doctor de Sesión (`copilot_session_doctor`)
+
+El **Doctor de Sesión** ([`session_doctor.py`](file:///F:/Dev/AbletonEngine/engine/production/doctor/session_doctor.py)) es el médico especialista de Ableton Live. Está diseñado para auditar y reparar mezclas saturadas, proyectos desordenados o sesiones importadas.
+
+### 5.1 Principios Clínicos Inviolables
+1. **Aislamiento de Estado:** Guarda su estado en `state/production/doctor_session.json`. Jamás toca ni resetea `guided_session.json`.
+2. **Cirugía No Destructiva:** Nunca elimina pistas del usuario, nunca ejecuta wipes preflight y no agrega notas MIDI.
+3. **Snapshot Previo:** Antes de cualquier cambio, guarda un snapshot físico completo en `state/production/snapshots/`.
+4. **Deshacer Inmediato:** El usuario puede revertir todo con `"Deshacer"` o `"Rollback"`.
+
+### 5.2 Los 8 Dominios Clínicos Auditados
+1. **Faders & Headroom:** Detecta faders > 0.85 (0 dBFS digital). Aplica re-trimming proporcional conservando el balance relativo hacia niveles nominales controlados (-14 a -12 dBFS).
+2. **Clips Vacíos & Zombies:** Localiza clips con longitud cero o sin notas MIDI que saturan el arreglo o consumen recursos.
+3. **Pistas Huérfanas / Muertas:** Detecta pistas vacías sin clips, sin ruteo y sin dispositivos para sugerir su limpieza.
+4. **Pistas Silenciadas con Contenido Activo:** Identifica pistas con clips sonoros activos que están muteadas accidentalmente.
+5. **Efectos Duplicados / Redundantes:** Alerta sobre inserciones duplicadas idénticas (ej. doble EQ Eight consecutivo) que causan corrimiento de fase y sobrecarga.
+6. **Campo Estéreo & Mono Compatibility:** Audita que las frecuencias sub-graves (< 120 Hz) estén en mono estricto y previene la saturación del centro estéreo.
+7. **Colisión Psicoacústica Low-End (Kick vs 808/Bass):** Evalúa la acumulación de energía en 40-90 Hz y comprueba la presencia de sidechain físico o tallado espectral.
+8. **Master Bus Headroom & True Peak:** Mide el margen de picos inter-sample en el Master para evitar distorsión inter-sample antes de la distribución.
+
+### 5.3 Flujo de Uso del Doctor
+1. **Lanzar Diagnóstico Pasivo:**
+   - Comando: `"Diagnóstico Completo"`
+   - El Doctor analiza los 8 dominios y emite un informe clasificando problemas en `CRITICAL`, `WARNING` e `INFO`.
+2. **Aplicar Reparación Quirúrgica:**
+   - Comando: `"Reparación Quirúrgica No Destructiva"`
+   - El Doctor genera un snapshot, ajusta faders a ganancia nominal, elimina clips zombie, limpia efectos duplicados y optimiza el low-end.
+3. **Reversión (si es necesaria):**
+   - Comando: `"Deshacer"` o `"Rollback"`
+   - Restaura el set exactamente a como estaba antes de la intervención.
+
+---
+
+## 6. Producción Guiada de 0 a 100 (`copilot_guided_session`)
+
+El pipeline interactivo de 10 fases ([`guided_session.py`](file:///F:/Dev/AbletonEngine/engine/copilot/guided_session.py)) crea una canción comercial completa con gobernanza de calidad:
+
+### 6.1 Las 10 Fases Explicadas
+- **Fase 1: Inicialización & ADN Creativo:** Selección de género (Trap, House, Lo-Fi, Afrobeat, etc.), BPM, tonalidad y modo vocal (`Live Mic Mode` con cero clips en arreglo o importación de audio).
+- **Fase 2: Armonía & Progresión:** Progresión de acordes tonales/modales con conducción de voces estricta (máximo salto de 5ta justa).
+- **Fase 3: Scaffolding de Pistas & Instrumentos:** Creación dinámica de pistas según los **13 Roles Acústicos** (Kick, Drums, Bass/808, Keys, Brass, Pad, Arp, Lead, Guitars, Organ, Pluck, Vocal Chops, FX Audio). **Cero plantillas fijas.**
+- **Fase 4: Composición Musical:** Generación de patrones rítmicos, líneas de bajo/808 con slides, acordes y contramelodías, humanizados en velocidad (15-25%) y microtiming.
+- **Fase 5: Síntesis & Sound Design:** Asignación de VSTs (Analog Lab, Vital, Serum, etc.) o nativos con **Esculpido Obligatorio de Síntesis ($\Delta \ge 1$)** en filtros, envolventes o distorsión. Prohibido preset por defecto.
+- **Fase 6: Arreglo Macro:** 64 compases con al menos 5 secciones identificadas con Cue Points canónicos (Intro, Verse, Chorus, Drop, Outro).
+- **Fase 7: Transiciones & Automatizaciones:** Risers, sweeps, pre-drop vacuums y al menos 16 curvas de automatización continuas.
+- **Fase 8: Mezcla, Sidechain & Anti-Mud:** Gain staging, sidechain físico Kick->808 y **Notch Quirúrgico a 441.4 Hz** ($Q=12.0$, -3.5 dB) en armónicos y Master EQ Eight Band 3 para eliminar el barro post-vocal.
+- **Fase 9: Top & Tail & Pre-Master Gate:** **Top & Tail Acoustic Guards** (silencio pre-roll < -70 dBFS a 0.0s y fadeout en compases 63-64 a $-\infty$) y compuerta de validación LUFS pre-mastering.
+- **Fase 10: Masterización & Stems:** Cadena de master de 5 procesadores con **Master Gain Boost** (+3.0 dB nominal / norm 0.635 con True Peak Mode = 1.0 -> -1.0 a -1.5 dBTP, -13.5 a -14.0 LUFS) y exportación de 6 stems Broadcast WAV 24-bit/44.1 kHz con `stems_manifest.json` y correlación certificada $ho \ge 0.35$.
+
+### 6.2 Hot-Swap de Instrumentos en Fase 10
+Al finalizar el proyecto, el usuario puede pedir en cualquier momento:
+- `"Cambiar instrumento en pista 4 a Wurlitzer"`
+- `"Probar otro sintetizador de lead en pista 7"`
+El motor ejecuta un cambio tímbrico no destructivo preservando todas las notas, automatizaciones y cadenas de efectos.
+
+---
+
+## 7. Gobernanza Causal y Grafo Transaccional
+
+Cada acción de PIE está respaldada por el grafo causal inmutable:
+1. **Intención:** Definida por el usuario o LLM.
+2. **Observación DSP:** Medición acústica objetiva previa.
+3. **Plan de Mínima Intervención:** Generación de candidatos y descarte por políticas inviolables.
+4. **Transacción con Snapshot:** Operación atómica en Live.
+5. **Verificación Acústica:** Medición post-acción y evaluación contra la `VerificationMatrix`.
+6. **Commit o Auto-Rollback:** Si la acción causa regresión de True Peak, distorsión o colisión de frecuencias, el motor revierte automáticamente en milisegundos.
+
+---
+
+## 8. Especificaciones de Entrega Comercial
+
+### 8.1 Perfiles de Sonoridad
+- **Streaming:** $-14.0	ext{ LUFS} \pm 1.0	ext{ LU}$, Techo $-1.00	ext{ dBTP}$, Max Limiter GR $2.5	ext{ dB}$.
+- **Club:** $-7.5	ext{ LUFS} \pm 1.0	ext{ LU}$, Techo $-0.30	ext{ dBTP}$, Max Limiter GR $3.0	ext{ dB}$.
+- **EBU R 128:** $-23.0	ext{ LUFS} \pm 0.5	ext{ LU}$, Techo $-1.00	ext{ dBTP}$, Max Limiter GR $2.0	ext{ dB}$.
+
+### 8.2 Stems de Entrega (en `exports/stems/`)
+1. `DRUMS.wav`
+2. `BASS.wav`
+3. `KEYS_BRASS.wav`
+4. `VOCALS.wav`
+5. `FX.wav`
+6. `MASTER.wav`
+7. `stems_manifest.json` (Hashes criptográficos SHA-256, mediciones LUFS/True Peak y correlación de fase $ho \ge 0.35$).

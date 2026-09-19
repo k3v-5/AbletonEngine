@@ -528,6 +528,8 @@ def test_channel_strip_devices_extraction_both_nested_and_raw():
             elif cmd == "set_device_parameter":
                 self.param_calls.append(params)
                 return {"status": "ok"}
+            elif cmd == "execute_code":
+                raise RuntimeError("mock fallback")
             return {"status": "ok"}
 
     conn_direct = MockDirectConn()
@@ -554,6 +556,8 @@ def test_channel_strip_devices_extraction_both_nested_and_raw():
             elif cmd == "set_device_parameter":
                 self.param_calls.append(params)
                 return {"status": "ok"}
+            elif cmd == "execute_code":
+                raise RuntimeError("mock fallback")
             return {"status": "ok"}
 
     conn_nested = MockNestedConn()

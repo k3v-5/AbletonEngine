@@ -70,12 +70,30 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             }
         }
 
+    def _ensure_track(self, track_index: int) -> Dict[str, Any]:
+        while track_index >= len(self.tracks):
+            idx = len(self.tracks)
+            self.tracks.append({
+                "index": idx,
+                "name": f"Track {idx + 1}",
+                "is_audio_track": False,
+                "is_midi_track": True,
+                "mute": False,
+                "solo": False,
+                "arm": False,
+                "volume": 0.85,
+                "panning": 0.0,
+                "clip_slots": [{"index": i, "has_clip": False, "clip": None} for i in range(8)],
+                "devices": []
+            })
+        return self.tracks[track_index]
+
     def get_track_info(self, track_index: int) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        if track_index < 0 or track_index >= len(self.tracks):
+        if track_index < 0:
             raise IndexError(f"Track index {track_index} out of range")
-        track = dict(self.tracks[track_index])
+        track = dict(self._ensure_track(track_index))
         track["index"] = track_index
         return track
 
@@ -107,7 +125,8 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def set_track_name(self, track_index: int, name: str) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        self.tracks[track_index]["name"] = name
+        track = self._ensure_track(track_index)
+        track["name"] = name
         return {"track_index": track_index, "name": name}
 
     def delete_track(self, track_index: int) -> Dict[str, Any]:
@@ -122,7 +141,7 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def create_clip(self, track_index: int, clip_index: int, length: float = 4.0) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         while len(track["clip_slots"]) <= clip_index:
             track["clip_slots"].append({"index": len(track["clip_slots"]), "has_clip": False, "clip": None})
         track["clip_slots"][clip_index] = {
@@ -135,7 +154,7 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def delete_clip(self, track_index: int, clip_index: int) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         if clip_index < len(track["clip_slots"]):
             track["clip_slots"][clip_index] = {"index": clip_index, "has_clip": False, "clip": None}
         return {"track_index": track_index, "clip_index": clip_index, "deleted": True}
@@ -143,25 +162,25 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def set_track_volume(self, track_index: int, volume: float) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        self.tracks[track_index]["volume"] = float(volume)
+        self._ensure_track(track_index)["volume"] = float(volume)
         return {"track_index": track_index, "volume": volume}
 
     def set_track_panning(self, track_index: int, panning: float) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        self.tracks[track_index]["panning"] = float(panning)
+        self._ensure_track(track_index)["panning"] = float(panning)
         return {"track_index": track_index, "panning": panning}
 
     def set_track_mute(self, track_index: int, mute: bool) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        self.tracks[track_index]["mute"] = bool(mute)
+        self._ensure_track(track_index)["mute"] = bool(mute)
         return {"track_index": track_index, "mute": mute}
 
     def set_track_solo(self, track_index: int, solo: bool) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        self.tracks[track_index]["solo"] = bool(solo)
+        self._ensure_track(track_index)["solo"] = bool(solo)
         return {"track_index": track_index, "solo": solo}
 
     def set_tempo(self, tempo: float) -> Dict[str, Any]:
@@ -173,7 +192,7 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def add_notes_to_clip(self, track_index: int, clip_index: int, notes: List[Dict[str, Any]], mode: str = "create") -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         while len(track["clip_slots"]) <= clip_index:
             track["clip_slots"].append({"index": len(track["clip_slots"]), "has_clip": False, "clip": None})
         slot = track["clip_slots"][clip_index]
@@ -188,7 +207,7 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def get_clip_notes(self, track_index: int, clip_index: int) -> List[Dict[str, Any]]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         if clip_index < len(track["clip_slots"]):
             slot = track["clip_slots"][clip_index]
             if slot.get("has_clip") and slot.get("clip"):
@@ -202,7 +221,7 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def load_instrument_or_effect(self, track_index: int, uri: str) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         uri_lower = uri.lower()
 
         # Check if loading an audio effect
@@ -376,7 +395,7 @@ class MockAbletonAdapter(BaseAbletonAdapter):
     def get_arrangement_clips(self, track_index: int) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         clips = track.get("arrangement_clips", [])
         return {
             "track_index": track_index,
@@ -385,10 +404,36 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             "clips": clips
         }
 
+    def create_audio_clip(self, track_index: int, clip_index: int, path: str) -> Dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("Mock Ableton is disconnected")
+        track = self._ensure_track(track_index)
+        track["is_audio_track"] = True
+        track["is_midi_track"] = False
+        if "clip_slots" not in track:
+            track["clip_slots"] = []
+        clip_slots = track["clip_slots"]
+        while len(clip_slots) <= clip_index:
+            clip_slots.append({"has_clip": False, "clip": None})
+        from pathlib import Path
+        c_name = Path(path).stem if path else f"AudioClip_{clip_index}"
+        clip_slots[clip_index] = {
+            "has_clip": True,
+            "clip": {
+                "name": c_name,
+                "length": 64.0,
+                "is_audio": True,
+                "is_audio_clip": True,
+                "is_midi": False,
+                "file_path": str(path)
+            }
+        }
+        return {"status": "success", "track_index": track_index, "clip_index": clip_index, "name": c_name, "length": 64.0}
+
     def duplicate_to_arrangement(self, track_index: int, clip_index: int, destination_time: float) -> Dict[str, Any]:
         if not self._connected:
             raise ConnectionError("Mock Ableton is disconnected")
-        track = self.tracks[track_index]
+        track = self._ensure_track(track_index)
         if "arrangement_clips" not in track:
             track["arrangement_clips"] = []
         clip_slots = track.get("clip_slots", [])
@@ -419,6 +464,18 @@ class MockAbletonAdapter(BaseAbletonAdapter):
                 params.get("clip_index", 0),
                 params.get("destination_time", 0.0)
             )
+        elif command_type == "create_audio_clip":
+            return self.create_audio_clip(
+                params.get("track_index", 0),
+                params.get("clip_index", 0),
+                params.get("path", "")
+            )
+        elif command_type == "set_track_arm":
+            t_idx = params.get("track_index", 0)
+            arm_val = bool(params.get("arm", True))
+            if t_idx < len(self.tracks):
+                self.tracks[t_idx]["arm"] = arm_val
+            return {"status": "success", "track_index": t_idx, "arm": arm_val}
         elif command_type == "create_cue_point":
             if not hasattr(self, "cue_points"):
                 self.cue_points = []
@@ -426,11 +483,16 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             return {"status": "success", "cue_point": params}
         elif command_type == "get_cue_points":
             return {"cue_points": getattr(self, "cue_points", [])}
-        elif command_type in ("create_arrangement_automation_envelope", "record_arrangement_automation"):
+        elif command_type in ("add_automation_points", "create_arrangement_automation_envelope", "record_arrangement_automation"):
             if not hasattr(self, "automation_envelopes"):
                 self.automation_envelopes = []
             self.automation_envelopes.append(params)
             return {"status": "success", "envelope": params}
+        elif command_type == "execute_code":
+            if not hasattr(self, "executed_code"):
+                self.executed_code = []
+            self.executed_code.append(params.get("code", ""))
+            return {"status": "success", "result": {}}
         elif command_type == "record_multi_automation_pass":
             if not hasattr(self, "automation_envelopes"):
                 self.automation_envelopes = []

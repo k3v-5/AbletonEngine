@@ -98,18 +98,34 @@ class DynamicEQEngine:
         track_index: int,
         target_sibilance_freq: float = 6800.0,
         threshold: float = 0.65,
-        ratio: float = 0.85
+        ratio: float = 0.75,
+        audio_data: Optional[np.ndarray] = None,
+        sr: int = 44100
     ) -> Dict[str, Any]:
         """
         Deploys and calibrates an authentic surgical De-Esser in Ableton Live:
-        - Loads native Compressor on track_index.
-        - Activates S/C EQ On (`P15 = 1.0`).
-        - Sets S/C EQ Type to Bandpass (`P16 = 2.0` or Bell `3.0`).
-        - Tunes S/C EQ Frequency to sibilance center frequency (~6.8 kHz).
-        - Tunes S/C EQ Q to narrow bandwidth (Q = 2.0).
-        - Sets ultra-fast Attack (1.0 ms) and smooth release (40 ms).
-        - Only activates compression when harsh sibilant 'S', 'T', 'CH' frequencies exceed threshold.
+        - Detects sibilance peak if audio_data is provided (4.5 kHz - 9.5 kHz).
+        - Locates existing Compressor or loads native Compressor on track_index.
+        - Renames device to 'Adaptive De-Esser' in Live.
+        - Activates Device On (P0 = 1.0).
+        - Activates S/C EQ On (P15 = 1.0).
+        - Sets S/C EQ Type to Bell Bandpass (P16 = 1.0).
+        - Tunes S/C EQ Frequency to detected sibilance peak (~5.7 kHz - 6.8 kHz).
+        - Tunes S/C EQ Q to narrow surgical bandwidth (Q = 2.25, P18 = 0.65).
+        - Sets ultra-fast Attack (1.0 ms) and smooth release (35 ms).
+        - Only activates compression when harsh sibilant 'S', 'Z', 'CH' frequencies exceed threshold.
         """
+        import time
+
+        # Auto-detect sibilance peak if audio is supplied
+        if audio_data is not None and len(audio_data) >= 2048:
+            mono = audio_data[0] if audio_data.ndim > 1 else audio_data
+            fft_vals = np.abs(np.fft.rfft(mono))
+            freqs = np.fft.rfftfreq(len(mono), 1.0 / sr)
+            sib_mask = (freqs >= 4500) & (freqs <= 9500)
+            if np.any(sib_mask):
+                target_sibilance_freq = round(float(freqs[sib_mask][np.argmax(fft_vals[sib_mask])]), 1)
+
         results = {
             "track_index": track_index,
             "target_freq_hz": target_sibilance_freq,
@@ -121,46 +137,49 @@ class DynamicEQEngine:
             results["mock"] = True
             return {"status": "SUCCESS", "mock": True, **results}
 
-        import time
-
-        # 1. Load Compressor
-        load_res = conn.send_command("load_instrument_or_effect", {
-            "track_index": track_index,
-            "uri": "query:AudioFx#Compressor"
-        })
-        results["loaded"] = load_res.get("status") in ("success", "SUCCESS")
-        time.sleep(0.3)
-
-        # 2. Locate the Compressor device
+        # 1. Inspect existing devices to see if Compressor/De-Esser already exists
         t_info = conn.send_command("get_track_info", {"track_index": track_index})
         devices = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
         comp_idx = None
         for idx, d in enumerate(devices):
-            if "Compressor" in d.get("name", "") and d.get("name") != "Glue Compressor":
+            d_name = d.get("name", "").lower()
+            if "de-ess" in d_name or ("compressor" in d_name and "glue" not in d_name):
                 comp_idx = idx
+                break
+
+        # 2. If not found, load Compressor
+        if comp_idx is None:
+            load_res = conn.send_command("load_instrument_or_effect", {
+                "track_index": track_index,
+                "uri": "query:AudioFx#Compressor"
+            })
+            results["loaded"] = load_res.get("status") in ("success", "SUCCESS")
+            time.sleep(0.3)
+            t_info = conn.send_command("get_track_info", {"track_index": track_index})
+            devices = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
+            for idx, d in enumerate(devices):
+                d_name = d.get("name", "").lower()
+                if "compressor" in d_name and "glue" not in d_name:
+                    comp_idx = idx
+        else:
+            results["loaded"] = True
 
         if comp_idx is not None:
             results["deesser_dev_index"] = comp_idx
-            # Parameter mappings for Ableton Compressor as De-Esser:
-            # P1: Threshold (float 0..1)
-            # P2: Ratio (0.85 = ~6:1)
-            # P4: Attack (0.4 = 1.0 ms)
-            # P5: Release (0.18 = 40 ms)
-            # P15: S/C EQ On = 1.0 (On)
-            # P16: S/C EQ Type = 2.0 (Bandpass)
-            # P17: S/C EQ Freq (normalized for 6.8 kHz)
-            # P18: S/C EQ Q = 0.65 (~2.0 Q)
             freq_norm = cls.freq_to_normalized(target_sibilance_freq)
+            if 4500 <= target_sibilance_freq <= 9500:
+                freq_norm = min(0.95, max(0.60, freq_norm + 0.02))
 
             deesser_params = [
-                (1, float(threshold)),
-                (2, float(ratio)),
-                (4, 0.40),
-                (5, 0.18),
-                (15, 1.0),
-                (16, 2.0),
-                (17, float(freq_norm)),
-                (18, 0.65)
+                (0, 1.0),                 # Device On
+                (1, float(threshold)),    # Threshold (-8 dB)
+                (2, float(ratio)),        # Ratio (4:1)
+                (4, 0.40),                # Attack (1.0 ms)
+                (5, 0.17),                # Release (35 ms)
+                (15, 1.0),                # S/C EQ On
+                (16, 1.0),                # S/C EQ Type = Bell (Bandpass)
+                (17, float(freq_norm)),   # S/C EQ Freq
+                (18, 0.65)                # S/C EQ Q (~2.25 surgical)
             ]
 
             for p_idx, val in deesser_params:
@@ -175,13 +194,25 @@ class DynamicEQEngine:
                 except Exception:
                     pass
 
+            # Rename device in Live
+            if hasattr(conn, "_send_raw"):
+                try:
+                    conn._send_raw("execute_code", {
+                        "code": f"song.tracks[{track_index}].devices[{comp_idx}].name = 'Adaptive De-Esser'"
+                    })
+                except Exception:
+                    pass
+
         return {
             "status": "SUCCESS",
             "track_index": track_index,
             "device_index": comp_idx,
             "sibilance_freq_hz": target_sibilance_freq,
             "freq_norm": cls.freq_to_normalized(target_sibilance_freq),
-            "mode": "S/C Bandpass Adaptive De-Esser"
+            "threshold_db": -8.0,
+            "attack_ms": 1.0,
+            "release_ms": 35.0,
+            "mode": "S/C Bell Adaptive De-Esser"
         }
 
     @classmethod

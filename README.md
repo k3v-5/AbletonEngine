@@ -1,10 +1,11 @@
 # Ableton Production Intelligence Engine (PIE)
 
 > **Autonomous AI-Assisted Music Production, Mixing, and Mastering Middleware for Ableton Live 12 Suite.**
-> Powered by Model Context Protocol (FastMCP) with 239 specialized tools and 486 automated unit/acceptance/chaos tests (100% pass rate).
+> Powered by Model Context Protocol (FastMCP) with 301 specialized tools and 956 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
+- 🏥 [**Manual de Copilot Guided Session y Session Doctor (COPILOT_GUIDED_SESSION.md)**](docs/COPILOT_GUIDED_SESSION.md)
 - 🗺️ [**Índice Maestro de Módulos, Herramientas y Sitemap (INDEX.md)**](docs/INDEX.md)
 - 🎛️ [**Playbook de Prompting y Recetas de Producción (PROMPTING_PLAYBOOK.md)**](docs/PROMPTING_PLAYBOOK.md)
 - 🔌 [**Catálogo del Navegador y URIs de Plugins VST3 (ABLETON_BROWSER_CATALOG.md)**](docs/ABLETON_BROWSER_CATALOG.md)
@@ -29,36 +30,33 @@
 
 ---
 
-## Architecture Overview (Phases 1 to 7 Executive Copilot)
+## Architecture Overview (Phases 1 to 16, Studio Doctor & Copilot)
 
 ```
                        ┌─────────────────────────────────────┐
                        │        LLM Cognitive Client         │
                        │    (Antigravity / Claude Desktop)   │
                        └──────────────────┬──────────────────┘
-                                          │ FastMCP (239 Tools)
+                                          │ FastMCP (301 Tools)
                                           ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │                 Production Intelligence Engine (PIE)                  │
   ├───────────────────┬───────────────────┬────────────────────────────────┤
   │ Fase 1: Foundation│ Fase 2: Music     │ Fase 2.5: Instruments          │
-  │ • Shadow Graph    │ • Roman Numerals  │ • Sound Profiles               │
+  │ • Shadow Graph    │ • Roman Numerals  │ • Sound Profiles (13 Roles)    │
   │ • ACID Transact.  │ • Voice Leading   │ • Drum Rack Pad Populator      │
   │ • State Snapshots │ • Grooves/Motifs  │ • Native Browser Resolution    │
   ├───────────────────┼───────────────────┼────────────────────────────────┤
   │ Fase 3: Arrange   │ Fase 4: Sound     │ Fase 5: Digital Ear / Mix      │
-  │ • Energy Curves   │ • Macro Controls  │ • LUFS / True Peak / Masking   │
-  │ • Transitions     │ • Chain Templates │ • Frequency Conflict Graph     │
-  │ • Drop Differ.    │ • Native Racks    │ • Closed-Loop Corrections      │
+  │ • Energy Curves   │ • Synthesis Sculpt│ • LUFS / True Peak / Masking   │
+  │ • 16 Automations  │ • Chain Templates │ • Frequency Conflict Graph     │
+  │ • Top & Tail Guard│ • Dynamic Strips  │ • Surgical Mud Notch (441.4Hz) │
   ├───────────────────┼───────────────────┼────────────────────────────────┤
-  │ Fase 6: Mastering │ HITO 1: Governance, Causal Memory & Compliance     │
-  │ • 5-Device Chain  │ • ProductionGraph (Acyclic Causal DAG, BFS check)  │
-  │ • Reference Match │ • DecisionMemory (Contextual, Candidate-Only)      │
-  │ • Translation (6x)│ • PolicyEngine (7 Inviolable Acoustic Guardrails)  │
-  │ • Versioned WAV   │ • ProductionPlanner (Minimum Intervention Ranking) │
-  │ • master_project()│ • ProductionExecutor (SHA-256 Scoped Fingerprints) │
-  │                   │ • VerificationMatrix (Delta vs Expected Regression)│
-  │                   │ • ITU-R BS.1770-5 (Normative Standard / Profiles)  │
+  │ Fase 6: Mastering │ Copilot & Doctor  │ HITO 1: Governance & Compliance│
+  │ • 5-Device Chain  │ • Session Doctor  │ • ProductionGraph (Causal DAG) │
+  │ • +3.0dB Gain Bst │   (8 Clinical Dom)│ • DecisionMemory (Candidate)   │
+  │ • Broadcast Stems │ • Guided Session  │ • PolicyEngine (7 Guardrails)  │
+  │   (6 WAVs + JSON) │   (10 Full Phases)│ • VerificationMatrix           │
   └───────────────────┴───────────────────┴────────────────────────────────┘
                                      │ TCP Socket (Port 9877)
                                      ▼
@@ -427,7 +425,13 @@ Resuelve el problema de parálisis de decisión y olvidos del modelo guiando el 
 
 ---
 
-## ⚡ Fronteras Avanzadas de Producción & Acústica Forense (235 Herramientas)
+## ⚡ Fronteras Avanzadas de Producción & Acústica Forense (301 Herramientas)
+
+### 🏥 El Doctor de Sesión (`copilot_session_doctor`)
+Motor clínico especializado para auditar y reparar mezclas existentes:
+- **8 Dominios de Auditoría:** Faders & Headroom (> 0.85 re-trimming a -14/-12 dBFS), Zombie Clips, Pistas Huérfanas, Pistas Muteadas con clips activos, Efectos Duplicados Redundantes, Campo Estéreo / Mono (<120 Hz mono), Colisiones Low-End Kick vs 808 en 40-90 Hz, y True Peak Headroom en Master.
+- **Seguridad Inviolable:** Aislamiento total en `state/production/doctor_session.json` (no altera proyectos guiados ni reinicia la sesión), jamás borra pistas de usuario, toma snapshots físicos previos y permite reversión instantánea con `"Deshacer"` / `"Rollback"`.
+- **Herramienta FastMCP:** `copilot_session_doctor(action, track_filter)`.
 
 ### 💥 Impacts, Downlifters & Sub-Boom Engine (`engine/arrangement/impacts/downlifters.py`)
 Generación procedural de resoluciones de tensión y caídas dinámicas post-drop:
@@ -439,7 +443,7 @@ Generación procedural de resoluciones de tensión y caídas dinámicas post-dro
 
 ### 🎚️ Multi-Stem Bouncer & Deep Phase Forensics (`engine/audio/stem_audit.py`)
 Exportación estructurada y auditoría de coherencia de fase para entrega discográfica:
-- **Subfase 3.1 - Partición de Stems Comerciales:** Agrupación automática de pistas en 7 stems (`01_Drums`, `02_Bass`, `03_Keys`, `04_Lead`, `05_Vocals`, `06_FX`, `00_Master`).
+- **Subfase 3.1 - Partición de Stems Comerciales:** Agrupación automática de pistas en 6 stems (`01_Drums`, `02_Bass`, `03_Keys_Brass`, `04_Vocals`, `05_FX`, `00_Master`).
 - **Subfase 3.2 - Auditoría de Cancelación de Fase:** Coeficiente de correlación de Pearson ($\rho$) en sub-graves ($20\text{--}150\text{ Hz}$) entre Kick y Bass; alerta de riesgo crítico de cancelación destructiva si $\rho < -0.30$.
 - **Subfase 3.3 - Manifiesto de Sonoridad & Headroom:** Cálculo de LUFS integrado, True Peak (dBTP), Crest Factor y validación de margen dinámico ($\le -1.0\text{ dBTP}$).
 - **Herramienta FastMCP:** `export_and_audit_stems(export_dir, bpm, start_bar, end_bar, check_phase_correlation)`.
