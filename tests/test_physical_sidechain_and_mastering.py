@@ -97,6 +97,22 @@ class MockLiveMasteringConnection:
             self.set_params.append(params)
             return {"status": "success", "result": {"updated": True}}
 
+        elif cmd_type == "execute_code":
+            code = params.get("code", "")
+            import re
+            t_m = re.search(r"song\.tracks\[(\d+)\]", code)
+            curr_t = int(t_m.group(1)) if t_m else 0
+            for line in code.splitlines():
+                p_m = re.search(r"devices\[(\d+)\]\.parameters\[(\d+)\]\.value\s*=\s*([0-9.]+)", line)
+                if p_m:
+                    self.set_params.append({
+                        "track_index": curr_t,
+                        "device_index": int(p_m.group(1)),
+                        "parameter": int(p_m.group(2)),
+                        "value": float(p_m.group(3))
+                    })
+            return {"status": "success", "result": "ok"}
+
         elif cmd_type in ("create_clip", "delete_clip", "add_notes_to_clip", "set_clip_name",
                           "create_cue_point", "duplicate_session_clip_to_arrangement",
                           "start_playback", "stop_playback", "set_current_song_time", "fire_clip",

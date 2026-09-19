@@ -138,10 +138,10 @@ class Phase9ExportHandler(BasePhaseHandler):
         profile = cfg_prof
 
         # Flexible Profile & Custom Target Parsing
-        if "club" in text and ("8.5" in text or "7.5" in text):
+        if "club" in text or "trap" in text or ("8.5" in text and "lufs" in text):
             target_profile = "CLUB"
             profile = ProfileRegistry.CLUB
-        elif "streaming" in text and ("14" in text or "spotify" in text or "apple" in text):
+        elif "streaming" in text or "spotify" in text or "apple" in text or ("14" in text and "lufs" in text):
             target_profile = "STREAMING"
             profile = ProfileRegistry.STREAMING
         elif "digital" in text or "cd" in text or "download" in text:

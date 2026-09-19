@@ -3,6 +3,7 @@
 Phase 5: Track-by-track insert effect chains, mandatory EQ gate, and parameter calibration.
 """
 import re
+import json
 import logging
 from typing import Dict, Any, List, Optional
 from engine.production.copilot.phases.base import BasePhaseHandler
@@ -12,6 +13,7 @@ from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
 from engine.session.transaction_guard import TransactionGuard
 from engine.instruments.installed_scanner import InstalledPluginScanner
 from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_preset
+from engine.vocal.vocal_chain_processor import VocalChainProcessor
 
 logger = logging.getLogger("Phase5InsertEffects")
 
@@ -286,6 +288,10 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             # Validación Estricta para Auto-Tune: Key y Scale son estrictamente obligatorios
             if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
                 det_key, det_scale, det_retune = parse_autotune_settings(user_input)
+                if not det_key and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
+                    det_key = session.data.get("key", "F")
+                if not det_scale and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
+                    det_scale = session.data.get("scale", "Minor")
                 if not det_key or not det_scale:
                     missing = []
                     if not det_key:
@@ -463,22 +469,22 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         is_snap = ("opcion 1" in text or "hard" in text or "snap" in text or "0" in text or "tyler" in text)
                         retune_lom = 1.0 if (is_snap or not ("opcion 2" in text or "natural" in text)) else 0.40
                         code_at = f"""
-    t = song.tracks[{t_idx}]
-    d = t.devices[{dev_idx}]
-    for p in d.parameters:
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
     p_l = p.name.lower()
     if 'key' in p_l: p.value = {key_val}
     elif 'scale' in p_l: p.value = {scale_val}
     elif 'retune' in p_l or 'speed' in p_l: p.value = {retune_lom}
     elif 'flex' in p_l: p.value = 0.5
     elif 'humanize' in p_l: p.value = 0.0
-    """
+"""
                         conn.send_command("execute_code", {"code": code_at})
                     elif "pro-q" in eff_name.lower():
                         code_proq = f"""
-    t = song.tracks[{t_idx}]
-    d = t.devices[{dev_idx}]
-    for p in d.parameters:
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
     p_l = p.name.lower()
     if 'band 1' in p_l and 'state' in p_l: p.value = 1.0
     elif 'band 1' in p_l and 'shape' in p_l: p.value = 0.2
@@ -486,29 +492,29 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     elif 'band 2' in p_l and 'freq' in p_l: p.value = 0.42
     elif 'band 2' in p_l and 'gain' in p_l: p.value = 0.45
     elif 'band 4' in p_l and 'gain' in p_l: p.value = 0.53
-    """
+"""
                         conn.send_command("execute_code", {"code": code_proq})
                     elif "saturn" in eff_name.lower():
                         code_sat = f"""
-    t = song.tracks[{t_idx}]
-    d = t.devices[{dev_idx}]
-    for p in d.parameters:
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
     p_l = p.name.lower()
     if 'drive' in p_l: p.value = 0.20
     elif 'tone' in p_l: p.value = 0.55
     elif 'mix' in p_l: p.value = 0.75
-    """
+"""
                         conn.send_command("execute_code", {"code": code_sat})
                     elif "valhalla" in eff_name.lower():
                         code_val = f"""
-    t = song.tracks[{t_idx}]
-    d = t.devices[{dev_idx}]
-    for p in d.parameters:
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
     p_l = p.name.lower()
     if 'mix' in p_l: p.value = 0.18
     elif 'decay' in p_l: p.value = 0.25
     elif 'predelay' in p_l: p.value = 0.15
-    """
+"""
                         conn.send_command("execute_code", {"code": code_val})
     
                     DeviceParameterSupervisor.enforce_mandatory_sculpting(conn, track_index=t_idx, device_index=dev_idx, role=eff_name)

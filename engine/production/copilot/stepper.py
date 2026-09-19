@@ -5,8 +5,12 @@ Actively inspects the Ableton Live session state, detects acoustic and musical g
 and enforces an interactive decision checklist so the AI never forgets critical production steps.
 """
 
+import logging
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Union
 from .models import ProductionPhase, DecisionStatus, ProductionDecision, CopilotState
+
+logger = logging.getLogger("ExecutiveCopilotEngine")
 
 
 class ExecutiveCopilotEngine:

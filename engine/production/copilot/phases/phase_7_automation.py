@@ -361,16 +361,16 @@ class Phase7AutomationHandler(BasePhaseHandler):
         # ETAPA 1: SELECCIÓN DE ELEMENTOS
         # -----------------------------------------------------------------
         if stage == "SELECTION":
-            # Reversal
-            if any(w in text for w in ["regresar", "volver", "revers", "paso 6", "opcion d"]):
+            # Reversal (Opción C / Regresar)
+            if any(w in text for w in ["regresar", "volver", "revers", "paso 6", "opcion c", "boton c"]) or text in ["c", "3"]:
                 session.data["automation_session"] = {"active": False}
                 session.data["current_phase"] = "PHASE_6_COMPOSITION"
                 session.data["phase_index"] = 6
                 session._save_state()
                 return session._prompt_phase_6()
 
-            # Bypass
-            if any(w in text for w in ["bypass", "omitir", "opcion c"]) or text in ["c", "3"]:
+            # Bypass (Opción D / Omitir)
+            if any(w in text for w in ["bypass", "omitir", "opcion d", "boton d"]) or text in ["d", "4"]:
                 session.data["automation_session"] = {"active": False}
                 session.data["automations"] = []
                 session.data["current_phase"] = "PHASE_8_VOCAL_DUCKING"
@@ -560,7 +560,7 @@ class Phase7AutomationHandler(BasePhaseHandler):
         text = _normalize_text(user_input)
 
         # 1. Punto 22: Allow backward step-reversal to Phase 6
-        if any(w in text for w in ["opcion c", "boton c", "opcion d", "boton d", "regresar", "volver", "revers", "ajustar clip"]):
+        if any(w in text for w in ["opcion c", "boton c", "regresar", "volver", "revers", "ajustar clip"]) or text in ["c", "3"]:
             if "bypass" not in text and "omitir" not in text and "en seco" not in text:
                 session.data["current_phase"] = "PHASE_6_COMPOSITION"
                 session.data["phase_index"] = 6

@@ -124,7 +124,7 @@ def test_vocal_clip_arrangement_stamping_phase_6(session_with_vocal_audio_track)
         session.step(conn=adapter, user_input="Opción 1")
 
     assert session.data["current_phase"] == "PHASE_6_COMPOSITION"
-    res6 = session.step(conn=adapter, user_input="Tonalidad F menor a 128 BPM")
+    res6 = session.step(conn=adapter, user_input="KEY F menor a 128 BPM")
     assert res6["phase"] == "PHASE_7_AUTOMATION"
 
     # Verify vocal track arrangement clips are NOT empty when take is imported
@@ -162,7 +162,7 @@ def test_live_mic_mode_keeps_arrangement_clean_with_zero_clips(session_with_voca
         session.step(conn=adapter, user_input="Opción 1")
 
     assert session.data["current_phase"] == "PHASE_6_COMPOSITION"
-    res6 = session.step(conn=adapter, user_input="Tonalidad F menor a 128 BPM")
+    res6 = session.step(conn=adapter, user_input="KEY F menor a 128 BPM")
     assert res6["phase"] == "PHASE_7_AUTOMATION"
 
     # Verify vocal track has ZERO arrangement clips and is armed for the user to record
@@ -183,7 +183,7 @@ def test_vocal_sidechain_ducking_routing_phase_8(session_with_vocal_audio_track)
         session.step(conn=adapter, user_input="Opción 1")
     while session.data["current_phase"] == "PHASE_5_INSERT_EFFECTS":
         session.step(conn=adapter, user_input="Opción 1")
-    session.step(conn=adapter, user_input="Tonalidad F menor a 128 BPM")
+    session.step(conn=adapter, user_input="KEY F menor a 128 BPM")
     session.step(conn=adapter, user_input="Bypass")  # Skip Phase 7
 
     res8 = session.step(conn=adapter, user_input="Opción A")  # Phase 8 Vocal Ducking

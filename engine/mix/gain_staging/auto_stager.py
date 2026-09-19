@@ -44,10 +44,10 @@ class AutoGainStagingEngine:
         dev_str = " ".join([str(d).lower() for d in (devices or [])])
         full = f"{tn} {dev_str}"
 
-        if any(w in full for w in ["808", "bass", "bajo", "sub", "sublab", "trilian"]):
-            return "bass"
         if "kick" in full or "bombo" in full:
             return "kick"
+        if any(w in full for w in ["808", "bass", "bajo", "sub", "sublab", "trilian"]):
+            return "bass"
         if "snare" in full or "clap" in full:
             return "snare"
         if "break" in full or "loop" in full or "sliced break" in full:

@@ -3,6 +3,7 @@
 Phase 2: Song structure, section locators, arrangement cues, and scale tuning.
 """
 import re
+import json
 import logging
 from typing import Dict, Any, List, Optional
 from engine.production.copilot.phases.base import BasePhaseHandler

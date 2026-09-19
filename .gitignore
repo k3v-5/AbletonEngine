@@ -232,6 +232,7 @@ state/transactions/
 state/events/
 
 state/production/
+state/test/
 state/*.json
 exports/
 *.asd

@@ -15,6 +15,10 @@ from engine.music.harmony.reharmonizer import ModalReharmonizer
 from engine.mix.spatial.depth import DepthStagingEngine, DepthPlane
 from engine.arrangement.fx.ear_candy import EarCandyEngine, EarCandyType
 from engine.mix.eq.resonance import ResonanceHunter
+from engine.mix.sidechain_manager import SidechainManager
+from engine.vocal.vocal_staging_supervisor import VocalStagingSupervisor
+from engine.mastering.live_master_chain import LiveMasterChainEngine
+from engine.arrangement.blueprints.song_arranger import FullSongArrangerEngine
 
 
 class MacroProductionRecipes:

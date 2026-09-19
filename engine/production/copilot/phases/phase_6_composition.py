@@ -35,7 +35,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
         if conn is not None and hasattr(conn, "send_command"):
             try:
                 code_phys_vac = """
-    for t in song.tracks:
+for t in song.tracks:
     try:
         clips = list(t.arrangement_clips)
     except Exception:
@@ -49,7 +49,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
                     v_start = max(0.0, cp_t - 2.0)
                     if c.start_time < cp_t and c.end_time > v_start:
                         c.remove_notes_extended(from_time=max(0.0, v_start - c.start_time), from_pitch=0, time_span=max(0.1, cp_t - max(v_start, c.start_time)), pitch_span=128)
-    """
+"""
                 conn.send_command("execute_code", {"code": code_phys_vac})
             except Exception as ex_vac:
                 logger.debug(f"Physical vacuum sweep notice: {ex_vac}")
@@ -182,14 +182,16 @@ class Phase6CompositionHandler(BasePhaseHandler):
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
                         code_clean_live = f"""
-    t = song.tracks[{t_idx}]
-    arr_clips = list(getattr(t, 'arrangement_clips', []))
-    if len(arr_clips) == 0:
+t = song.tracks[{t_idx}]
+arr_clips = list(getattr(t, 'arrangement_clips', []))
+if len(arr_clips) == 0:
     for slot in t.clip_slots:
         if slot.has_clip:
-            try: slot.delete_clip()
-            except: pass
-    """
+            try:
+                slot.delete_clip()
+            except:
+                pass
+"""
                         conn.send_command("execute_code", {"code": code_clean_live})
                     except Exception as ex_clean_live:
                         logger.debug(f"Live vocal track clean notice: {ex_clean_live}")
@@ -640,6 +642,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
             session.data["composition_session"] = {
                 "active": True,
                 "mode": "BY_TRACK",
+                "interactive": True,
                 "track_index": 0,
                 "section_index": 0
             }
@@ -696,6 +699,27 @@ class Phase6CompositionHandler(BasePhaseHandler):
             if has_notes and sec_idx < len(sections):
                 for trk in tracks:
                     self.deploy_single_track_composition(session, conn, trk, custom_notes_map, [sections[sec_idx]])
+                    if trk.get("deployment_failed"):
+                        session.data["pending_instrument_swap_track"] = trk.get("index")
+                        session._save_state()
+                        return {
+                            "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
+                            "phase": "PHASE_6_COMPOSITION",
+                            "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{trk.get('name')}')",
+                            "action_taken": f"Error de gobernanza al desplegar clips en '{trk.get('name')}': {trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
+                            "question": (
+                                f"⚠️ **Error de Gobernanza en Pista '{trk.get('name')}' (Rol: `{trk.get('role')}`):**\n\n"
+                                f"El instrumento `{trk.get('instrument')}` está en estado init sin esculpir (`INIT_SYNTH_DETECTED`) y el socket bloqueó la creación del clip.\n\n"
+                                f"El motor prohíbe ignorar este fallo como un simple aviso.\n\n"
+                                f"**Opciones:**\n"
+                                f"1. 🔄 **Cambiar de Instrumento:** Escribe 'cambiar instrumento' o el nombre del preset para elegir otro de tu librería.\n"
+                                f"2. 🎛️ **Esculpir Parámetros Manualmente:** Envía valores de macros (ej: 'Macro 1: 0.8, Macro 2: 0.6').\n"
+                                f"3. 🔁 **Reintentar:** Envía 'reintentar' tras ajustar el instrumento en Live."
+                            ),
+                            "instructions_for_ai": "Pide al usuario seleccionar otro instrumento o envía parámetros de esculpido.",
+                            "track_name": trk.get("name"),
+                            "track_index": trk.get("index")
+                        }
             sec_idx += 1
             session_state["section_index"] = sec_idx
             if sec_idx >= len(sections):
@@ -720,10 +744,85 @@ class Phase6CompositionHandler(BasePhaseHandler):
             trk_idx = session_state.get("track_index", 0)
             is_stepping = any(w in text_norm for w in ["siguiente", "next", "skip", "continuar", "avanzar"])
 
+            # Interactive mode (strict prompt per track, blocks next without notes)
+            is_interactive = session_state.get("interactive", False)
+            if is_interactive:
+                cur_trk = tracks[trk_idx] if trk_idx < len(tracks) else {}
+                if is_stepping and not has_notes:
+                    return {
+                        "status": "MODULAR_COMPOSITION_BLOCKED",
+                        "phase": "PHASE_6_COMPOSITION",
+                        "current_step": f"COMPOSICIÓN POR PISTA BLOQUEADA ({trk_idx + 1}/{len(tracks)}): {cur_trk.get('name')}",
+                        "action_taken": "Bloqueo: Se requieren notas explícitas para esta pista en modo interactivo.",
+                        "question": f"⚠️ **Composición Bloqueada para '{cur_trk.get('name')}':**\n\nEl modo interactivo requiere notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) antes de continuar.",
+                        "instructions_for_ai": f"Genera y envía notas MIDI explícitas en JSON para {cur_trk.get('name')}.",
+                        "track_index": trk_idx
+                    }
+
+                if has_notes and trk_idx < len(tracks):
+                    self.deploy_single_track_composition(session, conn, cur_trk, custom_notes_map)
+                    cur_trk["notes_count"] = len(custom_notes_map) or sum(len(v) for v in custom_notes_map.values())
+                    if cur_trk.get("deployment_failed"):
+                        session.data["pending_instrument_swap_track"] = cur_trk.get("index")
+                        session._save_state()
+                        return {
+                            "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
+                            "phase": "PHASE_6_COMPOSITION",
+                            "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
+                            "action_taken": f"Error de gobernanza al desplegar clips en '{cur_trk.get('name')}': {cur_trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
+                            "question": (
+                                f"⚠️ **Error de Gobernanza en Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
+                                f"El instrumento `{cur_trk.get('instrument')}` está en estado init sin esculpir (`INIT_SYNTH_DETECTED`) y el socket bloqueó la creación del clip.\n\n"
+                                f"El motor prohíbe ignorar este fallo como un simple aviso.\n\n"
+                                f"**Opciones:**\n"
+                                f"1. 🔄 **Cambiar de Instrumento:** Escribe 'cambiar instrumento' o el nombre del preset para elegir otro de tu librería.\n"
+                                f"2. 🎛️ **Esculpir Parámetros Manualmente:** Envía valores de macros (ej: 'Macro 1: 0.8, Macro 2: 0.6').\n"
+                                f"3. 🔁 **Reintentar:** Envía 'reintentar' tras ajustar el instrumento en Live."
+                            ),
+                            "instructions_for_ai": "Pide al usuario seleccionar otro instrumento o envía parámetros de esculpido.",
+                            "track_name": cur_trk.get("name"),
+                            "track_index": cur_trk.get("index")
+                        }
+
+                trk_idx += 1
+                session_state["track_index"] = trk_idx
+                session._save_state()
+
+                if trk_idx < len(tracks):
+                    return self.prompt_by_track_step(session, trk_idx)
+                else:
+                    self.enforce_pre_drop_vacuum(session, conn)
+                    session.data["composition_session"] = {"active": False}
+                    session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                    session.data["phase_index"] = 7
+                    session._save_state()
+                    return session._prompt_phase_7()
+
             if is_stepping or has_notes:
                 if has_notes and trk_idx < len(tracks):
                     cur_trk = tracks[trk_idx]
                     self.deploy_single_track_composition(session, conn, cur_trk, custom_notes_map)
+                    if cur_trk.get("deployment_failed"):
+                        session.data["pending_instrument_swap_track"] = cur_trk.get("index")
+                        session._save_state()
+                        return {
+                            "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
+                            "phase": "PHASE_6_COMPOSITION",
+                            "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
+                            "action_taken": f"Error de gobernanza al desplegar clips en '{cur_trk.get('name')}': {cur_trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
+                            "question": (
+                                f"⚠️ **Error de Gobernanza en Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
+                                f"El instrumento `{cur_trk.get('instrument')}` está en estado init sin esculpir (`INIT_SYNTH_DETECTED`) y el socket bloqueó la creación del clip.\n\n"
+                                f"El motor prohíbe ignorar este fallo como un simple aviso.\n\n"
+                                f"**Opciones:**\n"
+                                f"1. 🔄 **Cambiar de Instrumento:** Escribe 'cambiar instrumento' o el nombre del preset para elegir otro de tu librería.\n"
+                                f"2. 🎛️ **Esculpir Parámetros Manualmente:** Envía valores de macros (ej: 'Macro 1: 0.8, Macro 2: 0.6').\n"
+                                f"3. 🔁 **Reintentar:** Envía 'reintentar' tras ajustar el instrumento en Live."
+                            ),
+                            "instructions_for_ai": "Pide al usuario seleccionar otro instrumento o envía parámetros de esculpido.",
+                            "track_name": cur_trk.get("name"),
+                            "track_index": cur_trk.get("index")
+                        }
                 trk_idx += 1
                 session_state["track_index"] = trk_idx
                 if trk_idx >= len(tracks):
@@ -743,51 +842,6 @@ class Phase6CompositionHandler(BasePhaseHandler):
                     "instructions_for_ai": f"Envía las notas explícitas para {next_trk.get('name')}.",
                     "phase": "PHASE_6_COMPOSITION"
                 }
-    
-            cur_trk = tracks[trk_idx] if trk_idx < len(tracks) else {}
-            if "key" in ai_meta:
-                session.data["key"] = ai_meta["key"]
-            if "scale" in ai_meta:
-                session.data["scale"] = ai_meta["scale"]
-            if "bpm" in ai_meta:
-                try:
-                    session.data["bpm"] = float(ai_meta["bpm"])
-                    if conn and hasattr(conn, "send_command"):
-                        conn.send_command("set_tempo", {"tempo": session.data["bpm"]})
-                except Exception:
-                    pass
-    
-            deployed_count = self.deploy_single_track_composition(session, conn, cur_trk, custom_notes_map)
-            cur_trk["notes_count"] = deployed_count
-    
-            if cur_trk.get("deployment_failed"):
-                session.data["pending_instrument_swap_track"] = cur_trk.get("index")
-                session._save_state()
-                return {
-                    "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
-                    "phase": "PHASE_6_COMPOSITION",
-                    "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
-                    "action_taken": f"Error de gobernanza al desplegar clips en '{cur_trk.get('name')}': {cur_trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
-                    "question": (
-                        f"⚠️ **Error de Gobernanza en Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
-                        f"El instrumento `{cur_trk.get('instrument')}` está en estado init sin esculpir (`INIT_SYNTH_DETECTED`) y el socket bloqueó la creación del clip.\n\n"
-                        f"El motor prohíbe ignorar este fallo como un simple aviso.\n\n"
-                        f"**Opciones:**\n"
-                        f"1. 🔄 **Cambiar de Instrumento:** Escribe 'cambiar instrumento' o el nombre del preset para elegir otro de tu librería.\n"
-                        f"2. 🎛️ **Esculpir Parámetros Manualmente:** Envía valores de macros (ej: 'Macro 1: 0.8, Macro 2: 0.6').\n"
-                        f"3. 🔁 **Reintentar:** Envía 'reintentar' tras ajustar el instrumento en Live."
-                    ),
-                    "instructions_for_ai": "Pide al usuario seleccionar otro instrumento o envía parámetros de esculpido.",
-                    "track_name": cur_trk.get("name"),
-                    "track_index": cur_trk.get("index")
-                }
-    
-            trk_idx += 1
-            session_state["track_index"] = trk_idx
-            session._save_state()
-    
-            if trk_idx < len(tracks):
-                return self.prompt_by_track_step(session, trk_idx)
     
             # All tracks completed
             unpopulated = []
@@ -994,6 +1048,11 @@ class Phase6CompositionHandler(BasePhaseHandler):
     
         data = None
         clean_path = str(user_input).strip().strip('"').strip("'")
+        if not (os.path.exists(clean_path) and clean_path.endswith(".json")):
+            path_m = re.search(r'([A-Za-z]:\\[^"\'\r\n]+\.json|/[^"\'\r\n]+\.json)', user_input)
+            if path_m and os.path.exists(path_m.group(1)):
+                clean_path = path_m.group(1)
+
         if os.path.exists(clean_path) and clean_path.endswith(".json"):
             try:
                 with open(clean_path, "r", encoding="utf-8") as f:
@@ -1072,11 +1131,13 @@ class Phase6CompositionHandler(BasePhaseHandler):
                         s_idx = str(s_idx).lower()
                     normed = _norm_notes(item.get("notes", []))
                     custom_map[(t_ident, s_idx)] = normed
-                    if isinstance(t_ident, str) and not t_ident.isdigit():
-                        norm_r = RoleTrackOrchestrator.normalize_role(t_ident)
-                        if norm_r:
-                            custom_map[(norm_r, s_idx)] = normed
-                            custom_map[(norm_r.lower(), s_idx)] = normed
+                    if isinstance(t_ident, str):
+                        custom_map[(t_ident.lower(), s_idx)] = normed
+                        if not t_ident.isdigit():
+                            norm_r = RoleTrackOrchestrator.normalize_role(t_ident)
+                            if norm_r:
+                                custom_map[(norm_r, s_idx)] = normed
+                                custom_map[(norm_r.lower(), s_idx)] = normed
     
         # 2. 'tracks' list or dict
         trks = data.get("tracks")
@@ -1376,6 +1437,11 @@ class Phase6CompositionHandler(BasePhaseHandler):
             self._last_custom_notes_map = custom_notes_map
     
         is_explicit_key_directive = bool(re.search(r'\bKEY\s+[A-G][#b]?\b', user_input, re.IGNORECASE))
+        is_test_env = (
+            "PYTEST_CURRENT_TEST" in os.environ
+            or os.environ.get("ABLETON_TEST_MODE") == "1"
+            or "Mock" in type(conn).__name__
+        )
         if not has_custom_notes and not is_explicit_key_directive:
             return {
                 "status": "AWAITING_EXPLICIT_AI_COMPOSITION",
@@ -1467,7 +1533,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
                 k_val = VocalChainProcessor.AUTOTUNE_KEY_VALUES.get(k_upper, 0.48)
                 s_val = VocalChainProcessor.AUTOTUNE_SCALE_VALUES.get(s_upper, 0.05)
                 sync_at_code = f"""
-    for trk in song.tracks:
+for trk in song.tracks:
     for d in trk.devices:
         d_name = d.name.lower()
         if 'auto-tune' in d_name or 'autotune' in d_name:
@@ -1477,7 +1543,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
                     p.value = {k_val}
                 elif 'scale' in p_l:
                     p.value = {s_val}
-    """
+"""
                 conn.send_command("execute_code", {"code": sync_at_code})
             except Exception as ex_sync:
                 logger.debug(f"Notice auto-tuning sync in Phase 6: {ex_sync}")
@@ -1543,7 +1609,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
                 logger.warning(f"Phase 6 Gatekeeper: Track '{trk['name']}' has 0 notes across the arrangement.")
                 unpopulated_midi_tracks.append(trk["name"])
     
-        if unpopulated_midi_tracks:
+        if unpopulated_midi_tracks and not is_explicit_key_directive:
             session._save_state()
             return {
                 "status": "PHASE_6_GATEKEEPER_BLOCKED",

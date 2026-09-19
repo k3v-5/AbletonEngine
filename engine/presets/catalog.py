@@ -76,13 +76,18 @@ class PresetCatalog:
             fraction_results = self._search_fraction(query, role, limit=limit)
             results.extend(fraction_results)
 
-        # 3. Search Ableton User Library .adv / .adg presets
+        # 3. Standard MIDI Program Lists for Omnisphere, Massive, ZENOLOGY
+        if plugin and plugin.lower() in ("omnisphere", "massive", "zenology"):
+            midi_synths = self._get_midi_synth_templates(plugin, query, role, limit=limit)
+            results.extend(midi_synths)
+
+        # 4. Search Ableton User Library .adv / .adg presets
         if self._user_library_dir:
             user_lib_results = self._search_user_library(query, role, plugin, limit=limit)
             results.extend(user_lib_results)
 
-        # 4. Standard MIDI Program Lists for Omnisphere, Massive, ZENOLOGY
-        if plugin:
+        # 5. Standard MIDI Program Lists for other plugins
+        if plugin and plugin.lower() not in ("omnisphere", "massive", "zenology"):
             midi_synths = self._get_midi_synth_templates(plugin, query, role, limit=limit)
             results.extend(midi_synths)
 
@@ -305,7 +310,7 @@ class PresetCatalog:
 
                     results.append({
                         "preset_name": preset_name,
-                        "plugin": os.path.basename(root),
+                        "plugin": plugin if plugin else os.path.basename(root),
                         "family": "User Library",
                         "musical_role": os.path.basename(os.path.dirname(root)),
                         "loading_method": "user_library_adv",

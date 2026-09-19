@@ -3,6 +3,7 @@
 Phase 4: Conversational synthesis parameter sculpting and gain staging.
 """
 import re
+import math
 import logging
 from typing import Dict, Any, List, Optional
 from engine.production.copilot.phases.base import BasePhaseHandler
@@ -210,7 +211,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                     if val > 1.0 and val <= 100.0 and p_name != "FILTER_CUTOFF":
                         val = val / 100.0
                     elif val > 100.0 and p_name == "FILTER_CUTOFF":
-                        val = min(1.0, max(0.0, np.log10(val / 20.0) / np.log10(1000.0)))
+                        val = min(1.0, max(0.0, math.log10(val / 20.0) / math.log10(1000.0)))
                     elif val > 1.0:
                         val = val / 100.0
                     custom_params[p_name] = max(0.0, min(1.0, val))

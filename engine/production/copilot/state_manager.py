@@ -16,12 +16,29 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger("CopilotStateManager")
 
 
-class CopilotStateManager:
-    """Manages session state, persistence, checkpoints, and journals."""
+class _StateManagerMeta(type):
+    """Metaclass that isolates state files during tests without breaking class attribute lookups."""
+    @property
+    def STATE_FILE(cls) -> Path:
+        if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
+            return Path("state/test/guided_session_test.json")
+        return Path("state/production/guided_session.json")
 
-    STATE_FILE = Path("state/production/guided_session.json")
-    CHECKPOINTS_DIR = Path("state/production/checkpoints")
-    JOURNAL_FILE = Path("state/production/session_journal.jsonl")
+    @property
+    def CHECKPOINTS_DIR(cls) -> Path:
+        if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
+            return Path("state/test/checkpoints")
+        return Path("state/production/checkpoints")
+
+    @property
+    def JOURNAL_FILE(cls) -> Path:
+        if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
+            return Path("state/test/session_journal.jsonl")
+        return Path("state/production/session_journal.jsonl")
+
+
+class CopilotStateManager(metaclass=_StateManagerMeta):
+    """Manages session state, persistence, checkpoints, and journals."""
 
     @classmethod
     def default_state(cls) -> Dict[str, Any]:
@@ -47,30 +64,32 @@ class CopilotStateManager:
         }
 
     @classmethod
-    def load_state(cls) -> Dict[str, Any]:
-        if cls.STATE_FILE.exists():
+    def load_state(cls, state_file: Optional[Path] = None) -> Dict[str, Any]:
+        target = Path(state_file) if state_file else cls.STATE_FILE
+        if target.exists():
             try:
-                with open(cls.STATE_FILE, "r", encoding="utf-8") as f:
+                with open(target, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"Could not load guided session state: {e}")
         return cls.default_state()
 
     @classmethod
-    def save_state(cls, data: Dict[str, Any], record_journal: bool = True, action_tag: str = "") -> None:
+    def save_state(cls, data: Dict[str, Any], record_journal: bool = True, action_tag: str = "", state_file: Optional[Path] = None) -> None:
         """Atomically persists session state to disk with write-ahead journal logging."""
         try:
-            cls.STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            target = Path(state_file) if state_file else cls.STATE_FILE
+            target.parent.mkdir(parents=True, exist_ok=True)
             cls.CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
 
-            tmp_path = cls.STATE_FILE.with_suffix(".tmp")
+            tmp_path = target.with_suffix(".tmp")
             with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
 
             replaced = False
             for _ in range(6):
                 try:
-                    os.replace(tmp_path, cls.STATE_FILE)
+                    os.replace(tmp_path, target)
                     replaced = True
                     break
                 except OSError:
@@ -78,7 +97,7 @@ class CopilotStateManager:
                     time.sleep(0.015)
             if not replaced:
                 try:
-                    with open(cls.STATE_FILE, "w", encoding="utf-8") as f:
+                    with open(target, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=2)
                 except Exception:
                     pass

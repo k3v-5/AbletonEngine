@@ -3,6 +3,7 @@
 Phase 3: Verified instrument loading, two-level hierarchical plugin selection,
 SubLab XL prioritization, and Drum Rack verification.
 """
+import os
 import re
 import logging
 from typing import Dict, Any, List, Optional
@@ -11,6 +12,7 @@ from engine.production.copilot.nlp_parser import _normalize_text
 from engine.production.copilot.track_utils import get_personal_samples
 from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
 from engine.instruments.browser_catalog import LiveBrowserCatalogEngine, InstrumentSourceCategory
+from engine.instruments.drum_rack_guard import DrumRackGuard
 
 logger = logging.getLogger("Phase3Instruments")
 
@@ -293,16 +295,16 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 if target_source_name:
                     clean_source_query = target_source_name.lower().replace("[", "").replace("]", "").strip()
                     code_route = f"""
-    t = song.tracks[{t_idx}]
-    t.current_monitoring_state = 0
-    target_q = "{clean_source_query}"
-    matched_rt = None
-    for rt in getattr(t, 'available_input_routing_types', []):
+t = song.tracks[{t_idx}]
+t.current_monitoring_state = 0
+target_q = "{clean_source_query}"
+matched_rt = None
+for rt in getattr(t, 'available_input_routing_types', []):
     dn = rt.display_name.lower()
     if target_q in dn:
         matched_rt = rt
         break
-    if not matched_rt:
+if not matched_rt:
     for w in target_q.split():
         if len(w) > 2:
             for rt in getattr(t, 'available_input_routing_types', []):
@@ -311,12 +313,12 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                     break
             if matched_rt:
                 break
-    if matched_rt:
+if matched_rt:
     t.input_routing_type = matched_rt
     res = {{'status': 'success', 'routed_to': matched_rt.display_name, 'monitoring': t.current_monitoring_state}}
-    else:
+else:
     res = {{'status': 'not_found', 'available': [rt.display_name for rt in getattr(t, 'available_input_routing_types', [])]}}
-    """
+"""
                     try:
                         r_res = conn.send_command("execute_code", {"code": code_route})
                         r_data = r_res.get("result", r_res) if isinstance(r_res, dict) else {}
@@ -441,15 +443,19 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                             conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": "query:AudioFx#Compressor"})
                         # 4. Strictly delete any clips (session or arrangement) so user has a 100% clean canvas for live recording
                         code_clean_vocal = f"""
-    t = song.tracks[{t_idx}]
-    for c in list(getattr(t, 'arrangement_clips', [])):
-    try: t.delete_clip(c)
-    except: pass
-    for slot in t.clip_slots:
+t = song.tracks[{t_idx}]
+for c in list(getattr(t, 'arrangement_clips', [])):
+    try:
+        t.delete_clip(c)
+    except:
+        pass
+for slot in t.clip_slots:
     if slot.has_clip:
-        try: slot.delete_clip()
-        except: pass
-    """
+        try:
+            slot.delete_clip()
+        except:
+            pass
+"""
                         conn.send_command("execute_code", {"code": code_clean_vocal})
                         conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] Lead Vocal (Live Mic)"})
                     except Exception as ex_arm:
@@ -713,20 +719,20 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                     if chosen_sample:
                         try:
                             # Load physical audio sample into Simpler via Live 12 replace_sample LOM API
-                            s_path_esc = str(chosen_sample["path"]).replace("\\", "\\\\")
+                            s_path_repr = repr(str(chosen_sample["path"]))
                             exec_code = f"""
-    t = song.tracks[{t_idx}]
-    d = t.devices[{dev_idx}]
-    sample_path = r\"{s_path_esc}\"
-    if hasattr(d, 'replace_sample'):
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+sample_path = {s_path_repr}
+if hasattr(d, 'replace_sample'):
     d.replace_sample(sample_path)
-    if hasattr(d, 'playback_mode'):
+if hasattr(d, 'playback_mode'):
     d.playback_mode = 2
-    s = getattr(d, 'sample', None)
-    if s and hasattr(s, 'reset_slices'):
+s = getattr(d, 'sample', None)
+if s and hasattr(s, 'reset_slices'):
     s.reset_slices()
-    slices_count = len(getattr(s, 'slices', [])) if s else 0
-    """
+slices_count = len(getattr(s, 'slices', [])) if s else 0
+"""
                             code_res = conn.send_command("execute_code", {"code": exec_code})
                             res_s_cnt = int(code_res.get("slices_count", 0)) if isinstance(code_res, dict) else 0
                             trk["slices_count"] = res_s_cnt if res_s_cnt > 0 else 64

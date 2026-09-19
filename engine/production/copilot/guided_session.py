@@ -228,10 +228,10 @@ class CopilotGuidedSession:
         return CopilotStateManager.default_state()
 
     def _load_state(self) -> Dict[str, Any]:
-        return CopilotStateManager.load_state()
+        return CopilotStateManager.load_state(state_file=getattr(self, "STATE_FILE", None))
 
     def _save_state(self, record_journal: bool = True, action_tag: str = ""):
-        return CopilotStateManager.save_state(self.data, record_journal=record_journal, action_tag=action_tag)
+        return CopilotStateManager.save_state(self.data, record_journal=record_journal, action_tag=action_tag, state_file=getattr(self, "STATE_FILE", None))
 
     def _create_checkpoint(self, tag: str = "", live_track_map: Optional[Dict[str, int]] = None) -> str:
         return CopilotStateManager.create_checkpoint(self.data, tag=tag, live_track_map=live_track_map)
@@ -492,11 +492,13 @@ class CopilotGuidedSession:
 
         # Priority intercept for vocal take processing, slicing, chops, and gain calibration
         is_vocal_trigger = (
-            any(w in norm_text for w in ["vocal", "voz", "voces", "toma continua", "toma vocal", "audio vocal", "vocal chop", "vocal chops", "2 partes", "dos partes", "ambos en 2 partes"])
-            and any(w in norm_text for w in ["corta", "cortalo", "cortar", "rebanar", "trocear", "chop", "chops", "chopp", "choppealo", "chopea", "chopear", "frases", "frase", "procesar", "alinear", "balance", "partes", "2 partes", "dos partes", "opcion 1", "opcion 2", "opcion 3", "ambos"])
-        ) or any(w in norm_text for w in [
-            "ya grabe", "ya lo grabe", "toma lista", "grabe la voz", "grabo la voz", "voz lista", "procesar voz", "grabar voz"
-        ])
+            (
+                any(w in norm_text for w in ["vocal", "voz", "voces", "toma continua", "toma vocal", "audio vocal", "vocal chop", "vocal chops", "ambos en 2 partes"])
+                and any(w in norm_text for w in ["corta", "cortalo", "cortar", "rebanar", "trocear", "chop", "chops", "chopp", "choppealo", "chopea", "chopear", "frases", "frase", "procesar toma", "alinear toma", "ambos en 2 partes", "opcion 3 ambos"])
+            ) or any(w in norm_text for w in [
+                "ya grabe", "ya lo grabe", "toma lista", "grabe la voz", "grabo la voz", "voz lista", "procesar voz", "grabar voz"
+            ])
+        ) and (phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER") or any(w in norm_text for w in ["grabe", "toma", "chop", "cortar", "rebanar"]))
         if is_vocal_trigger:
             # Pre-Vocal Anti-Overlap Instrument Panning Gatekeeper
             if not self.data.get("panning_evaluated", False):
@@ -736,11 +738,19 @@ class CopilotGuidedSession:
                         except Exception:
                             pass
 
-                    # Clear only slots that actually contain a clip
-                    clip_slots = t_res.get("clip_slots", [])
-                    for slot in clip_slots:
-                        if slot.get("has_clip", False):
-                            c_i = slot.get("index", 0)
+                    # Clear clip slots: check clip_slots if present, or sweep slots 0..15 if not provided (e.g. in mocks)
+                    clip_slots = t_res.get("clip_slots")
+                    if clip_slots is not None:
+                        for slot in clip_slots:
+                            if slot.get("has_clip", False):
+                                c_i = slot.get("index", 0)
+                                try:
+                                    conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": c_i})
+                                    report["clips_cleared"] += 1
+                                except Exception:
+                                    pass
+                    else:
+                        for c_i in range(16):
                             try:
                                 conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": c_i})
                                 report["clips_cleared"] += 1
@@ -883,9 +893,19 @@ class CopilotGuidedSession:
         from .phases.phase_6_composition import Phase6CompositionHandler
         return Phase6CompositionHandler().parse_ai_composition(self, user_input)
 
-    def _find_custom_notes_for_track_section(self, notes_by_sec_and_trk: Any, trk: Any, sec_name: str, sec_idx: int, custom_bpm: Any) -> Optional[List[Any]]:
+    def _find_custom_notes_for_track_section(self, *args, **kwargs) -> Optional[List[Any]]:
         from .phases.phase_6_composition import Phase6CompositionHandler
-        return Phase6CompositionHandler().find_custom_notes_for_track_section(self, notes_by_sec_and_trk, trk, sec_name, sec_idx, custom_bpm)
+        if "custom_map" in kwargs:
+            custom_map = kwargs["custom_map"]
+            trk = kwargs.get("trk")
+            s_idx = kwargs.get("s_idx", 0)
+            s_name = kwargs.get("s_name", "")
+            s_beats = kwargs.get("s_beats", 32.0)
+            return Phase6CompositionHandler().find_custom_notes_for_track_section(self, custom_map, trk, s_idx, s_name, s_beats)
+        if len(args) == 5:
+            notes_by_sec_and_trk, trk, sec_name, sec_idx, custom_bpm = args
+            return Phase6CompositionHandler().find_custom_notes_for_track_section(self, notes_by_sec_and_trk, trk, sec_idx, sec_name, custom_bpm)
+        return Phase6CompositionHandler().find_custom_notes_for_track_section(self, *args, **kwargs)
 
     def _build_recipe_from_session(self) -> ProductionRecipe:
         from .phases.phase_6_composition import Phase6CompositionHandler

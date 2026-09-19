@@ -334,13 +334,13 @@ class Phase1TracksHandler(BasePhaseHandler):
         at_scale_val = VocalChainProcessor.AUTOTUNE_SCALE_VALUES.get(scale_clean.upper(), 0.05)
     
         code = f"""
-    tuned_devices = []
-    if hasattr(song, 'root_note'):
+tuned_devices = []
+if hasattr(song, 'root_note'):
     song.root_note = {root_int}
-    if hasattr(song, 'scale_name'):
+if hasattr(song, 'scale_name'):
     song.scale_name = {repr(scale_clean)}
-    
-    for t_idx, t in enumerate(song.tracks):
+
+for t_idx, t in enumerate(song.tracks):
     for d_idx, dev in enumerate(t.devices):
         dev_name = dev.name.lower()
         if 'auto-tune' in dev_name or 'autotune' in dev_name:
@@ -352,8 +352,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                 elif p_l == 'scale':
                     p.value = {at_scale_val}
                     tuned_devices.append(f"Auto-Tune Scale on track {{t_idx}}")
-    result = {{'root_note': {root_int}, 'scale_name': {repr(scale_clean)}, 'tuned_devices': tuned_devices}}
-    """
+result = {{'root_note': {root_int}, 'scale_name': {repr(scale_clean)}, 'tuned_devices': tuned_devices}}
+"""
         try:
             res = conn.send_command("execute_code", {"code": code})
             logger.info(f"Sincronización de afinación en Live: Tonalidad {key_clean} {scale_clean} -> {res}")
