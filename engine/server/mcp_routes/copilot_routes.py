@@ -127,7 +127,7 @@ def handle_copilot_guided_session(
                     except Exception:
                         pass
         for mod_name in list(sys.modules.keys()):
-            if mod_name.startswith("engine.creative.") or mod_name.startswith("engine.sound."):
+            if mod_name.startswith("engine.creative.") or mod_name.startswith("engine.sound.") or mod_name.startswith("engine.production.contract"):
                 try:
                     importlib.reload(sys.modules[mod_name])
                 except Exception:

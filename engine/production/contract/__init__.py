@@ -2,7 +2,7 @@
 """
 SongContract Suite:
 Cross-phase obligations ledger, tripartite evidence verification, creative continuity memory,
-and omission audit gatekeeper.
+omission audit gatekeeper, creative decision ledger, and creative X-ray.
 """
 from .song_contract import (
     SongContract,
@@ -20,6 +20,12 @@ from .omission_audit import (
     OmissionAuditor,
     OmissionReport,
 )
+from .creative_decision_ledger import (
+    CreativeDecisionLedger,
+    CreativeDecisionRecord,
+    DecisionVerdict,
+)
+from .creative_xray import CreativeXRay
 
 __all__ = [
     "SongContract",
@@ -32,4 +38,8 @@ __all__ = [
     "EvidenceLedger",
     "OmissionAuditor",
     "OmissionReport",
+    "CreativeDecisionLedger",
+    "CreativeDecisionRecord",
+    "DecisionVerdict",
+    "CreativeXRay",
 ]

@@ -237,3 +237,47 @@ class TestCopilotGuidedSessionContractCommands:
         res_omission = session.step(conn=None, user_input="auditoria de omisiones")
         assert res_omission.get("status") == "OMISSION_AUDIT_COMPLETED"
         assert "Auditoría de Omisiones" in res_omission.get("message", "")
+
+        # Test "creative x-ray"
+        res_xray = session.step(conn=None, user_input="creative x-ray")
+        assert res_xray.get("status") == "CREATIVE_XRAY_GENERATED"
+        assert "CREATIVE X-RAY" in res_xray.get("message", "")
+        assert "NIVEL C: EVOLUCIÓN" in res_xray.get("message", "")
+
+
+class TestCreativeDecisionLedgerAndXRay:
+    """Verifies Level D decision records and X-Ray generation."""
+
+    def test_decision_ledger_lifecycle(self):
+        from engine.production.contract import CreativeDecisionLedger, DecisionVerdict
+        ledger = CreativeDecisionLedger()
+        rec = ledger.register_decision(
+            decision_id="DEC_HOOK_3_RETURN",
+            target_element="Hook 3",
+            event="Hook 3 identical return to Hook 1",
+            evidence={"similarity": 0.91},
+            context={"preceding_bridge_silence": True},
+            interpretation="Deliberate cyclical return after drought",
+            verdict=DecisionVerdict.DELIBERATE_RETURN,
+            artistic_rationale="Producer intentional dry return"
+        )
+        assert ledger.is_deliberate_choice("DEC_HOOK_3_RETURN") is True
+        d = ledger.to_dict()
+        restored = CreativeDecisionLedger.from_dict(d)
+        assert restored.is_deliberate_choice("DEC_HOOK_3_RETURN") is True
+
+    def test_creative_xray_generation(self):
+        from engine.production.contract import CreativeXRay
+        session_data = {
+            "key": "F#",
+            "scale": "minor",
+            "bpm": 90.0,
+            "genre": "rap/neo-soul",
+            "tracks": [{"index": 1, "name": "Kick", "notes_count": 121}],
+            "sections": [{"name": "Intro", "bars": 4, "start_bar": 0}]
+        }
+        res = CreativeXRay.generate_xray(session_data, conn=None)
+        assert res["status"] == "CREATIVE_XRAY_GENERATED"
+        assert "CREATIVE X-RAY" in res["markdown_report"]
+        assert len(res["section_diagnostics"]) >= 1
+

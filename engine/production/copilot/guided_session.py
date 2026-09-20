@@ -483,6 +483,9 @@ class CopilotGuidedSession:
         if any(w in norm_text for w in ["intencion creativa", "tesis sonora", "eje emocional", "anclas de identidad", "song intent"]):
             return self._handle_song_intent_query()
 
+        if any(w in norm_text for w in ["creative x-ray", "creative xray", "radiografia creativa", "radiografía creativa", "xray", "x-ray", "espejo perceptual"]):
+            return self._handle_creative_xray_query(conn)
+
         # 0. Active state intercept for Effect Recalibration / Backward Adjustments
         if self.data.get("awaiting_effect_recalibration", False):
             return self._handle_effect_recalibration(conn, u_in)
@@ -1257,6 +1260,21 @@ class CopilotGuidedSession:
                 "omission_report": report.to_dict()
             }
         return None
+
+    def _handle_creative_xray_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Generates full 4-level Creative X-Ray diagnostic across Integrity, Coherence, Evolution, and Decision."""
+        from engine.production.contract.creative_xray import CreativeXRay
+        contract = self._get_song_contract()
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        xray_res = CreativeXRay.generate_xray(self.data, conn=conn, contract=contract)
+
+        return {
+            "status": "CREATIVE_XRAY_GENERATED",
+            "phase": curr_phase,
+            "xray": xray_res,
+            "message": xray_res.get("markdown_report", ""),
+            "question": "¿Cómo interpretas estos hallazgos y qué decisión creativa prefieres tomar?"
+        }
 
 # Global singleton
 copilot_guided_session_engine = CopilotGuidedSession()
