@@ -241,7 +241,11 @@ class PerceptualComparator:
             if "timbre_dna" in t:
                 dna_list.append(TimbreDNA.from_dict(t["timbre_dna"]))
             elif "role" in t:
-                dna_list.append(TimbreDNA.from_role(t["role"]))
+                if hasattr(TimbreDNA, "from_role"):
+                    dna_list.append(TimbreDNA.from_role(t["role"]))
+                else:
+                    from engine.sound.timbre_dna import TimbreRelationshipMatrix
+                    dna_list.append(TimbreRelationshipMatrix.get_default_for_role(t["role"]))
 
         if not dna_list:
             return TimbreDNA()

@@ -126,6 +126,12 @@ def handle_copilot_guided_session(
                         importlib.reload(sys.modules[mod_name])
                     except Exception:
                         pass
+        for mod_name in list(sys.modules.keys()):
+            if mod_name.startswith("engine.creative.") or mod_name.startswith("engine.sound."):
+                try:
+                    importlib.reload(sys.modules[mod_name])
+                except Exception:
+                    pass
         import engine.production.copilot.guided_session as _gs_mod
         importlib.reload(_gs_mod)
         copilot_guided_session_engine = _gs_mod.copilot_guided_session_engine

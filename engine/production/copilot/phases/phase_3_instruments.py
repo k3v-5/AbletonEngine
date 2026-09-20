@@ -475,18 +475,22 @@ for slot in t.clip_slots:
     
         is_chopping = False
         chosen_sample = None
-    
+        lookup_role = "GUITAR" if ("guitar" in t_name.lower() or "acustic" in t_name.lower() or "flamenc" in t_name.lower()) else (
+            "PERCUSSION" if ("perc" in t_name.lower() or "palma" in t_name.lower() or "clap" in t_name.lower()) else role
+        )
+
         # Check if track is currently in Level 2 Sub-selection for a multi-preset plugin
         pending_plugin = trk.get("pending_plugin_subselection")
+        pending_parent_plugin = pending_plugin
         if pending_plugin:
             sub_options = LiveBrowserCatalogEngine.get_plugin_presets_for_role(pending_plugin, role)
-    
+
             # User wishes to go back to main plugin selection
             if any(w in u_clean for w in ["volver", "atras", "regresar", "cancelar", "cambiar plugin", "otro plugin"]):
                 trk.pop("pending_plugin_subselection", None)
                 session._save_state()
                 return session._prompt_current_track_instrument()
-    
+
             selected_sub_opt = None
             clean_keywords = ["default", "limpio", "clean", "crudo", "vst base", "plugin limpio", "sin preset"]
             # 1. Clean default plugin selection
@@ -521,9 +525,6 @@ for slot in t.clip_slots:
             if selected_sub_opt and selected_sub_opt.blueprint:
                 trk["blueprint"] = selected_sub_opt.blueprint
         else:
-            lookup_role = "GUITAR" if ("guitar" in t_name.lower() or "acustic" in t_name.lower() or "flamenc" in t_name.lower()) else (
-                "PERCUSSION" if ("perc" in t_name.lower() or "palma" in t_name.lower() or "clap" in t_name.lower()) else role
-            )
             options = LiveBrowserCatalogEngine.get_available_sources_for_role(lookup_role, filter_installed=True)
 
             selected_opt = None
@@ -665,6 +666,26 @@ for slot in t.clip_slots:
                 )
                 is_verified = v_ok
     
+                # Fallback to clean parent VST if custom user rack failed
+                if not is_verified and pending_parent_plugin:
+                    clean_vst_uri = f"query:Plugins#VST3:{pending_parent_plugin.replace(' ', '%20')}"
+                    if "omnisphere" in pending_parent_plugin.lower():
+                        clean_vst_uri = "query:Plugins#VST3:Spectrasonics:Omnisphere"
+                    elif "analog lab" in pending_parent_plugin.lower():
+                        clean_vst_uri = "query:Plugins#VST3:Arturia:Analog%20Lab%20V"
+                    logger.warning(f"Custom rack failed verification on Track {t_idx}, attempting clean parent VST: {clean_vst_uri}")
+                    try:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": clean_vst_uri})
+                        vst_ok, vst_idx, vst_name = RoleTrackOrchestrator.verify_instrument_loaded(conn, t_idx, pending_parent_plugin)
+                        if vst_ok:
+                            is_verified = True
+                            display_name = "Spectrasonics Omnisphere" if "omnisphere" in pending_parent_plugin.lower() else pending_parent_plugin
+                            target_uri = clean_vst_uri
+                            dev_idx = vst_idx
+                            logger.info(f"Track {t_idx} recovered with clean parent VST '{pending_parent_plugin}'.")
+                    except Exception as vst_ex:
+                        logger.warning(f"Clean VST fallback exception: {vst_ex}")
+
                 # Autonomous Native Fallback if third-party VST failed to load in Live
                 if not is_verified:
                     logger.warning(f"Instrument '{display_name}' ({target_uri}) failed physical verification on Track {t_idx}. Initiating native fallback...")

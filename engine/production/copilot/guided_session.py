@@ -122,9 +122,17 @@ from .state_manager import CopilotStateManager
 class CopilotGuidedSession:
     """State machine wizard orchestrating the entire music production via conversational dialogue."""
 
-    STATE_FILE = CopilotStateManager.STATE_FILE
-    CHECKPOINTS_DIR = CopilotStateManager.CHECKPOINTS_DIR
-    JOURNAL_FILE = CopilotStateManager.JOURNAL_FILE
+    @property
+    def STATE_FILE(self) -> Path:
+        return CopilotStateManager.STATE_FILE
+
+    @property
+    def CHECKPOINTS_DIR(self) -> Path:
+        return CopilotStateManager.CHECKPOINTS_DIR
+
+    @property
+    def JOURNAL_FILE(self) -> Path:
+        return CopilotStateManager.JOURNAL_FILE
 
     PHASES = [
         "PHASE_1_TRACKS",
@@ -146,6 +154,14 @@ class CopilotGuidedSession:
     def _get_creative_controller(self):
         """Lazily instantiates and returns the LiveCreativeController."""
         if self.creative_controller is None:
+            import importlib
+            import sys
+            for mod in ["engine.sound.timbre_dna", "engine.creative.corpus_territory", "engine.creative.song_comparator", "engine.creative.creative_governor", "engine.creative.live_creative_controller"]:
+                if mod in sys.modules:
+                    try:
+                        importlib.reload(sys.modules[mod])
+                    except Exception:
+                        pass
             from engine.creative.live_creative_controller import LiveCreativeController
             ctrl_mode = self.data.get("creative_controller", {}).get("mode", "SHADOW")
             self.creative_controller = LiveCreativeController()
