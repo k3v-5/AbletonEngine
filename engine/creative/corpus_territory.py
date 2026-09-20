@@ -229,8 +229,11 @@ class CorpusTerritory:
     def calculate_distance(cls, pt_a: TerritoryPoint, pt_b: TerritoryPoint) -> float:
         """
         Calculates normalized continuous Euclidean/Cosine distance between two territory points in [0.0, 1.0].
-        Weights: Timbre (0.40), Rhythm (0.20), Harmony (0.15), Spatial (0.10), Tempo (0.15).
+        Weights: Genre (0.15), Timbre (0.35), Rhythm (0.15), Harmony (0.15), Spatial (0.10), Tempo (0.10).
         """
+        # 0. Genre distance
+        genre_dist = 1.0 if pt_a.genre.lower().strip() != pt_b.genre.lower().strip() else 0.0
+
         # 1. Timbral distance (Euclidean 7D normalized by sqrt(7))
         tim_sum_sq = sum((v1 - v2) ** 2 for v1, v2 in zip(pt_a.timbre_vector, pt_b.timbre_vector))
         tim_dist = math.sqrt(tim_sum_sq) / math.sqrt(len(pt_a.timbre_vector))
@@ -255,13 +258,14 @@ class CorpusTerritory:
         # 5. Tempo distance
         bpm_dist = min(1.0, abs(pt_a.bpm - pt_b.bpm) / 60.0)
 
-        # Composite distance
+        # Composite distance with calibrated genre slotting (0.25)
         composite_distance = (
-            (tim_dist * 0.40) +
-            (rhy_dist * 0.20) +
+            (genre_dist * 0.25) +
+            (tim_dist * 0.30) +
+            (rhy_dist * 0.15) +
             (harm_dist * 0.15) +
-            (spa_dist * 0.10) +
-            (bpm_dist * 0.15)
+            (spa_dist * 0.08) +
+            (bpm_dist * 0.07)
         )
         return round(min(1.0, max(0.0, composite_distance)), 4)
 
@@ -296,23 +300,28 @@ class CorpusTerritory:
         self,
         candidate_session: Any,
         radius: float = 0.20,
-        threshold_count: int = 4
+        threshold_count: int = 4,
+        recent_window: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Detects whether the candidate session lies within an over-saturated quadrant of the creative map.
-        Alerts when multiple historical sessions crowd around the same acoustic region.
+        Uses a temporal window (default 40 sessions when corpus > 50) to prevent historical archives
+        from triggering permanent false-positive saturation alarms at large scales.
         """
         target_point = self.extract_point_from_session(candidate_session)
         neighbors_in_radius: List[TerritoryPoint] = []
 
-        for p in self.points:
+        window_size = recent_window if recent_window is not None else (40 if len(self.points) > 50 else None)
+        search_points = self.points[-window_size:] if window_size else self.points
+
+        for p in search_points:
             dist = self.calculate_distance(target_point, p)
             if dist <= radius and p.session_id != target_point.session_id:
                 neighbors_in_radius.append(p)
 
         neighbor_count = len(neighbors_in_radius)
         is_saturated = neighbor_count >= threshold_count
-        density_ratio = round(neighbor_count / max(1, len(self.points)), 3)
+        density_ratio = round(neighbor_count / max(1, len(search_points)), 3)
 
         warning = None
         recommendation = None
@@ -507,7 +516,7 @@ class CorpusTerritory:
         Prevents territorial stagnation / creative comfort zone.
         """
         recent_points = self.points[-window:]
-        if len(self.points) < 5 or len(recent_points) < 4:
+        if len(self.points) < 8 or len(recent_points) < 6:
             return {
                 "is_stagnant": False,
                 "status": "INSUFFICIENT_HISTORY",
@@ -531,7 +540,7 @@ class CorpusTerritory:
                 if d < min_d:
                     min_d = d
                     best_cl = cl
-            if best_cl and min_d <= max(0.35, best_cl.radius * 1.5):
+            if best_cl and min_d <= min(0.25, max(0.18, best_cl.radius * 1.25)):
                 cluster_counts[best_cl.cluster_id] = cluster_counts.get(best_cl.cluster_id, 0) + 1
 
         if not cluster_counts:

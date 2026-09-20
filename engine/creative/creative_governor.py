@@ -143,8 +143,8 @@ class CreativeGovernor:
                 "Evitar mutaciones tímbricas destructivas"
             ]
 
-        # 2. EXPLORE condition: Stagnation detected, quadrant saturated, or novelty too low (< 0.20)
-        elif stagnation.get("is_stagnant") or saturation["is_saturated"] or novelty_score < 0.20:
+        # 2. EXPLORE condition: Stagnation detected, quadrant saturated (density >= 0.30), or literal copy (< 0.02)
+        elif stagnation.get("is_stagnant") or (saturation["is_saturated"] and saturation["saturation_density_ratio"] >= 0.30) or novelty_score < 0.02:
             mode = "EXPLORE"
             reason = "Presupuesto de exploración activo: escapar de saturación o estancamiento territorial hacia nuevos cuadrantes."
             recommended_actions = [
