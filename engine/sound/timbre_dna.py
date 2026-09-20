@@ -44,6 +44,12 @@ class TimbreDNA:
             pitch_instability=float(data.get("pitch_instability", 0.05))
         )
 
+    @classmethod
+    def from_role(cls, role: str) -> "TimbreDNA":
+        """Returns canonical TimbreDNA baseline for a given role."""
+        return TimbreRelationshipMatrix.get_default_for_role(role)
+
+
     def to_synthesis_parameters(self) -> Dict[str, float]:
         """
         Translates the 7 TimbreDNA dimensions into concrete Ableton / VST synth parameters:
