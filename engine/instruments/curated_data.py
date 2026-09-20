@@ -70,6 +70,21 @@ INSTRUMENT_ROLE_CATALOG: Dict[str, Dict[str, Any]] = {
         "description": "Efectos de transición, risers de tensión, downlifters, impactos y barridos espectrales.",
         "frequency_range": "20 Hz - 20 kHz",
         "acoustic_role": "Dynamic tension, section impact, and spatial transitions"
+    },
+    "COUNTER_LEAD": {
+        "description": "Instrumentos que responden al LEAD o a la VOCAL (llamada y respuesta, arpegios secundarios, contra-melodías).",
+        "frequency_range": "500 Hz - 8 kHz",
+        "acoustic_role": "Call-and-response counterpoint, melodic arps, and secondary hook"
+    },
+    "EAR_CANDY": {
+        "description": "Destellos sintéticos (plucks, campanas, vocales invertidas, micro-glitches) que suenan esporádicamente en los extremos estéreo.",
+        "frequency_range": "1 kHz - 16 kHz",
+        "acoustic_role": "Sparse stereo sparkle, ear candy accents, and micro-timbral detail"
+    },
+    "TEXTURE_FOLEY": {
+        "description": "Capas de ruido orgánico de fondo (lluvia, vinilo, murmullos, texturas granulares) a -24 dBFS para contexto espacial único.",
+        "frequency_range": "40 Hz - 15 kHz",
+        "acoustic_role": "Organic ambient bed, spatial glue, and textural depth"
     }
 }
 
@@ -1319,6 +1334,236 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "semantic",
                 "parameters": {"LIMITER_GAIN": 0.60, "LIMITER_CEILING": 0.98},
                 "description": "Ableton 5-Device calibrated master chain."
+            },
+        ),
+    ],
+    "COUNTER_LEAD": [
+        SoundSourceOption(
+            id="vst3_pigments_counter_lead",
+            name="Arturia Pigments (Arp / Counter Lead)",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Pigments",
+            vendor="Arturia",
+            description="Polychrome arpeggiator and responsive melodic counterpoint synth.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.70, "AMP_ATTACK": 0.01, "DELAY_MIX": 0.30},
+                "description": "Polychrome arpeggiator and responsive counter lead."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_serum_counter_lead",
+            name="Xfer Records Serum 2 Arp / Counter",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Xfer%20Records:Serum%202",
+            vendor="Xfer Records",
+            description="Sharp, cutting syncopated arps and plucks with fast envelope.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.75, "AMP_ATTACK": 0.005, "AMP_RELEASE": 0.25},
+                "description": "Sharp syncopated arps and counterplucks."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_vital_counter_lead",
+            name="Vital Spectral Arp",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Wavetable spectral arpeggiator with stereo movement.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.72, "STEREO_SPREAD": 0.65},
+                "description": "Spectral arpeggiator with wide stereo field."
+            },
+        ),
+        SoundSourceOption(
+            id="native_agenda_counter_lead",
+            name="Agenda Lead (.adv)",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Synth%20Lead:FileId_6743",
+            vendor="Ableton",
+            description="Punchy modern synth lead tailored for call-and-response (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Cutoff": 0.75, "Glide": 0.10, "Drive": 0.25},
+                "description": "Punchy solo synth lead for counter melody."
+            },
+        ),
+        SoundSourceOption(
+            id="native_drift_counter_arp",
+            name="Drift Melodic Arp",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Synths#Drift",
+            vendor="Ableton",
+            description="Expressive responsive synth for arpeggiated counter-melodies.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.68, "FILTER_RESONANCE": 0.25},
+                "description": "Expressive responsive drift synth."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_analog_lab_counter",
+            name="Arturia Analog Lab V (Counter Lead)",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
+            vendor="Arturia",
+            description="Vintage synths and arpeggios for melodic counterpoint.",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"P1 Brightness": 0.70, "P1 Timbre": 0.60, "P1 Movement": 0.40},
+                "description": "Vintage synth arpeggio for counterpoint."
+            },
+        ),
+    ],
+    "EAR_CANDY": [
+        SoundSourceOption(
+            id="vst3_synplant_ear_candy",
+            name="Sonic Charge Synplant 2",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Sonic%20Charge:Synplant%202",
+            vendor="Sonic Charge",
+            description="Organic, unpredictable acoustic-synthetic mutations and micro-textures.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"GENETIC_SEED": 0.50, "STEREO_WIDTH": 0.80},
+                "description": "Organic unpredictable micro-textures."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_pigments_ear_candy",
+            name="Arturia Pigments Bell & Pluck",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Pigments",
+            vendor="Arturia",
+            description="Crystal clear additive bells, granular drops, and sporadic ear candy.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.80, "DELAY_MIX": 0.35, "REVERB_MIX": 0.40},
+                "description": "Crystal additive bells and granular drops."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_serum_ear_candy",
+            name="Xfer Records Serum 2 Crystal Pluck",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Xfer%20Records:Serum%202",
+            vendor="Xfer Records",
+            description="Ultra-bright transient plucks with modulated stereo pan.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.85, "PAN_LFO": 0.60},
+                "description": "Bright transient plucks with spatial panning."
+            },
+        ),
+        SoundSourceOption(
+            id="native_drift_pluck",
+            name="Drift Stereo Pluck",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Synths#Drift",
+            vendor="Ableton",
+            description="Crisp native pluck with stereo spread for subtle turnarounds.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.75, "AMP_RELEASE": 0.20},
+                "description": "Crisp native stereo pluck."
+            },
+        ),
+        SoundSourceOption(
+            id="native_simpler_ear_candy",
+            name="Ableton Simpler (Micro-Chop / Ear Candy)",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Synths#Simpler",
+            vendor="Ableton",
+            description="Single-shot vocal chops, reverse sweeps, and granular accents.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"WARP_MODE": 1.0, "VOLUME": 0.85},
+                "description": "Single-shot vocal chops and accents."
+            },
+        ),
+    ],
+    "TEXTURE_FOLEY": [
+        SoundSourceOption(
+            id="native_vinyl_distortion",
+            name="Ableton Vinyl Distortion",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:AudioFx#VinylDistortion",
+            vendor="Ableton",
+            description="Classic vinyl crackle, groove hiss, and organic lo-fi warmth.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"CRACKLE_DENSITY": 0.35, "CRACKLE_VOLUME": 0.25},
+                "description": "Subtle vinyl dust and groove hiss."
+            },
+        ),
+        SoundSourceOption(
+            id="native_erosion",
+            name="Ableton Erosion",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:AudioFx#Erosion",
+            vendor="Ableton",
+            description="Subtle digital artifacting and white/sine noise texture.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"EROSION_AMOUNT": 0.20, "EROSION_FREQ": 0.60},
+                "description": "Subtle noise texture."
+            },
+        ),
+        SoundSourceOption(
+            id="native_simpler_foley",
+            name="Ableton Simpler (Ambient Foley Bed)",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Synths#Simpler",
+            vendor="Ableton",
+            description="Looping environmental rain, room tone, and organic textures at -24 dBFS.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"LOOP_ENABLED": 1.0, "VOLUME": 0.60},
+                "description": "Looping organic ambient bed."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_valhalla_foley_space",
+            name="ValhallaDelay Ambient Space",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.AUDIO_EFFECT,
+            uri="query:Plugins#VST3:Valhalla%20DSP:ValhallaDelay",
+            vendor="Valhalla DSP",
+            description="Expansive diffusion network for washing foley beds in atmospheric reverb.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"DELAY_MIX": 0.40, "DELAY_FEEDBACK": 0.65},
+                "description": "Atmospheric diffusion delay."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_omnisphere_texture",
+            name="Spectrasonics Omnisphere Atmosphere",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Spectrasonics:Omnisphere",
+            vendor="Spectrasonics",
+            description="Cinematic field recordings, psychoacoustic noises, and evolving soundscapes.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.55, "AMP_ATTACK": 0.50, "AMP_RELEASE": 0.80},
+                "description": "Evolving cinematic soundscape."
             },
         ),
     ],

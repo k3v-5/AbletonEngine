@@ -490,8 +490,8 @@ for slot in t.clip_slots:
             selected_sub_opt = None
             clean_keywords = ["default", "limpio", "clean", "crudo", "vst base", "plugin limpio", "sin preset"]
             # 1. Clean default plugin selection
-            if any(w in u_clean for w in clean_keywords) or u_clean == str(len(sub_options)) or f"opcion {len(sub_options)}" in u_clean or f"opción {len(sub_options)}" in u_clean:
-                selected_sub_opt = sub_options[-1]
+            if any(w in u_clean for w in clean_keywords) or (sub_options and (u_clean == str(len(sub_options)) or f"opcion {len(sub_options)}" in u_clean or f"opción {len(sub_options)}" in u_clean)):
+                selected_sub_opt = sub_options[-1] if sub_options else None
             else:
                 # 2. Number index match
                 for idx, s_opt in enumerate(sub_options, 1):
@@ -513,19 +513,19 @@ for slot in t.clip_slots:
                             break
     
             if not selected_sub_opt:
-                selected_sub_opt = sub_options[-1]
+                selected_sub_opt = sub_options[-1] if sub_options else None
     
             trk.pop("pending_plugin_subselection", None)
-            target_uri = selected_sub_opt.uri
-            display_name = selected_sub_opt.name
-            if selected_sub_opt.blueprint:
+            target_uri = selected_sub_opt.uri if selected_sub_opt else f"query:Plugins#VST3:{pending_plugin.replace(' ', '%20')}"
+            display_name = selected_sub_opt.name if selected_sub_opt else pending_plugin
+            if selected_sub_opt and selected_sub_opt.blueprint:
                 trk["blueprint"] = selected_sub_opt.blueprint
         else:
             lookup_role = "GUITAR" if ("guitar" in t_name.lower() or "acustic" in t_name.lower() or "flamenc" in t_name.lower()) else (
                 "PERCUSSION" if ("perc" in t_name.lower() or "palma" in t_name.lower() or "clap" in t_name.lower()) else role
             )
             options = LiveBrowserCatalogEngine.get_available_sources_for_role(lookup_role, filter_installed=True)
-    
+
             selected_opt = None
             u_clean = _normalize_text(user_input)
     
@@ -579,6 +579,8 @@ for slot in t.clip_slots:
                             "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
                             "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
                             "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+                            "COUNTER_LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+                            "ARPS": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
                             "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
                             "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
                             "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
@@ -612,7 +614,7 @@ for slot in t.clip_slots:
                                 break
                     if not selected_opt:
                         native_opts = [o for o in options if "native" in o.id.lower() or "native" in str(getattr(o, "category", "")).lower()]
-                        selected_opt = native_opts[0] if native_opts else options[0]
+                        selected_opt = native_opts[0] if native_opts else (options[0] if options else None)
     
                 # Check if user selected Analog Lab V or Omnisphere (Multi-preset parent plugin)
                 opt_name_low = selected_opt.name.lower() if selected_opt else ""
@@ -625,11 +627,15 @@ for slot in t.clip_slots:
                     if any(w in u_clean for w in clean_keywords):
                         # User explicitly asked for clean default directly in Level 1 prompt
                         sub_opts = LiveBrowserCatalogEngine.get_plugin_presets_for_role(plug_label, role)
-                        clean_opt = sub_opts[-1]
-                        target_uri = clean_opt.uri
-                        display_name = clean_opt.name
-                        if clean_opt.blueprint:
-                            trk["blueprint"] = clean_opt.blueprint
+                        clean_opt = sub_opts[-1] if sub_opts else None
+                        if clean_opt:
+                            target_uri = clean_opt.uri
+                            display_name = clean_opt.name
+                            if clean_opt.blueprint:
+                                trk["blueprint"] = clean_opt.blueprint
+                        else:
+                            target_uri = f"query:Plugins#VST3:{plug_label.replace(' ', '%20')}"
+                            display_name = f"{plug_label} (Default)"
                     else:
                         # Switch to Level 2 Sub-selection and re-prompt
                         trk["pending_plugin_subselection"] = plug_label

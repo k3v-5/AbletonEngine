@@ -723,8 +723,12 @@ class InstalledPluginScanner:
 
     ROLE_PRIORITIES = {
         "BASS": ["serum", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
+        "SUB_BASS": ["sublab", "serum", "bloom bass", "cyclop", "drift (808", "operator"],
         "KEYS": ["analog lab", "stage-73", "piano v", "wurli", "keyscape", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
         "LEAD": ["pigments", "serum", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
+        "COUNTER_LEAD": ["pigments", "serum", "vital", "analog lab", "synplant", "drift"],
+        "EAR_CANDY": ["synplant", "pigments", "serum", "simpler", "drift"],
+        "TEXTURE_FOLEY": ["omnisphere", "valhalla", "simpler", "portal", "shaperbox"],
         "PAD": ["omnisphere", "pigments", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
         "DRUMS": ["drum_rack", "drum rack", "bloom drum", "egoist", "808", "boom bap", "909"],
         "VOCALS": ["auto-tune", "autotune", "antares", "bloom vocal", "melodyne", "vocal", "simpler"],
@@ -752,6 +756,15 @@ class InstalledPluginScanner:
         for plug in self._cache.values():
             if role_upper == plug.primary_role or role_upper in plug.supported_roles:
                 matches.append(plug)
+
+        # Hierarchical fallback: if no direct match for specialized sub-role, query parent acoustic family
+        if not matches:
+            from engine.instruments.browser_catalog import LiveBrowserCatalogEngine
+            parent_role = LiveBrowserCatalogEngine.get_parent_acoustic_role(role_upper)
+            if parent_role != role_upper:
+                for plug in self._cache.values():
+                    if parent_role == plug.primary_role or parent_role in plug.supported_roles:
+                        matches.append(plug)
 
         # Prioritize VST3 premier plugins and sort by semantic musical relevance
         matches.sort(key=lambda p: (
@@ -819,17 +832,29 @@ class InstalledPluginScanner:
         candidates = self.get_plugins_for_role(role)
         role_upper = role.upper()
 
-        if role_upper == "KEYS":
+        if role_upper in ("KEYS", "PLUCK", "CHORDS"):
             for c in candidates:
                 if "analog lab" in c.name.lower() or "stage-73" in c.name.lower() or "keyscape" in c.name.lower() or "kontakt" in c.name.lower():
                     return c
-        elif role_upper == "BASS":
+        elif role_upper in ("BASS", "SUB_BASS", "808"):
             for c in candidates:
-                if "serum" in c.name.lower() or "bloom bass" in c.name.lower() or "cyclop" in c.name.lower():
+                if "sublab" in c.name.lower() or "serum" in c.name.lower() or "bloom bass" in c.name.lower() or "cyclop" in c.name.lower():
                     return c
         elif role_upper == "LEAD":
             for c in candidates:
                 if "pigments" in c.name.lower() or "analog lab" in c.name.lower() or "serum" in c.name.lower() or "synplant" in c.name.lower():
+                    return c
+        elif role_upper in ("COUNTER_LEAD", "ARPS", "ARP"):
+            for c in candidates:
+                if "pigments" in c.name.lower() or "serum" in c.name.lower() or "vital" in c.name.lower() or "analog lab" in c.name.lower():
+                    return c
+        elif role_upper == "EAR_CANDY":
+            for c in candidates:
+                if "synplant" in c.name.lower() or "pigments" in c.name.lower() or "serum" in c.name.lower():
+                    return c
+        elif role_upper in ("TEXTURE_FOLEY", "FOLEY", "TEXTURE"):
+            for c in candidates:
+                if "omnisphere" in c.name.lower() or "valhalla" in c.name.lower() or "simpler" in c.name.lower():
                     return c
         elif role_upper == "PAD":
             for c in candidates:
@@ -844,7 +869,22 @@ class InstalledPluginScanner:
                 if "bloom drum" in c.name.lower() or "egoist" in c.name.lower() or "drum_rack" in c.id or "808" in c.name.lower():
                     return c
 
-        return candidates[0] if candidates else self.NATIVE_FALLBACKS[0]
+        if candidates:
+            return candidates[0]
+        if hasattr(self, "NATIVE_FALLBACKS") and self.NATIVE_FALLBACKS:
+            return self.NATIVE_FALLBACKS[0]
+        return ScannedPlugin(
+            id="native_drift",
+            name="Drift (Native)",
+            vendor="Ableton",
+            path="",
+            category=PluginCategory.NATIVE,
+            primary_role=role_upper,
+            supported_roles=[role_upper],
+            description="Built-in Ableton synthesizer (100% reliable)",
+            uri="query:synths#Drift",
+            is_instrument=True
+        )
 
     @classmethod
     def verify_and_fallback(

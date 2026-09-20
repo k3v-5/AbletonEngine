@@ -52,8 +52,59 @@ from .curated_data import INSTRUMENT_ROLE_CATALOG, CURATED_SOURCES
 
 class LiveBrowserCatalogEngine:
     """
-    Catalog inspection and dynamic instrument loader.
+    Catalog inspection and dynamic instrument loader with hierarchical acoustic classification.
     """
+
+    ROLE_FAMILY_MAPPING: Dict[str, str] = {
+        "COUNTER_LEAD": "LEAD",
+        "COUNTERLEAD": "LEAD",
+        "COUNTER_MELODY": "LEAD",
+        "ARP": "LEAD",
+        "ARPS": "LEAD",
+        "ARPEGGIO": "LEAD",
+        "EAR_CANDY": "LEAD",
+        "EARCANDY": "LEAD",
+        "TEXTURE_FOLEY": "PAD",
+        "TEXTURE": "PAD",
+        "FOLEY": "PAD",
+        "NOISE": "PAD",
+        "SUB_BASS": "BASS",
+        "SUB": "BASS",
+        "808": "BASS",
+        "REESE": "BASS",
+        "PLUCK": "KEYS",
+        "PLUCKS": "KEYS",
+        "CHORDS": "KEYS",
+        "PIANO": "KEYS",
+        "RHODES": "KEYS",
+        "TECLADO": "KEYS",
+        "BRASS_STAB": "BRASS",
+        "FANFARE": "BRASS",
+        "STRINGS_ORCH": "STRINGS",
+        "CELLO": "STRINGS",
+        "VIOLIN": "STRINGS",
+        "PERCUSSION": "PERCUSSION",
+        "CLAP": "PERCUSSION",
+        "PALMAS": "PERCUSSION",
+        "SHAKER": "PERCUSSION",
+        "BONGO": "PERCUSSION",
+        "VOCAL_CHOP": "VOCALS",
+        "VOX": "VOCALS",
+    }
+
+    @classmethod
+    def get_parent_acoustic_role(cls, role: str) -> str:
+        """
+        Resolves any specialized sub-role or creative alias to its canonical parent acoustic family.
+        """
+        clean = str(role or "").upper().strip()
+        if clean in cls.ROLE_FAMILY_MAPPING:
+            return cls.ROLE_FAMILY_MAPPING[clean]
+        from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
+        norm = RoleTrackOrchestrator.normalize_role(clean)
+        if norm in cls.ROLE_FAMILY_MAPPING:
+            return cls.ROLE_FAMILY_MAPPING[norm]
+        return norm or "KEYS"
 
     @classmethod
     def scan_user_custom_racks_for_role(cls, role: str) -> List[SoundSourceOption]:
@@ -84,6 +135,9 @@ class LiveBrowserCatalogEngine:
             "BASS": ["ANALOG LAB V/Bass", "Omnisphere/Bass", "BASS"],
             "KEYS": ["ANALOG LAB V/Piano", "ANALOG LAB V/Electric Piano", "ANALOG LAB V/Keys", "Omnisphere/Bells", "Omnisphere/Ethnic World", "KEYS"],
             "LEAD": ["ANALOG LAB V/Lead", "Omnisphere/Lead", "LEAD"],
+            "COUNTER_LEAD": ["ANALOG LAB V/Lead", "Omnisphere/Lead", "LEAD"],
+            "EAR_CANDY": ["Omnisphere/Bells", "ANALOG LAB V/Keys", "Omnisphere/Plucked", "LEAD"],
+            "TEXTURE_FOLEY": ["Omnisphere/Pads + Strings", "ANALOG LAB V/Pad", "PAD"],
             "PAD": ["Omnisphere/Pads + Strings", "ANALOG LAB V/Pad", "PAD"],
             "GUITAR": ["Omnisphere/Guitars", "ANALOG LAB V/Guitar", "GUITAR"],
             "DRUMS": ["DRUMS"],
@@ -131,19 +185,43 @@ class LiveBrowserCatalogEngine:
         filter_installed: bool = True
     ) -> List[SoundSourceOption]:
         """
-        Returns sound options for a musical role (DRUMS, KICK, BASS, KEYS, GUITAR, BRASS, CHOIR, STRINGS, PAD, LEAD, PERCUSSION, VOCALS, FX, MASTER).
-        Intelligently filters out uninstalled third-party VST3s and guarantees verified native Live 12 devices.
+        Returns sound options for a musical role with 4-tier resilient resolution:
+        1. Exact match in CURATED_SOURCES.
+        2. Role alias match from RoleTrackOrchestrator.get_role_aliases().
+        3. Parent acoustic family match from get_parent_acoustic_role().
+        4. Universal guaranteed native fallback.
+        Guarantees that the returned list is NEVER empty.
         """
-        role_key = role.upper().strip()
+        role_key = str(role or "").upper().strip()
         from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
         norm_role = RoleTrackOrchestrator.normalize_role(role_key)
         
-        raw_sources = CURATED_SOURCES.get(norm_role, CURATED_SOURCES.get(role_key, []))
+        # Tier 1: Direct match in CURATED_SOURCES
+        raw_sources = list(CURATED_SOURCES.get(norm_role, CURATED_SOURCES.get(role_key, [])))
         if not raw_sources:
             for k, v in CURATED_SOURCES.items():
                 if k.upper() == norm_role or k.upper() == role_key:
-                    raw_sources = v
+                    raw_sources = list(v)
                     break
+
+        # Tier 2: Role alias match from RoleTrackOrchestrator
+        if not raw_sources:
+            aliases = RoleTrackOrchestrator.get_role_aliases(norm_role)
+            for alias in aliases:
+                a_sources = CURATED_SOURCES.get(alias.upper(), [])
+                if a_sources:
+                    raw_sources = list(a_sources)
+                    break
+
+        # Tier 3: Parent acoustic family match
+        if not raw_sources:
+            parent_role = cls.get_parent_acoustic_role(norm_role)
+            raw_sources = list(CURATED_SOURCES.get(parent_role, []))
+
+        # Tier 4: Universal guaranteed fallback
+        if not raw_sources:
+            raw_sources = list(CURATED_SOURCES.get("KEYS", CURATED_SOURCES.get("LEAD", [])))
+
         if not filter_installed:
             return raw_sources
 
@@ -214,9 +292,13 @@ class LiveBrowserCatalogEngine:
         role_key = role.upper().strip()
         from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
         norm_role = RoleTrackOrchestrator.normalize_role(role_key)
+        parent_role = cls.get_parent_acoustic_role(norm_role)
         p_clean = plugin_identifier.lower().strip()
 
         all_racks = cls.scan_user_custom_racks_for_role(norm_role)
+        if not all_racks and parent_role != norm_role:
+            all_racks = cls.scan_user_custom_racks_for_role(parent_role)
+
         matched_racks = []
         is_analog_lab = "analog lab" in p_clean
         is_omnisphere = "omnisphere" in p_clean

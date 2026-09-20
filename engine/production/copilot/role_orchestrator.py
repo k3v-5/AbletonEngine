@@ -170,11 +170,16 @@ class RoleTrackOrchestrator:
             return rec.uri, rec.name
 
         # 3. Fallback to verified options in curated catalog
+        from engine.instruments.browser_catalog import LiveBrowserCatalogEngine
         cat_list = CURATED_SOURCES.get(norm_role, [])
-        if not cat_list and norm_role == "GUITAR":
-            cat_list = CURATED_SOURCES.get("KEYS", [])
-        elif not cat_list and norm_role == "PERCUSSION":
-            cat_list = CURATED_SOURCES.get("DRUMS", [])
+        if not cat_list:
+            for alias in cls.get_role_aliases(norm_role):
+                if alias in CURATED_SOURCES and CURATED_SOURCES[alias]:
+                    cat_list = CURATED_SOURCES[alias]
+                    break
+        if not cat_list:
+            parent_role = LiveBrowserCatalogEngine.get_parent_acoustic_role(norm_role)
+            cat_list = CURATED_SOURCES.get(parent_role, [])
             
         if cat_list:
             # Prefer native instruments to guarantee 100% loading stability
@@ -191,6 +196,9 @@ class RoleTrackOrchestrator:
             "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
             "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
             "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "COUNTER_LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "EAR_CANDY": ("query:Synths#Drift", "Drift Stereo Pluck"),
+            "TEXTURE_FOLEY": ("query:AudioFx#VinylDistortion", "Ableton Vinyl Distortion"),
             "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
             "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
             "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
@@ -199,7 +207,11 @@ class RoleTrackOrchestrator:
         if norm_role in DEFAULTS:
             return DEFAULTS[norm_role]
 
-        return None, f"Generic_{norm_role}"
+        parent_role = LiveBrowserCatalogEngine.get_parent_acoustic_role(norm_role)
+        if parent_role in DEFAULTS:
+            return DEFAULTS[parent_role]
+
+        return ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)")
 
     @classmethod
     def verify_instrument_loaded(

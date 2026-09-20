@@ -52,11 +52,11 @@ class Phase1TracksHandler(BasePhaseHandler):
                 "• **FX (MIDI)** (20 Hz - 20 kHz): Efectos generativos, risers de sintetizador, downlifters, impactos y barridos espectrales mediante MIDI.\n\n"
                 "🧠 **Decisión Técnica Requerida:**\n"
                 "Evalúa la intención artística y el concepto de tu canción e indica **cuáles de estos tipos de instrumentos requieres**.\n"
-                "Para cada tipo seleccionado, el motor consultará la librería y te ofrecerá los mejores VST3 y plugins nativos adaptados a esa función.\n\n"
+                "✨ **Libertad Creativa Total:** Puedes indicar cualquier nombre o rol musical con total libertad (ej: *'Counter Lead, Arp Synth, Ear Candy, Textura Foley, Bajo 808, Guitarra Flamenca, Coros, FX'*). El motor preserva su identidad artística y clasifica jerárquicamente cada pista para consultar los mejores VST3 y plugins nativos sin restricciones de catálogo.\n\n"
                 "📋 **Estructura esperada:** Envía la lista de instrumentos separados por comas.\n"
                 "*(Ej: 'Batería, Bombo, Bajo, Teclado, Guitarras, Sintes, Cuerdas, Coros, FX'). El atajo 'Opción A' y plantillas fijas están deshabilitados.*"
             ),
-            "instructions_for_ai": "Indica explícitamente los instrumentos deseados separados por comas. El atajo 'Opción A' está deshabilitado.",
+            "instructions_for_ai": "Indica explícitamente los instrumentos deseados separados por comas. Puedes usar cualquier rol canónico o sub-rol creativo. El atajo 'Opción A' está deshabilitado.",
             "phase": "PHASE_1_TRACKS"
         }
     
@@ -288,10 +288,12 @@ class Phase1TracksHandler(BasePhaseHandler):
             try:
                 sources = LiveBrowserCatalogEngine.get_available_sources_for_role(r, conn=conn)
                 trk["available_sources"] = [s.to_dict() for s in sources]
-                top_sources = [s.name for s in sources[:3]]
+                top_sources = [s.name for s in sources[:3]] if sources else ["Ableton Native Preset"]
                 trk["top_recommendations"] = top_sources
             except Exception as ex_cat:
                 logger.debug(f"Catalog query notice for track {trk.get('name')}: {ex_cat}")
+                trk["available_sources"] = []
+                trk["top_recommendations"] = ["Ableton Native Preset"]
     
         session.data["tracks"] = created_tracks
         for g_candidate in ["trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
