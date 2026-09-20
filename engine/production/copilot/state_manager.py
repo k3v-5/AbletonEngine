@@ -68,6 +68,12 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
                 "structure": {"expected": False, "drop_similarity": 0.31, "section_lengths": [8, 12, 8, 16, 10, 24, 8]},
                 "sound_identity": {"dominant_texture": "metallic_warm", "primary_synth_behavior": "unstable", "vocal_processing": "granular_fragments"},
                 "novelty": {"rhythmic": 0.75, "harmonic": 0.62, "melodic": 0.81, "structural": 0.68, "timbre": 0.57}
+            },
+            "creative_controller": {
+                "mode": "SHADOW",
+                "active_decision_id": None,
+                "history": [],
+                "telemetry_summary": {}
             }
         }
 

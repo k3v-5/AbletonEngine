@@ -239,6 +239,13 @@ class Phase6CompositionHandler(BasePhaseHandler):
                     return self.prompt_by_track_step(session, trk_idx)
                 else:
                     self.enforce_pre_drop_vacuum(session, conn)
+                    if hasattr(session, "_get_creative_controller"):
+                        try:
+                            session._get_creative_controller().record_shadow_observation(
+                                session.data, actual_action="COMPOSITION_COMPLETED", conn=conn
+                            )
+                        except Exception as ex_ctrl:
+                            logger.debug(f"Notice on creative observation: {ex_ctrl}")
                     session.data["composition_session"] = {"active": False}
                     session.data["current_phase"] = "PHASE_7_AUTOMATION"
                     session.data["phase_index"] = 7

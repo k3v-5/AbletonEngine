@@ -141,6 +141,16 @@ class CopilotGuidedSession:
 
     def __init__(self):
         self.data: Dict[str, Any] = self._load_state()
+        self.creative_controller = None
+
+    def _get_creative_controller(self):
+        """Lazily instantiates and returns the LiveCreativeController."""
+        if self.creative_controller is None:
+            from engine.creative.live_creative_controller import LiveCreativeController
+            ctrl_mode = self.data.get("creative_controller", {}).get("mode", "SHADOW")
+            self.creative_controller = LiveCreativeController()
+            self.creative_controller.set_mode(ctrl_mode)
+        return self.creative_controller
 
     def _resolve_live_track_index(self, conn: Any, trk: Dict[str, Any]) -> int:
         """
@@ -408,6 +418,7 @@ class CopilotGuidedSession:
     def reset(self):
         """Resets the state machine back to step 1."""
         self.data = self._default_state()
+        self.creative_controller = None
         self._save_state(action_tag="SESSION_RESET")
 
     def step(self, conn: Any, user_input: str = "", reset: bool = False) -> Dict[str, Any]:
@@ -437,6 +448,14 @@ class CopilotGuidedSession:
         ]) and not any(w in norm_text for w in ["calibrar", "opcion 1", "opcion 2", "opcion 3"])
         if is_rollback_cmd:
             return self._handle_rollback(conn, u_in)
+
+        # 0. Live Creative Controller Commands (Shadow Mode / Limited Actuation / Telemetry Audit)
+        if any(w in norm_text for w in ["modo sombra", "shadow mode", "activar modo sombra"]):
+            return self._handle_creative_controller_mode_command("SHADOW")
+        if any(w in norm_text for w in ["actuacion limitada", "limited actuation", "modo actuacion", "activar actuacion limitada"]):
+            return self._handle_creative_controller_mode_command("LIMITED_ACTUATION")
+        if any(w in norm_text for w in ["auditoria creativa", "estado creativo", "telemetria creativa", "creative status", "dashboard creativo"]):
+            return self._handle_creative_controller_telemetry_audit(conn)
 
         # 0. Active state intercept for Effect Recalibration / Backward Adjustments
         if self.data.get("awaiting_effect_recalibration", False):
@@ -1013,6 +1032,75 @@ class CopilotGuidedSession:
     def _audit_and_prepare_stems(self, conn: Any) -> Dict[str, Any]:
         from .phases.phase_10_listeners import Phase10ListenersHandler
         return Phase10ListenersHandler().audit_and_prepare_stems(self, conn)
+
+    # -------------------------------------------------------------------------
+    # FASE 7: CONTROLADOR Y OBSERVADOR CREATIVO REVERSIBLE
+    # -------------------------------------------------------------------------
+    def _handle_creative_controller_mode_command(self, target_mode: str) -> Dict[str, Any]:
+        """Toggles between SHADOW and LIMITED_ACTUATION mode."""
+        ctrl = self._get_creative_controller()
+        mode = ctrl.set_mode(target_mode)
+
+        if "creative_controller" not in self.data:
+            self.data["creative_controller"] = {}
+        self.data["creative_controller"]["mode"] = mode.value
+        self._save_state(action_tag=f"CREATIVE_MODE_{mode.value}")
+
+        if mode.value == "SHADOW":
+            msg = (
+                "🔭 **Modo Sombra Activado**: El motor creativo observará de forma pasiva la sesión en vivo. "
+                "Calculará novedad, estado del gobernador (EXPLORE/ANCHOR/EVOLVE), sinergias del grafo y "
+                "registrará la telemetría contrafactual sin alterar Ableton Live."
+            )
+        else:
+            msg = (
+                "🎛️ **Actuación Limitada Activada**: El motor creativo tiene autorización para aplicar intervenciones "
+                "quirúrgicas de bajo riesgo (sinergias del grafo, micro-timing, densidad tímbrica) bajo "
+                "límites transaccionales estrictos y rollback automático si se degradan coherencia o identidad."
+            )
+
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        return {
+            "status": "CREATIVE_MODE_UPDATED",
+            "phase": curr_phase,
+            "mode": mode.value,
+            "message": msg,
+            "question": f"¿Deseas continuar con {curr_phase} o realizar una auditoría creativa?"
+        }
+
+    def _handle_creative_controller_telemetry_audit(self, conn: Any = None) -> Dict[str, Any]:
+        """Generates comprehensive real-time creative health dashboard."""
+        ctrl = self._get_creative_controller()
+        eval_res = ctrl.evaluate_session_state(self.data, conn=conn)
+        dashboard = ctrl.get_telemetry_dashboard()
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+
+        hhi = dashboard.get("herfindahl_index", 0.0)
+        gap_jsd = dashboard.get("simulation_reality_gap_jsd", 0.0)
+        rb_rate = dashboard.get("rollback_rate", 0.0)
+        gov_mode = eval_res.get("governor_mode", "EVOLVE")
+
+        summary_msg = (
+            f"📊 **Auditoría Creativa Online** [{dashboard.get('operational_mode', 'SHADOW')}]\n\n"
+            f"- **Modo del Gobernador:** `{gov_mode}`\n"
+            f"- **Novedad Territorial:** `{eval_res.get('corpus_novelty', 0.5):.3f}` | "
+            f"**Estancamiento:** `{eval_res.get('is_territory_stagnant', False)}`\n"
+            f"- **Índice HHI (Monopolio):** `{hhi:.4f}` ({'Saludable' if hhi < 0.18 else 'Concentración'})\n"
+            f"- **Brecha Simulación-Realidad (JSD):** `{gap_jsd:.4f}`\n"
+            f"- **Tasa de Rollback:** `{rb_rate * 100:.1f}%` ({dashboard.get('rollbacks_count', 0)}/{dashboard.get('total_actuations', 0)})\n"
+            f"- **Clústeres Activos:** `{dashboard.get('active_clusters_count', 0)}` | "
+            f"**Canciones en Territorio:** `{dashboard.get('corpus_territory_total_songs', 0)}`\n\n"
+            f"💡 **Diagnóstico:** {dashboard.get('diagnostic', '')}"
+        )
+
+        return {
+            "status": "CREATIVE_AUDIT_COMPLETED",
+            "phase": curr_phase,
+            "governor_evaluation": eval_res,
+            "telemetry_dashboard": dashboard,
+            "message": summary_msg,
+            "question": f"Sesión en {curr_phase}. ¿Cómo deseas proceder?"
+        }
 
 # Global singleton
 copilot_guided_session_engine = CopilotGuidedSession()
