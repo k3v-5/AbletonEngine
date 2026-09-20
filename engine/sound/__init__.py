@@ -34,12 +34,14 @@ from .linter import SoundLinter, SoundLintIssue
 from .engine import SoundEngine
 
 from .foley import TextureType, OrganicTextureProfile, OrganicTextureGenerator
+from .timbre_dna import TimbreDNA, TimbreRelationshipMatrix
 
 
 from .drum_rack.authentic_builder import AuthenticSampleDrumRackEngine, AuthenticDrumKitSpec, AuthenticDrumPad
 from .macros.semantic_morph import SemanticTimbreMorphEngine, TimbreMacroState, SectionMorphPoint
 
 __all__ = [
+    "TimbreDNA", "TimbreRelationshipMatrix",
     "AuthenticSampleDrumRackEngine", "AuthenticDrumKitSpec", "AuthenticDrumPad",
     "SemanticTimbreMorphEngine", "TimbreMacroState", "SectionMorphPoint",
 

@@ -1046,6 +1046,28 @@ result = {'tracks': tracks_data, 'master': master_info, 'cue_points': cue_points
                 rec_params={"action": "setup_master_chain", "target_profile": "CLUB", "target_lufs": -6.0}
             )
 
+        # 4. AUDITORÍA CREATIVA & PREDECIBILIDAD MUSICAL (Music Director / A&R)
+        try:
+            from engine.production.copilot.phases.phase_10.music_director import MusicDirector
+            class DummySession:
+                def __init__(self, tracks_data, sections_data):
+                    self.data = {"tracks": tracks_data, "sections": sections_data}
+            dummy_s = DummySession(raw_tracks, [{"name": cp.get("name", "Section"), "bars": 8} for cp in raw_cue_points])
+            m_audit = MusicDirector.audit_predictability(dummy_s)
+            if m_audit.get("is_formulaic"):
+                add_issue(
+                    cat="CREATIVE_PREDICTABILITY",
+                    sev="WARNING",
+                    t_idx=None,
+                    t_name="Arrangement",
+                    desc="Auditoría A&R detectó alta previsibilidad y riesgo de fórmula/tropo genérico: " + ", ".join(m_audit.get("issues_detected", [])),
+                    evid=f"Score de previsibilidad: {m_audit.get('predictability_score') * 100:.0f}%. " + " ".join(m_audit.get("recommendations", [])),
+                    rec_act="Aplicar mutación quirúrgica selectiva (melodía, bajo o estructura) para romper previsibilidad sin rehacer el proyecto.",
+                    rec_params={"action": "mutate_layer", "layer": "melody"}
+                )
+        except Exception as ex_m:
+            logger.debug(f"Notice on MusicDirector scan: {ex_m}")
+
         summary = {
             "total_issues": len(issues),
             "critical_count": len([i for i in issues if i["severity"] == "CRITICAL"]),

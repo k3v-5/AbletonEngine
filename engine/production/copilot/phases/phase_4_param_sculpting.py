@@ -91,12 +91,18 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 "phase": "PHASE_4_PARAM_SCULPTING"
             }
     
+        from engine.sound.timbre_dna import TimbreRelationshipMatrix
+        tdna = TimbreRelationshipMatrix.get_default_for_role(role)
+
         return {
             "current_step": f"PASO 4 DE 7: ESCULPIDO QUIRÚRGICO DE SÍNTESIS (PISTA {ptr + 1} DE {len(tracks)})",
             "action_taken": f"Instrumento {inst} verificado físicamente en Pista {t_idx}. Target de nivel: {target_db} dBFS.",
             "question": (
                 f"🎛️ **Paso 4 de 7: Esculpido de Síntesis y Parámetros para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role}, Instrumento: {inst})**\n\n"
                 f"Calibración de nivel inicial: `{target_db} dBFS` de headroom pre-fader.\n\n"
+                f"🧬 **Vector Timbre DNA Base para `{role}`**:\n"
+                f"• Brillo: `{tdna.brightness:.2f}` | Aspereza: `{tdna.roughness:.2f}` | Inarmonicidad: `{tdna.inharmonicity:.2f}`\n"
+                f"• Ancho Estéreo: `{tdna.stereo_width:.2f}` | Pegada Transiente: `{tdna.transient_strength:.2f}` | Movimiento: `{tdna.movement:.2f}`\n\n"
                 f"**Espacio de Parámetros y Rangos Técnicos en los 4 Cuadrantes de Síntesis:**\n"
                 f"1. **Osciladores / Wavetable / Timbre**:\n"
                 f"   • `WAVETABLE_POS` (Rango: `0.0 - 1.0` / `0% - 100%`): 0.0 onda pura senoidal $\\to$ 0.5 armónicos pares e impares ricos $\\to$ 1.0 espectro complejo brillante.\n"
@@ -126,6 +132,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             "target_track": t_idx,
             "role": role,
             "target_dbfs": target_db,
+            "timbre_dna": tdna.to_dict(),
             "phase": "PHASE_4_PARAM_SCULPTING"
         }
     
@@ -216,6 +223,38 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                         val = val / 100.0
                     custom_params[p_name] = max(0.0, min(1.0, val))
                     break
+
+        # TimbreDNA attributes parsing & synthesis parameter derivation
+        from engine.sound.timbre_dna import TimbreRelationshipMatrix, TimbreDNA
+        base_tdna = TimbreRelationshipMatrix.get_default_for_role(role)
+        tdna_dict = base_tdna.to_dict()
+        timbre_patterns = {
+            "brightness": [r"brightness\s*[:=]?\s*([0-9\.]+)", r"brillo\s*[:=]?\s*([0-9\.]+)"],
+            "roughness": [r"roughness\s*[:=]?\s*([0-9\.]+)", r"aspereza\s*[:=]?\s*([0-9\.]+)"],
+            "inharmonicity": [r"inharmonicity\s*[:=]?\s*([0-9\.]+)", r"inarmonicidad\s*[:=]?\s*([0-9\.]+)"],
+            "stereo_width": [r"stereo_width\s*[:=]?\s*([0-9\.]+)", r"width\s*[:=]?\s*([0-9\.]+)", r"amplitud\s*[:=]?\s*([0-9\.]+)"],
+            "transient_strength": [r"transient(?:_strength)?\s*[:=]?\s*([0-9\.]+)", r"transiente\s*[:=]?\s*([0-9\.]+)"],
+            "movement": [r"movement\s*[:=]?\s*([0-9\.]+)", r"movimiento\s*[:=]?\s*([0-9\.]+)"],
+        }
+        found_timbre = False
+        for t_attr, patterns in timbre_patterns.items():
+            for pat in patterns:
+                m = re.search(pat, text)
+                if m:
+                    v = float(m.group(1))
+                    if v > 1.0:
+                        v = v / 100.0
+                    tdna_dict[t_attr] = max(0.0, min(1.0, v))
+                    found_timbre = True
+                    break
+
+        sculpted_tdna = TimbreDNA.from_dict(tdna_dict)
+        trk["timbre_dna"] = sculpted_tdna.to_dict()
+        if found_timbre:
+            synth_from_tdna = sculpted_tdna.to_synthesis_parameters()
+            for k, v in synth_from_tdna.items():
+                if k not in custom_params:
+                    custom_params[k] = v
     
         if custom_params:
             param_dict = custom_params

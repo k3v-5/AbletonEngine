@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 import math
 
+from engine.core.roles import RoleClassifier
+
 
 @dataclass
 class TrackGainCalibration:
@@ -31,42 +33,18 @@ class AutoGainStagingEngine:
         "snare": -13.5,        # Sits just under kick
         "bass": -14.0,         # 808 / Sub-bass
         "lead": -15.0,         # Lead vocal or synth hook
+        "counter_lead": -17.0, # Sits just behind primary lead / vocal
         "piano": -18.0,        # Harmonic keys / rhythm guitar
         "chords": -18.0,
         "break": -15.0,        # Secondary breakbeat layer
         "foley": -24.0,        # Organic textures sit deep in the background
+        "ear_candy": -19.0,    # Sporadic transient accents
         "fx": -20.0            # Ear candy sweeps
     }
 
     @classmethod
     def classify_role(cls, track_name: str, devices: Optional[List[Any]] = None) -> str:
-        tn = track_name.lower().strip()
-        dev_str = " ".join([str(d).lower() for d in (devices or [])])
-        full = f"{tn} {dev_str}"
-
-        if "kick" in full or "bombo" in full:
-            return "kick"
-        if any(w in full for w in ["808", "bass", "bajo", "sub", "sublab", "trilian"]):
-            return "bass"
-        if "snare" in full or "clap" in full:
-            return "snare"
-        if "break" in full or "loop" in full or "sliced break" in full:
-            return "break"
-        if any(w in full for w in ["drum", "kit", "perc", "warehouse"]):
-            return "drums"
-        if any(w in full for w in ["piano", "key", "rhodes"]):
-            return "piano"
-        if any(w in full for w in ["pad", "string", "cuerda", "atmos", "ambient"]):
-            return "pad"
-        if any(w in full for w in ["lead", "pluck", "arp"]):
-            return "lead"
-        if any(w in full for w in ["vocal", "vox", "hook", "chop"]):
-            return "vocal"
-        if any(w in full for w in ["foley", "texture", "rain", "vinyl"]):
-            return "foley"
-        if "synth" in full:
-            return "synth"
-        return "lead"
+        return RoleClassifier.classify_for_auto_stager(track_name, devices)
 
     @classmethod
     def db_to_linear(cls, db_val: float) -> float:

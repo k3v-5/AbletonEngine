@@ -16,6 +16,18 @@ from .models import (
     ArrangementSectionBlueprint
 )
 from .dna_engine import CreativeDirectionEngine
+from .music_dna import (
+    MusicDNA,
+    MusicDNAIdentity,
+    MusicDNARhythm,
+    MusicDNAHarmony,
+    MusicDNAMelody,
+    MusicDNAStructure,
+    MusicDNASoundIdentity,
+    MusicDNANovelty
+)
+from .leitmotif_engine import Leitmotif, LeitmotifEngine
+from .cliche_detector import ClicheDetector, ClicheAuditReport
 
 __all__ = [
     "SongCreativeDNA",
@@ -28,5 +40,18 @@ __all__ = [
     "TrackRoleAllocation",
     "ArrangementBlueprint",
     "ArrangementSectionBlueprint",
-    "CreativeDirectionEngine"
+    "CreativeDirectionEngine",
+    "MusicDNA",
+    "MusicDNAIdentity",
+    "MusicDNARhythm",
+    "MusicDNAHarmony",
+    "MusicDNAMelody",
+    "MusicDNAStructure",
+    "MusicDNASoundIdentity",
+    "MusicDNANovelty",
+    "Leitmotif",
+    "LeitmotifEngine",
+    "ClicheDetector",
+    "ClicheAuditReport"
 ]
+

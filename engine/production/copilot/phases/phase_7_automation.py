@@ -391,6 +391,17 @@ class Phase7AutomationHandler(BasePhaseHandler):
                         applied_autos = cands
                 else:
                     applied_autos = cands
+
+                # Execute Micro-Automations pass (delay throws, dynamic auto-pan, 808 bends)
+                from engine.production.copilot.phases.phase_7.micro_automations import MicroAutomationsPass
+                from engine.arrangement.energy_curve import EnergyCurveEngine
+                try:
+                    micro_res = MicroAutomationsPass.execute_micro_automation_pass(session, conn)
+                    session.data["micro_automations"] = micro_res
+                    session.data["energy_curve"] = [p.to_dict() for p in EnergyCurveEngine.build_song_energy_curve(session.data.get("sections", []))]
+                except Exception as ex_micro:
+                    logger.warning(f"Notice on micro-automations pass: {ex_micro}")
+
                 session.data["automations"] = applied_autos
                 session.data["current_phase"] = "PHASE_8_VOCAL_DUCKING"
                 session.data["phase_index"] = 8

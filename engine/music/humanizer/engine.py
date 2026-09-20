@@ -150,3 +150,109 @@ def apply_velocity_curve(
         ))
 
     return curved
+
+
+class HumanizerEngine:
+    """
+    Humanizes velocity curves and micro-timing of note events to eliminate robotic grid feel.
+    Supports both dict notes and NoteEvent objects.
+    """
+
+    WRIST_PATTERNS = {
+        "standard_wrist": [110, 70, 85, 60],      # Primary accent, weak stroke, rebound, ghost
+        "driving_funk": [115, 65, 95, 75],        # Heavy syncopation
+        "laid_back_trap": [105, 60, 80, 55],      # Soft floating hi-hats
+        "melodic_rubato": [100, 85, 95, 80]       # Natural expressive phrasing
+    }
+
+    @classmethod
+    def apply_drummer_wrist_physics(
+        cls,
+        notes: List[Dict[str, Any]],
+        pattern_name: str = "standard_wrist",
+        custom_pattern: Optional[List[int]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Applies a 4-step drummer wrist velocity pattern to consecutive 16th-note steps.
+        """
+        pattern = custom_pattern or cls.WRIST_PATTERNS.get(pattern_name, cls.WRIST_PATTERNS["standard_wrist"])
+        if not notes or not pattern:
+            return notes
+
+        humanized = []
+        for n in notes:
+            new_n = dict(n)
+            t = float(n.get("start_time", n.get("time", n.get("start", 0.0))))
+            sub_beat_idx = int(round((t % 1.0) * 4.0)) % len(pattern)
+            target_base_vel = pattern[sub_beat_idx]
+            
+            subtle_var = random.randint(-4, 4)
+            final_vel = max(1, min(127, target_base_vel + subtle_var))
+            new_n["velocity"] = final_vel
+            humanized.append(new_n)
+
+        return humanized
+
+    @classmethod
+    def apply_microtiming(
+        cls,
+        notes: List[Dict[str, Any]],
+        bpm: float = 120.0,
+        jitter_ms: float = 8.0,
+        role: str = "drums"
+    ) -> List[Dict[str, Any]]:
+        """
+        Displaces note timings by +/- 5 to 15 ms converted to beats based on BPM.
+        Applies role-specific groove pocketing (e.g. laid-back claps, rushed snares).
+        """
+        if not notes:
+            return []
+
+        ms_per_beat = (60.0 / max(20.0, bpm)) * 1000.0
+        r_upper = str(role or "").upper()
+
+        role_pocket_ms = 0.0
+        if "CLAP" in r_upper:
+            role_pocket_ms = 8.0   # Laid-back clap (+8 ms behind grid)
+        elif "SNARE" in r_upper:
+            role_pocket_ms = -3.0  # Rushed snare (-3 ms pushing ahead)
+        elif "HAT" in r_upper:
+            role_pocket_ms = 4.0   # Relaxed hi-hat pocket
+
+        humanized = []
+        for n in notes:
+            new_n = dict(n)
+            cur_t = float(n.get("start_time", n.get("time", n.get("start", 0.0))))
+
+            if "KICK" in r_upper and abs(cur_t % 4.0) < 0.02:
+                random_ms = random.uniform(-1.5, 1.5)
+            else:
+                random_ms = random.uniform(-jitter_ms, jitter_ms)
+
+            total_offset_ms = role_pocket_ms + random_ms
+            offset_beats = total_offset_ms / ms_per_beat
+
+            new_t = max(0.0, cur_t + offset_beats)
+            new_n["start_time"] = round(new_t, 4)
+            new_n["time"] = round(new_t, 4)
+            humanized.append(new_n)
+
+        return humanized
+
+    @classmethod
+    def humanize_clip(
+        cls,
+        notes: List[Dict[str, Any]],
+        bpm: float = 120.0,
+        role: str = "drums",
+        humanize_velocity: bool = True,
+        humanize_timing: bool = True
+    ) -> List[Dict[str, Any]]:
+        """Complete humanization pass over a clip's note events."""
+        result = [dict(n) for n in notes]
+        if humanize_velocity:
+            result = cls.apply_drummer_wrist_physics(result)
+        if humanize_timing:
+            result = cls.apply_microtiming(result, bpm=bpm, jitter_ms=8.0, role=role)
+        return result
+

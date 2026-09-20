@@ -1,17 +1,19 @@
 """
-Backward compatibility facade for Phase 10: Active Listening & Post-Production.
-Modular implementation moved to engine.production.copilot.phases.phase_10
+Phase 10 package: Active Listening, Transport Navigation, Clip Micro-Surgery,
+Vocal Production / Chops, Instrument Swap Re-validation, and Forensic Stem Export.
 """
 
-from .phase_10 import (
-    Phase10ListenersHandler,
+from .handler import Phase10ListenersHandler
+from .instrument_swap import (
     initiate_instrument_swap_flow,
     prompt_instrument_swap_preset,
     handle_instrument_swap_step,
     execute_instrument_swap_reaudit,
-    audit_and_prepare_stems,
-    handle_vocal_pipeline,
-    handle_drop_mutator,
+)
+from .stem_coordinator import audit_and_prepare_stems
+from .vocal_pipeline import handle_vocal_pipeline
+from .drop_mutator import handle_drop_mutator
+from .surgery_and_navigation import (
     handle_clip_surgery,
     handle_master_gain_boost,
     handle_low_mid_resonance_clean,
@@ -19,8 +21,10 @@ from .phase_10 import (
     handle_transport_navigation,
     handle_session_tweaks,
 )
+from .music_director import MusicDirector
 
 __all__ = [
+    "MusicDirector",
     "Phase10ListenersHandler",
     "initiate_instrument_swap_flow",
     "prompt_instrument_swap_preset",

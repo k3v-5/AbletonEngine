@@ -10,6 +10,8 @@ and rhythmic elements into complementary stereo pockets.
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 
+from engine.core.roles import RoleClassifier
+
 logger = logging.getLogger("InstrumentPanningEvaluator")
 
 
@@ -47,41 +49,15 @@ class InstrumentPanningEvaluator:
         "STRINGS": 0.30,
         "ATMOSPHERE": -0.35,
         "FX": 0.28,
-        "EAR_CANDY": 0.32
+        "COUNTER_LEAD": -0.22, # ~22L (Call-and-response pocket opposite to lead)
+        "EAR_CANDY": 0.35,     # ~35R (Wide peripheral accents)
+        "TEXTURE_FOLEY": -0.38 # ~38L (Wide organic ambient bed)
     }
 
     @classmethod
     def classify_role(cls, name: str, role: str = "") -> str:
         """Determines acoustic role category from track name and metadata."""
-        n = str(name or "").lower()
-        r = str(role or "").upper()
-
-        if "kick" in n or "bombo" in n:
-            return "KICK"
-        if any(k in n for k in ["sub", "808"]):
-            return "SUB"
-        if "bass" in n or "bajo" in n or r == "BASS":
-            return "BASS"
-        if any(k in n for k in ["vocal", "vox", "voz", "lead vocal"]) or r == "VOCALS":
-            return "VOCALS"
-        if any(k in n for k in ["snare", "caja", "clap", "tarola"]):
-            return "SNARE"
-        if any(k in n for k in ["hat", "hihat", "hh", "cymbal", "ride"]):
-            return "HI_HATS"
-        if any(k in n for k in ["perc", "shaker", "tom", "bongo", "conga"]):
-            return "PERCUSSION"
-        if any(k in n for k in ["key", "piano", "chord", "teclado", "rhodes", "epiano"]) or r in ("KEYS", "CHORDS"):
-            return "KEYS"
-        if any(k in n for k in ["lead", "topline", "synth lead", "guitar", "guitarra", "solo", "pluck"]) or r in ("LEAD", "SYNTH"):
-            return "LEAD"
-        if any(k in n for k in ["pad", "string", "atmos", "ambient", "texture", "colchon"]) or r in ("PAD", "STRINGS"):
-            return "PAD"
-        if any(k in n for k in ["drum", "bateria", "kit"]) or r == "DRUMS":
-            return "DRUMS"
-        if any(k in n for k in ["candy", "fx", "riser", "sweep", "impact"]):
-            return "EAR_CANDY"
-
-        return r or "INSTRUMENT"
+        return RoleClassifier.classify_for_panning(name, role)
 
     @classmethod
     def pan_to_display(cls, pan_val: float) -> str:
@@ -188,6 +164,12 @@ class InstrumentPanningEvaluator:
                 rationale = "Apertura a la izquierda (18L). Contrapeso rítmico frente a Hi-Hats; espacialidad orgánica."
                 if abs(cur_p) < 0.05:
                     center_clump_count += 1
+            elif role == "COUNTER_LEAD":
+                rec_p = -0.22
+                harmonic_left_count += 1
+                rationale = "Apertura a la izquierda (22L). Bolsillo complementario opuesto al Lead (24R); llamada y respuesta nítida sin pisar el centro."
+                if abs(cur_p) < 0.05:
+                    center_clump_count += 1
             elif role == "PAD":
                 rec_p = -0.32
                 rationale = "Amplitud lateral (32L). Colchón atmosférico empujado a los extremos estéreo."
@@ -195,8 +177,11 @@ class InstrumentPanningEvaluator:
                     center_clump_count += 1
                     conflicts.append(f"Pista {idx} ('{name}'): Pad atmosférico centrado ahoga la profundidad de la sesión.")
             elif role == "EAR_CANDY":
-                rec_p = 0.32
-                rationale = "Efecto espacial lateral (32R). Dinamismo periférico sin tocar el canal medio."
+                rec_p = 0.35
+                rationale = "Efecto espacial lateral (35R). Dinamismo periférico sin tocar el canal medio."
+            elif role == "TEXTURE_FOLEY":
+                rec_p = -0.38
+                rationale = "Lecho textural periférico (38L). Genera profundidad orgánica a -24 dBFS sin enturbiar el centro."
             else:
                 if harmonic_left_count <= harmonic_right_count:
                     rec_p = -0.15

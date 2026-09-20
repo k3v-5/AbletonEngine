@@ -32,6 +32,30 @@ except (ImportError, ValueError):
     class GovernanceViolationError(RuntimeError):
         pass
 
+from engine.server.mcp_routes import (
+    handle_copilot_get_status,
+    handle_copilot_review_decisions,
+    handle_copilot_execute_decision,
+    handle_copilot_preflight_check,
+    handle_copilot_auto_produce,
+    handle_copilot_guided_session,
+    handle_copilot_session_doctor,
+    handle_setup_full_mastering_chain,
+    handle_apply_adaptive_deesser,
+    handle_mix_apply_frequency_slotting,
+    handle_mix_audit_phase_and_mono_compatibility,
+    handle_mix_apply_vocal_lead_fader_riding,
+    handle_mix_apply_multitrack_sidechain_ducking,
+    handle_mix_audit_psychoacoustic_masking,
+    handle_get_producer_info,
+    handle_get_serum_patch,
+    handle_get_fabfilter_preset,
+    handle_get_vocal_chain_guide,
+    handle_audio_semantic_sample_match,
+    handle_audio_deconstruct_reference,
+    handle_audio_transcribe_to_midi,
+)
+
 ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
 ABLETON_PORT = int(os.environ.get("ABLETON_PORT", "9877"))
 
@@ -10078,20 +10102,7 @@ def copilot_auto_produce(
     enforces physical load verification and parameter sculpting (Capa 3), and audits with preflight_check.
     The Copilot remains active and listening in the session for subsequent adjustments.
     """
-    try:
-        from engine.production.copilot.stepper import executive_copilot
-        conn = get_ableton_connection()
-        return executive_copilot.run_autonomous_pipeline(
-            conn=conn,
-            genre=genre,
-            bpm=bpm,
-            key=key,
-            scale=scale,
-            max_steps=max_steps
-        )
-    except Exception as e:
-        logger.error(f"Error in copilot_auto_produce: {e}")
-        return {"status": "error", "message": str(e)}
+    return handle_copilot_auto_produce(get_ableton_connection, genre, bpm, key, scale, max_steps)
 
 
 @mcp.tool()
@@ -10113,23 +10124,7 @@ def copilot_guided_session(
 
     Each turn executes real DAW mutations in Ableton Live, verifies LOM state, and returns the next question.
     """
-    try:
-        import sys, importlib
-        if reset:
-            for mod_name in list(sys.modules.keys()):
-                if mod_name.startswith("engine."):
-                    try:
-                        importlib.reload(sys.modules[mod_name])
-                    except Exception:
-                        pass
-        import engine.production.copilot.guided_session as _gs_mod
-        importlib.reload(_gs_mod)
-        copilot_guided_session_engine = _gs_mod.copilot_guided_session_engine
-        conn = get_ableton_connection()
-        return copilot_guided_session_engine.step(conn=conn, user_input=user_input, reset=reset)
-    except Exception as e:
-        logger.error(f"Error in copilot_guided_session: {e}")
-        return {"status": "error", "message": str(e)}
+    return handle_copilot_guided_session(get_ableton_connection, user_input, reset)
 
 
 @mcp.tool()
@@ -10155,23 +10150,7 @@ def copilot_session_doctor(
     
     Totally independent from guided_session (never wipes session, never creates compositions).
     """
-    try:
-        import sys, importlib
-        if reset:
-            for mod_name in list(sys.modules.keys()):
-                if mod_name.startswith("engine.production.doctor"):
-                    try:
-                        importlib.reload(sys.modules[mod_name])
-                    except Exception:
-                        pass
-        import engine.production.doctor.session_doctor as _sd_mod
-        importlib.reload(_sd_mod)
-        copilot_session_doctor_engine = _sd_mod.copilot_session_doctor_engine
-        conn = get_ableton_connection()
-        return copilot_session_doctor_engine.step(conn=conn, user_input=user_input, reset=reset)
-    except Exception as e:
-        logger.error(f"Error in copilot_session_doctor: {e}")
-        return {"status": "error", "message": str(e)}
+    return handle_copilot_session_doctor(get_ableton_connection, user_input, reset)
 
 
 

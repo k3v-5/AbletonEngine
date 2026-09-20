@@ -57,10 +57,18 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             "current_fx_dev_ptr": 0,
             "current_fx_ptr": 0,
             "history": [],
-            "automations": [],
             "is_complete": False,
             "checkpoints": [],
-            "lufs_tolerance_db": 3.0
+            "lufs_tolerance_db": 3.0,
+            "music_dna": {
+                "identity": {"concept": "euforia nocturna con sensación de movimiento", "emotional_arc": ["intriga", "anticipación", "euforia", "vacío", "segunda euforia", "resolución"]},
+                "rhythm": {"groove": "syncopated", "kick_behavior": "irregular_phrase_accents", "hat_density": 0.63, "microtiming": 0.18, "signature_pattern": "3-3-2"},
+                "harmony": {"tonal_center": "F#", "mode": "Dorian", "chord_language": "modal_extended", "progression_behavior": "non_looping", "harmonic_surprise": 0.72},
+                "melody": {"contour": "ascending_then_falling", "interval_language": "fourths_and_minor_sixths", "repetition": 0.42, "motif_length": 7},
+                "structure": {"expected": False, "drop_similarity": 0.31, "section_lengths": [8, 12, 8, 16, 10, 24, 8]},
+                "sound_identity": {"dominant_texture": "metallic_warm", "primary_synth_behavior": "unstable", "vocal_processing": "granular_fragments"},
+                "novelty": {"rhythmic": 0.75, "harmonic": 0.62, "melodic": 0.81, "structural": 0.68, "timbre": 0.57}
+            }
         }
 
     @classmethod

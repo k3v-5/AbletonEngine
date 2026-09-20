@@ -64,8 +64,12 @@ class RoleTrackOrchestrator:
         "TIMBAL": "PERCUSSION", "SHAKER": "PERCUSSION", "TAMBOR": "PERCUSSION", "BREAK": "DRUMS", "BREAKBEAT": "DRUMS",
         "VOCAL": "VOCALS", "VOCALS": "VOCALS", "VOX": "VOCALS", "VOZ": "VOCALS", "VOCES": "VOCALS", "CHOPS": "VOCALS",
         "STAB": "LEAD", "STABS": "LEAD",
+        "COUNTER_LEAD": "COUNTER_LEAD", "COUNTERLEAD": "COUNTER_LEAD", "COUNTER_MELODY": "COUNTER_LEAD", "COUNTER MELODY": "COUNTER_LEAD",
+        "ARP": "COUNTER_LEAD", "ARPS": "COUNTER_LEAD", "ARPEGGIO": "COUNTER_LEAD",
+        "EAR_CANDY": "EAR_CANDY", "EAR CANDY": "EAR_CANDY", "EARCANDY": "EAR_CANDY",
+        "TEXTURE": "TEXTURE_FOLEY", "TEXTURE_FOLEY": "TEXTURE_FOLEY", "FOLEY": "TEXTURE_FOLEY",
         "FX": "FX", "EFFECT": "FX", "EFFECTS": "FX", "GLITCH": "GLITCHEADO", "GLITCHEADO": "FX", "GLITCHES": "FX",
-        "STUTTER": "FX", "NOISE": "FX", "SWEEP": "FX", "RISER": "FX", "IMPACT": "FX", "DOWNLIFTER": "FX", "EAR_CANDY": "FX"
+        "STUTTER": "FX", "NOISE": "TEXTURE_FOLEY", "SWEEP": "FX", "RISER": "FX", "IMPACT": "FX", "DOWNLIFTER": "FX"
     }
 
     # Cross-role acoustic aliases allowing bidirectional mapping during note composition & effects
@@ -76,6 +80,9 @@ class RoleTrackOrchestrator:
         "KEYS": ["KEYS", "KEY", "PIANO", "RHODES", "GUITAR", "PLUCK", "PLUCKS", "CHORDS", "SYNTH", "HARMONY", "TECLADOS", "TECLADO"],
         "GUITAR": ["GUITAR", "KEYS", "PLUCK", "PLUCKS", "STRUM", "NYLON", "FLAMENCA", "LEAD"],
         "LEAD": ["LEAD", "SYNTH", "TOPLINE", "MELODY", "KEYS", "GUITAR", "HOOK", "SOLO", "STAB", "BRASS", "SINTE", "SINTES"],
+        "COUNTER_LEAD": ["COUNTER_LEAD", "LEAD", "ARP", "KEYS", "SYNTH"],
+        "EAR_CANDY": ["EAR_CANDY", "FX", "PLUCK", "LEAD"],
+        "TEXTURE_FOLEY": ["TEXTURE_FOLEY", "FOLEY", "PAD", "NOISE"],
         "BASS": ["BASS", "SUB", "808", "REESE", "SUBBASS", "BAJO", "LOW_END"],
         "DRUMS": ["DRUMS", "PERCUSSION", "BEAT", "KIT", "BREAK", "BATERIA", "BATERÍA"],
         "PERCUSSION": ["PERCUSSION", "DRUMS", "CLAP", "PALMAS", "SHAKER", "FOLEY"],
@@ -94,11 +101,14 @@ class RoleTrackOrchestrator:
         ("BRASS", {"BRASS", "TRUMPET", "TRUMPETS", "TROMPETA", "TROMPETAS", "HORN", "HORNS", "CORNO", "TROMBONE", "TROMBON", "TUBA", "FANFARE", "FANFARRIA"}),
         ("CHOIR", {"CHOIR", "CHOIRS", "CORO", "COROS", "CHURCH", "GOTHIC", "LITURGICAL"}),
         ("VOCALS", {"VOCAL", "VOCALS", "VOX", "VOZ", "VOCES", "CHOPS"}),
-        ("KEYS", {"PLUCK", "PLUCKS", "ARP", "KEY", "KEYS", "PIANO", "RHODES", "CHORDS", "ACORDE", "ACORDES", "TECLADO", "TECLADOS"}),
+        ("COUNTER_LEAD", {"COUNTER", "COUNTER_LEAD", "COUNTERLEAD", "COUNTER_MELODY", "ARP", "ARPS", "ARPEGGIO"}),
+        ("EAR_CANDY", {"CANDY", "EAR_CANDY", "EARCANDY"}),
+        ("TEXTURE_FOLEY", {"TEXTURE", "FOLEY", "VINYL", "RAIN"}),
+        ("KEYS", {"PLUCK", "PLUCKS", "KEY", "KEYS", "PIANO", "RHODES", "CHORDS", "ACORDE", "ACORDES", "TECLADO", "TECLADOS"}),
         ("GUITAR", {"GUITAR", "GUITARS", "GUITARRA", "GUITARRAS", "FLAMENCA", "NYLON", "STRUM"}),
         ("STRINGS", {"STRING", "STRINGS", "ORCHESTRA", "CELLO", "CUERDAS", "CUERDA", "ORQUESTA"}),
-        ("PAD", {"PAD", "ATMOSPHERE", "AMBIENT", "TEXTURE", "ATMOSFERA", "COLCHON"}),
-        ("FX", {"FX", "EFFECT", "EFFECTS", "GLITCH", "GLITCHEADO", "GLITCHES", "STUTTER", "NOISE", "SWEEP", "RISER", "IMPACT", "DOWNLIFTER", "EAR_CANDY"}),
+        ("PAD", {"PAD", "ATMOSPHERE", "AMBIENT", "ATMOSFERA", "COLCHON"}),
+        ("FX", {"FX", "EFFECT", "EFFECTS", "GLITCH", "GLITCHEADO", "GLITCHES", "STUTTER", "NOISE", "SWEEP", "RISER", "IMPACT", "DOWNLIFTER"}),
         ("LEAD", {"LEAD", "MELODY", "TOPLINE", "SOLO", "HOOK", "STAB", "STABS", "SINTE", "SINTES", "SINTETIZADOR", "SINTETIZADORES"}),
         ("LEAD", {"SYNTH"})  # Generic 'SYNTH' falls back to LEAD only if no other role matched
     ]
