@@ -280,6 +280,10 @@ class Phase6CompositionHandler(BasePhaseHandler):
                 trk_idx += 1
                 session_state["track_index"] = trk_idx
                 if trk_idx >= len(tracks):
+                    if hasattr(session, "validate_phase_readiness"):
+                        omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
+                        if omission_blk:
+                            return omission_blk
                     session.data["composition_session"] = {"active": False}
                     session.data["current_phase"] = "PHASE_7_AUTOMATION"
                     session.data["phase_index"] = 7
@@ -317,6 +321,10 @@ class Phase6CompositionHandler(BasePhaseHandler):
                 }
 
             self.enforce_pre_drop_vacuum(session, conn)
+            if hasattr(session, "validate_phase_readiness"):
+                omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
+                if omission_blk:
+                    return omission_blk
             session.data["composition_session"] = {"active": False}
             session.data["current_phase"] = "PHASE_7_AUTOMATION"
             session.data["phase_index"] = 7
@@ -327,6 +335,10 @@ class Phase6CompositionHandler(BasePhaseHandler):
             trk_idx = session_state.get("track_index", 0)
             sec_idx = session_state.get("section_index", 0)
             if trk_idx >= len(tracks):
+                if hasattr(session, "validate_phase_readiness"):
+                    omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
+                    if omission_blk:
+                        return omission_blk
                 session.data["composition_session"] = {"active": False}
                 session.data["current_phase"] = "PHASE_7_AUTOMATION"
                 session.data["phase_index"] = 7
@@ -347,6 +359,10 @@ class Phase6CompositionHandler(BasePhaseHandler):
                     return self.prompt_by_clip_step(session, trk_idx, sec_idx)
                 else:
                     self.enforce_pre_drop_vacuum(session, conn)
+                    if hasattr(session, "validate_phase_readiness"):
+                        omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
+                        if omission_blk:
+                            return omission_blk
                     session.data["composition_session"] = {"active": False}
                     session.data["current_phase"] = "PHASE_7_AUTOMATION"
                     session.data["phase_index"] = 7
@@ -691,6 +707,19 @@ for trk in song.tracks:
         for trk in tracks:
             total_notes_trk = self.deploy_single_track_composition(session, conn, trk, custom_notes_map, sections)
             composed_summary.append(f"{trk['name']} ({total_notes_trk} notas en {len(sections)} secciones)")
+            # Sync with SongContract ledger
+            if hasattr(session, "_get_song_contract"):
+                try:
+                    c = session._get_song_contract()
+                    ob_id = f"COMPOSITION_{trk.get('index')}_{trk.get('role')}"
+                    if trk.get("deployment_failed"):
+                        c.record_evidence(ob_id, {"deployment_failed": True, "error": trk.get("deployment_error")}, verified=False, failure_reason=trk.get("deployment_error"))
+                    else:
+                        c.record_implementation(ob_id, {"notes_count": total_notes_trk})
+                        c.record_evidence(ob_id, {"notes_count": total_notes_trk, "verified": True}, verified=True)
+                    session._sync_song_contract(c)
+                except Exception as ex_sc:
+                    logger.debug(f"SongContract sync notice: {ex_sc}")
 
         failed_governance_tracks = [t for t in tracks if t.get("deployment_failed")]
         if failed_governance_tracks:
@@ -741,6 +770,12 @@ for trk in song.tracks:
         )
         if blk_outro:
             return blk_outro
+
+        # Gatekeeper 5: Omission Audit Gatekeeper (SongContract Physical Evidence)
+        if hasattr(session, "validate_phase_readiness"):
+            omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
+            if omission_blk:
+                return omission_blk
 
         session.data["current_phase"] = "PHASE_7_AUTOMATION"
         session.data["phase_index"] = 7

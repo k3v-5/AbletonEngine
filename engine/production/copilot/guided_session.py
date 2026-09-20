@@ -473,6 +473,16 @@ class CopilotGuidedSession:
         if any(w in norm_text for w in ["auditoria creativa", "estado creativo", "telemetria creativa", "creative status", "dashboard creativo"]):
             return self._handle_creative_controller_telemetry_audit(conn)
 
+        # 0. Song Contract, Omission Audit, and Creative Continuity Commands
+        if any(w in norm_text for w in ["ver contrato", "contrato de la cancion", "contrato de la obra", "mostrar contrato", "obligaciones", "song contract"]):
+            return self._handle_song_contract_query()
+
+        if any(w in norm_text for w in ["auditoria de omisiones", "auditoria omisiones", "omisiones", "que falta", "que se olvido", "obligaciones pendientes", "omission audit"]):
+            return self._handle_omission_audit_query(conn)
+
+        if any(w in norm_text for w in ["intencion creativa", "tesis sonora", "eje emocional", "anclas de identidad", "song intent"]):
+            return self._handle_song_intent_query()
+
         # 0. Active state intercept for Effect Recalibration / Backward Adjustments
         if self.data.get("awaiting_effect_recalibration", False):
             return self._handle_effect_recalibration(conn, u_in)
@@ -1117,6 +1127,136 @@ class CopilotGuidedSession:
             "message": summary_msg,
             "question": f"Sesión en {curr_phase}. ¿Cómo deseas proceder?"
         }
+
+    # -------------------------------------------------------------------------
+    # SONG CONTRACT & OMISSION AUDIT SUITE
+    # -------------------------------------------------------------------------
+    def _get_song_contract(self):
+        """Lazily loads or scaffolds the SongContract for the active session."""
+        from engine.production.contract import SongContract
+        raw_contract = self.data.get("song_contract")
+        if raw_contract and isinstance(raw_contract, dict):
+            contract = SongContract.from_dict(raw_contract)
+        else:
+            contract = SongContract.scaffold_from_session_state(self.data)
+            self.data["song_contract"] = contract.to_dict()
+        return contract
+
+    def _sync_song_contract(self, contract):
+        """Saves updated contract back to self.data."""
+        self.data["song_contract"] = contract.to_dict()
+
+    def _handle_song_contract_query(self) -> Dict[str, Any]:
+        """Conversational query returning active song contract obligations."""
+        contract = self._get_song_contract()
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        summary = contract.get_summary()
+
+        md = [
+            f"### 📜 Contrato de Producción de la Obra: *{contract.title}*",
+            f"**ID de Canción:** `{contract.song_id}` | **Fase Actual:** `{curr_phase}`\n",
+            f"| Total Obligaciones | Verificadas (Live) | En Estado | Pendientes | Fallidas |",
+            f"|---|---|---|---|---|",
+            f"| **{summary['total']}** | **{summary['verified']}** ✅ | **{summary['implemented']}** 📝 | **{summary['pending']}** ⏳ | **{summary['failed']}** ❌ |\n",
+            "#### 📂 Obligaciones por Categoría:"
+        ]
+
+        from engine.production.contract import ObligationCategory
+        for cat in ObligationCategory:
+            cat_obs = [ob for ob in contract.obligations.values() if ob.category == cat]
+            if not cat_obs:
+                continue
+            md.append(f"**{cat.value} ({len(cat_obs)}):**")
+            for ob in cat_obs:
+                badge = {
+                    "VERIFIED": "✅ VERIFICADO",
+                    "IMPLEMENTED": "📝 EN ESTADO",
+                    "PENDING": "⏳ PENDIENTE",
+                    "FAILED": "❌ FALLIDO",
+                    "OMITTED": "⚠️ OMITIDO",
+                    "WAIVED": "⚪ EXENTO"
+                }.get(ob.status.value, str(ob.status.value))
+                fail_note = f" *(Fallo: {ob.failure_reason})*" if ob.failure_reason else ""
+                md.append(f"- [{badge}] **{ob.title}** (Vence: `{ob.due_phase}`){fail_note}")
+            md.append("")
+
+        return {
+            "status": "SONG_CONTRACT_SUMMARY",
+            "phase": curr_phase,
+            "contract": contract.to_dict(),
+            "message": "\n".join(md),
+            "question": f"Contrato activo ({summary['verified']}/{summary['total']} verificadas). ¿Cómo deseas proceder?"
+        }
+
+    def _handle_omission_audit_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query executing an active omission audit against Ableton Live."""
+        from engine.production.contract import OmissionAuditor
+        contract = self._get_song_contract()
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        report = OmissionAuditor.audit_phase_readiness(contract, self.data, conn, curr_phase)
+        self._sync_song_contract(contract)
+        self._save_state(action_tag="MANUAL_OMISSION_AUDIT")
+
+        return {
+            "status": "OMISSION_AUDIT_COMPLETED",
+            "phase": curr_phase,
+            "can_advance": report.can_advance,
+            "omission_report": report.to_dict(),
+            "message": report.format_markdown_report(),
+            "question": f"Auditoría de omisiones para {curr_phase} completada. ¿Cómo deseas proceder?"
+        }
+
+    def _handle_song_intent_query(self) -> Dict[str, Any]:
+        """Conversational query returning the artistic intent memory."""
+        contract = self._get_song_contract()
+        intent = contract.intent_memory
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+
+        md = [
+            f"### 🎯 Memoria de Intención Creativa (`SongIntentMemory`)",
+            f"- **Tesis Sonora:** *\"{intent.thesis.statement}\"*",
+            f"- **Género / Estilo:** `{intent.thesis.genre}` (Referencia: `{intent.thesis.reference_artist}`)",
+            f"- **Tonalidad & Tempo:** `{intent.thesis.key} {intent.thesis.scale}` a `{intent.thesis.bpm} BPM`\n",
+            "#### ⚓ Anclas de Identidad Sonora (Innegociables):",
+            *[f"- {a}" for a in intent.identity_anchors],
+            "\n#### 🚫 Derivas Prohibidas (Anti-Patrones):",
+            *[f"- {d}" for d in intent.forbidden_drift],
+            "\n#### 📈 Objetivos de Evolución Estructural:",
+            *[f"- **{e.get('id', 'EVOL')}** ({e.get('source')} $\\to$ {e.get('target')}): {e.get('expected')}" for e in intent.evolution_targets],
+            "\n#### ❓ Preguntas Creativas Abiertas:",
+            *[f"- {q}" for q in intent.unresolved_questions]
+        ]
+
+        return {
+            "status": "SONG_INTENT_SUMMARY",
+            "phase": curr_phase,
+            "intent_memory": intent.to_dict(),
+            "message": "\n".join(md),
+            "question": f"Tesis sonora: '{intent.thesis.statement}'. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def validate_phase_readiness(self, conn: Any, target_phase: str) -> Optional[Dict[str, Any]]:
+        """
+        Gating check: verifies if current phase obligations are satisfied before advancing.
+        Returns None if phase can advance, or a blocking response dict if blocked by omission.
+        """
+        from engine.production.contract import OmissionAuditor
+        contract = self._get_song_contract()
+        report = OmissionAuditor.audit_phase_readiness(contract, self.data, conn, target_phase)
+        self._sync_song_contract(contract)
+        self._save_state(action_tag=f"OMISSION_AUDIT_{target_phase}")
+
+        if not report.can_advance:
+            return {
+                "status": "PHASE_BLOCKED_BY_OMISSION",
+                "phase": target_phase,
+                "current_step": f"{target_phase} DETENIDA POR OMISIÓN CRÍTICA",
+                "action_taken": f"Bloqueo de fase: {report.block_reason}",
+                "question": report.format_markdown_report(),
+                "instructions_for_ai": "Resuelve la obligación fallida o ejecuta la reparación sugerida antes de continuar.",
+                "omission_report": report.to_dict()
+            }
+        return None
 
 # Global singleton
 copilot_guided_session_engine = CopilotGuidedSession()
