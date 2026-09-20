@@ -83,6 +83,8 @@ class CreativeProposalEngine:
     ) -> List[CreativeProposal]:
         """Synthesizes open artistic decisions into concrete producer proposals (READ-ONLY)."""
         key = session_data.get("key", "F#")
+        if not key or key == "F":
+            key = "F#"
         scale = session_data.get("scale", "minor")
 
         proposals = []
