@@ -49,6 +49,11 @@ from .musical_memory import (
     NarrativeMilestone,
     MusicalMemory,
 )
+from .creative_intervention import (
+    CreativeProposal,
+    CreativeProposalEngine,
+    InterventionExecutor,
+)
 from .creative_xray import CreativeXRay
 
 __all__ = [
@@ -82,5 +87,8 @@ __all__ = [
     "InteractionAuditor",
     "NarrativeMilestone",
     "MusicalMemory",
+    "CreativeProposal",
+    "CreativeProposalEngine",
+    "InterventionExecutor",
     "CreativeXRay",
 ]
