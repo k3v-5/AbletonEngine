@@ -47,7 +47,7 @@ class Phase6Arranger:
         notes_payload = [
             {
                 "pitch": int(d["pitch"]),
-                "start_time": round(float(d.get("start_time", d.get("start", 0.0))), 3),
+                "start_time": round(float(d.get("start_time", d.get("start", d.get("time", 0.0)))), 3),
                 "duration": round(float(d.get("duration", 1.0)), 3),
                 "velocity": min(127, max(1, int(d.get("velocity", 100)))),
                 "mute": bool(d.get("mute", False))
@@ -392,6 +392,9 @@ if len(arr_clips) == 0:
                     elif (st + dur) > cutoff_beat:
                         d_c = dict(d)
                         d_c["duration"] = max(0.05, round(cutoff_beat - st, 4))
+                        vacuumed_notes.append(d_c)
+                    else:
+                        vacuumed_notes.append(d)
                 s_notes_dicts = vacuumed_notes
 
             # 8-bar Turnaround variation enforcement

@@ -137,6 +137,7 @@ class LeitmotifEngine:
                 if i % 2 == 0:  # Sparse: skip half the notes
                     notes.append({
                         "pitch": root_pitch + 12 + interval,
+                        "start_time": bar_offset_beats + off,
                         "time": bar_offset_beats + off,
                         "duration": dur * 1.5,
                         "velocity": int(50 * acc)
@@ -150,6 +151,7 @@ class LeitmotifEngine:
                 bass_interval = interval if interval in [0, 7, 5, 3] else 0
                 notes.append({
                     "pitch": root_pitch - 24 + bass_interval,
+                    "start_time": bar_offset_beats + off,
                     "time": bar_offset_beats + off,
                     "duration": max(0.25, dur * 0.75),
                     "velocity": int(90 * acc)
@@ -163,6 +165,7 @@ class LeitmotifEngine:
                 ramp = 0.6 + (i / max(1, len(base_motif.intervals))) * 0.4
                 notes.append({
                     "pitch": root_pitch + interval,
+                    "start_time": bar_offset_beats + (off * 0.5),
                     "time": bar_offset_beats + (off * 0.5),
                     "duration": max(0.125, dur * 0.5),
                     "velocity": int(110 * acc * ramp)
@@ -176,6 +179,7 @@ class LeitmotifEngine:
                 reharm_interval = (interval + 3) % 12
                 notes.append({
                     "pitch": root_pitch + reharm_interval,
+                    "start_time": bar_offset_beats + off + 0.25,
                     "time": bar_offset_beats + off + 0.25,  # Syncopated displacement
                     "duration": dur,
                     "velocity": int(105 * acc)
@@ -185,6 +189,7 @@ class LeitmotifEngine:
             # Outro: Sustained root with trailing motif fragment
             notes.append({
                 "pitch": root_pitch,
+                "start_time": bar_offset_beats,
                 "time": bar_offset_beats,
                 "duration": 6.0,
                 "velocity": 70
@@ -192,6 +197,7 @@ class LeitmotifEngine:
             if base_motif.intervals:
                 notes.append({
                     "pitch": root_pitch + base_motif.intervals[-1],
+                    "start_time": bar_offset_beats + 6.0,
                     "time": bar_offset_beats + 6.0,
                     "duration": 2.0,
                     "velocity": 50
@@ -204,6 +210,7 @@ class LeitmotifEngine:
             ):
                 notes.append({
                     "pitch": root_pitch + interval,
+                    "start_time": bar_offset_beats + off,
                     "time": bar_offset_beats + off,
                     "duration": dur,
                     "velocity": int(100 * acc)

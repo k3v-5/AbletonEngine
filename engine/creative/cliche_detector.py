@@ -79,7 +79,7 @@ class ClicheDetector:
             )
 
         # 2. Timing / Grid Monotony Audit
-        times = [n.get("time", 0.0) for n in notes]
+        times = [n.get("time", n.get("start_time", n.get("start", 0.0))) for n in notes]
         on_beats = sum(1 for t in times if abs(t - round(t)) < 0.02)
         on_beat_ratio = on_beats / len(times)
 
@@ -143,8 +143,8 @@ class ClicheDetector:
         recommendations: List[str] = []
 
         # Compare notes in bar 4 vs bar 8 normalized to relative bar start
-        b4_rel = sorted([(round(n.get("time", 0.0) % 4.0, 2), n.get("pitch", 0)) for n in bar_4_notes])
-        b8_rel = sorted([(round(n.get("time", 0.0) % 4.0, 2), n.get("pitch", 0)) for n in bar_8_notes])
+        b4_rel = sorted([(round(n.get("time", n.get("start_time", n.get("start", 0.0))) % 4.0, 2), n.get("pitch", 0)) for n in bar_4_notes])
+        b8_rel = sorted([(round(n.get("time", n.get("start_time", n.get("start", 0.0))) % 4.0, 2), n.get("pitch", 0)) for n in bar_8_notes])
 
         is_identical = (b4_rel == b8_rel and len(b4_rel) > 0)
 

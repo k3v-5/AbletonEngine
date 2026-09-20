@@ -28,14 +28,14 @@ class TurnaroundEngine:
         b8_end = 8 * beats_per_bar
 
         b4_notes = [
-            (round(n.get("start_time", n.get("time", 0.0)) - b4_start, 2), n.get("pitch", 0))
+            (round(n.get("start_time", n.get("start", n.get("time", 0.0))) - b4_start, 2), n.get("pitch", 0))
             for n in notes
-            if b4_start <= n.get("start_time", n.get("time", 0.0)) < b4_end
+            if b4_start <= n.get("start_time", n.get("start", n.get("time", 0.0))) < b4_end
         ]
         b8_notes = [
-            (round(n.get("start_time", n.get("time", 0.0)) - b8_start, 2), n.get("pitch", 0))
+            (round(n.get("start_time", n.get("start", n.get("time", 0.0))) - b8_start, 2), n.get("pitch", 0))
             for n in notes
-            if b8_start <= n.get("start_time", n.get("time", 0.0)) < b8_end
+            if b8_start <= n.get("start_time", n.get("start", n.get("time", 0.0))) < b8_end
         ]
 
         if not b4_notes or not b8_notes:
@@ -77,11 +77,11 @@ class TurnaroundEngine:
         # Separate bar 8 notes from earlier notes
         prior_notes = [
             n for n in notes
-            if n.get("start_time", n.get("time", 0.0)) < b8_start or n.get("start_time", n.get("time", 0.0)) >= b8_end
+            if n.get("start_time", n.get("start", n.get("time", 0.0))) < b8_start or n.get("start_time", n.get("start", n.get("time", 0.0))) >= b8_end
         ]
         b8_notes = [
             n for n in notes
-            if b8_start <= n.get("start_time", n.get("time", 0.0)) < b8_end
+            if b8_start <= n.get("start_time", n.get("start", n.get("time", 0.0))) < b8_end
         ]
 
         new_b8_notes: List[Dict[str, Any]] = []
@@ -89,7 +89,7 @@ class TurnaroundEngine:
         if chosen_type == "drum_fill":
             # Keep first 2 beats of bar 8, inject snare/tom 16th-note roll on beats 3 and 4
             for n in b8_notes:
-                t = n.get("start_time", n.get("time", 0.0))
+                t = n.get("start_time", n.get("start", n.get("time", 0.0)))
                 if t < b8_start + 2.0:
                     new_b8_notes.append(n)
             # Add fill notes on beats 2 and 3 of bar 8 (e.g. snare 38, high tom 50, mid tom 47)
@@ -108,14 +108,14 @@ class TurnaroundEngine:
         elif chosen_type == "abrupt_silence":
             # Abrupt silence: mute/remove all notes on beats 3 and 4 of bar 8
             for n in b8_notes:
-                t = n.get("start_time", n.get("time", 0.0))
+                t = n.get("start_time", n.get("start", n.get("time", 0.0)))
                 if t < b8_start + 2.0:
                     new_b8_notes.append(n)
 
         elif chosen_type == "passing_chord":
             # Keep bar 8 notes up to beat 3, then add passing tension chord on beat 3.5 or 4
             for n in b8_notes:
-                t = n.get("start_time", n.get("time", 0.0))
+                t = n.get("start_time", n.get("start", n.get("time", 0.0)))
                 if t < b8_start + 3.0:
                     new_b8_notes.append(n)
             # Passing chord (e.g. tritone sub or diminished notes)
