@@ -2,7 +2,8 @@
 """
 SongContract Suite:
 Cross-phase obligations ledger, tripartite evidence verification, creative continuity memory,
-omission audit gatekeeper, creative decision ledger, and creative X-ray.
+omission audit gatekeeper, creative decision ledger, creative X-ray,
+performance character (Level E), interaction consequence (Level F), and musical narrative memory.
 """
 from .song_contract import (
     SongContract,
@@ -25,6 +26,29 @@ from .creative_decision_ledger import (
     CreativeDecisionRecord,
     DecisionVerdict,
 )
+from .performance_character import (
+    TimingIntention,
+    VelocityExpression,
+    ChordArticulation,
+    PhraseEvolution,
+    ConversationalRole,
+    TimingMethodologyAudit,
+    TrackPerformanceProfile,
+    PerformanceCharacterReport,
+    PerformanceAuditor,
+)
+from .interaction_audit import (
+    InteractionPosture,
+    SpaceYieldingDiagnostic,
+    RhythmicInterlockingDiagnostic,
+    SectionalReactionDiagnostic,
+    InteractionConsequenceReport,
+    InteractionAuditor,
+)
+from .musical_memory import (
+    NarrativeMilestone,
+    MusicalMemory,
+)
 from .creative_xray import CreativeXRay
 
 __all__ = [
@@ -41,5 +65,22 @@ __all__ = [
     "CreativeDecisionLedger",
     "CreativeDecisionRecord",
     "DecisionVerdict",
+    "TimingIntention",
+    "VelocityExpression",
+    "ChordArticulation",
+    "PhraseEvolution",
+    "ConversationalRole",
+    "TimingMethodologyAudit",
+    "TrackPerformanceProfile",
+    "PerformanceCharacterReport",
+    "PerformanceAuditor",
+    "InteractionPosture",
+    "SpaceYieldingDiagnostic",
+    "RhythmicInterlockingDiagnostic",
+    "SectionalReactionDiagnostic",
+    "InteractionConsequenceReport",
+    "InteractionAuditor",
+    "NarrativeMilestone",
+    "MusicalMemory",
     "CreativeXRay",
 ]

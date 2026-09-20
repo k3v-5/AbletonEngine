@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional
 import logging
 
 from .song_intent_memory import SongIntentMemory
+from .musical_memory import MusicalMemory
 
 logger = logging.getLogger("SongContract")
 
@@ -139,6 +140,7 @@ class SongContract:
     song_id: str = field(default_factory=lambda: f"song_{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d_%H%M%S')}")
     title: str = "Untitled Project"
     intent_memory: SongIntentMemory = field(default_factory=SongIntentMemory)
+    musical_memory: MusicalMemory = field(default_factory=lambda: MusicalMemory(song_id="default_song"))
     obligations: Dict[str, TripartiteObligation] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -252,6 +254,7 @@ class SongContract:
             "song_id": self.song_id,
             "title": self.title,
             "intent_memory": self.intent_memory.to_dict(),
+            "musical_memory": self.musical_memory.to_dict(),
             "obligations": {k: ob.to_dict() for k, ob in self.obligations.items()},
             "metadata": dict(self.metadata),
         }
@@ -261,6 +264,8 @@ class SongContract:
         if not data or not isinstance(data, dict):
             return cls()
         intent = SongIntentMemory.from_dict(data.get("intent_memory", {}))
+        mus_mem_data = data.get("musical_memory")
+        mus_mem = MusicalMemory.from_dict(mus_mem_data) if mus_mem_data else MusicalMemory(song_id=data.get("song_id", "untitled_song"))
         obs = {}
         for k, v in data.get("obligations", {}).items():
             obs[k] = TripartiteObligation.from_dict(v)
@@ -268,6 +273,7 @@ class SongContract:
             song_id=data.get("song_id", "untitled_song"),
             title=data.get("title", "Untitled Project"),
             intent_memory=intent,
+            musical_memory=mus_mem,
             obligations=obs,
             metadata=data.get("metadata", {})
         )
@@ -282,6 +288,7 @@ class SongContract:
         key = session_data.get("key", "F#")
         scale = session_data.get("scale", "minor")
         bpm = float(session_data.get("bpm", 90.0))
+        s_id = f"song_{session_data.get('bpm', 90)}_{key}"
 
         intent_mem = SongIntentMemory.create_for_style(
             genre=genre,
@@ -291,9 +298,10 @@ class SongContract:
             bpm=bpm
         )
         contract = cls(
-            song_id=f"song_{session_data.get('bpm', 90)}_{key}",
+            song_id=s_id,
             title=f"{genre.upper()} in {key} {scale}",
-            intent_memory=intent_mem
+            intent_memory=intent_mem,
+            musical_memory=MusicalMemory.scaffold_for_neo_soul(song_id=s_id)
         )
 
         # 1. Identity Obligations

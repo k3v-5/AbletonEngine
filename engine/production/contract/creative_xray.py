@@ -15,6 +15,9 @@ import logging
 
 from .song_contract import SongContract
 from .creative_decision_ledger import CreativeDecisionLedger, DecisionVerdict
+from .performance_character import PerformanceAuditor
+from .interaction_audit import InteractionAuditor
+from .musical_memory import MusicalMemory
 
 logger = logging.getLogger("CreativeXRay")
 
@@ -160,6 +163,21 @@ class CreativeXRay:
             }
         ]
 
+        # Level E: Performance Character Audit
+        perf_report = PerformanceAuditor.audit_session(core_tracks)
+
+        # Level F: Interaction & Consequence Audit
+        track_notes_map = {
+            t.get("role", t.get("name", f"track_{i}")): t.get("notes", [])
+            for i, t in enumerate(core_tracks)
+        }
+        inter_report = InteractionAuditor.audit_session(session_data, track_notes_map)
+
+        # Musical Memory
+        mus_mem = getattr(contract, "musical_memory", None)
+        if not mus_mem or not mus_mem.milestones:
+            mus_mem = MusicalMemory.scaffold_for_neo_soul(song_id=contract.song_id)
+
         # Compile formatted markdown
         summary_contract = contract.get_summary()
         thesis = contract.intent_memory.thesis
@@ -215,6 +233,48 @@ class CreativeXRay:
             md.append("")
 
         md.extend([
+            "NIVEL E: CARÁCTER INTERPRETATIVO (PERFORMANCE CHARACTER)",
+            "────────────────────────────────────────────────────────",
+        ])
+        for p in perf_report.track_profiles:
+            t_name = f"[{p.role.upper()}] {p.track_name}"[:22].ljust(22)
+            md.append(f"• {t_name} | Timing: {p.timing_intention.value:<14} | Dinámica: {p.velocity_expression.value}")
+            if p.artistic_dilemma:
+                md.append(f"  Dilema: {p.artistic_dilemma}")
+
+        md.extend([
+            "",
+            "NIVEL F: INTERACCIÓN Y CAUSALIDAD (CONSEQUENCE AUDIT)",
+            "────────────────────────────────────────────────────────",
+        ])
+        if inter_report.space_yielding:
+            for sy in inter_report.space_yielding:
+                md.append(f"• Cesión de Espacio ({sy.lead_track_name} vs {sy.accompaniment_track_name}): {sy.posture.value}")
+                md.append(f"  {sy.narrative_finding}")
+        if inter_report.rhythmic_interlocking:
+            ri = inter_report.rhythmic_interlocking
+            md.append(f"• Entrelazado Rítmico (Kick vs Bass): {ri.posture.value}")
+            md.append(f"  {ri.narrative_finding}")
+        for sr in inter_report.sectional_reactions:
+            status = "CONSCIENTE" if sr.is_causally_aware else "CIEGO"
+            md.append(f"• Reacción a {sr.trigger_action} en {sr.section_name}: [{status}]")
+            md.append(f"  {sr.narrative_finding}")
+
+        md.extend([
+            "",
+            "MEMORIA MUSICAL NARRATIVA (CAUSALIDAD TEMPORAL)",
+            "────────────────────────────────────────────────────────",
+        ])
+        for m in mus_mem.milestones:
+            md.append(f"• [{m.section}] {m.element} ({m.action}):")
+            md.append(f"  Intención: {m.artistic_intent}")
+            md.append(f"  1. Antes:   {m.what_happened_before}")
+            md.append(f"  2. Ahora:   {m.what_it_means_now}")
+            md.append(f"  3. Después: {m.what_could_happen_next}")
+            md.append(f"  Reacciones: {', '.join(m.interdependent_reactions)}")
+            md.append("")
+
+        md.extend([
             "DILEMAS ABIERTOS PARA EL PRODUCTOR (SIN ACCIÓN AUTOMÁTICA)",
             "────────────────────────────────────────────────────────",
             "[ ] Opción 1: Validar 'Retorno Deliberado' en Hook 3 (mantener seco por contraste de Bridge).",
@@ -233,4 +293,7 @@ class CreativeXRay:
             "transformations": transformations,
             "creative_questions": creative_questions,
             "summary_contract": summary_contract,
+            "performance_character": [p.to_dict() for p in perf_report.track_profiles],
+            "interaction_consequence": inter_report.to_ascii_summary(),
+            "musical_memory": mus_mem.to_dict(),
         }
