@@ -14,6 +14,8 @@ import logging
 
 from .song_intent_memory import SongIntentMemory
 from .musical_memory import MusicalMemory
+from .sonic_identity import SonicIdentityBudget, SonicObject
+from .sonic_memory import SonicMemory
 
 logger = logging.getLogger("SongContract")
 
@@ -25,6 +27,7 @@ class ObligationCategory(str, Enum):
     PRODUCTION = "PRODUCTION"
     MIX = "MIX"
     EVOLUTION = "EVOLUTION"
+    SONIC_IDENTITY = "SONIC_IDENTITY"
 
 
 class ObligationStatus(str, Enum):
@@ -141,6 +144,9 @@ class SongContract:
     title: str = "Untitled Project"
     intent_memory: SongIntentMemory = field(default_factory=SongIntentMemory)
     musical_memory: MusicalMemory = field(default_factory=lambda: MusicalMemory(song_id="default_song"))
+    sonic_budget: SonicIdentityBudget = field(default_factory=SonicIdentityBudget)
+    sonic_memory: SonicMemory = field(default_factory=SonicMemory)
+    sonic_objects: List[SonicObject] = field(default_factory=list)
     obligations: Dict[str, TripartiteObligation] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -255,6 +261,9 @@ class SongContract:
             "title": self.title,
             "intent_memory": self.intent_memory.to_dict(),
             "musical_memory": self.musical_memory.to_dict(),
+            "sonic_budget": self.sonic_budget.to_dict(),
+            "sonic_memory": self.sonic_memory.to_dict(),
+            "sonic_objects": [o.to_dict() for o in self.sonic_objects],
             "obligations": {k: ob.to_dict() for k, ob in self.obligations.items()},
             "metadata": dict(self.metadata),
         }
@@ -266,6 +275,10 @@ class SongContract:
         intent = SongIntentMemory.from_dict(data.get("intent_memory", {}))
         mus_mem_data = data.get("musical_memory")
         mus_mem = MusicalMemory.from_dict(mus_mem_data) if mus_mem_data else MusicalMemory(song_id=data.get("song_id", "untitled_song"))
+        sonic_budget = SonicIdentityBudget.from_dict(data.get("sonic_budget", {}))
+        sonic_mem_data = data.get("sonic_memory")
+        sonic_mem = SonicMemory.from_dict(sonic_mem_data) if sonic_mem_data else SonicMemory()
+        sonic_objs = [SonicObject.from_dict(o) for o in data.get("sonic_objects", [])]
         obs = {}
         for k, v in data.get("obligations", {}).items():
             obs[k] = TripartiteObligation.from_dict(v)
@@ -274,6 +287,9 @@ class SongContract:
             title=data.get("title", "Untitled Project"),
             intent_memory=intent,
             musical_memory=mus_mem,
+            sonic_budget=sonic_budget,
+            sonic_memory=sonic_mem,
+            sonic_objects=sonic_objs,
             obligations=obs,
             metadata=data.get("metadata", {})
         )

@@ -55,6 +55,31 @@ from .creative_intervention import (
     InterventionExecutor,
 )
 from .creative_xray import CreativeXRay
+from .sonic_identity import (
+    SoundDesignRole,
+    SonicIdentityBudget,
+    SonicObject,
+    SonicIdentityAudit,
+    SonicIdentityAuditReport,
+)
+from .sound_design_engine import (
+    DestructionArchetype,
+    SoundDesignStep,
+    SoundDesignChain,
+    SoundDesignEngine,
+)
+from .resampling_engine import (
+    MutationBranch,
+    MaterialMutation,
+    MutationFilter,
+    RecursiveResamplingEngine,
+)
+from .sonic_memory import (
+    SonicLifeStage,
+    SonicOccurrence,
+    SonicObjectGenealogy,
+    SonicMemory,
+)
 
 __all__ = [
     "SongContract",
@@ -91,4 +116,21 @@ __all__ = [
     "CreativeProposalEngine",
     "InterventionExecutor",
     "CreativeXRay",
+    "SoundDesignRole",
+    "SonicIdentityBudget",
+    "SonicObject",
+    "SonicIdentityAudit",
+    "SonicIdentityAuditReport",
+    "DestructionArchetype",
+    "SoundDesignStep",
+    "SoundDesignChain",
+    "SoundDesignEngine",
+    "MutationBranch",
+    "MaterialMutation",
+    "MutationFilter",
+    "RecursiveResamplingEngine",
+    "SonicLifeStage",
+    "SonicOccurrence",
+    "SonicObjectGenealogy",
+    "SonicMemory",
 ]

@@ -125,6 +125,10 @@ class MusicalMemory:
                 return m
         return None
 
+    def get_milestones_for_section(self, section: str) -> List[NarrativeMilestone]:
+        """Returns all narrative milestones associated with the specified section."""
+        return [m for m in self.milestones if section.lower() in m.section.lower()]
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "song_id": self.song_id,

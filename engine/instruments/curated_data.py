@@ -222,20 +222,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "description": "Authentic nylon acoustic flamenco guitar."
             },
         ),
-        SoundSourceOption(
-            id="vst3_stage_73",
-            name="Arturia Stage-73 V2",
-            role="KEYS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Arturia:Stage-73%20V2",
-            vendor="Arturia",
-            description="Authentic physical modeling of the Fender Rhodes Stage 73 electric piano.",
-            blueprint={
-                "sculpt_type": "macro",
-                "parameters": {"Drive": 0.30, "Tone": 0.60, "Tremolo": 0.35},
-                "description": "Physical modeled vintage Stage 73 Rhodes."
-            },
-        ),
+
         SoundSourceOption(
             id="vst3_piano_v",
             name="Arturia Piano V3",
@@ -697,7 +684,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             category=InstrumentSourceCategory.VST3,
             uri="query:Plugins#VST3:Arturia:Analog%20Lab%20V",
             vendor="Arturia",
-            description="Vintage string machines (Solina, Mellotron) and modern symphonic strings.",
+            description="Vintage string machines (Solina, Symphonic) and modern orchestral strings.",
             blueprint={
                 "sculpt_type": "macro",
                 "parameters": {"P1 Brightness": 0.65, "P1 Timbre": 0.60, "P1 Time": 0.50, "P1 Movement": 0.40},

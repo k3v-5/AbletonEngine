@@ -4,6 +4,11 @@
 > Powered by Model Context Protocol (FastMCP) with 301 specialized tools and 956 automated unit/acceptance/chaos tests (100% pass rate).
 
 📚 **Documentación Principal:**
+- 🎭 [**Nivel T: Intentional Musical Performance & Humanization — Core, Groove Memory, Breathing & Identity (INTENTIONAL_PERFORMANCE_AND_HUMANIZATION.md)**](docs/INTENTIONAL_PERFORMANCE_AND_HUMANIZATION.md)
+- 🔄 [**Nivel S: Closed-Loop Creative Evolution — Multi-Domain Feedback, Planner, Budget & Rollback (CLOSED_LOOP_CREATIVE_EVOLUTION.md)**](docs/CLOSED_LOOP_CREATIVE_EVOLUTION.md)
+- 🔍 [**Nivel R: Contextual Sonic Critic — In-Situ Section Audition & Distance Flexibility (CONTEXTUAL_SONIC_CRITIC.md)**](docs/CONTEXTUAL_SONIC_CRITIC.md)
+- 🧬 [**Audio Genesis, Provenance & Closed-Loop Sampling (AUDIO_GENESIS_AND_PROVENANCE.md)**](docs/AUDIO_GENESIS_AND_PROVENANCE.md)
+- 🎼 [**Composición Generativa, 4 Memorias y Taste Engine (GENERATIVE_COMPOSITION_AND_TASTE_ENGINE.md)**](docs/GENERATIVE_COMPOSITION_AND_TASTE_ENGINE.md)
 - 📖 [**Guía de Usuario y Manual Operativo (USER_GUIDE.md)**](docs/USER_GUIDE.md)
 - 🏥 [**Manual de Copilot Guided Session y Session Doctor (COPILOT_GUIDED_SESSION.md)**](docs/COPILOT_GUIDED_SESSION.md)
 - 🗺️ [**Índice Maestro de Módulos, Herramientas y Sitemap (INDEX.md)**](docs/INDEX.md)
@@ -15,6 +20,7 @@
 - 🔬 [**Documento 14: Integration Tests & Golden Pipeline**](docs/production_integration.md)
 - 🔌 [**Documento 13: Superficie FastMCP de Gobernanza**](docs/production_mcp.md)
 - ⏪ [**Documento 12: Rollback de Primera Clase**](docs/production_rollback.md)
+
 
 ---
 
@@ -68,7 +74,107 @@
 
 ---
 
+## Autonomous Generative Composition & Taste Engine (Phases P, M, N, O, P+)
+
+The engine transforms from a reactive mixer into an **imaginative, identity-driven composer**:
+
+```
+                  ┌─────────────────────────────────────────┐
+                  │    COMPOSITION MOTIF & IDENTITY (P)     │
+                  │  CompositionalDNA & NegativeConstraints │
+                  └────────────────────┬────────────────────┘
+                                       ▼
+                  ┌─────────────────────────────────────────┐
+                  │      COMPOSITION MUTATION ENGINE (M)    │
+                  │  SubV7 / Modal Borrow / Voice Leading   │
+                  └────────────────────┬────────────────────┘
+                                       ▼
+                  ┌─────────────────────────────────────────┐
+                  │    EXPECTATION & DEVIATION ENGINE (N)   │
+                  │ Vacuum ➔ Tension ➔ Mandatory Consequence│
+                  └────────────────────┬────────────────────┘
+                                       ▼
+                  ┌─────────────────────────────────────────┐
+                  │      GENERATIVE TASTE ENGINE (P+)       │
+                  │ 10-Dimensional Filter & A/B Staging Take│
+                  └────────────────────┬────────────────────┘
+                                       ▼
+                  ┌─────────────────────────────────────────┐
+                  │      THE 4-TIER PRODUCTION MEMORY       │
+                  │ Song + Compository + Sonic + Catalog (O)│
+                  └─────────────────────────────────────────┘
+```
+
+- **Phase P (Compositional DNA):** Unique genetic musical identity (notes, intervals, syncopation, gestures) with inviolable negative constraints (e.g. `NO_UNEXTENDED_MAJOR_TRIADS`, `NO_IDENTICAL_HOOK_REPETITION`).
+- **Phase M (Composition Mutation):** Musical evolution respecting the Song Contract (tritone substitutions, modal interchange, pedal tones, turnaround reharmonization).
+- **Phase N (Expectation & Deviation):** Musical tension psychology (`Expectation ➔ Pattern Established ➔ Deviation ➔ Tension ➔ Consequence ➔ Resolution / New Rule`).
+- **Phase O (Catalog Identity & Memory):** Cross-song memory detecting recipe redundancy (e.g., Rhodes + vinyl + reverse vocal) and driving catalog-wide diversity.
+- **Phase P+ (Generative Taste Engine):** 10-dimensional perceptual evaluation with an intentional risk appetite bonus protecting bold, innovative choices from conservative pop smoothing.
+- **Learning Loop (Audio ➔ Analysis ➔ Learning):** Crystallizes post-intervention acoustic evidence (RMS, true peak, 100% mono compatibility) into enduring, indexed production wisdom.
+
+---
+
+## 🧬 Audio Genesis Engine & Audio Provenance Engine (`engine/audio_genesis/`)
+
+Establece el principio de **ecosistema acústico cerrado** donde la canción se alimenta de sí misma en vez de utilizar samples externos o arbitrarios:
+- **Audio Provenance Engine:** Todo audio posee linaje rastreable (`ORIGINAL_GENERATED`, `DERIVED_FROM_SONG`, `USER_IMPORTED`, `CATALOG_SAMPLE`). El audio clasificado como `UNKNOWN` queda estrictamente vetado (`creative_usage = FORBIDDEN`) y lanza de inmediato `CreativeGovernanceError`.
+- **Render Before Sample Mandate:** Si el motor necesita un sample, compone primero el material musical con el ADN de la canción y lo renderiza antes de aplicar transformaciones.
+- **4 Pipelines Canónicos de Génesis:**
+  - **Génesis A (Resample Melódico):** Frase melódica $\to$ Saturación $\to$ Render $\to$ Slice $\to$ Reverse $\to$ Pitch Shift (-7 semitonos) $\to$ Nueva textura.
+  - **Génesis B (Freeze / Ambient Pad):** Acorde $\to$ Render $\to$ Granular Freeze $\to$ Time-Stretch 400% $\to$ Filtro espectral $\to$ Pad ambiental.
+  - **Génesis C (Micro-Sample):** Frase $\to$ Render $\to$ Ventana 80–250 ms $\to$ Envolvente percusiva $\to$ Afinación a tónica $\to$ Pluck / One-shot.
+  - **Génesis D (Audio $\to$ MIDI $\to$ Audio):** Render $\to$ Deformación extrema $\to$ Extracción de transientes/pitch $\to$ Nuevo MIDI $\to$ Nuevo instrumento $\to$ Nuevo render.
+- **Diversificación de Destinos:** Enrutamiento musical a `Simpler (Melódico/Sliced)`, `Audio Clip` en arrangement, `Granular Stretch`, `Transient Layer` de batería híbrida, `Atmosphere Reverb Bed` o `Drum Rack Pad`.
+- Documentación completa en [`docs/AUDIO_GENESIS_AND_PROVENANCE.md`](file:///F:/Dev/AbletonEngine/docs/AUDIO_GENESIS_AND_PROVENANCE.md).
+
+---
+
+---
+
+## Generative Artistic Direction: The Artistic Critic & Selection Loop
+
+Beyond horizontal technique accumulation, the engine operates as a **Generative Artistic Director** via ruthless vertical selection:
+
+```
+              ARTISTIC INTENT
+                     │
+                     ▼
+              COMPOSITION DNA
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+    MUSICAL ENGINE        SONIC ENGINE
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+              CANDIDATE SONGS
+                     │
+                     ▼
+        ARTISTIC CRITIC ENGINE (7 JUDGES)
+   [Identity | Memorability | Predictability |
+    Emotional | Human Plausibility | Sonic Signature | Genre]
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+       ACCEPT                 REJECT (80-90%)
+          │                     │
+          ▼                     └──→ GUIDED MUTATION
+      PRODUCTION                     (with Critic Feedback)
+          │                                 │
+          ▼                                 │
+     LIVE RENDER ←──────────────────────────┘
+```
+
+* **`ArtisticIntent`:** Defines emotional core, listener journey (beginning $\to$ climax $\to$ ending), signature sound brief, and forbidden tropes before generation.
+* **`ArtisticCriticEngine`:** Internal judicial court with 7 specialized critics enforcing the **Law of Memorability** (1-2 iconic events), **Contextual Surprise** (deviation within budget), **Perceived Emotional Impact** (eliminating empty parameter movements), **Human Plausibility** (hunting robotic machine artifacts), and **Sonic Signatures**.
+* **`TasteAndSelectionLoop`:** Destroys 80–90% of sub-par proposals and executes feedback-guided mutations until a candidate satisfies all critics with 0 vetos.
+* **`IdentityStressTest`:** Continuous validation harness maintaining complete disjunction across 10 contrasting archetypes with `CatalogDiversityIndex >= 0.88` and zero recipe collisions.
+
+
+---
+
 ## ITU-R BS.1770-5 Compliance & Delivery Profiles
+
 
 PIE implements a strict mathematical and conceptual separation between **Measurement**, **Profile**, and **Compliance**:
 

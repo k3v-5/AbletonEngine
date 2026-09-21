@@ -1,0 +1,48 @@
+{
+  "wisdom_version": "1.0.0",
+  "total_wisdom_rules": 2,
+  "rules": [
+    {
+      "wisdom_id": "wis_001_hook_3",
+      "song_id": "kendrick_alright_01",
+      "section": "Hook 3",
+      "key_root": "Eb",
+      "intervention_applied": "2-beat rhythmic vacuum (bars 4 beats 2-3) followed by high fanfare and 808 drop",
+      "acoustic_evidence": {
+        "rms_dbfs": -16.99,
+        "true_peak_dbtp": -13.20,
+        "crest_factor_db": 3.79,
+        "mono_compatibility_loss_db": 0.00,
+        "spectral_spread": "balanced_warm",
+        "emotional_lift_delta": 0.28,
+        "novelty_surprise_score": 0.35
+      },
+      "taste_score": 0.942,
+      "why_it_worked": "Zero phase cancellation (0.0 dB mono loss) preserved punch in collapsed mono environments. Crest factor of 3.8 dB delivered punchy transient impact without master bus squashing. Surprise delta of +35% shattered ear fatigue and lifted emotional energy.",
+      "generalizable_rule": "When arranging a climax in Eb (Hook 3): applying '2-beat rhythmic vacuum followed by high fanfare and 808 drop' creates high emotional payoff while maintaining mono fidelity.",
+      "confidence_score": 0.95,
+      "created_at": "2026-09-20T21:56:57Z"
+    },
+    {
+      "wisdom_id": "wis_002_bridge_pedal",
+      "song_id": "kendrick_alright_01",
+      "section": "Bridge",
+      "key_root": "Eb",
+      "intervention_applied": "Pedal tone bass on Eb anchoring moving Dorian chord voicings",
+      "acoustic_evidence": {
+        "rms_dbfs": -19.40,
+        "true_peak_dbtp": -15.10,
+        "crest_factor_db": 4.30,
+        "mono_compatibility_loss_db": 0.00,
+        "spectral_spread": "warm_intimate",
+        "emotional_lift_delta": 0.22,
+        "novelty_surprise_score": 0.26
+      },
+      "taste_score": 0.915,
+      "why_it_worked": "Pedal bass creates harmonic dynamic tension without crowding low frequencies, allowing mid-range Rhodes and vocal textures to open up naturally before the final climax.",
+      "generalizable_rule": "In the Bridge section: grounding upper harmonic extensions with a static tonic pedal tone provides introspective contrast without phase instability.",
+      "confidence_score": 0.92,
+      "created_at": "2026-09-20T22:15:00Z"
+    }
+  ]
+}

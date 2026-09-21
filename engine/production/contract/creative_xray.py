@@ -18,6 +18,7 @@ from .creative_decision_ledger import CreativeDecisionLedger, DecisionVerdict
 from .performance_character import PerformanceAuditor
 from .interaction_audit import InteractionAuditor
 from .musical_memory import MusicalMemory
+from .sonic_identity import SonicIdentityAudit
 
 logger = logging.getLogger("CreativeXRay")
 
@@ -178,6 +179,19 @@ class CreativeXRay:
         if not mus_mem or not mus_mem.milestones:
             mus_mem = MusicalMemory.scaffold_for_neo_soul(song_id=contract.song_id)
 
+        # Level H: Sonic Identity Audit
+        sonic_objects = getattr(contract, "sonic_objects", [])
+        sonic_budget = getattr(contract, "sonic_budget", None)
+        if sonic_budget is None:
+            from .sonic_identity import SonicIdentityBudget
+            sonic_budget = SonicIdentityBudget()
+        all_section_names = [s.get("name", f"Sec {i+1}") for i, s in enumerate(sections)]
+        sonic_report = SonicIdentityAudit.audit(
+            sonic_objects=sonic_objects,
+            budget=sonic_budget,
+            all_sections=all_section_names
+        )
+
         # Compile formatted markdown
         summary_contract = contract.get_summary()
         thesis = contract.intent_memory.thesis
@@ -275,6 +289,21 @@ class CreativeXRay:
             md.append("")
 
         md.extend([
+            "",
+            "NIVEL H: IDENTIDAD SONORA & SOUND DESIGN (SONIC IDENTITY)",
+            "────────────────────────────────────────────────────────",
+            f"• Tesis Sonora:     \"{thesis.statement}\"",
+            f"• Presupuesto:      Firma: {sonic_budget.used_signature_sounds}/{sonic_budget.max_signature_sounds} | Mutaciones: {sonic_budget.used_major_transformations}/{sonic_budget.max_major_transformations} | Ear Candy: {sonic_budget.used_ear_candy_events}/{sonic_budget.max_ear_candy_events}",
+            f"• Contraste Sónico: {int(sonic_report.contrast_ratio * 100)}% secciones de alivio limpio (Veredicto: {sonic_report.verdict})",
+        ])
+        if sonic_report.sections_with_signature:
+            md.append(f"• Presencia Firma:  {', '.join(sonic_report.sections_with_signature)}")
+        if sonic_report.recommendations:
+            for rec in sonic_report.recommendations:
+                md.append(f"  → {rec}")
+
+        md.extend([
+            "",
             "DILEMAS ABIERTOS PARA EL PRODUCTOR (SIN ACCIÓN AUTOMÁTICA)",
             "────────────────────────────────────────────────────────",
             "[ ] Opción 1: Validar 'Retorno Deliberado' en Hook 3 (mantener seco por contraste de Bridge).",
@@ -296,4 +325,5 @@ class CreativeXRay:
             "performance_character": [p.to_dict() for p in perf_report.track_profiles],
             "interaction_consequence": inter_report.to_ascii_summary(),
             "musical_memory": mus_mem.to_dict(),
+            "sonic_identity": sonic_report.to_dict(),
         }

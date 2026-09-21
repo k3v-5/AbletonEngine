@@ -71,6 +71,46 @@ slices_count = len(getattr(s, 'slices', [])) if s else 0
         }
 
     @classmethod
+    def load_provenanced_sample_and_slice(
+        cls,
+        conn: Any,
+        track_index: int,
+        sample_provenance: Any,
+        device_index: int = 0,
+        playback_mode: int = 2,
+        allow_external_samples: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Verifies provenance before allowing sample loading and slicing into Simpler.
+        Raises CreativeGovernanceError if the sample is unprovenanced or UNKNOWN.
+        """
+        from engine.audio_genesis.provenance import SampleOrigin, CreativeGovernanceError
+
+        origin = getattr(sample_provenance, "origin", None)
+        if isinstance(origin, str):
+            origin_str = origin.lower()
+        elif hasattr(origin, "value"):
+            origin_str = str(origin.value).lower()
+        else:
+            origin_str = "unknown"
+
+        if origin_str == "unknown" and not allow_external_samples:
+            raise CreativeGovernanceError(
+                f"Simpler Governance Violation: Cannot load unprovenanced audio (origin={origin_str}) "
+                f"into Simpler on track {track_index}. Creative audio must possess verifiable song provenance."
+            )
+
+        render_obj = getattr(sample_provenance, "render", None)
+        sample_path = getattr(render_obj, "file_path", None) if render_obj else getattr(sample_provenance, "audio_path", "")
+        if not sample_path:
+            sample_path = getattr(sample_provenance, "file_path", "")
+
+        res = cls.load_sample_and_slice(conn, track_index, sample_path, device_index, playback_mode)
+        res["provenance_id"] = getattr(sample_provenance, "sample_id", "verified_provenance")
+        res["origin"] = origin_str
+        return res
+
+    @classmethod
     def clamp_notes_to_slices(
         cls,
         notes: List[Dict[str, Any]],

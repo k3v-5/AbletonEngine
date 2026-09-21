@@ -195,7 +195,12 @@ class Phase6CompositionHandler(BasePhaseHandler):
             is_interactive = session_state.get("interactive", False)
             if is_interactive:
                 cur_trk = tracks[trk_idx] if trk_idx < len(tracks) else {}
-                if is_stepping and not has_notes:
+                cur_trk_is_aud = bool(
+                    cur_trk.get("is_audio", False)
+                    or str(cur_trk.get("role", "")).upper() == "VOCALS"
+                    or cur_trk.get("live_recording_mode", False)
+                )
+                if is_stepping and not has_notes and not cur_trk_is_aud:
                     return {
                         "status": "MODULAR_COMPOSITION_BLOCKED",
                         "phase": "PHASE_6_COMPOSITION",
@@ -206,7 +211,7 @@ class Phase6CompositionHandler(BasePhaseHandler):
                         "track_index": trk_idx
                     }
 
-                if has_notes and trk_idx < len(tracks):
+                if (has_notes or cur_trk_is_aud) and trk_idx < len(tracks):
                     self.deploy_single_track_composition(session, conn, cur_trk, custom_notes_map)
                     cur_trk["notes_count"] = len(custom_notes_map) or sum(len(v) for v in custom_notes_map.values())
                     if cur_trk.get("deployment_failed"):

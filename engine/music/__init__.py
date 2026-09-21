@@ -31,6 +31,12 @@ from .groove.humanizer import DynamicGrooveHumanizer
 from .harmony.strum import PhysicalChordStrummer
 from .expression.mpe import MPEExpressionEngine, ExpressiveNoteModifier, PitchBendPoint
 from .drums.ghost_notes import DrumGhostNoteInjector
+from .composition_mutation_engine import (
+    CompositionMutationEngine,
+    MutationType,
+    MutationResult
+)
+
 
 
 class MusicEngine:

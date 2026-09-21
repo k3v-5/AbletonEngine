@@ -1,0 +1,38 @@
+{
+  "catalog_version": "2.1.0",
+  "total_songs": 1,
+  "catalog_diversity_index": 1.0,
+  "records": [
+    {
+      "song_id": "kendrick_alright_01",
+      "title": "Alright Neo-Soul Reinterpretation",
+      "key_root": "Eb",
+      "scale": "minor",
+      "bpm": 110.0,
+      "instrument_roles": {
+        "KICK": "808 Core Kit",
+        "DRUMS": "Boom Bap Kit",
+        "BASS": "FutureAudioWorkshop SubLab XL",
+        "KEYS": "Arturia Analog Lab V (Vintage Suitcase Rhodes)",
+        "HORNS": "Arturia Analog Lab V (Horns/Brass)",
+        "STRINGS": "Ableton Ac Strings Orch",
+        "LEAD_DEV": "Ableton Drift (Climactic Brass Lead)",
+        "SIG_SHIMMER": "Ableton Drift (Autogenous Rhodes Shimmer)",
+        "TEXTURE_FOLEY": "Ableton Simpler (Vinyl & Room Foley)"
+      },
+      "sound_design_recipes": [
+        "vinyl_dust",
+        "autogenous_rhodes_shimmer",
+        "high_fanfare_climax",
+        "pre_drop_vacuum_cut"
+      ],
+      "signature_gestures": [
+        "pre_hook_vacuum_drop",
+        "pharrell_4_kick_count_intro",
+        "cadential_brass_fanfare_hook3"
+      ],
+      "groove_style": "16th_swing_54_analog_human",
+      "created_at": "2026-09-20T21:56:00Z"
+    }
+  ]
+}

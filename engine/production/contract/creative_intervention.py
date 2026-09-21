@@ -235,6 +235,15 @@ class InterventionExecutor:
         end_beat = (float(end_bar) - 1.0) * 4.0
         beat_duration_ms = (60.0 / bpm) * 1000.0
 
+        max_note_time = max((float(n.get("start_time", 0.0)) for n in notes), default=0.0)
+        # If notes are locally indexed inside an isolated section clip (e.g. 0.0 to 32.0 beats for an 8-bar section)
+        if max_note_time < start_beat and max_note_time <= (float(end_bar - start_bar + 2) * 4.0):
+            eff_start_beat = 0.0
+            eff_end_beat = float(end_bar - start_bar) * 4.0
+        else:
+            eff_start_beat = start_beat
+            eff_end_beat = end_beat
+
         updated_notes = []
         modified_count = 0
 
@@ -242,7 +251,7 @@ class InterventionExecutor:
         chord_clusters: Dict[float, List[Dict[str, Any]]] = {}
         for n in notes:
             st = float(n.get("start_time", 0.0))
-            if start_beat <= st < end_beat:
+            if eff_start_beat <= st < eff_end_beat:
                 # Snap to beat quantum to find cluster
                 quant_beat = round(st * 4.0) / 4.0
                 chord_clusters.setdefault(quant_beat, []).append(n)
@@ -256,7 +265,7 @@ class InterventionExecutor:
             total_voices = len(cluster_notes_sorted)
 
             # Determine bar-relative phrasing curve
-            bar_offset = ((cluster_beat - start_beat) / 4.0) % 4.0
+            bar_offset = ((cluster_beat - eff_start_beat) / 4.0) % 4.0
             # Phrase contour: bar 0=85, bar 1=95, bar 2=78, bar 3=100
             contour_base = 82 + int(math.sin(bar_offset * math.pi / 2.0) * 16)
 

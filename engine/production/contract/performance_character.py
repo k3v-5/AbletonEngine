@@ -215,7 +215,7 @@ class PerformanceAuditor:
         offsets_ms: List[float] = []
         snapped_count = 0
 
-        velocities = [int(n.get("velocity", 90)) for n in notes]
+        velocities = [int(n.get("velocity", 90)) if isinstance(n, dict) else 90 for n in notes]
         mean_vel = float(sum(velocities)) / float(n_count)
         var_vel = sum((v - mean_vel) ** 2 for v in velocities) / float(n_count)
         vel_std = math.sqrt(var_vel)
@@ -224,8 +224,9 @@ class PerformanceAuditor:
         # Check chord simultaneity for polyphonic tracks
         starts_by_beat: Dict[float, List[int]] = {}
         for n in notes:
-            start_beat = round(float(n.get("start_time", 0.0)), 4)
-            starts_by_beat.setdefault(start_beat, []).append(int(n.get("pitch", 60)))
+            start_beat = round(float(n.get("start_time", 0.0)), 4) if isinstance(n, dict) else 0.0
+            pitch_val = int(n.get("pitch", 60)) if isinstance(n, dict) else int(n)
+            starts_by_beat.setdefault(start_beat, []).append(pitch_val)
             
             # Distance from nearest 1/16th beat (0.25)
             nearest_16th = round(start_beat / 0.25) * 0.25

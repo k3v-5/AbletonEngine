@@ -721,10 +721,15 @@ class InstalledPluginScanner:
             pass
         return self._cache
 
+    EXCLUDED_PLUGINS = {
+        "stage-73", "stage-73 v2", "stage 73", "stage 73 v2",
+        "mellotron", "mellotron v", "mellotron v2"
+    }
+
     ROLE_PRIORITIES = {
         "BASS": ["serum", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
         "SUB_BASS": ["sublab", "serum", "bloom bass", "cyclop", "drift (808", "operator"],
-        "KEYS": ["analog lab", "stage-73", "piano v", "wurli", "keyscape", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
+        "KEYS": ["analog lab", "keyscape", "piano v", "wurli", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
         "LEAD": ["pigments", "serum", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
         "COUNTER_LEAD": ["pigments", "serum", "vital", "analog lab", "synplant", "drift"],
         "EAR_CANDY": ["synplant", "pigments", "serum", "simpler", "drift"],
@@ -754,6 +759,8 @@ class InstalledPluginScanner:
         role_upper = role.upper()
         matches = []
         for plug in self._cache.values():
+            if any(ex in plug.name.lower() or ex in plug.id.lower() for ex in self.EXCLUDED_PLUGINS):
+                continue
             if role_upper == plug.primary_role or role_upper in plug.supported_roles:
                 matches.append(plug)
 
@@ -763,6 +770,8 @@ class InstalledPluginScanner:
             parent_role = LiveBrowserCatalogEngine.get_parent_acoustic_role(role_upper)
             if parent_role != role_upper:
                 for plug in self._cache.values():
+                    if any(ex in plug.name.lower() or ex in plug.id.lower() for ex in self.EXCLUDED_PLUGINS):
+                        continue
                     if parent_role == plug.primary_role or parent_role in plug.supported_roles:
                         matches.append(plug)
 
@@ -834,7 +843,7 @@ class InstalledPluginScanner:
 
         if role_upper in ("KEYS", "PLUCK", "CHORDS"):
             for c in candidates:
-                if "analog lab" in c.name.lower() or "stage-73" in c.name.lower() or "keyscape" in c.name.lower() or "kontakt" in c.name.lower():
+                if "analog lab" in c.name.lower() or "keyscape" in c.name.lower() or "piano v" in c.name.lower() or "kontakt" in c.name.lower():
                     return c
         elif role_upper in ("BASS", "SUB_BASS", "808"):
             for c in candidates:
@@ -900,7 +909,7 @@ class InstalledPluginScanner:
         If the plugin failed to open, threw an error, or is listed in known_unhealthy,
         the motor automatically fails over to the next best working sound source.
         """
-        unhealthy_set = set(k.lower() for k in (known_unhealthy or ["stage-73", "stage-73 v2"]))
+        unhealthy_set = set(k.lower() for k in (known_unhealthy or ["stage-73", "stage-73 v2", "stage 73", "mellotron", "mellotron v"]))
         
         # Query Live track devices
         devices = []

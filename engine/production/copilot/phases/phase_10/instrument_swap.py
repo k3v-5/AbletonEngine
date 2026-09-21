@@ -88,7 +88,7 @@ def prompt_instrument_swap_preset(session: Any, trk: Dict[str, Any]) -> Dict[str
         ]
     elif role == "KEYS":
         options = [
-            "• **Opción 1: Stage-73 Warm Suitcase Rhodes** (Analog Lab V — Tono acampanado y saturación de bulbo)",
+            "• **Opción 1: Vintage Rhodes Suitcase** (Analog Lab V — Tono acampanado y saturación de bulbo)",
             "• **Opción 2: Upright Neo-Soul Felt Piano** (Piano V / Stock Grand — Timbre íntimo apagado)",
             "• **Opción 3: Lofi Tape Electric Piano** (Analog Lab V — Wow/flutter y saturación vintage)"
         ]
@@ -96,7 +96,7 @@ def prompt_instrument_swap_preset(session: Any, trk: Dict[str, Any]) -> Dict[str
         options = [
             "• **Opción 1: Warm Analog Drift Pad** (Jun-6 V / Vital — Cuerdas analógicas ricas en coros)",
             "• **Opción 2: Ethereal Shimmer Ambient Pad** (Vital — Resonancias brillantes con reverb infinita)",
-            "• **Opción 3: Tape Mellotron Strings** (Mellotron V — Nostalgia acústica de cinta)"
+            "• **Opción 3: Solina Vintage Strings** (Solina V / Analog Lab V — Calidez analógica y chorus ensemble)"
         ]
     else:
         options = [

@@ -449,7 +449,7 @@ class ExecutiveCopilotEngine:
                     description=(
                         "Opciones sugeridas para KEYS (Top 5):\n"
                         "1. [VST3] Arturia Analog Lab V (`vst3_analog_lab`) - Vintage Rhodes, Wurlitzer y polysynths analógicos\n"
-                        "2. [VST3] Arturia Stage-73 V2 (`vst3_stage_73`) - Fender Rhodes 73 modelado físico\n"
+                        "2. [VST3] Spectrasonics Keyscape (`vst3_keyscape`) - Pianos acústicos y teclados vintage de colección\n"
                         "3. [VST3] Arturia Piano V3 (`vst3_piano_v`) - Pianos acústicos de cola y de concierto\n"
                         "4. [VST3] Native Instruments Kontakt 8 (`vst3_kontakt_8`) - Sampler acústico de máxima fidelidad\n"
                         "5. [VST3] Roland Cloud ZENOLOGY (`vst3_zenology`) - Teclados legendarios Roland Zen-Core\n"

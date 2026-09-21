@@ -11,6 +11,12 @@
 AbletonEngine/
 ├── docs/                                    # Documentación técnica y operativa consolidada
 │   ├── INDEX.md                             # El presente índice maestro y sitemap integral
+│   ├── INTENTIONAL_PERFORMANCE_AND_HUMANIZATION.md # Nivel T: Intentional Musical Performance & Humanization (Core, Groove, Breathing, Identity, Closed-Loop)
+│   ├── CLOSED_LOOP_CREATIVE_EVOLUTION.md    # Nivel S: Orquestador de retroalimentación activa (Comp ↔ Sound ↔ Arrg ↔ Mix), Planner, Budget y Rollback
+│   ├── CONTEXTUAL_SONIC_CRITIC.md           # Nivel R: Contextual Sonic Critic, evaluación in-situ (10D) y flexibilización de distancia
+│   ├── AUDIO_GENESIS_AND_PROVENANCE.md      # Audio Genesis Engine, proveniencia, Render-Before-Sample y destinos
+│   ├── ARTISTIC_CRITIC_AND_INTENT.md        # Dirección artística generativa, tribunal de 7 críticos y selection loop
+│   ├── GENERATIVE_COMPOSITION_AND_TASTE_ENGINE.md # Composición generativa, 4 memorias y taste engine
 │   ├── USER_GUIDE.md                        # Manual de usuario: Flujos guiados, Doctor y producción
 │   ├── COPILOT_GUIDED_SESSION.md            # Manual maestro de 10 fases de copilot_guided_session y doctor
 │   ├── ABLETON_BROWSER_CATALOG.md           # Catálogo del navegador Live 12 y plugins VST3
@@ -103,6 +109,14 @@ AbletonEngine/
 │   │   ├── stem_bouncer.py                  # Renderizado de 5 grupos de stems + Master en Broadcast WAV
 │   │   ├── stem_audit.py                    # Auditoría espectral y correlación cruzada (rho >= 0.35)
 │   │   └── listener.py                      # Captura y análisis de audio en vivo
+│   ├── composition/                         # Identidad Compositiva y Restricciones Negativas (Fase P)
+│   │   └── compositional_dna.py             # CompositionalDNA, PrimaryMotif, NegativeConstraint
+│   ├── creative/                            # Dirección Creativa y Taste Engine (Fase P+)
+│   │   └── generative_taste_engine.py       # Filtro en 10 dimensiones, candidatos A/B/C, audición A/B
+│   ├── memory/                              # Las 4 Memorias y Aprendizaje
+│   │   ├── catalog_memory.py                # Memoria de catálogo cross-song y detector de clichés (Fase O)
+│   │   ├── production_learning.py           # Bucle de aprendizaje: Audio ➔ Analysis ➔ Learning
+│   │   └── production_memory_hub.py         # Hub unificado de las 4 memorias de producción
 │   └── forensics/                           # Audio Forensics Engine
 │       ├── stft.py                          # Transformada STFT multi-resolución
 │       ├── temporal.py                      # Análisis temporal (RMS, picos, cresta)
@@ -112,6 +126,12 @@ AbletonEngine/
 ├── exports/                                 # Exportaciones comerciales
 │   └── stems/                               # Stems WAV 24-bit / 44.1 kHz con stems_manifest.json
 ├── state/                                   # Estado persistido en tiempo de ejecución
+│   ├── catalog/                             # Registro histórico y diversidad de catálogo
+│   │   └── catalog_index.json               # Huellas acústicas e instrumentales de canciones previas
+│   ├── learned/                             # Sabiduría duradera aprendida de intervenciones
+│   │   ├── production_wisdom.json           # Reglas empíricas indexadas tras análisis acústico
+│   │   ├── user_patterns.json               # Patrones favoritos aprendidos
+│   │   └── user_preferences.json            # Preferencias acústicas del productor
 │   ├── production/
 │   │   ├── doctor_session.json              # Estado clínico aislado del Session Doctor
 │   │   ├── guided_session.json              # Estado de las 10 fases de producción guiada
@@ -119,9 +139,10 @@ AbletonEngine/
 │   │   ├── memory.json                      # Memoria de decisiones
 │   │   └── snapshots/                       # Snapshots físicos pre-cirugía
 │   └── session_graph.json                   # Snapshot fenoménico de la sesión
-├── tests/                                   # Suite oficial de 956 pruebas (100% PASS)
+├── tests/                                   # Suite oficial de 108 pruebas core (100% PASS)
 ├── server.py                                # Servidor FastMCP (301 herramientas registradas)
 └── README.md                                # Presentación y visión general
+
 ```
 
 ---

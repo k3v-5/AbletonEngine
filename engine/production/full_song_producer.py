@@ -108,7 +108,7 @@ def produce_song_0_to_100():
         logger.info(f"Host Scanner Discovered: {catalog_summary['total_discovered']} plugins "
                     f"({catalog_summary['vst3_count']} VST3s, {catalog_summary['native_count']} native)")
         logger.info("Motor exposes concrete choices for each musical role:")
-        logger.info(" - KEYS Candidates: Arturia Stage-73 V2, Arturia Analog Lab V, Spectrasonics Keyscape, Kontakt 8")
+        logger.info(" - KEYS Candidates: Arturia Analog Lab V, Spectrasonics Keyscape, Arturia Piano V3, Kontakt 8")
         logger.info(" - BASS Candidates: Vital Audio Vital, Xfer Records Serum 2, Bloom Bass")
         logger.info(" - LEAD Candidates: Arturia Analog Lab V, Vital Audio Vital, Serum 2")
         logger.info(" - DRUMS Candidates: 808 Core Kit (.adg) [16 populated pads], BNYX Boot Kit, Boom Bap Kit")

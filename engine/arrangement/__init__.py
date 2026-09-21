@@ -30,6 +30,19 @@ from .fx.ear_candy import EarCandyEngine, EarCandyType
 from .structure.beat_switch import BeatSwitchOrchestrator
 from .blueprints import SectionSpec, FullSongBlueprint, FullSongArrangerEngine
 
+from .emotional_arc_engine import EmotionalArcEngine, EmotionalStateVector, SectionEmotionalProfile
+from .narrative_stagnation_detector import NarrativeStagnationDetector, StagnationAuditReport
+from .intelligence.layer_orchestrator import LayerOrchestrator, LayerOrchestrationPlan, SectionLayerPlan
+from .intelligence.anticipation_and_silence_weaver import AnticipationAndSilenceWeaver, AnticipationEvent, AnticipationType
+from .intelligence.arrangement_intelligence_engine import ArrangementIntelligenceEngine, ArrangementIntelligenceAuditReport
+from .expectation_deviation_engine import (
+    ExpectationDeviationEngine,
+    ExpectationStage,
+    DeviationMechanism,
+    ConsequenceReward,
+    DeviationPlan,
+)
+
 __all__ = [
     "Section", "SectionType", "Song",
     "EnergyDimensions", "EnergyCurve", "EnergyCurveGenerator",
@@ -46,5 +59,14 @@ __all__ = [
     "DensityController",
     "SectionComparator", "ArrangementLinter", "LintIssue",
     "ArrangementScorer", "ArrangementLockManager",
-    "ArrangementCompiler", "ArrangementGenerator"
+    "ArrangementCompiler", "ArrangementGenerator",
+    "EmotionalArcEngine", "EmotionalStateVector", "SectionEmotionalProfile",
+    "NarrativeStagnationDetector", "StagnationAuditReport",
+    "LayerOrchestrator", "LayerOrchestrationPlan", "SectionLayerPlan",
+    "AnticipationAndSilenceWeaver", "AnticipationEvent", "AnticipationType",
+    "ArrangementIntelligenceEngine", "ArrangementIntelligenceAuditReport",
+    "ExpectationDeviationEngine", "ExpectationStage", "DeviationMechanism",
+    "ConsequenceReward", "DeviationPlan",
 ]
+
+
