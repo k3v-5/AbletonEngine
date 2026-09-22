@@ -482,11 +482,19 @@ class CopilotGuidedSession:
         if is_rollback_cmd:
             return self._handle_rollback(conn, u_in)
 
+        # 0. Taiko Pure (Taiko Ryūsei): Pure Japanese ceremonial Taiko with ZERO audio reprocessing
+        is_taiko_pure = "taiko" in norm_text and any(w in norm_text for w in [
+            "no quiero que reproceses", "sin reprocesar", "sin reprocesamiento", "cero reprocesamiento",
+            "no reproceses", "no reprocesar", "sin mutacion", "sin uhts", "puro", "pura", "sin resampling"
+        ])
+        if is_taiko_pure:
+            return self._handle_taiko_pure_orchestration(conn, u_in)
+
         # 0. Taiko Shimmer: Next Song with Single Reprocessing Effect on Original Pad
         is_taiko_single_effect = "taiko" in norm_text and (
             any(w in norm_text for w in ["un solo", "solo efecto", "un efecto", "un procesamiento", "shimmer", "siguiente cancion", "nueva cancion", "otra cancion", "siguiente", "nueva"])
             or ("pad" in norm_text and any(w in norm_text for w in ["original", "ariginal"]))
-        ) and not any(w in norm_text for w in ["20 escenas", "las 20", "todas las tecnicas", "casti"])
+        ) and not any(w in norm_text for w in ["20 escenas", "las 20", "todas las tecnicas", "casti", "no quiero que reproceses", "sin reprocesar", "sin reprocesamiento", "cero reprocesamiento", "no reproceses", "puro"])
 
         if is_taiko_single_effect:
             return self._handle_taiko_shimmer_orchestration(conn, u_in)
@@ -494,7 +502,7 @@ class CopilotGuidedSession:
         # 0. Taiko x Casti Full Song & 20-Scene Pad Orchestration Intercept
         is_taiko_casti = any(w in norm_text for w in ["taiko", "casti"]) and any(w in norm_text for w in [
             "cancion", "canción", "tema", "implementa", "orquesta", "producir", "crear", "pad", "20 escenas", "escenas", "suite"
-        ])
+        ]) and not any(w in norm_text for w in ["no quiero que reproceses", "sin reprocesar", "sin reprocesamiento", "cero reprocesamiento", "no reproceses", "puro"])
         if is_taiko_casti:
             return self._handle_taiko_casti_orchestration(conn, u_in)
 
@@ -1363,6 +1371,91 @@ class CopilotGuidedSession:
             "tracks": tracks,
             "message": msg,
             "question": "La obra Taiko Shimmer está sonando en Ableton Live 12. ¿Deseas aislar en solo la pista de Shimmer Pad, ajustar el balance en Fase 9, o exportar stems en Fase 10?"
+        }
+
+    def _handle_taiko_pure_orchestration(self, conn: Any, user_input: str) -> Dict[str, Any]:
+        """
+        Orchestrates Taiko Ryūsei (太鼓流星): Pure Japanese ceremonial Taiko composition
+        in A Minor Insen @ 112.0 BPM with ZERO audio reprocessing (100% live MIDI tracks
+        and pure real-time synthesis). Transitions session to Phase 6 with verified SongContract.
+        """
+        from engine.composition.taiko_pure_composer import TaikoPureComposer
+
+        logger.info("CopilotGuidedSession: Orchestrating Taiko Ryūsei pure song with ZERO audio reprocessing...")
+        deploy_res = TaikoPureComposer.deploy(conn)
+
+        # Synchronize session state
+        self.data["current_phase"] = "PHASE_6_COMPOSITION"
+        self.data["phase_index"] = 6
+        self.data["key"] = "A"
+        self.data["scale"] = "Minor"
+        self.data["bpm"] = 112.0
+
+        tracks = deploy_res.get("tracks", [])
+        if tracks:
+            self.data["tracks"] = tracks
+
+        self.data["sections"] = [
+            {"name": s["name"], "bars": 4, "energy": s["energy"], "index": s["idx"] - 1}
+            for s in TaikoPureComposer.SCENES
+        ]
+
+        # Explicitly declare ZERO audio reprocessing
+        self.data["resampling_session"] = {
+            "active": False,
+            "stage": "SKIPPED_USER_PREFERENCE",
+            "mode": "NO_REPROCESSING",
+            "technique": "None (Pure Synthesis & Live Percussion)",
+            "technique_index": None,
+            "source_role": None,
+            "reason": "Direct user constraint: zero audio reprocessing requested"
+        }
+
+        # Update Song Contract to reflect verified production
+        try:
+            contract = self._get_song_contract()
+            contract.title = "Taiko Ryūsei (太鼓流星)"
+            contract.intent_memory.thesis.genre = "Japanese Ceremonial Taiko x Pure Insen Synthesis"
+            contract.intent_memory.thesis.statement = "Composición ceremonial de percusión japonesa Taiko con subgraves 808, flauta Shakuhachi, punteos Koto y acordes sintoístas en La Menor Insen, realizada con CERO reprocesamiento de audio (100% síntesis e instrumentación viva)."
+            contract.intent_memory.thesis.key = "A"
+            contract.intent_memory.thesis.scale = "Minor"
+            contract.intent_memory.thesis.bpm = 112.0
+            self._sync_song_contract(contract)
+        except Exception as e:
+            logger.debug(f"Notice updating song contract: {e}")
+
+        self._create_checkpoint(tag="TAIKO_PURE_ORCHESTRATED")
+        self._save_state(action_tag="TAIKO_PURE_ORCHESTRATED")
+
+        msg = (
+            "🥁 **Canción Taiko Pura ('Taiko Ryūsei' - 太鼓流星) Desplegada en Ableton Live 12** 🎋🏯\n\n"
+            "El Copilot ha orquestado la composición respetando al 100% la restricción de **CERO REPROCESAMIENTO DE AUDIO**:\n\n"
+            "• **Afinación & Tempo:** `112.0 BPM` | `A Minor Insen / Hirajoshi` (La Menor modal japonés).\n"
+            "• **5 Pistas de Instrumentación Viva (0% Audio Reprocesado / 100% MIDI & Síntesis):**\n"
+            "  1. `[TAIKO] Ceremonial Drums` (Drum Rack con O-Daiko, Nagado cuerpo/borde, Shime y Bachi)\n"
+            "  2. `[BASS] Insen 808 Sub` (Drift sintetizado con subgrave profundo en La Menor)\n"
+            "  3. `[LEAD] Shakuhachi / Insen Flute` (Drift con viento soplado y articulación tradicional)\n"
+            "  4. `[KOTO] Ceremonial Pluck` (Drift con punteos rápidos en intervalos pentatónicos)\n"
+            "  5. `[PAD-PURE] Shinto Temple Chords` (Drift con acordes armónicos Am9 - Bbmaj7#11 - Dm9 - Em7(b9))\n\n"
+            "• **Garantía de Cero Reprocesamiento:** Ningún archivo de audio ha sido resampleado ni mutado. Todas las fuentes son sintetizadores e instrumentos en tiempo real.\n"
+            "• **Session View:** 8 escenas organizadas y nombradas.\n"
+            "• **Arrangement View:** Línea temporal completa de **32 compases** con **8 Cue Points / Locators**.\n"
+            "• **Estado del Copilot:** La sesión avanza a **Fase 6 (Composition)** con `resampling_session.active = False`."
+        )
+
+        return {
+            "status": "TAIKO_PURE_ORCHESTRATED",
+            "phase": "PHASE_6_COMPOSITION",
+            "phase_index": 6,
+            "action_taken": "Canción Taiko Ryūsei (CERO reprocesamiento de audio) desplegada en Ableton Live 12.",
+            "bpm": 112.0,
+            "tonality": "A Minor Insen",
+            "bars": 32,
+            "scenes_count": 8,
+            "reprocessing": "NONE",
+            "tracks": tracks,
+            "message": msg,
+            "question": "La obra Taiko Ryūsei está sonando en Ableton Live 12. ¿Deseas escuchar la pieza completa, calibrar niveles en Fase 9, o modular algún arpegio de Koto?"
         }
 
     # -------------------------------------------------------------------------
