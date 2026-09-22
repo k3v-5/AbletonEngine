@@ -77,6 +77,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             },
             "sound_design_config": {
                 "mode": "LEGACY",
+                "reprocessing_enabled": True,
                 "allow_outer_shell": True,
                 "allow_uhts_layer": True,
                 "allow_macro_racks": True,

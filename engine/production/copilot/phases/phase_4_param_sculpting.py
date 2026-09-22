@@ -16,13 +16,36 @@ logger = logging.getLogger("Phase4ParamSculpting")
 
 class Phase4ParamSculptingHandler(BasePhaseHandler):
     def prompt(self, session: Any, **kwargs) -> Dict[str, Any]:
-        mode = session.data.get("sound_design_config", {}).get("mode", "LEGACY").upper()
+        cfg = session.data.get("sound_design_config", {})
+        reproc_enabled = cfg.get("reprocessing_enabled", True)
+        allow_uhts = cfg.get("allow_uhts_layer", True)
+        mode = cfg.get("mode", "LEGACY").upper()
+
+        if not reproc_enabled or not allow_uhts:
+            mode = "LEGACY"
+
         if mode == "ADVANCED":
             return self._prompt_advanced_sound_design(session)
         return self._prompt_current_track_params(session)
 
     def handle(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         text = _normalize_text(user_input)
+
+        # Conversational toggles for Audio Reprocessing
+        if any(w in text for w in [
+            "apagar reprocesamiento", "apagar el reprocesamiento", "desactivar reprocesamiento",
+            "sin reprocesar", "no quiero que reproceses", "cero reprocesamiento", "no reproceses",
+            "desactivar uhts", "desactivar resampling", "apagar uhts"
+        ]):
+            session.set_reprocessing_enabled(False)
+            return self.prompt(session)
+
+        if any(w in text for w in [
+            "activar reprocesamiento", "encender reprocesamiento", "habilitar reprocesamiento",
+            "activar uhts", "activar resampling"
+        ]):
+            session.set_reprocessing_enabled(True)
+            return self.prompt(session)
 
         # Conversational toggles for Sound Design mode
         if any(w in text for w in [
@@ -39,7 +62,13 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             session.set_sound_design_mode("LEGACY")
             return self.prompt(session)
 
-        mode = session.data.get("sound_design_config", {}).get("mode", "LEGACY").upper()
+        cfg = session.data.get("sound_design_config", {})
+        reproc_enabled = cfg.get("reprocessing_enabled", True)
+        allow_uhts = cfg.get("allow_uhts_layer", True)
+        mode = cfg.get("mode", "LEGACY").upper()
+        if not reproc_enabled or not allow_uhts:
+            mode = "LEGACY"
+
         if mode == "ADVANCED":
             return self._handle_advanced_sound_design(session, conn, user_input)
         return self._handle_phase_4(session, conn, user_input)

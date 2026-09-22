@@ -397,17 +397,23 @@ while len(song.scenes) < 8:
         # 4. Load Instruments & Sound Blueprints
         from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
 
-        # Taiko Drum Rack
+        # 1. Taiko Drum Rack - Load Populated Kit (808 Core Kit / Authentic Percussion)
         try:
-            conn.send_command("load_instrument_or_effect", {"track_index": taiko_idx, "uri": "query:Drums#Drum%20Rack"})
+            conn.send_command("load_instrument_or_effect", {"track_index": taiko_idx, "uri": "query:Drums#FileId_5422"})
+            # PHYSICAL AUDIT: Rule 4 - Verify Drum Rack pads contain real samples
+            pads_info = conn.send_command("get_drum_rack_pads", {"track_index": taiko_idx})
+            p_data = pads_info.get("result", pads_info) if isinstance(pads_info, dict) else {}
+            active_pads = p_data.get("active_pad_count", 0)
+            if active_pads == 0:
+                logger.warning(f"Drum Rack on track {taiko_idx} has 0 active pads after loading.")
             DeviceParameterSupervisor.apply_sound_blueprint(
                 conn=conn, track_index=taiko_idx, role="DRUMS", plugin_name="Drum Rack",
                 custom_blueprint={"parameters": {"MACRO_1": 0.85, "MACRO_2": 0.65, "MACRO_3": 0.40, "MACRO_4": 0.70}}
             )
         except Exception as e:
-            logger.debug(f"Taiko instrument notice: {e}")
+            logger.error(f"Taiko drum kit error: {e}")
 
-        # Insen 808 Sub (Drift)
+        # 2. Insen 808 Sub (Drift)
         try:
             conn.send_command("load_instrument_or_effect", {"track_index": bass_idx, "uri": "query:Synths#Drift"})
             DeviceParameterSupervisor.apply_sound_blueprint(
@@ -415,9 +421,9 @@ while len(song.scenes) < 8:
                 custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.42, "DRIVE": 0.45, "SUB_LEVEL": 0.95, "AMP_ATTACK": 0.02, "AMP_RELEASE": 0.40}}
             )
         except Exception as e:
-            logger.debug(f"Bass instrument notice: {e}")
+            logger.error(f"Bass instrument error: {e}")
 
-        # Shakuhachi Flute (Drift)
+        # 3. Shakuhachi Flute (Drift)
         try:
             conn.send_command("load_instrument_or_effect", {"track_index": lead_idx, "uri": "query:Synths#Drift"})
             DeviceParameterSupervisor.apply_sound_blueprint(
@@ -425,9 +431,9 @@ while len(song.scenes) < 8:
                 custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.72, "DRIVE": 0.20, "AMP_ATTACK": 0.08, "AMP_RELEASE": 0.35, "BRIGHTNESS": 0.68}}
             )
         except Exception as e:
-            logger.debug(f"Lead instrument notice: {e}")
+            logger.error(f"Lead instrument error: {e}")
 
-        # Koto Pluck (Drift)
+        # 4. Koto Pluck (Drift)
         try:
             conn.send_command("load_instrument_or_effect", {"track_index": koto_idx, "uri": "query:Synths#Drift"})
             DeviceParameterSupervisor.apply_sound_blueprint(
@@ -435,9 +441,9 @@ while len(song.scenes) < 8:
                 custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.85, "DRIVE": 0.15, "AMP_ATTACK": 0.01, "AMP_DECAY": 0.35, "AMP_SUSTAIN": 0.05, "AMP_RELEASE": 0.25}}
             )
         except Exception as e:
-            logger.debug(f"Koto instrument notice: {e}")
+            logger.error(f"Koto instrument error: {e}")
 
-        # Shinto Temple Pad (Drift - Pure Synth)
+        # 5. Shinto Temple Pad (Drift - Pure Synth)
         try:
             conn.send_command("load_instrument_or_effect", {"track_index": pad_idx, "uri": "query:Synths#Drift"})
             DeviceParameterSupervisor.apply_sound_blueprint(
@@ -445,7 +451,29 @@ while len(song.scenes) < 8:
                 custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.65, "DRIVE": 0.25, "AMP_ATTACK": 0.35, "AMP_RELEASE": 0.85, "SUB_LEVEL": 0.60}}
             )
         except Exception as e:
-            logger.debug(f"Pad instrument notice: {e}")
+            logger.error(f"Pad instrument error: {e}")
+
+        # GOVERNANCE RULE 6: Mandatory Insert EQ Eight on all active tracks
+        active_tracks = [taiko_idx, bass_idx, lead_idx, koto_idx, pad_idx]
+        for trk_id in active_tracks:
+            try:
+                conn.send_command("load_instrument_or_effect", {"track_index": trk_id, "uri": "query:AudioFx#EQ%20Eight"})
+            except Exception as e:
+                logger.warning(f"Notice loading EQ Eight on track {trk_id}: {e}")
+
+        # GOVERNANCE RULE 5: Auto Gain Staging faders (Headroom preservation)
+        fader_map = {
+            taiko_idx: 0.80, # -2 dBFS (drums anchor)
+            bass_idx: 0.76,  # -4 dBFS (sub-bass)
+            lead_idx: 0.74,  # -5 dBFS (lead flute)
+            koto_idx: 0.72,  # -6 dBFS (koto plucks)
+            pad_idx: 0.70    # -7 dBFS (temple pad)
+        }
+        for trk_id, f_val in fader_map.items():
+            try:
+                conn.send_command("set_track_volume", {"track_index": trk_id, "volume": f_val})
+            except Exception as e:
+                logger.warning(f"Notice setting volume for track {trk_id}: {e}")
 
         # 5. Build Staging Payload for Fast Batch Execution
         scenes_data = []
@@ -537,6 +565,13 @@ for item in staging_data["scenes"]:
     # Arrangement Cue Point Locator
     self._create_cue_point(dest_t, "#%%02d: %%s" %% (s_idx + 1, item["scene_name"]))
 
+# Restore Arrangement playback on all deployed tracks (prevents silent session deactivation)
+for t_id in [taiko_idx, bass_idx, lead_idx, koto_idx, pad_idx]:
+    try:
+        song.tracks[t_id].back_to_arranger = 0
+    except Exception:
+        pass
+
 # Loop region & playback
 song.view.selected_scene = song.scenes[0]
 song.loop_start = 0.0
@@ -560,8 +595,22 @@ result = {"success": True, "scenes_deployed": len(staging_data["scenes"])}
         except Exception:
             pass
 
+        # GOVERNANCE RULES 1 & 2: Deploy 5-Device Master Chain (STREAMING: -14.0 LUFS / -1.0 dBTP)
+        try:
+            from engine.mastering.live_master_chain import LiveMasterChainEngine
+            s_info = conn.send_command("get_session_info", {})
+            s_data = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
+            master_idx = s_data.get("track_count", 23)
+            LiveMasterChainEngine.setup_live_mastering_chain(
+                conn,
+                track_index=master_idx,
+                target_profile="STREAMING"
+            )
+        except Exception as e:
+            logger.warning(f"Notice setting up master chain: {e}")
+
         tracks_summary = [
-            {"index": taiko_idx, "name": "[TAIKO] Ceremonial Drums", "role": "DRUMS", "instrument": "query:Drums#Drum%20Rack"},
+            {"index": taiko_idx, "name": "[TAIKO] Ceremonial Drums", "role": "DRUMS", "instrument": "query:Drums#FileId_5422"},
             {"index": bass_idx, "name": "[BASS] Insen 808 Sub", "role": "BASS", "instrument": "query:Synths#Drift"},
             {"index": lead_idx, "name": "[LEAD] Shakuhachi / Insen Flute", "role": "LEAD", "instrument": "query:Synths#Drift"},
             {"index": koto_idx, "name": "[KOTO] Ceremonial Pluck", "role": "KEYS", "instrument": "query:Synths#Drift"},
