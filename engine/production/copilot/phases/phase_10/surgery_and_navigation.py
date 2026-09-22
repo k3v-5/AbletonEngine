@@ -10,6 +10,7 @@ Clip Micro-Surgery, DSP Acoustic Guardrails, Transport Navigation, and Live Sess
 
 import re
 import logging
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from engine.production.copilot.nlp_parser import _normalize_text
@@ -471,7 +472,33 @@ def handle_texture_and_foley_injection(
 
     texture_trk = next((t for t in tracks if t.get("role") in ["TEXTURE_FOLEY", "FX"] or "textur" in str(t.get("name", "")).lower()), None)
     dest_name = texture_trk.get("name", "Texture Bed") if texture_trk else "Texture Foley"
+    t_idx = texture_trk.get("index", 0) if texture_trk else 0
     action_taken = f"Textura orgánica generada desde '{source_name}' e inyectada a -24 dBFS en '{dest_name}'."
+
+    # Physically load generated sample into Live Simpler if present
+    if conn and hasattr(conn, "send_command") and sound_res and hasattr(sound_res, "mutation") and sound_res.mutation.audio_path:
+        sample_path = sound_res.mutation.audio_path
+        s_path_esc = str(Path(sample_path).resolve()).replace("\\", "\\\\")
+        load_code = f"""
+for i, trk in enumerate(song.tracks):
+    if '{dest_name.lower()}' in trk.name.lower() or i == {t_idx}:
+        for d in trk.devices:
+            if hasattr(d, 'replace_sample'):
+                d.replace_sample(r"{s_path_esc}")
+                if hasattr(d, 'playback_mode'):
+                    d.playback_mode = 0
+                for p in d.parameters:
+                    if p.name == 'S Loop On':
+                        p.value = 1.0
+                    elif p.name == 'S Loop Fade':
+                        p.value = 0.15
+                break
+        break
+"""
+        try:
+            conn.send_command("execute_code", {"code": load_code})
+        except Exception as ex_load:
+            logger.warning(f"Notice loading generated foley sample into Live Simpler: {ex_load}")
 
     resampled_assets = session.data.setdefault("resampled_assets", [])
     resampled_assets.append({
