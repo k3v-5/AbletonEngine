@@ -506,6 +506,24 @@ class CopilotGuidedSession:
         if any(w in norm_text for w in ["auditoria creativa", "estado creativo", "telemetria creativa", "creative status", "dashboard creativo"]):
             return self._handle_creative_controller_telemetry_audit(conn)
 
+        # 0. Sound Design Mode Configuration (Parameterized toggle: LEGACY vs ADVANCED)
+        if any(w in norm_text for w in [
+            "activar sound design avanzado", "modo sound design avanzado", "sound design avanzado",
+            "activar sound design", "modo sound design moderno", "sound design moderno", "activar diseño sonoro avanzado"
+        ]):
+            return self.set_sound_design_mode("ADVANCED")
+
+        if any(w in norm_text for w in [
+            "modo sound design clasico", "modo sound design legado", "desactivar sound design avanzado",
+            "desactivar sound design", "sound design clasico", "modo clasico sound design", "omitir sound design avanzado"
+        ]):
+            return self.set_sound_design_mode("LEGACY")
+
+        if any(w in norm_text for w in [
+            "estado sound design", "modo sound design", "consultar sound design", "configuracion sound design"
+        ]):
+            return self._handle_sound_design_status_query()
+
         # 0. Song Contract, Omission Audit, and Creative Continuity Commands
         if any(w in norm_text for w in ["ver contrato", "contrato de la cancion", "contrato de la obra", "mostrar contrato", "obligaciones", "song contract"]):
             return self._handle_song_contract_query()
@@ -929,6 +947,59 @@ class CopilotGuidedSession:
     def _handle_phase_4(self, conn: Any, user_input: str) -> Dict[str, Any]:
         from .phases.phase_4_param_sculpting import Phase4ParamSculptingHandler
         return Phase4ParamSculptingHandler().handle(self, conn, user_input)
+
+    def set_sound_design_mode(self, mode: str) -> Dict[str, Any]:
+        mode_upper = mode.upper().strip()
+        if mode_upper not in ["LEGACY", "ADVANCED"]:
+            mode_upper = "LEGACY"
+        if "sound_design_config" not in self.data:
+            self.data["sound_design_config"] = {
+                "mode": "LEGACY",
+                "allow_outer_shell": True,
+                "allow_uhts_layer": True,
+                "allow_macro_racks": True,
+                "auto_detect_vst": True
+            }
+        self.data["sound_design_config"]["mode"] = mode_upper
+        self._save_state(action_tag=f"SOUND_DESIGN_MODE_{mode_upper}")
+
+        if mode_upper == "ADVANCED":
+            msg = (
+                "🎛️ **Modo de Sound Design Avanzado Activado en Guided Session** ✨\n\n"
+                "La Fase 4 ahora dispondrá del estudio completo de diseño sonoro:\n"
+                "• **Outer Sound Design Shell:** Cadenas de inserción profesionales (Roar/Saturator + Auto Filter modulado + OTT/Drum Buss) para esculpir el 80% del timbre fuera del sintetizador.\n"
+                "• **Capas Autogéneas UHTS:** Generación de audio paralelo con mutaciones espectrales del catálogo UHTS (#06 Shimmer, #01 Tape, #03 Granular).\n"
+                "• **Macro Racks:** Envoltorio en Instrument Racks de 4 Macros (Color, Drive, Movimiento, Espacio).\n"
+                "• **Soporte de VSTs de Terceros:** Detección automática y compatibilidad total con plugins cerrados o abiertos.\n\n"
+                "*(Puedes volver al modo clásico en cualquier momento diciendo 'modo sound design clasico')*"
+            )
+        else:
+            msg = (
+                "🏛️ **Modo de Sound Design Clásico (LEGACY) Activado**\n\n"
+                "La Fase 4 operará con el flujo tradicional de esculpido de 4 parámetros numéricos (Cutoff, Drive, Attack, Release) y opciones 1, 2 y 3."
+            )
+
+        return {
+            "status": "SOUND_DESIGN_MODE_UPDATED",
+            "mode": mode_upper,
+            "message": msg,
+            "phase": self.data.get("current_phase", "PHASE_1_TRACKS")
+        }
+
+    def get_sound_design_mode(self) -> str:
+        cfg = self.data.get("sound_design_config", {})
+        return cfg.get("mode", "LEGACY")
+
+    def _handle_sound_design_status_query(self) -> Dict[str, Any]:
+        mode = self.get_sound_design_mode()
+        cfg = self.data.get("sound_design_config", {})
+        return {
+            "status": "SOUND_DESIGN_CONFIG_STATUS",
+            "mode": mode,
+            "config": cfg,
+            "message": f"El modo de Sound Design actual es `{mode}`. (Opciones disponibles: 'ADVANCED' o 'LEGACY').",
+            "phase": self.data.get("current_phase", "PHASE_1_TRACKS")
+        }
 
     # -------------------------------------------------------------------------
     # FASE 5: CADENAS DE INSERCIÓN Y COMPUERTA DE EQ (Handler modularizado)

@@ -74,6 +74,13 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
                 "active_decision_id": None,
                 "history": [],
                 "telemetry_summary": {}
+            },
+            "sound_design_config": {
+                "mode": "LEGACY",
+                "allow_outer_shell": True,
+                "allow_uhts_layer": True,
+                "allow_macro_racks": True,
+                "auto_detect_vst": True
             }
         }
 

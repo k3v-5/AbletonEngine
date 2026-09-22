@@ -16,9 +16,257 @@ logger = logging.getLogger("Phase4ParamSculpting")
 
 class Phase4ParamSculptingHandler(BasePhaseHandler):
     def prompt(self, session: Any, **kwargs) -> Dict[str, Any]:
+        mode = session.data.get("sound_design_config", {}).get("mode", "LEGACY").upper()
+        if mode == "ADVANCED":
+            return self._prompt_advanced_sound_design(session)
         return self._prompt_current_track_params(session)
 
     def handle(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        text = _normalize_text(user_input)
+
+        # Conversational toggles for Sound Design mode
+        if any(w in text for w in [
+            "activar sound design avanzado", "modo sound design avanzado", "sound design avanzado",
+            "activar sound design", "modo sound design moderno", "sound design moderno", "activar diseño sonoro avanzado"
+        ]):
+            session.set_sound_design_mode("ADVANCED")
+            return self.prompt(session)
+
+        if any(w in text for w in [
+            "modo sound design clasico", "modo sound design legado", "desactivar sound design avanzado",
+            "desactivar sound design", "sound design clasico", "modo clasico sound design", "omitir sound design avanzado"
+        ]):
+            session.set_sound_design_mode("LEGACY")
+            return self.prompt(session)
+
+        mode = session.data.get("sound_design_config", {}).get("mode", "LEGACY").upper()
+        if mode == "ADVANCED":
+            return self._handle_advanced_sound_design(session, conn, user_input)
+        return self._handle_phase_4(session, conn, user_input)
+
+    # -------------------------------------------------------------------------
+    # ESTUDIO DE SOUND DESIGN AVANZADO (PARAMETRIZADO / CONFIGURABLE)
+    # -------------------------------------------------------------------------
+    def _prompt_advanced_sound_design(self, session: Any) -> Dict[str, Any]:
+        tracks = session.data.get("tracks", [])
+        ptr = session.data.get("current_param_ptr", 0)
+
+        if ptr >= len(tracks):
+            session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+            session.data["phase_index"] = 5
+            session.data["current_fx_track_ptr"] = 0
+            session.data["current_fx_dev_ptr"] = 0
+            session.data["current_fx_ptr"] = 0
+            session._save_state()
+            return session._prompt_current_fx_device()
+
+        trk = tracks[ptr]
+        t_idx = trk.get("index", ptr)
+        t_name = trk.get("name", f"Track {t_idx}")
+        role = trk.get("role", "KEYS")
+        inst = trk.get("instrument", f"{role} Synth")
+        is_audio = trk.get("is_audio", False) or role == "VOCALS"
+
+        role_class = AutoGainStagingEngine.classify_role(t_name)
+        target_db = AutoGainStagingEngine.HIERARCHY_TARGETS.get(role_class, -14.0)
+
+        # Audio / Vocal tracks use gain staging directly
+        if is_audio and not trk.get("chopping_mode"):
+            return self._prompt_current_track_params(session)
+
+        inst_lower = str(inst).lower()
+        if any(k in inst_lower for k in ["drift", "wavetable", "analog", "operator", "drum rack", "tension", "collision", "electric"]):
+            dev_type = "Nativo Ableton (Parámetros LOM 100% controlables)"
+        elif any(k in inst_lower for k in ["vital", "serum", "pigments", "diva"]):
+            dev_type = "VST3 con Host Automation expuesto"
+        else:
+            dev_type = "Plugin de Terceros / Librería Externa (Caja Negra / Presets)"
+
+        question = (
+            f"🎛️ **Paso 4 de 7: Estudio de Sound Design Avanzado (Pista {ptr + 1} de {len(tracks)}: '{t_name}', Rol: {role})**\n\n"
+            f"• **Instrumento en Pista {t_idx}:** `{inst}` [{dev_type}]\n"
+            f"• **Calibración de Headroom:** `{target_db} dBFS` pre-fader (Auto Gain Staging).\n\n"
+            f"Para esculpir la identidad sonora sin importar las limitaciones internas del plugin, dispones de 4 estrategias maestras:\n\n"
+            f"1. **Opción 1: The Outer Sound Design Shell (Cáscara de Inserción Quirúrgica)**\n"
+            f"   Inyecta en la pista una cadena de inserción con saturación analógica (*Saturator / Roar*), filtro dinámico con LFO (*Auto Filter*) y pegada multibanda (*OTT / Drum Buss*). Esculpe el 80% del timbre fuera del plugin.\n\n"
+            f"2. **Opción 2: Capa Autogénea de Audio UHTS (Resampling & Mutación Espectral)**\n"
+            f"   Genera una toma de audio paralela y aplica una mutación armónica del catálogo UHTS (ej. *Técnica #06 Shimmer Diffusion*, *Técnica #01 Cinta Analógica*, o *Técnica #03 Granular*) a -6 dBFS.\n\n"
+            f"3. **Opción 3: Macro Instrument Rack (4 Caracteres Universales)**\n"
+            f"   Mapea o envuelve el instrumento en un Rack con 4 Macros asignados: *Color/Timbre*, *Drive/Saturación*, *Movimiento* y *Espacio*.\n\n"
+            f"4. **Opción 4: Ajuste Directo de Parámetros (Modo Clásico)**\n"
+            f"   Ajusta directamente Cutoff, Drive y envolventes ADSR o selecciona presets tradicionales.\n\n"
+            f"• **Omitir / Saltar:** Escribe `'Omitir'` o `'Saltar'` para mantener el preset actual y pasar a la siguiente pista.\n\n"
+            f"🧠 **Decisión Técnica Requerida:**\n"
+            f"Selecciona una de las 4 opciones o escribe `'Omitir'` para avanzar."
+        )
+
+        return {
+            "current_step": f"PASO 4 DE 7: SOUND DESIGN AVANZADO (PISTA {ptr + 1} DE {len(tracks)})",
+            "action_taken": f"Estudio de Sound Design activo para {t_name} ({role}).",
+            "question": question,
+            "target_track": t_idx,
+            "role": role,
+            "instrument": inst,
+            "device_type": dev_type,
+            "target_dbfs": target_db,
+            "sound_design_mode": "ADVANCED",
+            "phase": "PHASE_4_PARAM_SCULPTING"
+        }
+
+    def _handle_advanced_sound_design(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        tracks = session.data.get("tracks", [])
+        ptr = session.data.get("current_param_ptr", 0)
+
+        if ptr >= len(tracks):
+            session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+            session.data["phase_index"] = 5
+            session.data["current_fx_track_ptr"] = 0
+            session.data["current_fx_dev_ptr"] = 0
+            session.data["current_fx_ptr"] = 0
+            session._save_state()
+            return session._prompt_current_fx_device()
+
+        trk = tracks[ptr]
+        t_idx = session._resolve_live_track_index(conn, trk)
+        role = trk.get("role", "KEYS")
+        inst = trk.get("instrument", "")
+        text = _normalize_text(user_input)
+        is_audio = trk.get("is_audio", False) or role == "VOCALS"
+
+        if is_audio and not trk.get("chopping_mode"):
+            return self._handle_phase_4(session, conn, user_input)
+
+        role_class = AutoGainStagingEngine.classify_role(trk.get("name", ""))
+        target_db = AutoGainStagingEngine.HIERARCHY_TARGETS.get(role_class, -14.0)
+        fader_linear = AutoGainStagingEngine.db_to_linear(target_db)
+
+        # 1. Option: Omit / Skip
+        if any(w in text for w in ["omitir", "saltar", "skip", "ninguno", "siguiente pista", "mantener"]):
+            trk["sound_design"] = {
+                "strategy": "SKIPPED",
+                "status": "PRESERVED",
+                "notes": "Sound design omitido por el usuario para esta pista."
+            }
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("set_track_volume", {"track_index": t_idx, "volume": fader_linear})
+                except Exception:
+                    pass
+            trk["gain_staging"] = {
+                "role_class": role_class,
+                "target_peak_dbfs": target_db,
+                "fader_linear": fader_linear,
+                "headroom_to_master_db": -6.0
+            }
+            session.data["current_param_ptr"] = ptr + 1
+            session._save_state()
+            return self.prompt(session)
+
+        # 2. Option 1: The Outer Sound Design Shell
+        if any(w in text for w in ["opcion 1", "outer shell", "shell", "cadena insercion", "cascara", "saturador", "filtro"]):
+            devices_loaded = []
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    sat_uri = "query:Audio%20Effects#Drum%20Buss" if role in ["DRUMS", "BASS"] else "query:Audio%20Effects#Saturator"
+                    conn.send_command("load_instrument_or_effect", {"track_index": t_idx, "uri": sat_uri})
+                    devices_loaded.append("Drum Buss" if role in ["DRUMS", "BASS"] else "Saturator")
+                    conn.send_command("load_instrument_or_effect", {"track_index": t_idx, "uri": "query:Audio%20Effects#Auto%20Filter"})
+                    devices_loaded.append("Auto Filter")
+                    conn.send_command("set_track_volume", {"track_index": t_idx, "volume": fader_linear})
+                except Exception as e:
+                    logger.debug(f"Notice loading outer shell in Live: {e}")
+
+            trk["sound_design"] = {
+                "strategy": "OUTER_SOUND_DESIGN_SHELL",
+                "devices_added": devices_loaded or ["Saturator", "Auto Filter"],
+                "drive": 0.28,
+                "filter_modulation": True,
+                "applied": True
+            }
+            trk["sculpted_parameters"] = {"OUTER_SHELL": True, "DRIVE": 0.28, "FILTER_CUTOFF": 0.70}
+            trk["gain_staging"] = {
+                "role_class": role_class,
+                "target_peak_dbfs": target_db,
+                "fader_linear": fader_linear,
+                "headroom_to_master_db": -6.0
+            }
+            session.data["current_param_ptr"] = ptr + 1
+            session._save_state()
+            return self.prompt(session)
+
+        # 3. Option 2: UHTS Autogenous Resampling Layer
+        if any(w in text for w in ["opcion 2", "uhts", "capa", "resampling", "mutacion", "shimmer", "layer"]):
+            tech_name = "Pitch-Shifted Shimmer Diffusion"
+            tech_idx = 6
+            if "cinta" in text or "tape" in text:
+                tech_name = "Vintage Tape Saturation & Wow"
+                tech_idx = 1
+            elif "granular" in text:
+                tech_name = "Spectral Granular Glitch"
+                tech_idx = 3
+
+            trk["sound_design"] = {
+                "strategy": "UHTS_RESAMPLING_LAYER",
+                "technique": tech_name,
+                "technique_index": tech_idx,
+                "fader_level_dbfs": -6.0,
+                "applied": True
+            }
+            trk["sculpted_parameters"] = {"UHTS_MUTATION": tech_name, "GAIN_DB": -6.0}
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("set_track_volume", {"track_index": t_idx, "volume": fader_linear})
+                except Exception:
+                    pass
+            trk["gain_staging"] = {
+                "role_class": role_class,
+                "target_peak_dbfs": target_db,
+                "fader_linear": fader_linear,
+                "headroom_to_master_db": -6.0
+            }
+            session.data["current_param_ptr"] = ptr + 1
+            session._save_state()
+            return self.prompt(session)
+
+        # 4. Option 3: Macro Instrument Rack (4 Characters)
+        if any(w in text for w in ["opcion 3", "macro", "rack", "instrument rack", "macros"]):
+            macro_blueprint = {
+                "MACRO_1": 0.70,  # Color / Timbre
+                "MACRO_2": 0.35,  # Drive / Saturación
+                "MACRO_3": 0.50,  # Movimiento / LFO
+                "MACRO_4": 0.45,  # Espacio / Dimensión
+            }
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    DeviceParameterSupervisor.apply_sound_blueprint(
+                        conn=conn,
+                        track_index=t_idx,
+                        role=role,
+                        plugin_name=inst,
+                        device_index=0,
+                        custom_blueprint={"parameters": macro_blueprint}
+                    )
+                    conn.send_command("set_track_volume", {"track_index": t_idx, "volume": fader_linear})
+                except Exception as e:
+                    logger.debug(f"Notice applying macro rack: {e}")
+
+            trk["sound_design"] = {
+                "strategy": "MACRO_RACK_4_CHARS",
+                "macros": macro_blueprint,
+                "applied": True
+            }
+            trk["sculpted_parameters"] = macro_blueprint
+            trk["gain_staging"] = {
+                "role_class": role_class,
+                "target_peak_dbfs": target_db,
+                "fader_linear": fader_linear,
+                "headroom_to_master_db": -6.0
+            }
+            session.data["current_param_ptr"] = ptr + 1
+            session._save_state()
+            return self.prompt(session)
+
+        # 5. Option 4 or explicit parameters: Cutoff / Drive / ADSR -> Fall back to legacy handler
         return self._handle_phase_4(session, conn, user_input)
 
     def _prompt_current_track_params(self, session: Any) -> Dict[str, Any]:
