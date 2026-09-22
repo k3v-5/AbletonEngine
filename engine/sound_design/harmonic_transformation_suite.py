@@ -633,7 +633,8 @@ class HarmonicTransformationSuite:
         track_index: int,
         profile: HarmonicProfile | str = HarmonicProfile.PAD_ATMOSPHERE,
         source_instrument_type: str = "general",
-        conn: Any = None
+        conn: Any = None,
+        clear_existing_fx: bool = False
     ) -> Dict[str, Any]:
         """
         Loads the physical device chain of the chosen HarmonicProfile directly onto
@@ -650,6 +651,17 @@ class HarmonicTransformationSuite:
                 logger.warning(f"Could not initialize direct Ableton connection: {e}")
 
         if conn:
+            if clear_existing_fx:
+                try:
+                    info = conn.send_command("get_track_info", {"track_index": track_index})
+                    dev_count = len(info.get("devices", []))
+                    while dev_count > 1:
+                        conn.send_command("delete_device", {"track_index": track_index, "device_index": 1})
+                        info = conn.send_command("get_track_info", {"track_index": track_index})
+                        dev_count = len(info.get("devices", []))
+                except Exception as ex_del:
+                    logger.warning(f"Error clearing previous FX devices on track {track_index}: {ex_del}")
+
             for r in recipes:
                 try:
                     logger.info(f"Loading device '{r.device_name}' on track {track_index}...")

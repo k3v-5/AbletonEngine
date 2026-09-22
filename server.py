@@ -10556,6 +10556,141 @@ def get_harmonic_suite_profiles() -> dict:
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def audition_harmonic_profile(
+    profile_target: str,
+    track_index: Optional[int] = None,
+    loop: bool = True,
+    auto_play: bool = True
+) -> dict:
+    """
+    Auditions any of the 20 Universal Harmonic Transformation Suite profiles in Ableton Live 12 Suite.
+    
+    Parameters:
+    - profile_target: Profile number ('1' through '20') or profile name (e.g. 'PAD_ATMOSPHERE', 'LOFI_BIT_CRUSHER_DIRT')
+    - track_index: Optional track index to apply the physical device chain. If omitted, targets the showcase track.
+    - loop: If True, sets loop region to the 4-bar audition window (16 beats).
+    - auto_play: If True, starts Live playback immediately.
+    """
+    try:
+        from engine.sound_design.harmonic_transformation_suite import (
+            HarmonicTransformationSuite,
+            HarmonicProfile
+        )
+        conn = get_ableton_connection()
+        profiles_list = list(HarmonicProfile)
+        
+        # 1. Resolve target profile and profile index (1-based)
+        p_enum = None
+        target_idx = None
+        target_str = str(profile_target).strip().upper()
+        
+        if target_str.isdigit():
+            idx_num = int(target_str)
+            if 1 <= idx_num <= len(profiles_list):
+                p_enum = profiles_list[idx_num - 1]
+                target_idx = idx_num
+        else:
+            clean_str = target_str.replace(" ", "_")
+            for idx, p in enumerate(profiles_list, start=1):
+                if clean_str in p.value or p.value in clean_str:
+                    p_enum = p
+                    target_idx = idx
+                    break
+                    
+        if p_enum is None:
+            p_enum = HarmonicProfile.PAD_ATMOSPHERE
+            target_idx = 1
+
+        cfg = HarmonicTransformationSuite.get_config(p_enum)
+        start_beat = float((target_idx - 1) * 16.0)
+
+        # 2. Locate or determine dedicated track index
+        target_track = track_index
+        dedicated_tracks_found = False
+        if target_track is None and conn:
+            session = conn.send_command("get_session_info", {})
+            track_count = session.get("track_count", 0)
+            candidate_idx = 17 + target_idx
+            if track_count >= 38 and 18 <= candidate_idx < track_count:
+                # Fast path: 20 dedicated UHTS tracks are at indices 18 to 37
+                target_track = candidate_idx
+                dedicated_tracks_found = True
+                uhts_indices = list(range(18, 38))
+                for t_i in uhts_indices:
+                    conn.send_command("set_track_solo", {
+                        "track_index": t_i,
+                        "solo": (t_i == target_track)
+                    })
+            else:
+                prefix = f"[UHTS {target_idx:02d}]"
+                uhts_indices = []
+                for t_i in range(track_count):
+                    info = conn.send_command("get_track_info", {"track_index": t_i})
+                    t_name = info.get("name", "")
+                    if "[UHTS" in t_name:
+                        uhts_indices.append(t_i)
+                    if prefix in t_name:
+                        target_track = t_i
+                
+                if target_track is not None:
+                    dedicated_tracks_found = True
+                    for t_i in uhts_indices:
+                        conn.send_command("set_track_solo", {
+                            "track_index": t_i,
+                            "solo": (t_i == target_track)
+                        })
+
+        if target_track is None:
+            target_track = 18
+
+        # 3. Handle device chain and playback
+        loaded_res = {}
+        if conn and target_track is not None:
+            if not dedicated_tracks_found:
+                loaded_res = HarmonicTransformationSuite.apply_to_live_track(
+                    track_index=target_track,
+                    profile=p_enum,
+                    conn=conn,
+                    clear_existing_fx=True
+                )
+            else:
+                info = conn.send_command("get_track_info", {"track_index": target_track})
+                loaded_res = {
+                    "loaded_devices": [d.get("name") for d in info.get("devices", [])]
+                }
+
+            # 4. Set loop region if enabled
+            if loop:
+                conn.send_command("set_loop_region", {
+                    "start_time": start_beat,
+                    "length": 16.0,
+                    "enabled": True
+                })
+            # 5. Jump playhead to position
+            conn.send_command("jump_to_cue_point", {"target": start_beat})
+            
+            # 6. Trigger playback
+            if auto_play:
+                conn.send_command("start_playback", {})
+
+        return {
+            "status": "success",
+            "profile_number": target_idx,
+            "profile_name": p_enum.value,
+            "locator_label": f"#{target_idx}: {p_enum.value}",
+            "arrangement_beat": start_beat,
+            "bar_position": f"Bar {int(start_beat / 4.0) + 1} to {int(start_beat / 4.0) + 5}",
+            "track_index": target_track,
+            "loaded_devices": loaded_res.get("loaded_devices", []),
+            "acoustic_config": cfg.to_dict(),
+            "feedback_prompt": f"Escuchando perfil #{target_idx} ({p_enum.value}). ¿Cómo percibes el drive ({cfg.drive_db}dB), formante ({cfg.formant_freq_hz}Hz) y dinámica OTT ({int(cfg.ott_depth*100)}%)?"
+        }
+    except Exception as e:
+        logger.error(f"Error in audition_harmonic_profile: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 
 def main():
 
