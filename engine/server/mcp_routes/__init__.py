@@ -28,6 +28,8 @@ from .sound_design_routes import (
     handle_audio_semantic_sample_match,
     handle_audio_deconstruct_reference,
     handle_audio_transcribe_to_midi,
+    handle_get_reprocessing_catalog,
+    handle_execute_reprocessing,
 )
 
 __all__ = [
@@ -52,4 +54,6 @@ __all__ = [
     "handle_audio_semantic_sample_match",
     "handle_audio_deconstruct_reference",
     "handle_audio_transcribe_to_midi",
+    "handle_get_reprocessing_catalog",
+    "handle_execute_reprocessing",
 ]

@@ -535,8 +535,9 @@ class Phase9ExportHandler(BasePhaseHandler):
             "*(Ej: 'Saltar al Drop 1', 'Ir al Breakdown', 'Reproducir compás 32', 'Escuchar la Intro')*\n\n"
             "📦 **Exportación de Stems Verificada:** Responde 'Exportar stems' o 'Revisar stems' para auditar la correlación de fase en subgraves, headroom dinámico y generar el manifiesto oficial de distribución.\n"
             "🔄 **Cambio de Instrumento con Re-Validación:** Responde 'Cambiar instrumento' o 'Cambiar sonido' para reemplazar el instrumento de cualquier canal y ejecutar el ciclo completo de validación técnica (Carga VST -> Esculpido Delta >= 1 -> EQ Eight Obligatorio -> Notas MIDI -> Re-auditoría LUFS).\n"
+            "🧪 **Fase 11: Catálogo de Reprocesamiento y Resíntesis de Audio (UHTS):** Responde 'Fase 11', 'Reprocesar' o 'Resamplear' para acceder a los 20 algoritmos de mutación de audio continuo (Karplus-Strong tuned, Formants, Sub-growl, Stutters, Wow/Flutter, etc.) y crear capas texturales únicas en pistas de audio nuevas.\n"
             "🎧 **El Copilot permanece activo y escuchando en esta misma herramienta.**\n"
-            "Puedes solicitar cualquier ajuste en lenguaje natural (ej: 'Saltar al Drop 1', 'Exportar stems', 'Cambiar instrumento', 'Sube 1.5 dB al bajo', 'Cambia el tempo a 128 BPM')."
+            "Puedes solicitar cualquier ajuste en lenguaje natural (ej: 'Fase 11', 'Saltar al Drop 1', 'Exportar stems', 'Cambiar instrumento', 'Sube 1.5 dB al bajo', 'Cambia el tempo a 128 BPM')."
         )
 
         return {

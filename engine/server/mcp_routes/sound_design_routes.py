@@ -129,3 +129,100 @@ def handle_audio_transcribe_to_midi(
     except Exception as e:
         logger.error(f"Error in audio_transcribe_to_midi: {e}")
         return {"status": "error", "message": str(e)}
+
+
+def handle_get_reprocessing_catalog(get_connection: Optional[Callable[[], Any]] = None) -> dict:
+    """Returns the master catalog of the 20 Universal Harmonic Transformation Suite (UHTS) DSP algorithms with live Key/BPM detection."""
+    try:
+        from engine.sound_design.reprocessing_pipeline import AudioReprocessingPipeline
+        conn = get_connection() if get_connection else None
+        pipeline = AudioReprocessingPipeline(conn=conn)
+        tuning = pipeline.detect_project_key_and_bpm()
+        catalog = pipeline.get_catalog()
+        return {
+            "status": "success",
+            "tuning_detected": tuning,
+            "catalog_count": len(catalog),
+            "catalog": catalog
+        }
+    except Exception as e:
+        logger.error(f"Error in handle_get_reprocessing_catalog: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def handle_execute_reprocessing(
+    get_connection: Callable[[], Any],
+    technique_selector: Any,
+    source_track_index: Optional[int] = None,
+    source_wav_path: Optional[str] = None,
+    key: Optional[str] = None,
+    scale: Optional[str] = None,
+    bpm: Optional[float] = None,
+    deploy_to_live: bool = True
+) -> dict:
+    """
+    Executes a DSP mutation from the 20 UHTS catalog on a source audio file or session track,
+    and deploys the resulting continuous audio onto a brand new unused Audio Track in Ableton Live.
+    """
+    try:
+        from engine.sound_design.reprocessing_pipeline import AudioReprocessingPipeline
+        from pathlib import Path
+        conn = get_connection()
+        pipeline = AudioReprocessingPipeline(conn=conn)
+
+        # 1. Resolve Key & BPM
+        tuning = pipeline.detect_project_key_and_bpm()
+        f_key = key or tuning["key"]
+        f_scale = scale or tuning["scale"]
+        f_bpm = bpm or tuning["bpm"]
+
+        # 2. Resolve source audio
+        src_path = source_wav_path
+        if not src_path:
+            default_piano = Path("cache/uhts_resampled/source_piano_chord.wav")
+            if default_piano.exists():
+                src_path = str(default_piano.resolve())
+            else:
+                synth_res = pipeline.generate_source_sound_for_new_track(
+                    role="KEYS",
+                    instrument_name="Analog Lab V",
+                    preset_name="Prolonged Concert Grand",
+                    key=f_key,
+                    scale=f_scale,
+                    bpm=f_bpm,
+                    bars=4
+                )
+                src_path = synth_res["wav_path"]
+
+        # 3. Execute mutation
+        mut_res = pipeline.execute_mutation(
+            source_wav_path=src_path,
+            technique_selector=technique_selector,
+            key=f_key,
+            scale=f_scale,
+            bpm=f_bpm
+        )
+
+        tech = mut_res["technique"]
+        deploy_res = None
+        if deploy_to_live:
+            deploy_res = pipeline.deploy_mutated_track_to_live(
+                mutated_wav_path=mut_res["output_path"],
+                technique_name=tech["name"],
+                technique_index=tech["index"],
+                key=f_key,
+                scale=f_scale,
+                target_volume=0.75
+            )
+
+        return {
+            "status": "success",
+            "technique": tech,
+            "tuning": {"key": f_key, "scale": f_scale, "bpm": f_bpm},
+            "output_wav": mut_res["output_path"],
+            "duration": mut_res["duration"],
+            "deployment": deploy_res
+        }
+    except Exception as e:
+        logger.error(f"Error in handle_execute_reprocessing: {e}")
+        return {"status": "error", "message": str(e)}

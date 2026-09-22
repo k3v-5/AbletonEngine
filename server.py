@@ -54,6 +54,8 @@ from engine.server.mcp_routes import (
     handle_audio_semantic_sample_match,
     handle_audio_deconstruct_reference,
     handle_audio_transcribe_to_midi,
+    handle_get_reprocessing_catalog,
+    handle_execute_reprocessing,
 )
 
 ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
@@ -10690,6 +10692,49 @@ def audition_harmonic_profile(
         logger.error(f"Error in audition_harmonic_profile: {e}")
         return {"status": "error", "message": str(e)}
 
+
+@mcp.tool()
+def get_reprocessing_catalog() -> dict:
+    """
+    Returns the master catalog of the 20 Universal Harmonic Transformation Suite (UHTS)
+    DSP resampling algorithms, together with auto-detected project Key and BPM from Live.
+    """
+    return handle_get_reprocessing_catalog(get_ableton_connection)
+
+
+@mcp.tool()
+def execute_reprocessing(
+    technique_selector: Any,
+    source_track_index: Optional[int] = None,
+    source_wav_path: Optional[str] = None,
+    key: Optional[str] = None,
+    scale: Optional[str] = None,
+    bpm: Optional[float] = None,
+    deploy_to_live: bool = True
+) -> dict:
+    """
+    Executes a DSP mutation from the 20 UHTS catalog on a source audio file or session track,
+    and deploys the resulting continuous audio onto a brand new unused Audio Track in Ableton Live.
+
+    Parameters:
+    - technique_selector: Number ('1' to '20') or name (e.g. 'Tuned Comb Chime', 'Sub Safe Low Growl')
+    - source_track_index: Optional track index to resample. If omitted, uses synthesized or cached source.
+    - source_wav_path: Optional path to custom WAV file to mutate.
+    - key: Optional Key (e.g. 'F', 'C#', 'Eb'). If omitted, auto-detected from Ableton Live.
+    - scale: Optional Scale ('Minor' or 'Major'). If omitted, auto-detected from Ableton Live.
+    - bpm: Optional tempo. If omitted, auto-detected from Ableton Live.
+    - deploy_to_live: If True, creates a brand new Audio Track in Live and loads the clip into slot 0.
+    """
+    return handle_execute_reprocessing(
+        get_connection=get_ableton_connection,
+        technique_selector=technique_selector,
+        source_track_index=source_track_index,
+        source_wav_path=source_wav_path,
+        key=key,
+        scale=scale,
+        bpm=bpm,
+        deploy_to_live=deploy_to_live
+    )
 
 
 def main():

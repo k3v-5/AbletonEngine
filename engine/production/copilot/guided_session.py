@@ -144,7 +144,8 @@ class CopilotGuidedSession:
         "PHASE_7_AUTOMATION",
         "PHASE_8_VOCAL_DUCKING",
         "PHASE_9_MIX_MASTER",
-        "PHASE_10_COMPLETED"
+        "PHASE_10_COMPLETED",
+        "PHASE_11_AUDIO_RESAMPLING"
     ]
 
     def __init__(self):
@@ -359,10 +360,22 @@ class CopilotGuidedSession:
             "master": "PHASE_9_MIX_MASTER",
             "mastering": "PHASE_9_MIX_MASTER",
             "fase 9": "PHASE_9_MIX_MASTER",
-            "paso 9": "PHASE_9_MIX_MASTER"
+            "paso 9": "PHASE_9_MIX_MASTER",
+            "fase 10": "PHASE_10_COMPLETED",
+            "paso 10": "PHASE_10_COMPLETED",
+            "resampling": "PHASE_11_AUDIO_RESAMPLING",
+            "reprocesamiento": "PHASE_11_AUDIO_RESAMPLING",
+            "resintesis": "PHASE_11_AUDIO_RESAMPLING",
+            "resíntesis": "PHASE_11_AUDIO_RESAMPLING",
+            "mutacion": "PHASE_11_AUDIO_RESAMPLING",
+            "mutación": "PHASE_11_AUDIO_RESAMPLING",
+            "mutaciones": "PHASE_11_AUDIO_RESAMPLING",
+            "uhts": "PHASE_11_AUDIO_RESAMPLING",
+            "fase 11": "PHASE_11_AUDIO_RESAMPLING",
+            "paso 11": "PHASE_11_AUDIO_RESAMPLING"
         }
 
-        for keyword, mapped_phase in phase_map.items():
+        for keyword, mapped_phase in sorted(phase_map.items(), key=lambda x: len(x[0]), reverse=True):
             if keyword in norm_text:
                 target_phase = mapped_phase
                 break
@@ -396,6 +409,8 @@ class CopilotGuidedSession:
             self.data["composition_session"] = {"active": True, "mode": "BY_TRACK", "track_index": 0, "section_index": 0}
         elif target_phase == "PHASE_7_AUTOMATION":
             self.data["automation_session"] = {"active": False}
+        elif target_phase == "PHASE_11_AUDIO_RESAMPLING":
+            self.data["resampling_session"] = {"active": True, "stage": "SELECT_SOURCE"}
 
         # Resync physical track indices
         tracks = self.data.get("tracks", [])
@@ -424,6 +439,8 @@ class CopilotGuidedSession:
             prompt = self._prompt_phase_8_vocal_ducking()
         elif target_phase == "PHASE_9_MIX_MASTER":
             prompt = self._prompt_phase_9()
+        elif target_phase == "PHASE_11_AUDIO_RESAMPLING":
+            prompt = self._prompt_phase_11(conn)
         else:
             prompt = self._handle_phase_10(conn, "")
 
@@ -537,6 +554,21 @@ class CopilotGuidedSession:
         # 0.1 Active state intercept for Awaiting Vocal Workflow Choice (2 Partes)
         if self.data.get("awaiting_vocal_workflow_choice", False):
             return self._handle_phase_10(conn, u_in)
+
+        # 0. Active state intercept for Phase 11 Resampling & Reprocessing
+        if phase == "PHASE_11_AUDIO_RESAMPLING" or self.data.get("resampling_session", {}).get("active", False):
+            return self._handle_phase_11(conn, u_in)
+
+        # Global Resampling & Mutation Trigger across Phases 9, 10, 11
+        is_resampling_trigger = any(w in norm_text for w in [
+            "resamplear", "reprocesar", "catalogo de reprocesamiento", "resintesis", "resíntesis",
+            "mutar sonido", "mutaciones de audio", "uhts", "fase 11", "paso 11", "resampling"
+        ])
+        if is_resampling_trigger and phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER", "PHASE_11_AUDIO_RESAMPLING"):
+            self.data["current_phase"] = "PHASE_11_AUDIO_RESAMPLING"
+            self.data["phase_index"] = 11
+            self._save_state(action_tag="ENTER_PHASE_11")
+            return self._handle_phase_11(conn, u_in)
 
         # Priority intercept for vocal take processing, slicing, chops, and gain calibration
         is_vocal_trigger = (
@@ -664,6 +696,8 @@ class CopilotGuidedSession:
                 return self._prompt_phase_9()
             elif phase in ("PHASE_9_COMPLETED", "PHASE_10_COMPLETED"):
                 return self._handle_phase_10(conn, "")
+            elif phase == "PHASE_11_AUDIO_RESAMPLING":
+                return self._prompt_phase_11(conn)
 
         if phase == "PHASE_1_TRACKS":
             return self._handle_phase_1(conn, u_in)
@@ -685,6 +719,8 @@ class CopilotGuidedSession:
             return self._handle_phase_9(conn, u_in)
         elif phase in ("PHASE_9_COMPLETED", "PHASE_10_COMPLETED"):
             return self._handle_phase_10(conn, u_in)
+        elif phase == "PHASE_11_AUDIO_RESAMPLING":
+            return self._handle_phase_11(conn, u_in)
 
         return {"status": "ERROR", "message": f"Fase desconocida: {phase}"}
 
@@ -1061,6 +1097,17 @@ class CopilotGuidedSession:
     def _audit_and_prepare_stems(self, conn: Any) -> Dict[str, Any]:
         from .phases.phase_10_listeners import Phase10ListenersHandler
         return Phase10ListenersHandler().audit_and_prepare_stems(self, conn)
+
+    # -------------------------------------------------------------------------
+    # FASE 11: CATÁLOGO DE REPROCESAMIENTO Y MUTACIÓN DE AUDIO CONTINUO (UHTS)
+    # -------------------------------------------------------------------------
+    def _prompt_phase_11(self, conn: Any = None) -> Dict[str, Any]:
+        from .phases.phase_11_resampling import Phase11ResamplingHandler
+        return Phase11ResamplingHandler().prompt(self, conn=conn)
+
+    def _handle_phase_11(self, conn: Any, user_input: str) -> Dict[str, Any]:
+        from .phases.phase_11_resampling import Phase11ResamplingHandler
+        return Phase11ResamplingHandler().handle(self, conn, user_input)
 
     # -------------------------------------------------------------------------
     # FASE 7: CONTROLADOR Y OBSERVADOR CREATIVO REVERSIBLE
