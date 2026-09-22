@@ -376,9 +376,9 @@ def mutate_14_rhythmic_stutter_chop(audio: np.ndarray, sr: int, key: str = "F", 
             out[start:end] = audio[start:end]
         elif step_type == 2:
             # Repeat first half of 16th twice
-            half = int((end - start) / 2)
-            out[start : start + half] = audio[start : start + half]
-            out[start + half : end] = audio[start : start + half]
+            mid = start + int((end - start) / 2)
+            out[start:mid] = audio[start:mid]
+            out[mid:end] = audio[start : start + (end - mid)]
             
     # Apply soft envelope smoothing to prevent clicks
     return normalize_audio(out, -1.0)
