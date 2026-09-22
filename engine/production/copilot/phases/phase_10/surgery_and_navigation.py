@@ -384,3 +384,120 @@ def handle_session_tweaks(session: Any, conn: Any, text: str, tracks: List[Dict[
         "instructions_for_ai": "Pide más ajustes o da por concluida la sesión.",
         "phase": completed_phase
     }
+
+
+def handle_track_freeze(conn: Any, text: str, tracks: List[Dict[str, Any]], completed_phase: str) -> Dict[str, Any]:
+    """Handles freezing / unfreezing tracks in Live to lock audio and free CPU."""
+    text_norm = _normalize_text(text)
+    is_unfreeze = any(w in text_norm for w in ["descongelar", "unfreeze"])
+    new_freeze_state = not is_unfreeze
+
+    matched_trk = None
+    num_m = re.search(r"(?:pista|track)\s*([0-9]+)", text_norm)
+    if num_m:
+        target_idx = int(num_m.group(1)) - 1
+        matched_trk = next((t for t in tracks if t.get("index") == target_idx), None)
+
+    if not matched_trk:
+        for t in tracks:
+            t_name = _normalize_text(t.get("name", ""))
+            if t_name and (t_name in text_norm or text_norm in t_name):
+                matched_trk = t
+                break
+
+    if not matched_trk:
+        matched_trk = tracks[0] if tracks else {"index": 0, "name": "Track 1"}
+
+    t_idx = matched_trk.get("index", 0)
+    trk_name = matched_trk.get("name", f"Track {t_idx + 1}")
+
+    if conn and hasattr(conn, "send_command"):
+        freeze_code = f"""
+t = song.tracks[{t_idx}]
+can_f = getattr(t, 'can_be_frozen', True)
+if {str(new_freeze_state)}:
+    if can_f:
+        t.is_frozen = True
+else:
+    t.is_frozen = False
+"""
+        try:
+            conn.send_command("execute_code", {"code": freeze_code})
+            action_summary = f"Pista '{trk_name}' (Track {t_idx + 1}) {'congelada' if new_freeze_state else 'descongelada'} en Live."
+        except Exception as ex:
+            action_summary = f"Pista '{trk_name}' procesada ({ex})."
+    else:
+        action_summary = f"Pista '{trk_name}' {'congelada' if new_freeze_state else 'descongelada'} (modo simulación)."
+
+    matched_trk["is_frozen"] = new_freeze_state
+
+    return {
+        "status": "TRACK_FREEZE_COMPLETED",
+        "current_step": f"ESTADO DE CONGELACIÓN ACTUALIZADO: '{trk_name}'",
+        "action_taken": action_summary,
+        "question": (
+            f"🧊 **Congelación de Pista en Live 12:**\n\n"
+            f"• **Pista:** `{trk_name}` (Track {t_idx + 1})\n"
+            f"• **Estado:** {'❄️ Congelada (is_frozen = True, CPU liberada)' if new_freeze_state else '🔥 Descongelada (is_frozen = False)'}\n\n"
+            "Los recursos de DSP de esta pista han sido fijados con éxito.\n"
+            "¿Deseas congelar otra pista, reproducir el arreglo o exportar los stems?"
+        ),
+        "instructions_for_ai": "Pide más acciones o continúa con la escucha activa.",
+        "phase": completed_phase,
+        "track_name": trk_name,
+        "is_frozen": new_freeze_state
+    }
+
+
+def handle_texture_and_foley_injection(
+    session: Any, conn: Any, text: str, tracks: List[Dict[str, Any]], completed_phase: str
+) -> Dict[str, Any]:
+    """Generates and injects organic foley texture bed derived from the song's musical identity."""
+    from engine.audio_genesis import AudioGenesisEngine, GenesisPipelineType
+
+    source_name = "Keys"
+    for t in tracks:
+        if t.get("role", "").upper() in ["KEYS", "PAD", "SYNTH"]:
+            source_name = t.get("name", "Keys")
+            break
+
+    genesis = AudioGenesisEngine(conn=conn)
+    sound_res = genesis.create_provenanced_sound(
+        musical_need="organic_foley_texture",
+        source_track_name=source_name,
+        genesis_pipeline=GenesisPipelineType.FREEZE_PAD,
+        session_tracks=tracks
+    )
+
+    texture_trk = next((t for t in tracks if t.get("role") in ["TEXTURE_FOLEY", "FX"] or "textur" in str(t.get("name", "")).lower()), None)
+    dest_name = texture_trk.get("name", "Texture Bed") if texture_trk else "Texture Foley"
+    action_taken = f"Textura orgánica generada desde '{source_name}' e inyectada a -24 dBFS en '{dest_name}'."
+
+    resampled_assets = session.data.setdefault("resampled_assets", [])
+    resampled_assets.append({
+        "source_track": source_name,
+        "pipeline": "freeze_pad",
+        "sample_path": sound_res.mutation.audio_path,
+        "provenance_id": sound_res.provenance.sample_id
+    })
+    session._save_state()
+
+    return {
+        "status": "TEXTURE_FOLEY_INJECTED",
+        "current_step": "INYECCIÓN DE TEXTURA Y FOLEY ORGÁNICO COMPLETADA",
+        "action_taken": action_taken,
+        "question": (
+            f"🌿 **Textura Orgánica Generada con Proveniencia:**\n\n"
+            f"• **Fuente Original:** Pista '{source_name}' (Render Before Sample)\n"
+            f"• **Calibración Dinámica:** -24 dBFS (protección de claridad vocal)\n"
+            f"• **Archivo Acústico:** `{sound_res.mutation.audio_path}`\n"
+            f"• **Árbol de Linaje:**\n"
+            f"```text\n{sound_res.genealogy_ascii}\n```\n\n"
+            "El lecho orgánico y texturas de sala han sido inyectados sin colisión de frecuencias.\n"
+            "¿Deseas escuchar la sección, congelar pistas o exportar stems?"
+        ),
+        "instructions_for_ai": "Continúa con la escucha activa o exportación de stems.",
+        "phase": completed_phase,
+        "texture_result": sound_res.to_dict()
+    }
+

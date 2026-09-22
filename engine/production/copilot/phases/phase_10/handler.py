@@ -26,6 +26,8 @@ from .surgery_and_navigation import (
     handle_top_and_tail_guard,
     handle_transport_navigation,
     handle_session_tweaks,
+    handle_track_freeze,
+    handle_texture_and_foley_injection,
 )
 
 logger = logging.getLogger("CopilotGuidedSession.Phase10")
@@ -102,6 +104,14 @@ class Phase10ListenersHandler(BasePhaseHandler):
         # 0. Top & Tail Acoustic Guard
         if any(w in text for w in ["top and tail", "top & tail", "ruidos residuales", "compas 0", "segundo 0", "desvanecer reverb", "cola de reverb", "reverberacion a -inf", "fade out outro"]):
             return handle_top_and_tail_guard(session, conn, tracks, completed_phase)
+
+        # 0. Track Freezing / Unfreezing in Live 12
+        if any(w in text for w in ["congelar pista", "descongelar pista", "congelar track", "descongelar track", "freeze track", "unfreeze track", "congelar", "descongelar"]):
+            return handle_track_freeze(conn, text, tracks, completed_phase)
+
+        # 0. Organic Foley Bed, Textures & Resampling Injection
+        if any(w in text for w in ["inyectar foley", "lecho de vinilo", "textura foley", "crear textura", "inyectar textura", "textura granular", "resamplear pista", "self-sampling"]):
+            return handle_texture_and_foley_injection(session, conn, text, tracks, completed_phase)
 
         # 0.01 Vocal Production Co-Creation & Continuous Take / Room Echo / Mix Audit / Vocal Chops / Gain Staging
         if any(w in text for w in ["vocal", "voz", "voces", "cantar", "letra", "grabar voz", "toma continua", "toma larga", "eco", "habitacion", "cortar y alinear", "balance", "chop", "chops", "vocal chop", "vocal chops", "partir", "distribuir", "distribuyelo", "rebanar", "trocear", "grabe", "grabo", "grabar", "procesar", "audio", "corta", "cortalo", "chopp", "choppealo", "bajo", "muy bajo", "controlar", "ganancia", "volumen", "nivel", "avisar", "2 partes", "dos partes", "ambos en 2 partes", "opcion 1", "opcion 2", "opcion 3"]):

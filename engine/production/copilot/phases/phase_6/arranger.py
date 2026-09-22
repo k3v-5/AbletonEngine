@@ -409,18 +409,60 @@ if len(arr_clips) == 0:
                         total_bars=s_bars
                     )
 
-            # Acoustic humanization pass (wrist velocity curves & microtiming jitter)
-            # Preserves exact AI-specified notes/velocities when custom composition is provided
+            # Intentional Performance & Humanization Pass (Nivel T)
+            # Applies role-calibrated microtiming, chord strumming with top-voice accent,
+            # and phrase breathing (climax note weight + guaranteed breath gaps >= 35 ms).
             is_custom_ai = (raw_notes is not None) or bool(custom_notes_map)
-            if s_notes_dicts and not is_custom_ai:
+            humanization_requested = False
+            last_prompt = str(session.data.get("last_composition_prompt", "")).lower()
+            if any(w in last_prompt for w in ["humanizar", "humanize", "respirar", "breathing", "dilla", "pocket", "laid_back", "laid back"]):
+                humanization_requested = True
+
+            if s_notes_dicts and (not is_custom_ai or humanization_requested):
                 bpm_val = float(session.data.get("bpm", 120.0))
-                s_notes_dicts = HumanizerEngine.humanize_clip(
-                    s_notes_dicts,
-                    bpm=bpm_val,
-                    role=role,
-                    humanize_velocity=True,
-                    humanize_timing=True
-                )
+                try:
+                    from engine.performance import (
+                        PerformanceCore,
+                        InstrumentPerformanceProfile,
+                        PerformanceIntent,
+                        PhraseBreathingEngine,
+                        PocketTendency,
+                        VelocityProfile,
+                        ArticulationStyle,
+                    )
+                    perf_prof = InstrumentPerformanceProfile.create_default(role)
+                    pocket = PocketTendency.LAID_BACK if any(w in last_prompt for w in ["dilla", "laid_back", "laid back", "neo_soul", "r&b"]) else PocketTendency.TIGHT_POCKET
+                    intent = PerformanceIntent(
+                        pocket=pocket,
+                        velocity_profile=VelocityProfile.EXPRESSIVE,
+                        articulation=ArticulationStyle.NATURAL_BREATHING,
+                        human_factor=0.75
+                    )
+                    s_notes_dicts = PerformanceCore.humanize_track_notes(
+                        s_notes_dicts,
+                        role=role,
+                        profile=perf_prof,
+                        intent=intent,
+                        bpm=bpm_val
+                    )
+                    if role.upper() in ["LEAD", "VOCALS", "MELODY", "KEYS", "PIANO"]:
+                        perf_prof.phrase_breathing_enabled = True
+                        s_notes_dicts = PhraseBreathingEngine.apply_phrase_breathing(
+                            s_notes_dicts,
+                            profile=perf_prof,
+                            intent=intent,
+                            bpm=bpm_val
+                        )
+                except Exception as ex_perf:
+                    logger.debug(f"Nivel T performance pass fallback: {ex_perf}")
+                    s_notes_dicts = HumanizerEngine.humanize_clip(
+                        s_notes_dicts,
+                        bpm=bpm_val,
+                        role=role,
+                        humanize_velocity=True,
+                        humanize_timing=True
+                    )
+
 
             if conn is not None and hasattr(conn, "send_command"):
                 try:

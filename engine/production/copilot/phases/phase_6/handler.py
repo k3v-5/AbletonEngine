@@ -126,8 +126,126 @@ class Phase6CompositionHandler(BasePhaseHandler):
     def build_recipe_from_session(self, session: Any) -> ProductionRecipe:
         return Phase6RecipeBuilder.build_recipe_from_session(session)
 
+    def _handle_resampling_directive(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        """
+        Executes an in-session self-sampling / resampling cycle via AudioGenesisEngine.
+        Renders from the session's musical material, applies an autogenous mutation pipeline,
+        and stages a new provenanced instrument or audio clip into Live.
+        """
+        try:
+            from engine.audio_genesis import (
+                AudioGenesisEngine,
+                TargetInstrumentDestination,
+                GenesisPipelineType,
+            )
+            from engine.composition.compositional_dna import CompositionalDNA
+
+            text_norm = _normalize_text(user_input)
+            tracks = session.data.get("tracks", [])
+
+            # 1. Resolve source track
+            source_track = None
+            for trk in tracks:
+                t_name = _normalize_text(trk.get("name", ""))
+                if t_name and (t_name in text_norm or text_norm in t_name):
+                    source_track = trk
+                    break
+            if not source_track:
+                for trk in tracks:
+                    role = str(trk.get("role", "")).upper()
+                    if role in ("KEYS", "PAD", "CHORDS", "LEAD", "SYNTH"):
+                        source_track = trk
+                        break
+            if not source_track and tracks:
+                source_track = tracks[0]
+
+            source_name = source_track.get("name", "Keys") if source_track else "Keys"
+
+            # 2. Infer pipeline and musical need from prompt
+            musical_need = "ethereal_lead"
+            pipeline = GenesisPipelineType.MELODIC_RESAMPLE
+            destination = TargetInstrumentDestination.SIMPLER_MELODIC
+
+            if any(w in text_norm for w in ["granular", "nube", "cloud", "textura", "atmosfera", "atmósfera", "pad", "ambiente", "reverb"]):
+                musical_need = "ambient_reverb_bed"
+                pipeline = GenesisPipelineType.FREEZE_PAD
+                destination = TargetInstrumentDestination.ATMOSPHERE_BED
+            elif any(w in text_norm for w in ["micro", "percusion", "percusivo", "transient", "drum", "hit", "one_shot", "click"]):
+                musical_need = "percussive_transient"
+                pipeline = GenesisPipelineType.MICRO_SAMPLE
+                destination = TargetInstrumentDestination.DRUM_RACK_PAD
+            elif any(w in text_norm for w in ["slice", "sliced", "chop", "cortes"]):
+                musical_need = "chopped_groove"
+                pipeline = GenesisPipelineType.MELODIC_RESAMPLE
+                destination = TargetInstrumentDestination.SIMPLER_SLICED
+            elif any(w in text_norm for w in ["cycle", "ciclo", "evolutivo", "audio to midi", "audio a midi", "transcripcion", "transcripción"]):
+                musical_need = "hybrid_synth"
+                pipeline = GenesisPipelineType.AUDIO_TO_MIDI_CYCLE
+                destination = TargetInstrumentDestination.SIMPLER_MELODIC
+
+            # 3. Resolve or build CompositionalDNA
+            dna = session.data.get("compositional_dna")
+            if not isinstance(dna, CompositionalDNA):
+                dna = CompositionalDNA(
+                    song_id=session.data.get("session_id", "session_sample"),
+                    title=session.data.get("title", "Copilot Track"),
+                    bpm=float(session.data.get("bpm", 120.0)),
+                )
+
+            genesis = AudioGenesisEngine(conn=conn)
+            sound_res = genesis.create_provenanced_sound(
+                song_dna=dna,
+                musical_need=musical_need,
+                target_destination=destination,
+                source_track_name=source_name,
+                genesis_pipeline=pipeline,
+                session_tracks=tracks,
+                allow_external_samples=False
+            )
+
+            # 4. Register in session
+            res_dict = sound_res.to_dict()
+            session.data.setdefault("generated_samples", []).append(res_dict)
+            session.data["last_resampled_sound"] = res_dict
+            session._save_state()
+
+            dest_label = sound_res.instrument.plan.destination.value if hasattr(sound_res.instrument.plan.destination, "value") else str(destination)
+            target_track_str = getattr(sound_res.instrument.plan, "target_track_name", "New Track")
+            pipe_label = pipeline.value if hasattr(pipeline, "value") else str(pipeline)
+
+            return {
+                "status": "RESAMPLING_COMPLETED",
+                "phase": "PHASE_6_COMPOSITION",
+                "current_step": "FASE 6: RESAMPLEO AUTÓGENO COMPLETADO",
+                "action_taken": f"Resampleo 'Render Before Sample' ejecutado con éxito. Muestra derivada de '{source_name}' vía {pipe_label}.",
+                "question": (
+                    f"✨ **Resampleo y Auto-Muestreo Completado (Audio Genesis):**\n\n"
+                    f"• **Pista Origen:** `{source_name}`\n"
+                    f"• **Pipeline Aplicado:** `{pipe_label}`\n"
+                    f"• **Destino Creado:** `{dest_label}` en `{target_track_str}`\n"
+                    f"• **Linaje Inviolable:** ID `{sound_res.provenance.sample_id}`\n\n"
+                    f"**Huella Genealógica:**\n```text\n{sound_res.genealogy_ascii}\n```\n\n"
+                    f"El nuevo sonido autógono ha sido integrado en el proyecto.\n"
+                    f"¿Deseas continuar con la composición, probar otra variación o avanzar?"
+                ),
+                "instructions_for_ai": "Continúa con la composición o despliegue de notas para la siguiente sección.",
+                "provenance_id": sound_res.provenance.sample_id,
+                "result": res_dict
+            }
+        except Exception as ex_resample:
+            logger.error(f"Error executing resampling directive: {ex_resample}", exc_info=True)
+            return {
+                "status": "RESAMPLING_FAILED",
+                "phase": "PHASE_6_COMPOSITION",
+                "current_step": "FASE 6: RESAMPLEO FALLIDO",
+                "action_taken": f"Error al ejecutar resampleo autógono: {ex_resample}",
+                "question": f"⚠️ Hubo un error al ejecutar el resampleo autógono: `{ex_resample}`. ¿Deseas reintentar o continuar con la composición estándar?",
+                "instructions_for_ai": "Pide al usuario instrucciones para continuar o reintentar el resampleo."
+            }
+
     def handle_modular_composition_step(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         """Handles stepping through modular composition (by section, by track, or combined)."""
+        session.data["last_composition_prompt"] = str(user_input)
         session_state = session.data.get("composition_session", {})
         mode = session_state.get("mode", "BY_SECTION")
         sections = session.data.get("sections", [])
@@ -137,6 +255,14 @@ class Phase6CompositionHandler(BasePhaseHandler):
         trk_idx = session_state.get("track_index", 0)
 
         text_norm = _normalize_text(user_input)
+
+        is_resample_trigger = any(w in text_norm for w in [
+            "resamplear", "resample", "resampleo", "resampling", "self-sampling", "self sampling",
+            "remuestrear", "remuestreo", "render to audio", "crear sample autogeno", "sample autogeno"
+        ])
+        if is_resample_trigger:
+            return self._handle_resampling_directive(session, conn, user_input)
+
         ai_meta, custom_notes_map, has_notes = self.parse_ai_composition(session, user_input)
 
         is_explicit_key_directive = bool(re.search(r'\bKEY\s+[A-G][#b]?\b', user_input, re.IGNORECASE))
@@ -488,7 +614,15 @@ class Phase6CompositionHandler(BasePhaseHandler):
         return session._prompt_phase_7()
 
     def _handle_phase_6(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        session.data["last_composition_prompt"] = str(user_input)
         text_norm = _normalize_text(user_input)
+
+        is_resample_trigger = any(w in text_norm for w in [
+            "resamplear", "resample", "resampleo", "resampling", "self-sampling", "self sampling",
+            "remuestrear", "remuestreo", "render to audio", "crear sample autogeno", "sample autogeno"
+        ])
+        if is_resample_trigger:
+            return self._handle_resampling_directive(session, conn, user_input)
 
         if any(w in text_norm for w in ["por seccion", "seccion por seccion"]) or ("opcion 1" in text_norm and "seccion" in text_norm):
             mode = "BY_SECTION"
