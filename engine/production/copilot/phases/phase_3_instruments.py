@@ -6,6 +6,7 @@ SubLab XL prioritization, and Drum Rack verification.
 import os
 import re
 import logging
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from engine.production.copilot.phases.base import BasePhaseHandler
 from engine.production.copilot.nlp_parser import _normalize_text
@@ -768,7 +769,45 @@ slices_count = len(getattr(s, 'slices', [])) if s else 0
                         except Exception as s_load_err:
                             logger.warning(f"Notice on personal sample loading into Simpler: {s_load_err}")
                             trk["slices_count"] = 64
-    
+
+                # Autogenous Foley / Texture Generation if Simpler was loaded for TEXTURE_FOLEY
+                if role in ("TEXTURE_FOLEY", "FOLEY") and is_verified and dev_idx is not None:
+                    try:
+                        from engine.audio_genesis import AudioGenesisEngine, GenesisPipelineType
+                        genesis = AudioGenesisEngine(conn=conn)
+                        source_name = "Keys"
+                        for candidate_t in tracks:
+                            if candidate_t.get("role", "").upper() in ["KEYS", "PAD", "SYNTH"]:
+                                source_name = candidate_t.get("name", "Keys")
+                                break
+                        sound_res = genesis.create_provenanced_sound(
+                            musical_need="organic_foley_texture",
+                            source_track_name=source_name,
+                            genesis_pipeline=GenesisPipelineType.FREEZE_PAD,
+                            session_tracks=tracks
+                        )
+                        if sound_res and hasattr(sound_res, "mutation") and sound_res.mutation.audio_path:
+                            f_path_repr = repr(str(Path(sound_res.mutation.audio_path).resolve()))
+                            exec_foley = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+sample_path = {f_path_repr}
+if hasattr(d, 'replace_sample'):
+    d.replace_sample(sample_path)
+if hasattr(d, 'playback_mode'):
+    d.playback_mode = 0
+for p in d.parameters:
+    if p.name == 'S Loop On':
+        p.value = 1.0
+    elif p.name == 'S Loop Fade':
+        p.value = 0.15
+"""
+                            conn.send_command("execute_code", {"code": exec_foley})
+                            trk["sample_loaded"] = True
+                            logger.info(f"Loaded autogenous foley sample into Simpler on Track {t_idx} (source: {source_name}).")
+                    except Exception as f_err:
+                        logger.warning(f"Notice on autogenous foley generation in Phase 3: {f_err}")
+
                 if is_verified:
                     if is_chopping and chosen_sample:
                         s_short = chosen_sample['name'][:16]

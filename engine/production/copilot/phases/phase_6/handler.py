@@ -7,6 +7,7 @@ Coordinates parser, gatekeepers, arranger, and prompt builders.
 import os
 import re
 import logging
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from engine.production.copilot.phases.base import BasePhaseHandler
 from engine.production.copilot.nlp_parser import _normalize_text
@@ -203,7 +204,27 @@ class Phase6CompositionHandler(BasePhaseHandler):
                 allow_external_samples=False
             )
 
-            # 4. Register in session
+            # 4. Physically load sample into Live if conn available
+            if conn and hasattr(conn, "send_command") and sound_res and hasattr(sound_res, "mutation") and sound_res.mutation.audio_path:
+                try:
+                    s_path_repr = repr(str(Path(sound_res.mutation.audio_path).resolve()))
+                    mode_val = 2 if destination == TargetInstrumentDestination.SIMPLER_SLICED else 0
+                    exec_resample_code = f"""
+for trk in song.tracks:
+    if '{source_name.lower()}' in trk.name.lower() or 'textur' in trk.name.lower() or 'chop' in trk.name.lower():
+        for d in trk.devices:
+            if hasattr(d, 'replace_sample'):
+                d.replace_sample({s_path_repr})
+                if hasattr(d, 'playback_mode'):
+                    d.playback_mode = {mode_val}
+                break
+        break
+"""
+                    conn.send_command("execute_code", {"code": exec_resample_code})
+                except Exception as ex_phys:
+                    logger.warning(f"Notice loading resampled audio into Live device: {ex_phys}")
+
+            # 5. Register in session
             res_dict = sound_res.to_dict()
             session.data.setdefault("generated_samples", []).append(res_dict)
             session.data["last_resampled_sound"] = res_dict
