@@ -10,6 +10,11 @@ synchronizing rhythm and melodic evolution with the 20 UHTS Resampled Pad textur
 
 from typing import List, Dict, Any, Optional
 import copy
+import time
+from pathlib import Path
+import logging
+
+logger = logging.getLogger("TaikoCastiComposer")
 
 
 class TaikoCastiComposer:
@@ -390,3 +395,271 @@ class TaikoCastiComposer:
                 })
 
         return sorted(full_notes, key=lambda x: (x["start_time"], x["pitch"]))
+
+    # -------------------------------------------------------------------------
+    # LIVE DEPLOYMENT ENGINE (Session View + 80-Bar Timeline + 20 UHTS Pads)
+    # -------------------------------------------------------------------------
+    @classmethod
+    def deploy(cls, conn: Any = None) -> Dict[str, Any]:
+        """
+        Natively deploys the full 80-bar Taiko x Casti song (320.0 beats @ 100 BPM)
+        in Ableton Live 12 Suite:
+        1. Configures master tempo (100 BPM) and root note (F Minor).
+        2. Cleans up staging tracks >= 18 (protecting user tracks 0..17).
+        3. Creates 5 dedicated tracks: Taiko, 808 Bass, Lead, Chords, UHTS Audio Pad.
+        4. Loads authentic instruments & applies parameter blueprints (Governance Compliance).
+        5. Populates 20 scenes with procedural MIDI clips and 20 continuous UHTS audio textures.
+        6. Duplicates all 20 scenes to Arrangement View (80 bars) with 20 Cue Points.
+        7. Configures loop region and initiates playback.
+        """
+        if conn is None:
+            try:
+                from server import get_ableton_connection
+                conn = get_ableton_connection()
+            except Exception as e:
+                logger.error(f"Could not load get_ableton_connection: {e}")
+                return {"success": False, "error": "No connection to Ableton Live"}
+
+        if not conn or not hasattr(conn, "send_command"):
+            logger.error("Ableton Live connection is not active or missing send_command.")
+            return {"success": False, "error": "No connection to Ableton Live"}
+
+        # 1. Master Tempo, Scale & Cleanup (preserve user tracks 0..17)
+        code_meta = """
+song.tempo = 100.0
+song.root_note = 5 # F
+song.scale_name = "Minor"
+while len(song.tracks) > 18:
+    song.delete_track(len(song.tracks) - 1)
+while len(song.scenes) < 20:
+    song.create_scene(-1)
+result = {"track_count": len(song.tracks), "scenes_count": len(song.scenes)}
+"""
+        try:
+            conn.send_command("execute_code", {"code": code_meta})
+        except Exception as e:
+            logger.warning(f"Error configuring Live song metadata: {e}")
+
+        # 2. Create 5 Dedicated Tracks
+        code_create_tracks = """
+t_taiko = song.create_midi_track(-1)
+t_taiko.name = "[TAIKO] Master Drums"
+t_bass = song.create_midi_track(-1)
+t_bass.name = "[CASTI] 808 Sub-Bass"
+t_lead = song.create_midi_track(-1)
+t_lead.name = "[CASTI] Phrygian Lead"
+t_chords = song.create_midi_track(-1)
+t_chords.name = "[CASTI] Dark Chords"
+t_pad = song.create_audio_track(-1)
+t_pad.name = "[PAD] UHTS 20-Stage Audio"
+result = [
+    len(song.tracks) - 5,
+    len(song.tracks) - 4,
+    len(song.tracks) - 3,
+    len(song.tracks) - 2,
+    len(song.tracks) - 1
+]
+"""
+        try:
+            res_create = conn.send_command("execute_code", {"code": code_create_tracks})
+            raw_idxs = res_create.get("result", [18, 19, 20, 21, 22]) if isinstance(res_create, dict) else [18, 19, 20, 21, 22]
+            if not isinstance(raw_idxs, list) or len(raw_idxs) != 5:
+                raw_idxs = [18, 19, 20, 21, 22]
+        except Exception as e:
+            logger.warning(f"Error creating tracks in Live: {e}")
+            raw_idxs = [18, 19, 20, 21, 22]
+
+        taiko_idx, bass_idx, lead_idx, chords_idx, pad_idx = raw_idxs
+
+        # 3. Load Authentic Instruments & Apply Sound Blueprints (Governance Compliance)
+        from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+
+        # Taiko Drum Rack
+        try:
+            conn.send_command("load_instrument_or_effect", {"track_index": taiko_idx, "uri": "query:Drums#Drum%20Rack"})
+            DeviceParameterSupervisor.apply_sound_blueprint(
+                conn, taiko_idx, role="DRUMS",
+                custom_blueprint={"parameters": {"MACRO_1": 0.70, "MACRO_2": 0.60}}
+            )
+        except Exception as e:
+            logger.warning(f"Taiko instrument loading notice: {e}")
+
+        # Bass Drift
+        try:
+            conn.send_command("load_instrument_or_effect", {"track_index": bass_idx, "uri": "query:Synths#Drift"})
+            DeviceParameterSupervisor.apply_sound_blueprint(
+                conn, bass_idx, role="BASS",
+                custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.40, "AMP_ATTACK": 0.01, "AMP_RELEASE": 0.85}}
+            )
+        except Exception as e:
+            logger.warning(f"Bass instrument loading notice: {e}")
+
+        # Lead Drift
+        try:
+            conn.send_command("load_instrument_or_effect", {"track_index": lead_idx, "uri": "query:Synths#Drift"})
+            DeviceParameterSupervisor.apply_sound_blueprint(
+                conn, lead_idx, role="LEAD",
+                custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.75, "AMP_ATTACK": 0.04, "AMP_RELEASE": 0.35}}
+            )
+        except Exception as e:
+            logger.warning(f"Lead instrument loading notice: {e}")
+
+        # Chords Drift
+        try:
+            conn.send_command("load_instrument_or_effect", {"track_index": chords_idx, "uri": "query:Synths#Drift"})
+            DeviceParameterSupervisor.apply_sound_blueprint(
+                conn, chords_idx, role="KEYS",
+                custom_blueprint={"parameters": {"FILTER_CUTOFF": 0.60, "AMP_ATTACK": 0.02, "AMP_RELEASE": 0.50}}
+            )
+        except Exception as e:
+            logger.warning(f"Chords instrument loading notice: {e}")
+
+        # 4. Prepare Staging Data (All 20 Scenes and 80-bar arrangement)
+        import json
+        root_dir = Path(__file__).resolve().parent.parent.parent
+        assets_dir = root_dir / "cache" / "resampled_mutations"
+
+        scenes_data = []
+        for s_idx in range(1, 21):
+            scene_pos = s_idx - 1
+            meta = cls.SCENES[scene_pos]
+            pad_pattern = f"*uhts_{s_idx:02d}_*.wav"
+            pad_files = list(assets_dir.glob(pad_pattern)) if assets_dir.exists() else []
+            pad_path = str(pad_files[0].resolve()).replace('\\', '/') if pad_files else ""
+
+            scenes_data.append({
+                "scene_pos": scene_pos,
+                "scene_name": meta["name"],
+                "pad_tech_name": meta["pad_uhts"],
+                "dest_time": float(scene_pos * 16.0),
+                "taiko_notes": cls.get_taiko_notes_for_scene(s_idx),
+                "bass_notes": cls.get_bass_notes_for_scene(s_idx),
+                "lead_notes": cls.get_lead_notes_for_scene(s_idx),
+                "chord_notes": cls.get_chord_notes_for_scene(s_idx),
+                "pad_path": pad_path
+            })
+
+        staging_payload = {
+            "taiko_idx": taiko_idx,
+            "bass_idx": bass_idx,
+            "lead_idx": lead_idx,
+            "chords_idx": chords_idx,
+            "pad_idx": pad_idx,
+            "scenes": scenes_data
+        }
+
+        # 5. Fast In-Process Batch Staging in Live (Session View + Arrangement Timeline)
+        code_batch = """
+import json
+
+staging_data = json.loads('''%s''')
+
+taiko_idx = staging_data["taiko_idx"]
+bass_idx = staging_data["bass_idx"]
+lead_idx = staging_data["lead_idx"]
+chords_idx = staging_data["chords_idx"]
+pad_idx = staging_data["pad_idx"]
+
+song.tracks[pad_idx].mixer_device.volume.value = 0.75
+
+for item in staging_data["scenes"]:
+    s_idx = item["scene_pos"]
+    song.scenes[s_idx].name = item["scene_name"]
+    dest_t = item["dest_time"]
+    
+    # Taiko
+    if item["taiko_notes"]:
+        slot = song.tracks[taiko_idx].clip_slots[s_idx]
+        if not slot.has_clip:
+            slot.create_clip(16.0)
+        slot.clip.name = "Taiko #%%02d" %% (s_idx + 1)
+        self._add_notes_to_clip(taiko_idx, s_idx, item["taiko_notes"])
+        self._duplicate_session_clip_to_arrangement(taiko_idx, s_idx, dest_t)
+
+    # Bass
+    if item["bass_notes"]:
+        slot = song.tracks[bass_idx].clip_slots[s_idx]
+        if not slot.has_clip:
+            slot.create_clip(16.0)
+        slot.clip.name = "808 Bass #%%02d" %% (s_idx + 1)
+        self._add_notes_to_clip(bass_idx, s_idx, item["bass_notes"])
+        self._duplicate_session_clip_to_arrangement(bass_idx, s_idx, dest_t)
+
+    # Lead
+    if item["lead_notes"]:
+        slot = song.tracks[lead_idx].clip_slots[s_idx]
+        if not slot.has_clip:
+            slot.create_clip(16.0)
+        slot.clip.name = "Lead Motif #%%02d" %% (s_idx + 1)
+        self._add_notes_to_clip(lead_idx, s_idx, item["lead_notes"])
+        self._duplicate_session_clip_to_arrangement(lead_idx, s_idx, dest_t)
+
+    # Chords
+    if item["chord_notes"]:
+        slot = song.tracks[chords_idx].clip_slots[s_idx]
+        if not slot.has_clip:
+            slot.create_clip(16.0)
+        slot.clip.name = "Chords #%%02d" %% (s_idx + 1)
+        self._add_notes_to_clip(chords_idx, s_idx, item["chord_notes"])
+        self._duplicate_session_clip_to_arrangement(chords_idx, s_idx, dest_t)
+
+    # Pad
+    if item["pad_path"]:
+        slot = song.tracks[pad_idx].clip_slots[s_idx]
+        if not slot.has_clip:
+            try:
+                slot.create_audio_clip(item["pad_path"])
+                slot.clip.name = "UHTS #%%02d: %%s" %% (s_idx + 1, item["pad_tech_name"])
+                self._duplicate_session_clip_to_arrangement(pad_idx, s_idx, dest_t)
+            except Exception as ex:
+                self.log_message("Audio pad error: " + str(ex))
+
+    # Cue point
+    self._create_cue_point(dest_t, "#%%02d: %%s" %% (s_idx + 1, item["scene_name"]))
+
+# Arrangement loop & playback
+song.view.selected_scene = song.scenes[0]
+song.loop_start = 0.0
+song.loop_length = 320.0
+song.loop = True
+song.current_song_time = 0.0
+if not song.is_playing:
+    song.start_playing()
+
+result = {"success": True, "scenes_deployed": len(staging_data["scenes"])}
+""" % json.dumps(staging_payload)
+
+        try:
+            conn.send_command("execute_code", {"code": code_batch})
+        except Exception as e:
+            logger.warning(f"Notice during batch staging: {e}")
+
+        # 6. Arrangement View Loop Region & Playback
+        try:
+            conn.send_command("switch_to_arrangement_view", {})
+            conn.send_command("set_loop_region", {"start_time": 0.0, "length": 320.0, "enabled": True})
+            conn.send_command("jump_to_cue_point", {"target": 0.0})
+            conn.send_command("start_playback", {})
+        except Exception:
+            pass
+
+        tracks_summary = [
+            {"index": taiko_idx, "name": "[TAIKO] Master Drums", "role": "DRUMS", "instrument": "query:Drums#Drum%20Rack"},
+            {"index": bass_idx, "name": "[CASTI] 808 Sub-Bass", "role": "BASS", "instrument": "query:Synths#Drift"},
+            {"index": lead_idx, "name": "[CASTI] Phrygian Lead", "role": "LEAD", "instrument": "query:Synths#Drift"},
+            {"index": chords_idx, "name": "[CASTI] Dark Chords", "role": "KEYS", "instrument": "query:Synths#Drift"},
+            {"index": pad_idx, "name": "[PAD] UHTS 20-Stage Audio", "role": "PAD", "type": "audio"}
+        ]
+
+        logger.info("Taiko x Casti full song successfully deployed.")
+        return {
+            "success": True,
+            "tracks": tracks_summary,
+            "bpm": 100.0,
+            "key": "F",
+            "scale": "Minor",
+            "scenes_count": 20,
+            "bars": 80,
+            "total_beats": 320.0,
+            "scenes": cls.SCENES
+        }

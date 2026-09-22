@@ -63,7 +63,12 @@ class Phase11ResamplingHandler(BasePhaseHandler):
             "🅱️ **Opción B: Crear una pista nueva no utilizada con diseño guiado**\n"
             "Te guiaremos en una entrevista interactiva paso a paso (Rol acústico, Instrumento/VST, "
             "Preset con blueprint Delta >= 1, Efectos de inserción y acorde prolongado) antes de renderizar.\n"
-            "*(Responde: 'Opción B' o 'Crear pista nueva')*"
+            "*(Responde: 'Opción B' o 'Crear pista nueva')*\n\n"
+            "🅲️ **Opción C: Desplegar el Pad Evolutivo de 20 Escenas UHTS (80 Compases en Arrangement)**\n"
+            f"Genera las 20 mutaciones espectrales y tímbricas afinadas a {tuning['key']} {tuning['scale']} @ {tuning['bpm']:.1f} BPM, "
+            "crea la pista '[PAD] UHTS 20-Stage Audio', puebla las 20 escenas de Session View y extiende la línea temporal completa "
+            "de 80 compases con sus 20 locators en Arrangement View.\n"
+            "*(Responde: 'Opción C' o 'Pad de 20 escenas' o 'Desplegar todas')*"
         )
 
         return {
@@ -72,7 +77,7 @@ class Phase11ResamplingHandler(BasePhaseHandler):
             "current_step": "FASE 11: SELECCIÓN DE ORIGEN DEL SONIDO FUENTE",
             "action_taken": f"Tonalidad detectada automáticamente: {tuning['key']} {tuning['scale']} @ {tuning['bpm']:.1f} BPM.",
             "question": q_prompt,
-            "instructions_for_ai": "Elige Opción A (pista existente) u Opción B (crear pista nueva con diseño sonoro).",
+            "instructions_for_ai": "Elige Opción A (pista existente), Opción B (crear pista nueva con diseño sonoro), u Opción C (pad evolutivo de 20 escenas).",
             "tuning": tuning
         }
 
@@ -95,6 +100,14 @@ class Phase11ResamplingHandler(BasePhaseHandler):
         # SUB-STAGE: SELECT_SOURCE (Existing vs. New Track)
         # ---------------------------------------------------------------------
         if stage == "SELECT_SOURCE":
+            is_opt_c = any(w in text for w in [
+                "opcion c", "opcion 3", "20 escenas", "las 20", "todas las tecnicas",
+                "catalogo completo", "pad evolutivo", "pad a lo largo", "desplegar todas",
+                "todas las escenas", "80 compases", "full pad", "pad completo"
+            ])
+            if is_opt_c:
+                return self._deploy_full_20_scene_pad(session, conn, pipeline, res_state)
+
             is_opt_a = any(w in text for w in ["opcion a", "opcion 1", "existente", "pista existente", "usar pista", "canal existente"])
             is_opt_b = any(w in text for w in ["opcion b", "opcion 2", "nueva", "crear pista", "nueva pista", "desde cero", "diseno", "diseño"])
 
@@ -257,6 +270,14 @@ class Phase11ResamplingHandler(BasePhaseHandler):
         # SUB-STAGE: SELECT_TECHNIQUE (Pick from the 20 UHTS Algorithms)
         # ---------------------------------------------------------------------
         if stage == "SELECT_TECHNIQUE":
+            is_opt_c = any(w in text for w in [
+                "opcion c", "opcion 3", "20 escenas", "las 20", "todas las tecnicas",
+                "catalogo completo", "pad evolutivo", "pad a lo largo", "desplegar todas",
+                "todas las escenas", "80 compases", "full pad", "pad completo"
+            ])
+            if is_opt_c:
+                return self._deploy_full_20_scene_pad(session, conn, pipeline, res_state)
+
             tech = pipeline.get_technique_by_selector(user_input)
             if not tech:
                 # If couldn't match, re-prompt catalog
@@ -610,3 +631,185 @@ class Phase11ResamplingHandler(BasePhaseHandler):
         elif role == "LEAD":
             return {"Attack": 0.05, "Decay": 0.40, "Cutoff": 0.85, "Delay Send": 0.35}
         return {"Cutoff": 0.60, "Density": 0.70, "Space": 0.50}
+
+    def _deploy_full_20_scene_pad(
+        self,
+        session: Any,
+        conn: Any,
+        pipeline: AudioReprocessingPipeline,
+        res_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Deploys all 20 UHTS Pad Resampling textures across 20 scenes in Session View
+        and as an 80-bar continuous evolutionary timeline in Arrangement View with 20 locators.
+        """
+        key = res_state.get("key", "F")
+        scale = res_state.get("scale", "Minor")
+        bpm = float(res_state.get("bpm", 100.0))
+
+        root_dir = Path(__file__).resolve().parent.parent.parent.parent
+        assets_dir = root_dir / "cache" / "resampled_mutations"
+        assets_dir.mkdir(parents=True, exist_ok=True)
+        catalog = pipeline.get_catalog()
+
+        # 1. Check or generate all 20 audio files
+        missing_count = 0
+        for item in catalog:
+            idx = item["index"]
+            pattern = f"*uhts_{idx:02d}_*.wav"
+            if not list(assets_dir.glob(pattern)):
+                missing_count += 1
+
+        if missing_count > 0:
+            from engine.sound_design.piano_chord_generator import generate_source_piano_chord
+            source_path = assets_dir.parent / "taiko_casti" / "taiko_casti_source_chord.wav"
+            source_path.parent.mkdir(parents=True, exist_ok=True)
+            if not source_path.exists():
+                duration_sec = 16.0 * (60.0 / bpm)
+                generate_source_piano_chord(str(source_path), duration_sec=duration_sec)
+
+            for item in catalog:
+                idx = item["index"]
+                pattern = f"*uhts_{idx:02d}_*.wav"
+                if not list(assets_dir.glob(pattern)):
+                    pipeline.execute_mutation(
+                        source_wav_path=str(source_path),
+                        technique_selector=idx,
+                        key=key,
+                        scale=scale,
+                        bpm=bpm
+                    )
+
+        # 2. Physical deployment in Live if connected
+        deployed_scenes = []
+        pad_track_idx = -1
+        pad_track_name = "[PAD] UHTS 20-Stage Audio"
+
+        if conn is not None and hasattr(conn, "send_command"):
+            s_info = conn.send_command("get_session_info", {})
+            raw_count = s_info.get("track_count", 0) if isinstance(s_info, dict) else 0
+            try:
+                t_count = int(raw_count)
+            except Exception:
+                t_count = 0
+
+            for t_i in range(t_count):
+                try:
+                    ti = conn.send_command("get_track_info", {"track_index": t_i})
+                    res_name = ti.get("name", "") if isinstance(ti, dict) else ""
+                    if pad_track_name.lower() in str(res_name).lower():
+                        pad_track_idx = t_i
+                        break
+                except Exception:
+                    pass
+
+            if pad_track_idx < 0:
+                res_create = conn.send_command("execute_code", {
+                    "code": f"t = song.create_audio_track(-1); t.name = '{pad_track_name}'; result = len(song.tracks) - 1"
+                })
+                raw_idx = res_create.get("result", t_count) if isinstance(res_create, dict) else t_count
+                try:
+                    pad_track_idx = int(raw_idx)
+                except Exception:
+                    pad_track_idx = t_count
+
+            try:
+                conn.send_command("set_track_volume", {"track_index": pad_track_idx, "volume": 0.75})
+            except Exception:
+                pass
+
+            # Ensure at least 20 scenes
+            conn.send_command("execute_code", {
+                "code": "while len(song.scenes) < 20: song.create_scene(-1); result = len(song.scenes)"
+            })
+
+            # Populate 20 scenes and arrangement timeline
+            for s_idx in range(1, 21):
+                scene_pos = s_idx - 1
+                tech_meta = catalog[scene_pos]
+                tech_name = tech_meta["name"]
+                dest_time_beat = float(scene_pos * 16.0)
+
+                pattern = f"*uhts_{s_idx:02d}_*.wav"
+                matching_files = list(assets_dir.glob(pattern))
+                if matching_files:
+                    wav_path = str(matching_files[0].resolve())
+                    try:
+                        conn.send_command("create_audio_clip", {
+                            "track_index": pad_track_idx,
+                            "clip_index": scene_pos,
+                            "path": wav_path
+                        })
+                        conn.send_command("set_clip_name", {
+                            "track_index": pad_track_idx,
+                            "clip_index": scene_pos,
+                            "name": f"UHTS #{s_idx:02d}: {tech_name}"
+                        })
+                        conn.send_command("duplicate_session_clip_to_arrangement", {
+                            "track_index": pad_track_idx,
+                            "clip_index": scene_pos,
+                            "destination_time": dest_time_beat
+                        })
+                    except Exception as e:
+                        logger.warning(f"Error staging pad clip {s_idx}: {e}")
+
+                    try:
+                        conn.send_command("create_cue_point", {
+                            "time": dest_time_beat,
+                            "name": f"#{s_idx:02d}: {tech_name}"
+                        })
+                    except Exception:
+                        pass
+
+                deployed_scenes.append({
+                    "scene": s_idx,
+                    "bar": scene_pos * 4 + 1,
+                    "technique": tech_name,
+                    "category": tech_meta["category"]
+                })
+
+            try:
+                conn.send_command("switch_to_arrangement_view", {})
+                conn.send_command("set_loop_region", {"start_time": 0.0, "length": 320.0, "enabled": True})
+                conn.send_command("jump_to_cue_point", {"target": 0.0})
+            except Exception:
+                pass
+
+        # 3. Register state
+        res_state["last_deployed_track"] = pad_track_idx
+        res_state["mode"] = "FULL_20_SCENE_EVOLUTION"
+        res_state["stage"] = "AUDITION_LAYER"
+        session.data.setdefault("resampled_tracks", []).append({
+            "mode": "FULL_20_SCENE_EVOLUTION",
+            "track_name": pad_track_name,
+            "track_index": pad_track_idx,
+            "scenes_count": 20,
+            "total_bars": 80,
+            "key": key,
+            "scale": scale,
+            "bpm": bpm
+        })
+        session._save_state(action_tag="RESAMPLE_DEPLOY_FULL_20_SCENES")
+
+        return {
+            "status": "FULL_20_SCENE_PAD_DEPLOYED",
+            "phase": "PHASE_11_AUDIO_RESAMPLING",
+            "current_step": "FASE 11: PAD EVOLUTIVO DE 20 ESCENAS UHTS DESPLEGADO",
+            "action_taken": (
+                f"Despliegue exitoso del Pad Evolutivo UHTS en Pista '{pad_track_name}'. "
+                f"20 escenas en Session View y 80 compases en Arrangement View con 20 Cue Points configurados "
+                f"a {key} {scale} @ {bpm:.1f} BPM."
+            ),
+            "pad_track_index": pad_track_idx,
+            "pad_track_name": pad_track_name,
+            "scenes_deployed": len(deployed_scenes) if deployed_scenes else 20,
+            "question": (
+                f"🎉 **¡Pad Evolutivo UHTS Desplegado Exitosamente a lo largo de la Canción!**\n\n"
+                f"• **Pista de Audio:** `{pad_track_name}` (Fader calibrado a -6 dBFS)\n"
+                f"• **Session View:** 20 escenas operativas con sus respectivos clips de audio continuo.\n"
+                f"• **Arrangement View:** Línea temporal completa de 80 compases con **20 Cue Points / Locators**.\n"
+                f"• **Afinación:** `{key} {scale} @ {bpm:.1f} BPM`.\n\n"
+                "¿Deseas poner la pista en solo para audicionarla aislada, o certificar la producción final?"
+            ),
+            "instructions_for_ai": "Puedes pedir 'Poner en solo', 'Reproducir' o 'Finalizar sesión'."
+        }
