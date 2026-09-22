@@ -191,7 +191,9 @@ class SampleMutationEngine:
             source_path=source_record.render.file_path,
             output_id=mutated_id,
             stretch_factor=stretch_factor,
-            hpf_hz=hpf_hz
+            hpf_hz=hpf_hz,
+            params=params,
+            source_record=source_record
         )
 
         steps = [
@@ -417,44 +419,137 @@ class SampleMutationEngine:
         meta = self._build_meta(frames, n_frames, peak_amp, sum_sq, duration_sec, sample_rate, str(out_file))
         return str(out_file), meta
 
+    def _resolve_harmonic_frequencies(
+        self,
+        params: Optional[Dict[str, Any]],
+        source_record: Optional[SampleProvenanceRecord]
+    ) -> List[float]:
+        """Dynamically resolves rich chord frequencies from song DNA, scale, or musical seed."""
+        if params:
+            if "chord_frequencies" in params and isinstance(params["chord_frequencies"], list) and params["chord_frequencies"]:
+                return [float(f) for f in params["chord_frequencies"]]
+            if "frequencies" in params and isinstance(params["frequencies"], list) and params["frequencies"]:
+                return [float(f) for f in params["frequencies"]]
+            if "notes" in params and isinstance(params["notes"], list) and params["notes"]:
+                freqs = []
+                for n in params["notes"]:
+                    p = int(n.get("pitch", 60) if isinstance(n, dict) else n)
+                    freqs.append(440.0 * (2.0 ** ((p - 69.0) / 12.0)))
+                if freqs:
+                    return freqs
+
+        # Inspect song_id or track name for key
+        key_str = ""
+        if params and "key" in params:
+            key_str = str(params["key"]).upper()
+        elif source_record and source_record.song_id:
+            key_str = str(source_record.song_id).upper()
+
+        root_pitch = 53  # F3 default for urban / dark trap
+        note_map = {
+            "C#": 49, "DB": 49, "D#": 51, "EB": 51, "F#": 54, "GB": 54, "G#": 56, "AB": 56, "A#": 58, "BB": 58,
+            "C": 48, "D": 50, "E": 52, "F": 53, "G": 55, "A": 57, "B": 59
+        }
+        for note_name, pitch_val in note_map.items():
+            if note_name in key_str:
+                root_pitch = pitch_val
+                break
+
+        # Generate rich modal chord cluster: Root, Phrygian/Minor2nd, Minor3rd, 5th, Minor7th, 9th
+        chord_pitches = [root_pitch, root_pitch + 1, root_pitch + 3, root_pitch + 7, root_pitch + 10, root_pitch + 15]
+        return [440.0 * (2.0 ** ((p - 69.0) / 12.0)) for p in chord_pitches]
+
     def _apply_freeze_stretch_transformations(
         self,
         source_path: Optional[str],
         output_id: str,
         stretch_factor: float,
-        hpf_hz: float
+        hpf_hz: float,
+        params: Optional[Dict[str, Any]] = None,
+        source_record: Optional[SampleProvenanceRecord] = None
     ) -> Tuple[str, RenderMetadata]:
         sample_rate = 44100
         duration_sec = 4.0 * stretch_factor
         out_file = self.output_dir / f"{output_id}.wav"
         n_frames = int(sample_rate * min(12.0, duration_sec))  # cap to 12s
 
+        # Resolve harmonic frequencies directly from song DNA
+        chord_freqs = self._resolve_harmonic_frequencies(params, source_record)
+
         frames = bytearray()
         peak_amp = 0.0
         sum_sq = 0.0
 
-        # Chord cluster: root, min3, 5th, 9th
-        chord_freqs = [261.63, 311.13, 392.00, 440.00]
+        # Butterworth 1-pole high-pass state
+        rc = 1.0 / (2.0 * math.pi * max(20.0, hpf_hz))
+        dt = 1.0 / sample_rate
+        alpha = rc / (rc + dt)
+        prev_in_l = prev_in_r = 0.0
+        prev_out_l = prev_out_r = 0.0
 
         for i in range(n_frames):
             t = i / float(sample_rate)
-            raw = 0.0
-            for idx, cf in enumerate(chord_freqs):
-                # Granular shimmer flutter
-                jitter = 1.0 + 0.008 * math.sin(2.0 * math.pi * (0.8 + idx * 0.3) * t)
-                raw += 0.25 * math.sin(2.0 * math.pi * cf * jitter * t)
+            raw_l = 0.0
+            raw_r = 0.0
 
-            # Pad envelope: slow attack (1.5s), slow release
-            attack = min(1.0, t / 1.5)
-            release = min(1.0, (duration_sec - t) / 2.0)
+            # Synthesize multi-partial rich voice with detuned unisons
+            for idx, cf in enumerate(chord_freqs):
+                weight = 1.0 / math.sqrt(idx + 1.0)
+                # Shimmer modulation
+                lfo_l = 1.0 + 0.006 * math.sin(2.0 * math.pi * (0.4 + idx * 0.25) * t)
+                lfo_r = 1.0 + 0.006 * math.sin(2.0 * math.pi * (0.55 + idx * 0.25) * t + 1.57)
+
+                # Fundamental + detuned unisons + 2nd, 3rd, 5th harmonics
+                voice_l = (
+                    math.sin(2.0 * math.pi * cf * lfo_l * t)
+                    + 0.40 * math.sin(2.0 * math.pi * (cf * 1.002) * t)
+                    + 0.35 * math.sin(4.0 * math.pi * cf * t)
+                    + 0.20 * math.sin(6.0 * math.pi * cf * t)
+                    + 0.10 * math.sin(10.0 * math.pi * cf * t)
+                )
+                voice_r = (
+                    math.sin(2.0 * math.pi * cf * lfo_r * t)
+                    + 0.40 * math.sin(2.0 * math.pi * (cf * 0.998) * t)
+                    + 0.35 * math.sin(4.0 * math.pi * cf * t)
+                    + 0.20 * math.sin(6.0 * math.pi * cf * t)
+                    + 0.10 * math.sin(10.0 * math.pi * cf * t)
+                )
+
+                raw_l += weight * voice_l
+                raw_r += weight * voice_r
+
+            raw_l /= max(1.0, len(chord_freqs) * 0.75)
+            raw_r /= max(1.0, len(chord_freqs) * 0.75)
+
+            # Wavefolding saturation (generates warm analog overtones)
+            sat_l = math.tanh(raw_l * 1.85) - 0.15 * math.tanh(raw_l * 3.7)
+            sat_r = math.tanh(raw_r * 1.85) - 0.15 * math.tanh(raw_r * 3.7)
+
+            # High-pass filter to guarantee zero sub-bass mud
+            hp_l = alpha * (prev_out_l + sat_l - prev_in_l)
+            hp_r = alpha * (prev_out_r + sat_r - prev_in_r)
+            prev_in_l, prev_out_l = sat_l, hp_l
+            prev_in_r, prev_out_r = sat_r, hp_r
+
+            # Pad envelope: slow organic attack and gentle release
+            attack = min(1.0, t / 1.2)
+            release = min(1.0, (duration_sec - t) / 1.8)
             env = attack * release
 
-            val = int(15000.0 * env * raw)
-            clamped = max(-32767, min(32767, val))
+            # OTT-style upward compression: elevate micro-harmonics
+            sig_l = env * hp_l
+            sig_r = env * hp_r
+            lift_l = math.copysign(math.pow(abs(sig_l), 0.75), sig_l) if abs(sig_l) > 1e-6 else 0.0
+            lift_r = math.copysign(math.pow(abs(sig_r), 0.75), sig_r) if abs(sig_r) > 1e-6 else 0.0
 
-            peak_amp = max(peak_amp, abs(clamped))
-            sum_sq += (clamped / 32767.0) ** 2
-            frames += struct.pack("<hh", clamped, clamped)
+            val_l = int(18500.0 * lift_l)
+            val_r = int(18500.0 * lift_r)
+            clamped_l = max(-32767, min(32767, val_l))
+            clamped_r = max(-32767, min(32767, val_r))
+
+            peak_amp = max(peak_amp, abs(clamped_l), abs(clamped_r))
+            sum_sq += ((clamped_l / 32767.0) ** 2 + (clamped_r / 32767.0) ** 2) * 0.5
+            frames += struct.pack("<hh", clamped_l, clamped_r)
 
         self._write_wav(out_file, frames, sample_rate)
         meta = self._build_meta(frames, n_frames, peak_amp, sum_sq, duration_sec, sample_rate, str(out_file))

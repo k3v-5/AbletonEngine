@@ -190,6 +190,20 @@ class TechniqueCatalog:
         # 7. Texture & Noise
         cls._register(TechniqueDefinition(
             family=ProductionTechniqueFamily.TEXTURE_AND_NOISE,
+            technique_id="HARMONIC_REPROCESSED_PAD",
+            name="Harmonic Reprocessed Pad & Formant Halo",
+            description="Polifonic pad playing song's progression, reprocessed through wavefolding saturation, formant bandpass filtering, and upward OTT dynamics.",
+            character_tags=["harmonic_pad", "wavefolding", "formant_halo", "reprocessed_texture"],
+            recipes=[
+                DeviceRecipe("Harmonic Saturator", "Saturator", "query:AudioFx#Saturator", {"Drive": "+6.5 dB", "Curve": "Sinoid Fold", "Color": "Warm"}, "Generate intermodulation overtones"),
+                DeviceRecipe("Formant Sculptor", "EQ Eight", "query:AudioFx#EQ%20Eight", {"Band 1 Freq": "380 Hz", "Band 1 Mode": "High Pass 48dB/oct", "Band 3 Freq": "1.4 kHz", "Band 3 Gain": "+4.5 dB", "Band 3 Q": "2.2"}, "Vocal formant resonance & sub clean"),
+                DeviceRecipe("OTT Dynamics", "Multiband Dynamics", "query:AudioFx#Multiband%20Dynamics", {"Amount": "45%", "Time": "100%", "Output": "0.0 dB"}, "Upward compression of micro-harmonics"),
+                DeviceRecipe("Pumping Sidechain", "Compressor", "query:AudioFx#Compressor", {"Sidechain On": "1.0", "Ratio": "4:1", "Attack": "15 ms", "Release": "180 ms"}, "Rhythmic breathing locked to Kick"),
+            ]
+        ))
+
+        cls._register(TechniqueDefinition(
+            family=ProductionTechniqueFamily.TEXTURE_AND_NOISE,
             technique_id="SELF_DERIVED_VINYL_BED",
             name="Autogenous Texture Generator (Stretch 1200%)",
             description="Stretches the song's own harmonic stems by 1200% with high-pass filtering to create custom ambient noise.",

@@ -341,14 +341,17 @@ class RoleDependentMutator:
             return {
                 "pipeline": "freeze_pad",
                 "recipe_steps": [
+                    "chord_progression_voicing",
+                    "wavefolding_saturation",
                     "granular_freeze",
+                    "spectral_formant_resonator",
+                    "ott_upward_dynamics",
                     "time_stretch_600%",
-                    "spectral_bandpass_500_4000hz",
-                    "diffuse_reverb_shimmer"
+                    "high_pass_filter_380hz"
                 ],
                 "target_destination": "audio_clip",
-                "dominant_timbre": f"Diffuse Spectral Halo ({source_track_name})",
-                "params": {"stretch_factor": 6.0, "hpf_hz": 380.0}
+                "dominant_timbre": f"Harmonic Reprocessed Pad Halo ({source_track_name})",
+                "params": {"stretch_factor": 6.0, "hpf_hz": 380.0, "formant_boost_db": 4.5}
             }
         elif role == RecursiveTargetRole.PERCUSSION:
             return {

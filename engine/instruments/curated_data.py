@@ -1484,6 +1484,36 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     ],
     "TEXTURE_FOLEY": [
         SoundSourceOption(
+            id="native_harmonic_reprocessed_pad",
+            name="Harmonic Reprocessed Pad (Drift / Wavetable)",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Synths#Drift",
+            vendor="Ableton",
+            description="Multi-voice harmonic pad playing song progression, reprocessed through wavefolding saturation and formant filtering.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.55, "RESONANCE": 0.45, "ATTACK": 0.40, "RELEASE": 0.65},
+                "description": "Dense harmonic pad reprocessed for rich overtones matching the song's chords.",
+                "insert_chain": ["Saturator", "EQ Eight", "OTT", "Compressor"]
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_pigments_harmonic_pad",
+            name="Arturia Pigments Harmonic Texture",
+            role="TEXTURE_FOLEY",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Arturia:Pigments",
+            vendor="Arturia",
+            description="Cinematic granular & spectral pad generating organic overtones in harmony with the track.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.60, "AMP_ATTACK": 0.45, "AMP_RELEASE": 0.70},
+                "description": "Evolving harmonic texture pad.",
+                "insert_chain": ["Saturator", "EQ Eight", "OTT", "Compressor"]
+            },
+        ),
+        SoundSourceOption(
             id="native_vinyl_distortion",
             name="Ableton Vinyl Distortion",
             role="TEXTURE_FOLEY",
