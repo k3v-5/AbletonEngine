@@ -10443,6 +10443,105 @@ def mix_audit_psychoacoustic_masking(masker_audio_path: str, target_audio_path: 
         return {"status": "error", "message": str(e)}
 
 
+# =========================================================================
+# Universal Harmonic Transformation Suite (UHTS) Tools
+# =========================================================================
+
+@mcp.tool()
+def apply_harmonic_transformation_suite(
+    track_index: int,
+    profile: str = "PAD_ATMOSPHERE",
+    source_instrument_type: str = "general"
+) -> dict:
+    """
+    Applies the Universal Harmonic Transformation Suite (UHTS) physical device chain
+    onto any track in Ableton Live 12 Suite (starting from any VST plugin or native instrument).
+    
+    Profiles:
+    - PAD_ATMOSPHERE: Expansive harmonic pad with sinoid fold warmth & space
+    - METALLIC_WAVEFOLDER: Sharp inharmonic FM bite for leads & plucks
+    - VOCAL_FORMANT: Organic human vowel/throat body on synths & chords
+    - INDUSTRIAL_CRUNCH: Dark distorted texture with OTT upward tail (perreo oscuro/techno)
+    - SUB_SAFE_BASS: Upper harmonic warmth while keeping sub strictly mono & clean
+    - ETHEREAL_SHIMMER: Octave-lifted diffuse shimmer halo
+    """
+    try:
+        from engine.sound_design.harmonic_transformation_suite import (
+            HarmonicTransformationSuite,
+            HarmonicProfile
+        )
+        conn = get_ableton_connection()
+        p_norm = profile.upper().replace(" ", "_")
+        if p_norm not in [p.value for p in HarmonicProfile]:
+            # fallback matching
+            matched = [p for p in HarmonicProfile if p_norm in p.value]
+            p_enum = matched[0] if matched else HarmonicProfile.PAD_ATMOSPHERE
+        else:
+            p_enum = HarmonicProfile(p_norm)
+
+        res = HarmonicTransformationSuite.apply_to_live_track(
+            track_index=track_index,
+            profile=p_enum,
+            source_instrument_type=source_instrument_type,
+            conn=conn
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in apply_harmonic_transformation_suite: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def transform_plugin_to_harmonic_layer(
+    source_track_index: int,
+    profile: str = "PAD_ATMOSPHERE",
+    target_role: str = "TEXTURE_FOLEY",
+    source_instrument_name: str = "Synthesizer Plugin"
+) -> dict:
+    """
+    Renders/samples a phrase from ANY plugin or instrument, reprocesses it through
+    the multi-stage HRP DSP pipeline (frequencies, wavefolding, formant resonance,
+    OTT upward dynamics, Butterworth HPF), and returns the transformed asset.
+    """
+    try:
+        from engine.sound_design.harmonic_transformation_suite import (
+            HarmonicTransformationSuite,
+            HarmonicProfile
+        )
+        conn = get_ableton_connection()
+        p_norm = profile.upper().replace(" ", "_")
+        matched = [p for p in HarmonicProfile if p_norm in p.value]
+        p_enum = matched[0] if matched else HarmonicProfile.PAD_ATMOSPHERE
+
+        res = HarmonicTransformationSuite.transform_source_to_layer(
+            source_track_index=source_track_index,
+            target_role=target_role,
+            song_dna=None,
+            profile=p_enum,
+            source_instrument_name=source_instrument_name,
+            conn=conn
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in transform_plugin_to_harmonic_layer: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def get_harmonic_suite_profiles() -> dict:
+    """Returns all available profiles and their acoustic parameters in the Universal Harmonic Transformation Suite."""
+    try:
+        from engine.sound_design.harmonic_transformation_suite import HarmonicTransformationSuite
+        profiles = {
+            p.value: cfg.to_dict()
+            for p, cfg in HarmonicTransformationSuite.DEFAULT_PROFILES.items()
+        }
+        return {"status": "success", "count": len(profiles), "profiles": profiles}
+    except Exception as e:
+        logger.error(f"Error in get_harmonic_suite_profiles: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 
 def main():
 

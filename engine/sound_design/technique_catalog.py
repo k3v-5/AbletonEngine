@@ -351,6 +351,23 @@ class TechniqueCatalog:
             ]
         ))
 
+        # 19. Universal Harmonic Transformation Suite (Any Plugin / Instrument Input)
+        cls._register(TechniqueDefinition(
+            family=ProductionTechniqueFamily.SPECTRAL_DESIGN,
+            technique_id="UNIVERSAL_HARMONIC_TRANSFORMATION_SUITE",
+            name="Universal Harmonic Transformation Suite (UHTS)",
+            description="Transforms musical audio from any instrument or plugin into harmonic overtones, non-linear wavefolding, vocal formant resonance, and OTT dynamics.",
+            character_tags=["harmonic_transformation", "wavefolding", "formant_resonance", "ott_upward", "universal_plugin_suite"],
+            recipes=[
+                DeviceRecipe("Pre-EQ Formant Guard", "EQ Eight", "query:AudioFx#EQ%20Eight", {"HPF": "350 Hz", "Peak": "1.8 kHz"}, "High-pass low cut and formant resonance"),
+                DeviceRecipe("Harmonic Wavefolder", "Saturator", "query:AudioFx#Saturator", {"Drive": "+6.0 dB", "Curve": "Sinoid Fold"}, "Rich 2nd, 3rd and 5th harmonic generation"),
+                DeviceRecipe("Vowel Resonator", "Auto Filter", "query:AudioFx#Auto%20Filter", {"Mode": "Bandpass", "Frequency": "1.8 kHz"}, "Organic throat vowel shaping"),
+                DeviceRecipe("OTT Upward Expander", "Multiband Dynamics", "query:AudioFx#Multiband%20Dynamics", {"Amount": "70%"}, "Exhume low-level harmonic details"),
+                DeviceRecipe("Spatial Diffusion", "ValhallaVintageVerb", "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb", {"Mix": "28%", "Decay": "2.2s"}, "Ethereal diffusion halo"),
+                DeviceRecipe("Mono & Width Guard", "Utility", "query:AudioFx#Utility", {"Width": "85%", "Bass Mono": "120 Hz"}, "Stereo expansion with mono sub security"),
+            ]
+        ))
+
     @classmethod
     def _register(cls, tech: TechniqueDefinition) -> None:
         cls._catalog[tech.technique_id] = tech
