@@ -355,9 +355,12 @@ class TechniqueCatalog:
         cls._register(TechniqueDefinition(
             family=ProductionTechniqueFamily.SPECTRAL_DESIGN,
             technique_id="UNIVERSAL_HARMONIC_TRANSFORMATION_SUITE",
-            name="Universal Harmonic Transformation Suite (UHTS)",
-            description="Transforms musical audio from any instrument or plugin into harmonic overtones, non-linear wavefolding, vocal formant resonance, and OTT dynamics.",
-            character_tags=["harmonic_transformation", "wavefolding", "formant_resonance", "ott_upward", "universal_plugin_suite"],
+            name="Universal Harmonic Transformation Suite (UHTS - 20 Profiles)",
+            description="Transforms musical audio from any instrument or plugin across 20 distinct profiles into harmonic overtones, non-linear wavefolding, vocal formant resonance, and OTT dynamics.",
+            character_tags=[
+                "harmonic_transformation", "wavefolding", "formant_resonance", "ott_upward",
+                "universal_plugin_suite", "20_profiles", "sub_safe", "haas_spatializer", "lofi_bit_crusher"
+            ],
             recipes=[
                 DeviceRecipe("Pre-EQ Formant Guard", "EQ Eight", "query:AudioFx#EQ%20Eight", {"HPF": "350 Hz", "Peak": "1.8 kHz"}, "High-pass low cut and formant resonance"),
                 DeviceRecipe("Harmonic Wavefolder", "Saturator", "query:AudioFx#Saturator", {"Drive": "+6.0 dB", "Curve": "Sinoid Fold"}, "Rich 2nd, 3rd and 5th harmonic generation"),

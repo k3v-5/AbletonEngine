@@ -2,7 +2,8 @@
 """
 Test Suite for Universal Harmonic Transformation Suite (UHTS):
 Validates that ANY instrument or plugin can initiate a sound and be transformed
-into rich harmonic overtones, non-linear wavefolding, formant resonance, and OTT dynamics.
+into rich harmonic overtones, non-linear wavefolding, formant resonance, and OTT dynamics
+across 20 comprehensive sound design profiles.
 """
 
 import os
@@ -45,16 +46,21 @@ def mock_dna():
     )
 
 
-def test_all_six_profiles_have_valid_configs():
+def test_exactly_twenty_profiles_registered():
+    assert len(HarmonicProfile) == 20
+    assert len(HarmonicTransformationSuite.DEFAULT_PROFILES) == 20
+
+
+def test_all_twenty_profiles_have_valid_configs():
     for profile in HarmonicProfile:
         cfg = HarmonicTransformationSuite.get_config(profile)
         assert isinstance(cfg, HarmonicSuiteConfig)
         assert cfg.drive_db >= 0.0
-        assert 300.0 <= cfg.formant_freq_hz <= 4000.0
+        assert 50.0 <= cfg.formant_freq_hz <= 5000.0
         assert 0.0 <= cfg.ott_depth <= 1.0
         assert cfg.hpf_cutoff_hz >= 20.0
         assert 0.0 <= cfg.space_wet <= 1.0
-        assert 0.0 <= cfg.stereo_spread <= 1.0
+        assert 0.0 <= cfg.stereo_spread <= 1.5
 
 
 def test_sub_safe_bass_protects_low_end_and_enforces_mono():
@@ -67,6 +73,26 @@ def test_sub_safe_bass_protects_low_end_and_enforces_mono():
     device_names = [d.device_name for d in chain]
     assert "Saturator" in device_names
     assert "Utility" in device_names
+
+
+def test_dark_drone_sub_growl_protects_mono():
+    cfg = HarmonicTransformationSuite.get_config(HarmonicProfile.DARK_DRONE_SUB_GROWL, source_instrument_type="sublab")
+    assert cfg.hpf_cutoff_hz <= 40.0
+    assert cfg.stereo_spread == 0.0  # Mono lock
+
+
+def test_lofi_bit_crusher_contains_redux():
+    chain = HarmonicTransformationSuite.build_device_chain(HarmonicProfile.LOFI_BIT_CRUSHER_DIRT)
+    device_names = [d.device_name for d in chain]
+    assert "Redux" in device_names
+    assert "Saturator" in device_names
+
+
+def test_industrial_crunch_contains_drum_buss():
+    chain = HarmonicTransformationSuite.build_device_chain(HarmonicProfile.INDUSTRIAL_CRUNCH)
+    device_names = [d.device_name for d in chain]
+    assert "Drum Buss" in device_names
+    assert "Saturator" in device_names
 
 
 def test_pad_atmosphere_chain_contains_complete_hrp_suite():

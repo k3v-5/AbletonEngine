@@ -10457,13 +10457,27 @@ def apply_harmonic_transformation_suite(
     Applies the Universal Harmonic Transformation Suite (UHTS) physical device chain
     onto any track in Ableton Live 12 Suite (starting from any VST plugin or native instrument).
     
-    Profiles:
+    20 Comprehensive Profiles:
     - PAD_ATMOSPHERE: Expansive harmonic pad with sinoid fold warmth & space
     - METALLIC_WAVEFOLDER: Sharp inharmonic FM bite for leads & plucks
     - VOCAL_FORMANT: Organic human vowel/throat body on synths & chords
     - INDUSTRIAL_CRUNCH: Dark distorted texture with OTT upward tail (perreo oscuro/techno)
     - SUB_SAFE_BASS: Upper harmonic warmth while keeping sub strictly mono & clean
     - ETHEREAL_SHIMMER: Octave-lifted diffuse shimmer halo
+    - DARK_DRONE_SUB_GROWL: Cinematic low-end rumble with 2nd harmonic saturation & mono lock
+    - GRANULAR_TEXTURE_CLOUD: Granular cloud with extreme time-stretch & micro-jitter
+    - RESAMPLE_TAPE_WARP: Vintage tape wow/flutter & analog bias saturation
+    - INHARMONIC_BELL_CLUSTER: Inharmonic metallic ring modulation & 5th/7th partials
+    - REVERSE_SPECTRAL_GHOST: Pre-drop reverse swell with 100% wet diffusion tail
+    - LOFI_BIT_CRUSHER_DIRT: 12-bit decimation & tube dirt with low-pass roll
+    - PSYCHOACOUSTIC_HAAS_WIDENER: Micro-delay Haas (18ms) & side excitation
+    - VOCAL_CHOP_DISSECTOR: 16th-note rhythmic chop with formant envelope pumping
+    - OCTAVE_FUZZ_MONSTER: Upper octave rectifier fuzz & mid-scoop wavefolding
+    - CHOPPED_RHYTHMIC_GATE: Patterned syncopated tremolo gating & ping-pong delay
+    - SPECTRAL_FREEZE_INFINITE: Endless ambient background drone & spectral blur
+    - ANALOG_WARMTH_SATURATOR: Transparent triode tube & soft-knee tape gluing
+    - NEOPERREO_METALLIC_SNARE: Comb-filtered metallic snare & industrial room snap
+    - PITCH_DIVE_TENSION_RISER: Exponential pitch dive/rise with tension LPF sweep
     """
     try:
         from engine.sound_design.harmonic_transformation_suite import (
