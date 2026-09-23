@@ -55,6 +55,8 @@ class InstalledPluginScanner:
         r"C:\Program Files\Steinberg\VstPlugins",
         r"C:\Program Files\Vstplugins",
         r"C:\Program Files (x86)\Common Files\VST3",
+        r"D:\Programs\VSTs",
+        r"D:\Programs\Common Files\VST3",
     ]
 
     # Semantic classification mapping based on plugin names / vendors
@@ -62,7 +64,7 @@ class InstalledPluginScanner:
         "vital": {
             "vendor": "Vital Audio",
             "primary_role": "BASS",
-            "supported_roles": ["BASS", "LEAD", "PLUCK", "VOCALS", "FX"],
+            "supported_roles": ["BASS", "LEAD", "PAD", "KEYS", "COUNTER_LEAD", "PLUCK", "VOCALS", "FX"],
             "description": "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes.",
             "is_instrument": True,
             "live_uri": "query:Plugins#VST3:Vital%20Audio:Vital",
@@ -606,6 +608,30 @@ class InstalledPluginScanner:
                     is_instrument=True,
                 )
 
+        # Check Vital Audio dedicated installation
+        appdata_vital = os.path.join(os.environ.get("APPDATA", ""), "vital")
+        docs_vital = r"D:\Documentos\Vital"
+        user_docs_vital = os.path.join(os.path.expanduser("~"), "Documents", "Vital")
+        vital_installed = (
+            os.path.exists(os.path.join(appdata_vital, "Vital.config"))
+            or os.path.exists(docs_vital)
+            or os.path.exists(user_docs_vital)
+        )
+        if vital_installed:
+            sig = self.SIGNATURE_MAP.get("vital", {})
+            self._cache["vst3_vital"] = ScannedPlugin(
+                id="vst3_vital",
+                name="Vital Audio Vital",
+                vendor="Vital Audio",
+                path=os.path.join(appdata_vital, "Vital.config") if os.path.exists(os.path.join(appdata_vital, "Vital.config")) else docs_vital,
+                category=PluginCategory.VST3,
+                primary_role=sig.get("primary_role", "BASS"),
+                supported_roles=sig.get("supported_roles", ["BASS", "LEAD", "PAD", "KEYS", "COUNTER_LEAD", "PLUCK", "VOCALS", "FX"]),
+                description=sig.get("description", "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes."),
+                uri=sig.get("live_uri", "query:Plugins#VST3:Vital%20Audio:Vital"),
+                is_instrument=True,
+            )
+
         self._scanned = True
         return self._cache
 
@@ -727,14 +753,14 @@ class InstalledPluginScanner:
     }
 
     ROLE_PRIORITIES = {
-        "BASS": ["serum", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
-        "SUB_BASS": ["sublab", "serum", "bloom bass", "cyclop", "drift (808", "operator"],
-        "KEYS": ["analog lab", "keyscape", "piano v", "wurli", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
-        "LEAD": ["pigments", "serum", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
+        "BASS": ["serum", "vital", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
+        "SUB_BASS": ["sublab", "serum", "vital", "bloom bass", "cyclop", "drift (808", "operator"],
+        "KEYS": ["analog lab", "vital", "keyscape", "piano v", "wurli", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
+        "LEAD": ["pigments", "serum", "vital", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
         "COUNTER_LEAD": ["pigments", "serum", "vital", "analog lab", "synplant", "drift"],
-        "EAR_CANDY": ["synplant", "pigments", "serum", "simpler", "drift"],
+        "EAR_CANDY": ["synplant", "pigments", "serum", "vital", "simpler", "drift"],
         "TEXTURE_FOLEY": ["omnisphere", "valhalla", "simpler", "portal", "shaperbox"],
-        "PAD": ["omnisphere", "pigments", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
+        "PAD": ["omnisphere", "pigments", "vital", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
         "DRUMS": ["drum_rack", "drum rack", "bloom drum", "egoist", "808", "boom bap", "909"],
         "VOCALS": ["auto-tune", "autotune", "antares", "bloom vocal", "melodyne", "vocal", "simpler"],
         "PITCH_CORRECTION": ["auto-tune", "autotune", "antares", "melodyne", "alterboy"],

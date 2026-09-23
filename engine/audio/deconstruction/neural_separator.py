@@ -10,7 +10,7 @@ Also extracts multi-stem arrangement energy profiles across timeline bars.
 import os
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List, Union
 import numpy as np
 import soundfile as sf
 
@@ -24,8 +24,12 @@ class HybridStemSeparator:
     """Hybrid AI/DSP Stem Separator with graceful fallback and arrangement profiling."""
 
     def __init__(self, output_dir: Optional[str] = None):
-        self.output_dir = Path(output_dir) if output_dir else Path(r"F:\Dev\AbletonEngine\stems")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        repo_root = Path(__file__).resolve().parent.parent.parent.parent
+        self.output_dir = Path(output_dir) if output_dir else repo_root / "stems"
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
         self.dsp_separator = AudioStemSeparator(output_dir=str(self.output_dir))
         self._demucs_available = self._check_demucs()
 
@@ -39,7 +43,7 @@ class HybridStemSeparator:
 
     def separate(
         self,
-        audio_path: Union_Path,
+        audio_path: Union[str, Path],
         prefer_neural: bool = True
     ) -> Dict[str, DeconstructedStem]:
         """

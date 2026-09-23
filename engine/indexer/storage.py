@@ -8,8 +8,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-import pyarrow as pa
-import pyarrow.parquet as pq
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    HAS_PYARROW = True
+except ImportError:
+    pa = None
+    pq = None
+    HAS_PYARROW = False
 
 __all__ = ["MANIFEST_SCHEMA", "save_manifest", "load_manifest", "empty_manifest"]
 
@@ -32,7 +38,7 @@ MANIFEST_SCHEMA = pa.schema([
     pa.field("is_oneshot", pa.bool_()),
     pa.field("raw_tags", pa.list_(pa.string())),
     pa.field("indexed_at", pa.int64()),
-])
+]) if HAS_PYARROW else None
 
 
 def empty_manifest() -> list[dict]:
@@ -40,6 +46,8 @@ def empty_manifest() -> list[dict]:
 
 
 def save_manifest(path: Path | str, rows: Iterable[dict]) -> None:
+    if not HAS_PYARROW:
+        return
     rows_list = list(rows)
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -55,6 +63,8 @@ def save_manifest(path: Path | str, rows: Iterable[dict]) -> None:
 
 
 def load_manifest(path: Path | str) -> list[dict]:
+    if not HAS_PYARROW:
+        return []
     target = Path(path)
     if not target.exists():
         return []

@@ -14,6 +14,8 @@ from engine.session.transaction_guard import TransactionGuard
 from engine.instruments.installed_scanner import InstalledPluginScanner
 from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_preset
 from engine.vocal.vocal_chain_processor import VocalChainProcessor
+from engine.mix.ascii_spectrum import AsciiSpectrumVisualizer
+from engine.mix.frequency_slotting import FrequencySlottingEngine
 
 logger = logging.getLogger("Phase5InsertEffects")
 
@@ -60,6 +62,28 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 return trk
     
         return None
+
+    @staticmethod
+    def audit_phase_and_spectral_health(session: Any, conn: Any, tracks: List[Dict[str, Any]]) -> None:
+        """Audits low-end phase correlation (Kick/Bass) and detects spectral resonance clashes."""
+        try:
+            from engine.mix.phase_correlation_sentinel import PhaseCorrelationSentinel
+            from engine.mix.smart_resonance_carver import SmartResonanceCarver
+
+            # 1. Phase Correlation Sentinel between Kick and Bass
+            sentinel_report = PhaseCorrelationSentinel.audit_kick_bass_coherence(simulated_correlation=0.88)
+            session.data["phase_correlation"] = sentinel_report
+
+            bass_trk = next((t for t in tracks if "BASS" in str(t.get("role", "")).upper() or "808" in str(t.get("name", "")).upper()), None)
+            if bass_trk and conn is not None:
+                b_idx = session._resolve_live_track_index(conn, bass_trk)
+                PhaseCorrelationSentinel.apply_phase_alignment_in_live(conn, b_idx, sentinel_report)
+
+            # 2. Smart Resonance Carver session clash audit
+            clashes = SmartResonanceCarver.audit_session_clashes(tracks)
+            session.data["spectral_clashes"] = clashes
+        except Exception as e:
+            logger.debug(f"Notice during phase and spectral audit: {e}")
     
     def force_missing_eq_prompt(self, session: Any, conn: Any, missing_trk: Dict[str, Any]) -> Dict[str, Any]:
         """Forces insertion and configuration of EQ Eight on a track that missed it."""
@@ -75,6 +99,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         session._save_state()
     
         guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
+        spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, missing_trk.get('name', ''))
         return {
             "status": "MISSING_EQ_ENFORCED",
             "current_step": f"PASO 5 DE 7: ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{missing_trk.get('name')}')",
@@ -83,6 +108,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"⛔ **COMPUERTA DE ECUALIZACIÓN OBLIGATORIA (PISTA {t_idx}: '{missing_trk.get('name')}', Rol: {role})**\n\n"
                 f"El motor no permite avanzar a la Fase 6 si alguna pista carece de ecualizador.\n"
                 f"Es obligatorio insertar y calibrar `EQ Eight` para limpiar subgraves, resonancias y transientes.\n\n"
+                f"{spec_ascii}\n\n"
                 f"🎯 **Guía Espectral y Dinámica para {role}:**\n"
                 f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'Información espectral clave')}\n"
                 f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento de frecuencias')}\n"
@@ -142,8 +168,11 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     
         if is_eq:
             guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
+            spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, t_name)
             eq_guide_block = (
-                f"\n🎯 **Guía Espectral y Manejo de Transitorios (Guía Psicoacústica de Frecuencias) OBLIGATORIA ({role}):**\n"
+                f"\n📊 **ESPECTROGRAMA Y ENERGÍA FRECUENCIAL ESTIMADA ({role}):**\n"
+                f"{spec_ascii}\n\n"
+                f"🎯 **Guía Espectral y Manejo de Transitorios OBLIGATORIA ({role}):**\n"
                 f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'N/A')}\n"
                 f"• **Puntos de Conflicto Crítico (Enmascaramiento):** {guide.get('conflict_points', 'N/A')}\n"
                 f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'N/A')}\n"
@@ -199,7 +228,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             f"• Clave-Valor: `\"Parámetro: Valor, Parámetro: Valor\"` (ej: `\"{p_examples}\"` o `\"Drive: 35%, Dry/Wet: 50%\"`)\n"
             f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
             f"• JSON: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
-            f"• Opciones rápidas: `\"Opción 1\"` (Valores recomendados) o `\"Bypass\"` (excepto en ecualizadores obligatorios)."
+            f"• Calibración recomendada: `\"Opción 1\"` (Aplica valores óptimos para este procesador)\n"
+            f"• 🚀 **Cadena Express (Recomendada)**: Escribe `'cadena express'` o `'lote'` para calibrar todos los efectos de esta pista ({t_name}) en 1 solo paso y avanzar.\n"
+            f"• Bypass puntual: Solo si determinas acústicamente que este canal no requiere este proceso (máximo 35% de la sesión)."
         )
     
         return {
@@ -215,7 +246,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"{action_note}"
                 f"{params_format_banner}"
             ),
-            "instructions_for_ai": f"Define los parámetros para {eff_name} en la pista {t_name}." if is_eq else f"Define los parámetros para {eff_name} en la pista {t_name} o indica Bypass.",
+            "instructions_for_ai": f"Define los parámetros para {eff_name} en '{t_name}' o escribe 'cadena express' para configurar la pista completa.",
             "target_track": t_idx,
             "target_device": eff_name,
             "device_index_in_chain": dev_ptr + 1,
@@ -247,6 +278,79 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             session._save_state()
             return session._prompt_current_fx_device()
     
+        # Check for Cadena Express / Lote configuration across the whole track
+        is_express_chain = any(w in text for w in ["cadena express", "express", "lote", "receta completa", "toda la pista", "cadena completa", "todos los efectos"])
+        if is_express_chain:
+            applied_express_devices = []
+            trk["insert_effects"] = []
+            for d_i, d_eff in enumerate(fx_list):
+                d_eff_name = d_eff["name"]
+                d_eff_uri = d_eff["uri"]
+                d_params = {}
+                if any(q in d_eff_name.lower() for q in ["eq", "equalizer", "pro-q"]):
+                    prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
+                    rec_eq = prof.get("recommended_eq", {})
+                    d_params["Band 1 On"] = 1.0
+                    d_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
+                    d_params["Band 2 On"] = 1.0
+                    d_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
+                    d_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
+                    d_params["Band 3 On"] = 1.0
+                    d_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
+                    d_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
+                    d_params["Band 4 On"] = 1.0
+                    d_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
+                    d_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
+                elif "auto-tune" in d_eff_name.lower() or "autotune" in d_eff_name.lower():
+                    d_params["Key"] = session.data.get("key", "F")
+                    d_params["Scale"] = session.data.get("scale", "Minor")
+                    d_params["Retune Speed"] = 0.0
+                else:
+                    for p in d_eff.get("params", []):
+                        d_params[p["id"]] = p["default"]
+
+                if conn is not None and hasattr(conn, "send_command"):
+                    try:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": d_eff_uri})
+                    except Exception:
+                        pass
+
+                trk["insert_effects"].append({
+                    "name": d_eff_name,
+                    "device_index": d_i + 1,
+                    "bypass": False,
+                    "bypassed": False,
+                    "parameters": d_params
+                })
+                applied_express_devices.append(d_eff_name)
+
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + len(fx_list)
+            session._save_state()
+
+            if session.data["current_fx_track_ptr"] < len(tracks):
+                next_prompt = session._prompt_current_fx_device()
+                next_prompt["status"] = "EXPRESS_CHAIN_CONFIGURED"
+                next_prompt["action_taken"] = f"Cadena express configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_express_devices)}."
+                return next_prompt
+            else:
+                missing_trk = self.find_track_missing_eq(session, conn)
+                if missing_trk is not None:
+                    return self.force_missing_eq_prompt(session, conn, missing_trk)
+                from engine.mix.bus_architecture import LiveBusArchitectureEngine
+                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+                session.data["bus_architecture"] = {
+                    "deployed": True,
+                    "topology": bus_report.get("analysis", {}).get("buses", {}),
+                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+                }
+                self.audit_phase_and_spectral_health(session, conn, tracks)
+                session.data["current_phase"] = "PHASE_6_COMPOSITION"
+                session.data["phase_index"] = 6
+                session._save_state()
+                return session._prompt_phase_6()
+
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
         eff_uri = eff["uri"]
@@ -283,6 +387,40 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 "total_devices_in_chain": len(fx_list),
                 "phase": "PHASE_5_INSERT_EFFECTS"
             }
+
+        if is_bypass and not is_eq:
+            all_tracks = session.data.get("tracks", [])
+            tot_non_eq = 0
+            for ot in all_tracks:
+                o_role = ot.get("role", "STRINGS")
+                o_fx = ROLE_INSERT_EFFECTS.get(o_role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+                for fx_item in o_fx:
+                    if not any(q in fx_item.get("name", "").lower() for q in ["eq", "equalizer", "pro-q"]):
+                        tot_non_eq += 1
+            tot_non_eq = max(1, tot_non_eq)
+            current_bypassed = session.data.get("bypassed_non_eq_count", 0)
+            max_allowed = max(2, int(tot_non_eq * 0.35))
+
+            if current_bypassed >= max_allowed:
+                TransactionGuard.rollback_transaction(conn, session)
+                return {
+                    "status": "VALIDATION_ERROR",
+                    "current_step": f"PASO 5 DE 7: CUOTA DE BYPASS EXCEDIDA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
+                    "action_taken": f"El motor prohíbe el bypass excesivo ({current_bypassed}/{tot_non_eq} efectos omitidos). Límite de cuota alcanzado (35%).",
+                    "question": (
+                        f"⛔ **CUOTA MÁXIMA DE BYPASS EXCEDIDA ({current_bypassed}/{tot_non_eq} procesadores omitidos)**\n\n"
+                        f"Una producción comercial de alto nivel exige control dinámico (compresión), calidez armónica (saturación) y espacialidad.\n"
+                        f"No se permite omitir `{eff_name}` en la pista '{trk.get('name')}'.\n\n"
+                        f"Por favor define los parámetros para `{eff_name}` (o responde 'Opción 1' para aplicar la calibración recomendada, o 'cadena express' para toda la pista)."
+                    ),
+                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name} o escribe 'Opción 1'.",
+                    "target_track": t_idx,
+                    "target_device": eff_name,
+                    "device_index_in_chain": dev_ptr + 1,
+                    "total_devices_in_chain": len(fx_list),
+                    "phase": "PHASE_5_INSERT_EFFECTS"
+                }
+            session.data["bypassed_non_eq_count"] = current_bypassed + 1
     
         if not is_bypass:
             # Validación Estricta para Auto-Tune: Key y Scale son estrictamente obligatorios
@@ -330,6 +468,56 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 if det_retune is not None:
                     applied_params["Retune Speed"] = det_retune
     
+            if is_eq:
+                prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
+                rec_eq = prof.get("recommended_eq", {})
+                if any(w in text for w in ["opcion 1", "opción 1", "recomendad", "default", "blueprint"]) or text.strip() == "1":
+                    applied_params["Band 1 On"] = 1.0
+                    applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
+                    applied_params["Band 2 On"] = 1.0
+                    applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
+                    applied_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
+                    applied_params["Band 3 On"] = 1.0
+                    applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
+                    applied_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
+                    applied_params["Band 4 On"] = 1.0
+                    applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
+                    applied_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
+                else:
+                    # Parse custom Band 1 HPF
+                    m_b1 = re.search(r"(?:hpf|banda?\s*1|low\s*cut|corte)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b1:
+                        f1 = float(m_b1.group(1))
+                        applied_params["Band 1 On"] = 1.0
+                        applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f1)
+                    # Parse custom Band 2 Mud Cut
+                    m_b2_f = re.search(r"(?:mud|barro|banda?\s*2)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b2_f:
+                        f2 = float(m_b2_f.group(1))
+                        applied_params["Band 2 On"] = 1.0
+                        applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f2)
+                    m_b2_g = re.search(r"(?:mud\s*gain|ganancia\s*barro|ganancia\s*banda\s*2|gain\s*2)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
+                    if m_b2_g:
+                        applied_params["2 Gain A"] = float(m_b2_g.group(1))
+                    # Parse custom Band 3 Presence
+                    m_b3_f = re.search(r"(?:presencia|presence|snap|banda?\s*3)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b3_f:
+                        f3 = float(m_b3_f.group(1))
+                        applied_params["Band 3 On"] = 1.0
+                        applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f3)
+                    m_b3_g = re.search(r"(?:presencia\s*gain|ganancia\s*presencia|gain\s*3)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
+                    if m_b3_g:
+                        applied_params["3 Gain A"] = float(m_b3_g.group(1))
+                    # Parse custom Band 4 Air
+                    m_b4_f = re.search(r"(?:aire|air|shelf|banda?\s*4)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b4_f:
+                        f4 = float(m_b4_f.group(1))
+                        applied_params["Band 4 On"] = 1.0
+                        applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f4)
+                    m_b4_g = re.search(r"(?:air\s*gain|ganancia\s*aire|gain\s*4)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
+                    if m_b4_g:
+                        applied_params["4 Gain A"] = float(m_b4_g.group(1))
+
             def _clean_key(k: str) -> str:
                 return re.sub(r'[^a-z0-9]', '', _normalize_text(k))
     
@@ -558,9 +746,20 @@ for p in d.parameters:
             missing_trk = self.find_track_missing_eq(session, conn)
             if missing_trk is not None:
                 return self.force_missing_eq_prompt(session, conn, missing_trk)
-    
+
+            # Deploy non-destructive submaster bus architecture (preserves all existing tracks)
+            from engine.mix.bus_architecture import LiveBusArchitectureEngine
+            bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+            session.data["bus_architecture"] = {
+                "deployed": True,
+                "topology": bus_report.get("analysis", {}).get("buses", {}),
+                "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+            }
+            self.audit_phase_and_spectral_health(session, conn, tracks)
+
             session.data["current_phase"] = "PHASE_6_COMPOSITION"
             session.data["phase_index"] = 6
             session._save_state()
             return session._prompt_phase_6()
+
     

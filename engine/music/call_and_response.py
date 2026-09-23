@@ -5,7 +5,7 @@ Splits complex basslines and riffs across multiple complementary tracks (Growl v
 for authentic Complextro, Dubstep and Electro House arrangements.
 """
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import logging
 
 logger = logging.getLogger("CallAndResponse")

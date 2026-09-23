@@ -47,6 +47,30 @@ class MusicDirector:
         dna_data = session.data.get("music_dna") if hasattr(session, "data") else None
         dna = MusicDNA.from_dict(dna_data) if dna_data else MusicDNA()
 
+        try:
+            from engine.core.roles.classifier import RoleClassifier
+            for t in tracks:
+                if not t.get("role"):
+                    devs = [d.get("name", "") if isinstance(d, dict) else str(d) for d in t.get("devices", [])]
+                    t["role"] = RoleClassifier.classify(t.get("name", ""), devs).value
+        except Exception:
+            pass
+
+        if len(tracks) < 4:
+            return {
+                "status": "AUDIT_SKIPPED",
+                "predictability_score": 0.30,
+                "is_formulaic": False,
+                "issues_detected": [],
+                "recommendations": [],
+                "dimensions": {
+                    "structural": "Boceto inicial (< 4 pistas)",
+                    "rhythmic": "Boceto inicial",
+                    "dialogue": "Boceto inicial",
+                    "organic_depth": "Boceto inicial"
+                }
+            }
+
         issues: List[str] = []
         recommendations: List[str] = []
 

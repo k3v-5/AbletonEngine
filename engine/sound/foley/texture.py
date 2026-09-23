@@ -8,7 +8,7 @@ and automated kick/snare sidechain ducking so organic textures sit seamlessly in
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 import math
 
 

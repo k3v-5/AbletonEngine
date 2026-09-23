@@ -11,6 +11,7 @@
 AbletonEngine/
 ├── docs/                                    # Documentación técnica y operativa consolidada
 │   ├── INDEX.md                             # El presente índice maestro y sitemap integral
+│   ├── VITAL_SOUND_SYNTHESIS_ENGINE.md      # Motor Autónomo de Síntesis y Diseño Sonoro de Vital (Wavetables, Modular, 7 Leyes KSHMR, Seguridad Permisiva)
 │   ├── INTENTIONAL_PERFORMANCE_AND_HUMANIZATION.md # Nivel T: Intentional Musical Performance & Humanization (Core, Groove, Breathing, Identity, Closed-Loop)
 │   ├── CLOSED_LOOP_CREATIVE_EVOLUTION.md    # Nivel S: Orquestador de retroalimentación activa (Comp ↔ Sound ↔ Arrg ↔ Mix), Planner, Budget y Rollback
 │   ├── CONTEXTUAL_SONIC_CRITIC.md           # Nivel R: Contextual Sonic Critic, evaluación in-situ (10D) y flexibilización de distancia
@@ -91,6 +92,14 @@ AbletonEngine/
 │   │   ├── macros/                          # Mapeo de perillas Macro de racks
 │   │   ├── chains/                          # Cadenas de inserción y channel strips
 │   │   └── presets/                         # Scoring y recomendación de presets
+│   ├── sound_design/                        # MOTOR AUTÓNOMO DE SÍNTESIS VITAL (.vital)
+│   │   ├── vital_sound_engine.py            # Orquestador maestro (create_preset, design_granular, audit)
+│   │   ├── vital_modular_designer.py        # Diseñador modular (síntesis de ondas, Diode/Comb/Dirty, LFO S&H, FX)
+│   │   ├── vital_design_validator.py        # Validador y auditor de especificaciones granulares
+│   │   ├── vital_sound_sculptor.py          # Escultor semántico macro (7 Principios de KSHMR)
+│   │   ├── vital_wavetable_synth.py         # Sintetizador matemático Base64 (2048 float32) y Sampler PCM
+│   │   ├── vital_archetype_catalog.py       # Catálogo indexador de 61 presets en 10 categorías
+│   │   └── vital_parameter_schema.py        # Esquema de 772 parámetros, límites e invariantes anti-silencio
 │   ├── mix/                                 # Motor de mezcla y Digital Ear
 │   │   ├── loudness_analyzer.py             # DSP normativo ITU-R BS.1770-5
 │   │   ├── loudness_standards.py            # Perfiles de entrega (EBU R 128, STREAMING, CLUB)

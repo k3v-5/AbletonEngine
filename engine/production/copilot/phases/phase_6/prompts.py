@@ -141,30 +141,65 @@ class Phase6Prompts:
                 "⚠️ *Para evitar pads silenciosos en Ableton Live, mapea tus notas a partir de C1 (pitch 36 a 51).*"
             )
 
+        from engine.music.groove.humanizer import DynamicGrooveHumanizer
+        key = session.data.get("key", "F")
+        scale = session.data.get("scale", "Minor")
+        bpm = session.data.get("bpm", 120.0)
+        hum_level = session.data.get("humanization_level", 2)
+        hum_cfg = DynamicGrooveHumanizer.get_level_config(hum_level)
+
+        # Accumulated clips context across all tracks so far
+        accumulated_lines = []
+        for i, t in enumerate(tracks):
+            t_name = t.get("name", f"Pista {i}")
+            t_role = t.get("role", "OTHER")
+            secs_done = t.get("sections_completed", [])
+            if secs_done:
+                done_desc = [f"{s['section_name']} ({'silencio' if s.get('is_silence') else f'{s.get('notes_count', 0)} notas'})" for s in secs_done]
+                accumulated_lines.append(f"  • **{t_name}** [{t_role}]: {', '.join(done_desc)}")
+            elif i < trk_idx:
+                cnt = t.get("notes_count", 0)
+                accumulated_lines.append(f"  • **{t_name}** [{t_role}]: {cnt} notas desplegadas")
+            elif i == trk_idx:
+                accumulated_lines.append(f"  • **{t_name}** [{t_role}]: ⏳ En proceso (Clip {sec_idx + 1}/{len(sections)})")
+            else:
+                accumulated_lines.append(f"  • **{t_name}** [{t_role}]: Pendiente")
+        accumulated_block = "\n".join(accumulated_lines) if accumulated_lines else "  • Ningún clip agregado aún."
+
         return {
             "status": "AWAITING_CLIP_COMPOSITION",
-            "current_step": f"PASO 6 (CLIP {sec_idx + 1}/{len(sections)}): '{cur_trk.get('name')}' EN '{cur_sec.get('name')}' ({s_bars} COMPASES)",
-            "action_taken": f"Modo Clip por Clip activo. Solicitando notas para {s_bars} compases ({cur_sec.get('name')}).",
+            "current_step": f"PASO 6 (CLIP {sec_idx + 1}/{len(sections)} - PISTA {trk_idx + 1}/{len(tracks)}): '{cur_trk.get('name')}' EN '{cur_sec.get('name')}'",
+            "action_taken": f"Modo Clip por Clip activo. Solicitando notas para Clip #{sec_idx + 1} ({cur_sec.get('name')}, {s_bars} compases).",
             "question": (
-                f"🎼 **Componiendo Clip {sec_idx + 1} de {len(sections)} — Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
-                f"• **Sección / Clip:** **'{cur_sec.get('name')}'** ({s_bars} compases / {s_beats} tiempos métricos)\n"
-                f"• **Instrumento:** {cur_trk.get('instrument', cur_trk.get('name'))}\n"
+                f"🎼 **Componiendo Clip #{sec_idx + 1} de {len(sections)} — Pista {trk_idx + 1}/{len(tracks)}: '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
+                f"• **Instrumento / Pista:** `{cur_trk.get('name')}` [{cur_trk.get('role')}] ({cur_trk.get('instrument', cur_trk.get('name'))})\n"
+                f"• **Sección Perteneciente:** **'{cur_sec.get('name')}'** ({s_bars} compases / {s_beats} tiempos métricos, inicio en compás {cur_sec.get('start_bar', sec_idx * 8)})\n"
+                f"• **Tonalidad y Escala del Proyecto:** `{key} {scale}` | Tempo: `{bpm} BPM`\n"
+                f"• **Humanización de Groove Activa:** `{hum_cfg['name']}` ({hum_cfg['description']})\n"
+                f"  *(Para cambiar nivel de humanización responde 'Humanización: [1-5]')*\n\n"
+                f"📋 **Progreso del Arreglo (Clips Agregados Actualmente):**\n"
+                f"{accumulated_block}\n\n"
                 f"• **Ventana Temporal del Clip:** `start_time` relativo de `0.0` a `{s_beats}` (o motivo de 16 tiempos con auto-tiling)\n\n"
                 f"⚠️ **Regla de Oro (Cero Relleno Procedural):**\n"
-                f"Define las notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) **únicamente para este bloque de {s_bars} compases**.\n\n"
+                f"Define las notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) **únicamente para este bloque de {s_bars} compases en {key} {scale}**.\n\n"
                 "Puedes enviar una lista JSON `[{\"pitch\": X, \"start_time\": Y, ...}]` o un objeto `{\"notes\": [...]}`.\n"
-                "Si este canal debe permanecer en silencio durante esta sección, envía `[]` o escribe 'Silencio'."
+                "Si este canal debe permanecer en silencio durante esta sección, envía `[]` o escribe 'Silencio'.\n"
+                "*(Escribe 'Modo: Por Pista' si deseas alternar a composición pista completa).* "
                 f"{drum_spec_block}"
             ),
-            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para el clip '{cur_sec.get('name')}' ({s_bars} compases) de '{cur_trk.get('name')}'.",
+            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para el clip '{cur_sec.get('name')}' ({s_bars} compases) de '{cur_trk.get('name')}' en {key} {scale}.",
             "phase": "PHASE_6_COMPOSITION",
             "track_index": trk_idx,
             "section_index": sec_idx,
+            "clip_index": sec_idx + 1,
             "track_name": cur_trk.get("name"),
             "track_role": cur_trk.get("role"),
             "section_name": cur_sec.get("name"),
             "clip_bars": s_bars,
-            "clip_beats": s_beats
+            "clip_beats": s_beats,
+            "key": key,
+            "scale": scale,
+            "humanization_level": hum_level
         }
 
     @classmethod

@@ -174,15 +174,10 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         if kb_notes:
             opts_text.append("\n**Recetas de la Base de Conocimiento:**\n" + "\n".join(kb_notes))
     
-        # Personal samples discovery for Chopping Mode
-        p_samples = get_personal_samples()
-        sample_names = [s["name"] for s in p_samples[:5]]
-        sample_names_str = ", ".join(sample_names)
-        if len(p_samples) > 5:
-            sample_names_str += f" (+{len(p_samples) - 5} más en F:\\Lap\\Music y F:\\Lap\\Music\\Vocales)"
+        # Autonomous Chopping Mode (Synthesis & Internal Transformation)
         chop_idx = (min(7, len(cat_options)) if cat_options else 2) + 1
         opts_text.append(
-            f"\n  {chop_idx}. 🔪 **Modo Chopping Personal** (Ableton Simpler con corte de samples de tu carpeta personal: {sample_names_str})"
+            f"\n  {chop_idx}. 🔪 **Modo Chopping Autónomo** (Ableton Simpler con generación interna y transformación por síntesis aditiva/FM y remuestreo mutado)"
         )
     
         options_block = "\n".join(opts_text)
@@ -197,7 +192,7 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 f"{options_block}\n\n"
                 f"• *Responde con el número de opción o nombre de plugin (ej: 'Opción 1', 'SubLab XL', 'Serum 2').*\n"
                 f"• *Si eliges Analog Lab V u Omnisphere, el asistente abrirá el sub-menú de presets por carpeta y la opción de plugin limpio default.*\n"
-                f"• *O selecciona el Modo Chopping escribiendo 'Opción {chop_idx}' o 'Chopping: [nombre del sample]' (ej: 'Chopping: Duki', 'Chopping: Daft Punk').*"
+                f"• *O selecciona el Modo Chopping Autónomo escribiendo 'Opción {chop_idx}' o 'Modo Chopping' (sintetiza una fuente armónica única, la procesa y rebanará en Simpler sin usar librerías externas).*"
             ),
             "instructions_for_ai": f"Indica la opción de instrumento o kit para {t_name}.",
             "target_track": t_idx,
@@ -531,41 +526,40 @@ for slot in t.clip_slots:
             selected_opt = None
             u_clean = _normalize_text(user_input)
     
-            # Detect Chopping Mode request
-            p_samples = get_personal_samples()
+            # Detect Chopping Mode request (Autonomous Synthesis & Transformation)
             is_chopping = False
-            chosen_sample = None
-    
-            if any(w in u_clean for w in ["chopping", "chop", "cortar", "rebanar", "sample personal", "opcion 5", "5."]) or u_clean == "5":
+            chop_idx = (min(7, len(options)) if options else 2) + 1
+            if any(w in u_clean for w in ["chopping", "chop", "cortar", "rebanar", "autonomo", "autónomo"]) or u_clean == str(chop_idx) or f"opcion {chop_idx}" in u_clean or f"opción {chop_idx}" in u_clean:
                 is_chopping = True
-    
-            for s in p_samples:
-                s_lower = s["name"].lower()
-                base_no_ext = s_lower.rsplit(".", 1)[0]
-                if base_no_ext in u_clean or s_lower in u_clean:
-                    is_chopping = True
-                    chosen_sample = s
-                    break
-                for part in base_no_ext.replace("-", " ").replace("_", " ").split():
-                    if len(part) > 3 and part in u_clean:
-                        is_chopping = True
-                        chosen_sample = s
-                        break
-                if chosen_sample:
-                    break
-    
+
             if is_chopping:
-                if not chosen_sample and p_samples:
-                    # Select vocal sample if role is VOCALS or LEAD, else first sample
-                    vocal_samples = [s for s in p_samples if "vocal" in s["folder"].lower() or "vocales" in s["folder"].lower()]
-                    chosen_sample = vocal_samples[0] if (vocal_samples and role in ["VOCALS", "LEAD"]) else p_samples[0]
-    
+                from engine.audio_genesis import AudioGenesisEngine, GenesisPipelineType
+                from engine.audio_genesis.instrument_builder import TargetInstrumentDestination
+                genesis = AudioGenesisEngine(conn=conn)
+                source_name = t_name or role
+                for candidate_t in tracks:
+                    if candidate_t.get("role", "").upper() in ["KEYS", "PAD", "LEAD", "SYNTH"]:
+                        source_name = candidate_t.get("name", "Keys")
+                        break
+                gen_path = None
+                try:
+                    sound_res = genesis.create_provenanced_sound(
+                        musical_need=f"chopped_{role.lower()}_loop",
+                        target_destination=TargetInstrumentDestination.SIMPLER_SLICED,
+                        source_track_name=source_name,
+                        genesis_pipeline=GenesisPipelineType.MELODIC_RESAMPLE,
+                        session_tracks=tracks
+                    )
+                    if sound_res and hasattr(sound_res, "mutation") and sound_res.mutation.audio_path:
+                        gen_path = str(sound_res.mutation.audio_path)
+                except Exception as ex_gen:
+                    logger.warning(f"Audio genesis chopping synthesis notice: {ex_gen}")
+
                 target_uri = "query:Synths#Simpler"
-                display_name = f"Simpler (Chopping: {chosen_sample['name']})" if chosen_sample else "Simpler Chopping"
+                display_name = f"Simpler (Chopping Autónomo: {role})"
                 trk["chopping_mode"] = True
-                if chosen_sample:
-                    trk["sample_path"] = chosen_sample["path"]
-                    trk["sample_name"] = chosen_sample["name"]
+                trk["sample_path"] = gen_path
+                trk["sample_name"] = f"Genesis_Chop_{role}"
                 trk["slice_mode"] = "Slicing"
             else:
                 if "nativo" in u_clean or "preset nativo" in u_clean or "seguro" in u_clean or "core library" in u_clean:
@@ -744,10 +738,12 @@ for slot in t.clip_slots:
                     except Exception as p_ex:
                         logger.debug(f"Simpler slicing mode notice: {p_ex}")
     
-                    if chosen_sample:
+                    gen_sample_path = trk.get("sample_path")
+                    if gen_sample_path and os.path.exists(gen_sample_path):
                         try:
                             # Load physical audio sample into Simpler via Live 12 replace_sample LOM API
-                            s_path_repr = repr(str(chosen_sample["path"]))
+                            s_path_repr = repr(str(Path(gen_sample_path).resolve()))
+                            s_disp_name = trk.get("sample_name", "Autonomous Chop")
                             exec_code = f"""
 t = song.tracks[{t_idx}]
 d = t.devices[{dev_idx}]
@@ -763,12 +759,12 @@ slices_count = len(getattr(s, 'slices', [])) if s else 0
 """
                             code_res = conn.send_command("execute_code", {"code": exec_code})
                             res_s_cnt = int(code_res.get("slices_count", 0)) if isinstance(code_res, dict) else 0
-                            trk["slices_count"] = res_s_cnt if res_s_cnt > 0 else 64
+                            trk["slices_count"] = res_s_cnt if res_s_cnt > 0 else 16
                             trk["sample_loaded"] = True
-                            logger.info(f"Loaded physical sample '{chosen_sample['name']}' into Simpler on Track {t_idx} ({trk['slices_count']} slices).")
+                            logger.info(f"Loaded autonomous generated sample '{s_disp_name}' into Simpler on Track {t_idx} ({trk['slices_count']} slices).")
                         except Exception as s_load_err:
-                            logger.warning(f"Notice on personal sample loading into Simpler: {s_load_err}")
-                            trk["slices_count"] = 64
+                            logger.warning(f"Notice on autonomous sample loading into Simpler: {s_load_err}")
+                            trk["slices_count"] = 16
 
                 # Autogenous Foley / Texture Generation if Simpler was loaded for TEXTURE_FOLEY
                 if role in ("TEXTURE_FOLEY", "FOLEY") and is_verified and dev_idx is not None:

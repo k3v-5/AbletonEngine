@@ -32,14 +32,23 @@ class PhaseCorrelationAuditor:
         # 1. Broadband Pearson correlation
         broadband_rho = PhaseAlignmentEngine.calculate_phase_correlation(left.tolist(), right.tolist())
 
-        # 2. Sub-bass band (<120 Hz) isolation via butterworth filter
-        from scipy.signal import butter, sosfilt
-        nyq = 0.5 * sr
-        low_cut = min(120.0, nyq - 10.0)
-        sos_sub = butter(4, low_cut / nyq, 'lowpass', output='sos')
+        # 2. Sub-bass band (<120 Hz) isolation via butterworth filter or numpy FFT fallback
+        try:
+            from scipy.signal import butter, sosfilt
+            nyq = 0.5 * sr
+            low_cut = min(120.0, nyq - 10.0)
+            sos_sub = butter(4, low_cut / nyq, 'lowpass', output='sos')
+            sub_l = sosfilt(sos_sub, left)
+            sub_r = sosfilt(sos_sub, right)
+        except ImportError:
+            n_l, n_r = len(left), len(right)
+            freqs_l = np.fft.rfftfreq(n_l, d=1.0 / sr)
+            mask_l = freqs_l <= 120.0
+            sub_l = np.fft.irfft(np.fft.rfft(left) * mask_l, n=n_l)
+            freqs_r = np.fft.rfftfreq(n_r, d=1.0 / sr)
+            mask_r = freqs_r <= 120.0
+            sub_r = np.fft.irfft(np.fft.rfft(right) * mask_r, n=n_r)
 
-        sub_l = sosfilt(sos_sub, left)
-        sub_r = sosfilt(sos_sub, right)
         sub_rho = PhaseAlignmentEngine.calculate_phase_correlation(sub_l.tolist(), sub_r.tolist())
 
         # Sub-bass mono compliance requires sub_rho >= +0.70

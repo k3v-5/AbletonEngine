@@ -90,6 +90,12 @@ class LiveBrowserCatalogEngine:
         "BONGO": "PERCUSSION",
         "VOCAL_CHOP": "VOCALS",
         "VOX": "VOCALS",
+        "RHYTHM_GUITAR": "GUITAR",
+        "LEAD_GUITAR": "GUITAR",
+        "808_BASS": "BASS",
+        "ELECTRIC_BASS": "BASS",
+        "DEMBOW": "DRUMS",
+        "BACKING_VOCALS": "VOCALS",
     }
 
     @classmethod

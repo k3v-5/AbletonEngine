@@ -109,16 +109,8 @@ class Phase10ListenersHandler(BasePhaseHandler):
         if any(w in text for w in ["congelar pista", "descongelar pista", "congelar track", "descongelar track", "freeze track", "unfreeze track", "congelar", "descongelar"]):
             return handle_track_freeze(conn, text, tracks, completed_phase)
 
-        # 0. Textural Reprocessing & Audio Resynthesis Catalog (Phase 11)
-        if any(w in text for w in ["resamplear", "reprocesar", "catalogo de reprocesamiento", "resintesis", "resíntesis", "mutar sonido", "mutaciones de audio", "uhts", "fase 11", "paso 11"]):
-            session.data["current_phase"] = "PHASE_11_AUDIO_RESAMPLING"
-            session.data["phase_index"] = 11
-            session._save_state(action_tag="ENTER_PHASE_11_FROM_PHASE_10")
-            from engine.production.copilot.phases.phase_11_resampling import Phase11ResamplingHandler
-            return Phase11ResamplingHandler().handle(session, conn, user_input)
-
-        # 0. Organic Foley Bed & Self-Sampling Textures
-        if any(w in text for w in ["inyectar foley", "lecho de vinilo", "textura foley", "crear textura", "inyectar textura", "textura granular", "self-sampling"]):
+        # 0. Organic Foley Bed, Textures & Resampling Injection
+        if any(w in text for w in ["inyectar foley", "lecho de vinilo", "textura foley", "crear textura", "inyectar textura", "textura granular", "resamplear pista", "self-sampling"]):
             return handle_texture_and_foley_injection(session, conn, text, tracks, completed_phase)
 
         # 0.01 Vocal Production Co-Creation & Continuous Take / Room Echo / Mix Audit / Vocal Chops / Gain Staging

@@ -12,11 +12,7 @@
   "sound_design": {
     "favorite_synth": {
       "value": "Serum 2",
-      "updated_at": "2026-09-20T19:45:47.748572"
-    },
-    "reprocessing_enabled": {
-      "value": false,
-      "updated_at": "2026-09-22T07:07:59.402700"
+      "updated_at": "2026-09-22T12:27:23.214991"
     }
   },
   "style": {
@@ -32,25 +28,13 @@
   "composition": {
     "mode": {
       "value": "track_by_track",
-      "updated_at": "2026-09-20T19:42:44.978199"
+      "updated_at": "2026-09-22T20:08:47.984427"
     }
   },
   "automation": {
     "mode": {
       "value": "express",
-      "updated_at": "2026-09-20T19:42:47.453594"
-    }
-  },
-  "governance": {
-    "enforce_strict_pipeline_no_shortcuts": {
-      "value": true,
-      "updated_at": "2026-09-22T07:07:59.411685"
-    }
-  },
-  "production": {
-    "default_sound_design_mode": {
-      "value": "LEGACY",
-      "updated_at": "2026-09-22T07:07:59.418254"
+      "updated_at": "2026-09-22T12:31:05.147071"
     }
   }
 }

@@ -174,3 +174,41 @@ def test_direct_panning_evaluation_command(clean_session, mock_adapter):
     res = clean_session.step(conn=mock_adapter, user_input="evaluar separacion estereo y paneo")
     assert res["status"] == "AWAITING_PRE_VOCAL_PANNING_DECISION"
     assert "summary_table" in res["panning_audit"]
+
+
+def test_specialized_roles_anti_masking_panning(mock_adapter):
+    """Validates anti-masking complementary slotting and center lock for all 6 new roles."""
+    tracks = [
+        {"index": 0, "name": "Dembow Rhythm", "role": "DEMBOW", "panning": 0.0},
+        {"index": 1, "name": "Sub 808 Deep", "role": "808_BASS", "panning": 0.0},
+        {"index": 2, "name": "Fender Precision Bass", "role": "ELECTRIC_BASS", "panning": 0.0},
+        {"index": 3, "name": "Rhodes Chords", "role": "KEYS", "panning": 0.0},
+        {"index": 4, "name": "Strat Rhythm Guitar", "role": "RHYTHM_GUITAR", "panning": 0.0},
+        {"index": 5, "name": "Analog Lead", "role": "LEAD", "panning": 0.0},
+        {"index": 6, "name": "Guitar Solo Lead", "role": "LEAD_GUITAR", "panning": 0.0},
+        {"index": 7, "name": "Backing Harmonies", "role": "BACKING_VOCALS", "panning": 0.0},
+        {"index": 12, "name": "Lead Vocal Master", "role": "LEAD_VOCAL", "panning": 0.0},
+    ]
+
+    audit = InstrumentPanningEvaluator.evaluate_session_panning(tracks, conn=mock_adapter)
+    assert audit["status"] == "PANNING_AUDIT_COMPLETED"
+    assert audit["has_masking_risk"] is True
+
+    directives = {d["track_index"]: d for d in audit["directives"]}
+
+    # Center-locked anchors (mono <120Hz & primary lead)
+    assert directives[0]["recommended_pan"] == 0.0   # Dembow
+    assert directives[1]["recommended_pan"] == 0.0   # 808
+    assert directives[2]["recommended_pan"] == 0.0   # Electric Bass
+    assert directives[12]["recommended_pan"] == 0.0  # Lead Vocal
+
+    # Opposing harmonic pockets (Keys Left vs Rhythm Guitar Right)
+    assert directives[3]["recommended_pan"] < 0  # Keys ~ -0.24 (24L)
+    assert directives[4]["recommended_pan"] > 0  # Rhythm Guitar ~ +0.32 (32R)
+
+    # Opposing melodic pockets (Lead Right vs Lead Guitar Left)
+    assert directives[5]["recommended_pan"] > 0  # Synth Lead ~ +0.24 (24R)
+    assert directives[6]["recommended_pan"] < 0  # Lead Guitar ~ -0.30 (30L)
+
+    # Wide peripheral backing vocal pocket
+    assert abs(directives[7]["recommended_pan"]) >= 0.35  # ~ 40L or 40R

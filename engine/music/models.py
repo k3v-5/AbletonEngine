@@ -15,6 +15,7 @@ class NoteEvent:
     channel: int = 0                    # MIDI channel (0 - 15)
     probability: float = 1.0            # Trigger probability (0.0 to 1.0)
     accent: float = 0.0                 # Accent strength (-1.0 to 1.0)
+    mute: bool = False                  # Mute status (True = muted note)
 
     def __post_init__(self):
         if self.pitch_class == 0 and self.octave == 0 and self.pitch != 0:
@@ -31,7 +32,8 @@ class NoteEvent:
             "velocity": self.velocity,
             "channel": self.channel,
             "probability": self.probability,
-            "accent": round(self.accent, 2)
+            "accent": round(self.accent, 2),
+            "mute": self.mute
         }
 
     @classmethod

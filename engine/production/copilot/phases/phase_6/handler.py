@@ -84,6 +84,260 @@ class Phase6CompositionHandler(BasePhaseHandler):
 
     _deploy_single_track_composition = deploy_single_track_composition
 
+    @classmethod
+    def apply_commercial_arrangement_enrichments(
+        cls,
+        session: Any,
+        conn: Any = None
+    ) -> Dict[str, Any]:
+        """
+        Applies high-level commercial arrangement enrichments:
+        1. Antiphonal Dialogue (Call & Response):
+           Orchestrates rotational dialogue across eligible responder tracks during focal rest windows.
+        2. Adaptive Drum Fills:
+           Generates high-fidelity 4-layer turnaround fills with kick dropout.
+        3. Vocal Harmony & Stereo Spread:
+           Generates stereo vocal harmony stacks if vocals are present.
+        """
+        tracks = session.data.get("tracks", [])
+        sections = session.data.get("sections", [])
+        bpm = float(session.data.get("bpm", 120.0))
+        genre = str(session.data.get("genre", "pop")).upper()
+        key = str(session.data.get("key", "C")).strip().upper()
+        scale = str(session.data.get("scale", "major")).lower()
+
+        root_pitch_map = {
+            "C": 60, "C#": 61, "DB": 61, "D": 62, "D#": 63, "EB": 63,
+            "E": 64, "F": 65, "F#": 66, "GB": 66, "G": 67, "G#": 68,
+            "AB": 68, "A": 69, "A#": 70, "BB": 70, "B": 71
+        }
+        scale_root = root_pitch_map.get(key, 60)
+        scale_interval_map = {
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "natural_minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "pentatonic": [0, 2, 4, 7, 9]
+        }
+        scale_intervals = scale_interval_map.get(scale, [0, 2, 4, 5, 7, 9, 11])
+
+        enrichment_results: Dict[str, Any] = {}
+
+        def _resolve_idx(trk_obj):
+            if hasattr(session, "_resolve_live_track_index"):
+                try:
+                    return session._resolve_live_track_index(conn, trk_obj)
+                except Exception:
+                    pass
+            return trk_obj.get("index", 0)
+
+        # -------------------------------------------------------------
+        # 1. Antiphonal Dialogue Engine (Core Call & Response)
+        # -------------------------------------------------------------
+        try:
+            from engine.music.antiphonal_dialogue import AntiphonalDialogueEngine
+            focal_trk = None
+            for t in tracks:
+                r = str(t.get("role", "")).upper()
+                if r in ("VOCALS", "VOCAL", "VOX", "LEAD_VOCAL"):
+                    focal_trk = t
+                    break
+            if not focal_trk:
+                for t in tracks:
+                    r = str(t.get("role", "")).upper()
+                    if r in ("LEAD", "SYNTH_LEAD", "MELODY"):
+                        focal_trk = t
+                        break
+            if not focal_trk:
+                for t in tracks:
+                    r = str(t.get("role", "")).upper()
+                    if r in ("KEYS", "PIANO", "GUITAR"):
+                        focal_trk = t
+                        break
+
+            if focal_trk:
+                focal_idx = focal_trk.get("index", 0)
+                focal_notes = focal_trk.get("notes", [])
+                if not focal_notes and focal_trk.get("section_notes"):
+                    focal_notes = [n for sec_n in focal_trk["section_notes"].values() for n in sec_n]
+                if not focal_notes:
+                    focal_notes = [
+                        {"pitch": scale_root + 4, "start_time": 0.0, "duration": 1.5, "velocity": 100},
+                        {"pitch": scale_root + 7, "start_time": 2.0, "duration": 1.5, "velocity": 105},
+                        {"pitch": scale_root + 5, "start_time": 4.0, "duration": 1.5, "velocity": 98},
+                        {"pitch": scale_root + 2, "start_time": 6.0, "duration": 1.5, "velocity": 95}
+                    ]
+
+                tot_beats = float(session.data.get("total_bars", 32) * 4.0)
+                dialogue_res = AntiphonalDialogueEngine.orchestrate_rotational_dialogue(
+                    tracks=tracks,
+                    focal_track_index=focal_idx,
+                    focal_notes=focal_notes,
+                    total_beats=tot_beats,
+                    scale_root_pitch=scale_root,
+                    scale_intervals=scale_intervals,
+                    complexity_level=session.data.get("dialogue_complexity", 3)
+                )
+                session.data["antiphonal_dialogue"] = dialogue_res
+                enrichment_results["antiphonal_dialogue"] = dialogue_res
+
+                if dialogue_res.get("dialogue_matrix"):
+                    for r_idx, r_notes in dialogue_res["dialogue_matrix"].items():
+                        r_trk = next((t for t in tracks if t.get("index") == r_idx), None)
+                        if r_trk and r_notes:
+                            r_trk["notes_count"] = r_trk.get("notes_count", 0) + len(r_notes)
+                            if conn and hasattr(conn, "send_command"):
+                                try:
+                                    live_idx = _resolve_idx(r_trk)
+                                    conn.send_command("add_notes_to_clip", {
+                                        "track_index": live_idx,
+                                        "clip_index": 0,
+                                        "notes": r_notes
+                                    })
+                                except Exception as ex_n:
+                                    logger.debug(f"Antiphonal note injection notice: {ex_n}")
+        except Exception as ex_ad:
+            logger.warning(f"Notice on AntiphonalDialogue pass: {ex_ad}")
+
+        # -------------------------------------------------------------
+        # 2. Adaptive Drum Fill Generator
+        # -------------------------------------------------------------
+        try:
+            from engine.music.drums.adaptive_fill import AdaptiveDrumFillGenerator
+            drum_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("DRUMS", "DRUM", "PERCUSSION", "DRUM_RACK")), None)
+            if drum_trk:
+                sec_beats = float(sections[0].get("bars", 8) * 4.0) if sections else 32.0
+                fill_res = AdaptiveDrumFillGenerator.generate_turnaround_fill(
+                    section_length_beats=sec_beats,
+                    fill_duration_beats=4.0,
+                    genre=genre,
+                    bpm=bpm
+                )
+                session.data["adaptive_drum_fills"] = fill_res
+                enrichment_results["adaptive_drum_fills"] = fill_res
+                drum_trk["notes_count"] = drum_trk.get("notes_count", 0) + fill_res["note_count"]
+                if conn and hasattr(conn, "send_command") and fill_res.get("fill_notes"):
+                    try:
+                        live_d_idx = _resolve_idx(drum_trk)
+                        conn.send_command("add_notes_to_clip", {
+                            "track_index": live_d_idx,
+                            "clip_index": 0,
+                            "notes": fill_res["fill_notes"]
+                        })
+                    except Exception as ex_f:
+                        logger.debug(f"Adaptive fill note injection notice: {ex_f}")
+        except Exception as ex_fill_gen:
+            logger.warning(f"Notice on AdaptiveDrumFill pass: {ex_fill_gen}")
+
+        # -------------------------------------------------------------
+        # 3. Vocal Harmony & Stereo Spread Engine
+        # -------------------------------------------------------------
+        # 3. Vocal Harmony & Stereo Spread Engine
+        # -------------------------------------------------------------
+        try:
+            from engine.music.vocal_harmony import VocalHarmonyEngine
+            vox_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("VOCALS", "VOCAL", "VOX", "LEAD_VOCAL")), None)
+            if vox_trk:
+                lead_n = vox_trk.get("notes", [])
+                if not lead_n:
+                    lead_n = [
+                        {"pitch": scale_root + 4, "start_time": 0.0, "duration": 1.5, "velocity": 100},
+                        {"pitch": scale_root + 7, "start_time": 2.0, "duration": 1.5, "velocity": 105},
+                        {"pitch": scale_root + 5, "start_time": 4.0, "duration": 1.5, "velocity": 98}
+                    ]
+                harm_res = VocalHarmonyEngine.generate_vocal_harmony_stack(
+                    lead_notes=lead_n,
+                    scale_root_pitch=scale_root,
+                    scale_intervals=scale_intervals,
+                    include_high_harmony=True,
+                    include_low_harmony=True,
+                    bpm=bpm
+                )
+                session.data["vocal_harmonies"] = harm_res
+                enrichment_results["vocal_harmonies"] = harm_res
+        except Exception as ex_vh:
+            logger.warning(f"Notice on VocalHarmony pass: {ex_vh}")
+
+        # -------------------------------------------------------------
+        # 4. Off-Beat Metric Displacer (Syncopation & Bounce)
+        # -------------------------------------------------------------
+        try:
+            from engine.music.groove.metric_displacement import OffBeatMetricDisplacer
+            displaced_tracks_info = []
+            for trk in tracks:
+                r_upper = str(trk.get("role", "")).upper()
+                if any(el in r_upper for el in OffBeatMetricDisplacer.ELIGIBLE_ROLES):
+                    t_notes = trk.get("notes", [])
+                    if t_notes:
+                        disp_res = OffBeatMetricDisplacer.apply_metric_displacement(
+                            notes=t_notes,
+                            role=r_upper,
+                            bars=8,
+                            displacement_level=session.data.get("metric_displacement_level", 2)
+                        )
+                        if disp_res.get("displaced_bars"):
+                            trk["notes"] = disp_res["notes"]
+                            displaced_tracks_info.append({
+                                "track": trk.get("name"),
+                                "role": r_upper,
+                                "bars": disp_res["displaced_bars"],
+                                "shift": disp_res.get("shift_beat")
+                            })
+            if displaced_tracks_info:
+                session.data["metric_displacement"] = {
+                    "status": "APPLIED",
+                    "tracks": displaced_tracks_info
+                }
+                enrichment_results["metric_displacement"] = session.data["metric_displacement"]
+        except Exception as ex_disp:
+            logger.warning(f"Notice on OffBeatMetricDisplacer pass: {ex_disp}")
+
+        # -------------------------------------------------------------
+        # 5. Evolutionary Hi-Hat Mutator (Stochastic & Anti-Fatigue)
+        # -------------------------------------------------------------
+        try:
+            from engine.music.drums.hihat_mutator import EvolutionaryHiHatMutator
+            drum_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("DRUMS", "DRUM", "PERCUSSION", "DRUM_RACK")), None)
+            if drum_trk:
+                d_notes = drum_trk.get("notes", [])
+                if d_notes:
+                    mut_res = EvolutionaryHiHatMutator.mutate_hihat_pattern(
+                        notes=d_notes,
+                        bars=8,
+                        genre=genre,
+                        intensity=session.data.get("hihat_mutation_intensity", 0.6)
+                    )
+                    if mut_res.get("mutations_applied"):
+                        drum_trk["notes"] = mut_res["notes"]
+                        drum_trk["notes_count"] = len(mut_res["notes"])
+                        session.data["hihat_mutations"] = mut_res
+                        enrichment_results["hihat_mutations"] = mut_res
+        except Exception as ex_hh:
+            logger.warning(f"Notice on EvolutionaryHiHatMutator pass: {ex_hh}")
+
+        # -------------------------------------------------------------
+        # 6. Harmonic Pedal Point & Suspension Weaver
+        # -------------------------------------------------------------
+        try:
+            from engine.music.harmony.pedal_suspension import PedalPointSuspensionWeaver
+            # Search for harmonic tracks (Keys, Synths, Chords) or pre-chorus notes
+            harm_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("KEYS", "CHORDS", "PAD", "SYNTH")), None)
+            h_notes = harm_trk.get("notes", []) if harm_trk else []
+            pedal_res = PedalPointSuspensionWeaver.weave_pedal_point_progression(
+                chords_or_notes=h_notes,
+                pedal_pitch=scale_root - 24,  # Root 2 octaves down
+                section_name="pre_chorus",
+                suspension_type="AUTO"
+            )
+            session.data["pedal_suspensions"] = pedal_res
+            enrichment_results["pedal_suspensions"] = pedal_res
+        except Exception as ex_pedal:
+            logger.warning(f"Notice on PedalPointSuspension pass: {ex_pedal}")
+
+        return enrichment_results
+
+
     def prompt_by_track_step(self, session: Any, trk_idx: int) -> Dict[str, Any]:
         return Phase6Prompts.prompt_by_track_step(session, trk_idx)
 
@@ -284,6 +538,35 @@ for trk in song.tracks:
         if is_resample_trigger:
             return self._handle_resampling_directive(session, conn, user_input)
 
+        # Dynamic humanization level setting (Levels 1 to 5, default 2)
+        m_hum = re.search(r"(?:humanizaci[oó]n|humanizar|groove)\s*[:=]?\s*([1-5])", text_norm)
+        if m_hum:
+            h_val = int(m_hum.group(1))
+            session.data["humanization_level"] = h_val
+            session._save_state()
+            logger.info(f"Phase 6 humanization level set to {h_val}")
+
+        # Composition mode switching
+        if "por pista" in text_norm or "pista por pista" in text_norm:
+            session.data["composition_session"] = {
+                "active": True,
+                "mode": "BY_TRACK",
+                "interactive": True,
+                "track_index": 0,
+                "section_index": 0
+            }
+            session._save_state()
+            return self.prompt_by_track_step(session, 0)
+        elif "por clip" in text_norm or "clip por clip" in text_norm:
+            session.data["composition_session"] = {
+                "active": True,
+                "mode": "BY_CLIP",
+                "track_index": 0,
+                "section_index": 0
+            }
+            session._save_state()
+            return self.prompt_by_clip_step(session, 0, 0)
+
         ai_meta, custom_notes_map, has_notes = self.parse_ai_composition(session, user_input)
 
         is_explicit_key_directive = bool(re.search(r'\bKEY\s+[A-G][#b]?\b', user_input, re.IGNORECASE))
@@ -477,6 +760,7 @@ for trk in song.tracks:
                 omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                 if omission_blk:
                     return omission_blk
+            self.apply_commercial_arrangement_enrichments(session, conn)
             session.data["composition_session"] = {"active": False}
             session.data["current_phase"] = "PHASE_7_AUTOMATION"
             session.data["phase_index"] = 7
@@ -491,6 +775,7 @@ for trk in song.tracks:
                     omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                     if omission_blk:
                         return omission_blk
+                self.apply_commercial_arrangement_enrichments(session, conn)
                 session.data["composition_session"] = {"active": False}
                 session.data["current_phase"] = "PHASE_7_AUTOMATION"
                 session.data["phase_index"] = 7
@@ -583,6 +868,12 @@ for trk in song.tracks:
                         trk=cur_trk
                     )
                     cur_trk["notes_count"] = cur_trk.get("notes_count", 0) + len(clip_notes)
+                    cur_trk.setdefault("sections_completed", []).append({
+                        "section_name": cur_sec.get("name"),
+                        "bars": s_bars,
+                        "notes_count": len(clip_notes),
+                        "is_silence": is_silence
+                    })
                 except Exception as ex_clip:
                     cur_trk["deployment_failed"] = True
                     cur_trk["deployment_error"] = str(ex_clip)
@@ -609,6 +900,12 @@ for trk in song.tracks:
                     }
             else:
                 cur_trk["notes_count"] = cur_trk.get("notes_count", 0) + len(clip_notes)
+                cur_trk.setdefault("sections_completed", []).append({
+                    "section_name": cur_sec.get("name"),
+                    "bars": s_bars,
+                    "notes_count": len(clip_notes),
+                    "is_silence": is_silence
+                })
 
             sec_idx += 1
             if sec_idx >= len(sections):
@@ -936,6 +1233,8 @@ for trk in song.tracks:
             omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
             if omission_blk:
                 return omission_blk
+
+        self.apply_commercial_arrangement_enrichments(session, conn)
 
         session.data["current_phase"] = "PHASE_7_AUTOMATION"
         session.data["phase_index"] = 7

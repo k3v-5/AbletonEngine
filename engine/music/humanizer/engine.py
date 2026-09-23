@@ -1,7 +1,7 @@
 # engine/music/humanizer/engine.py
 import random
 import math
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from ..models import NoteEvent
 
 # Milliseconds of jitter deviation per role

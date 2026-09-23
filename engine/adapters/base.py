@@ -1,12 +1,17 @@
 # engine/adapters/base.py
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 class BaseAbletonAdapter(ABC):
-    """Abstract interface for communicating with Ableton Live"""
+    """Abstract interface for communicating with Ableton Live (LSP & ISP compliant)."""
 
     @abstractmethod
     def is_connected(self) -> bool:
+        pass
+
+    @abstractmethod
+    def send_command(self, command_type: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Dispatches an atomic command to the DAW Remote Script or simulated adapter."""
         pass
 
     @abstractmethod

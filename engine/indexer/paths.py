@@ -29,7 +29,10 @@ def get_personal_samples_roots() -> list[Path]:
     user_docs = Path(os.environ.get("USERPROFILE", "C:/Users/sasuk")) / "Documents" / "Ableton" / "User Library"
     if user_docs.exists():
         roots.append(user_docs)
+    if not roots:
+        roots.append(default_samples_root())
     return roots
+
 
 def default_manifest_path() -> Path:
     env = os.environ.get("ABLETON_SAMPLE_MANIFEST")

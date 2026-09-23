@@ -466,16 +466,17 @@ if {idx} < len(song.tracks):
 tracks_data = []
 for idx, t in enumerate(song.tracks):
     is_fold = getattr(t, 'is_foldable', False)
-    is_audio = getattr(t, 'is_audio_track', False)
-    is_midi = getattr(t, 'is_midi_track', False)
+    is_audio = getattr(t, 'has_audio_input', False)
+    is_midi = getattr(t, 'has_midi_input', False)
     
     # Clips
     arr_clips = []
     raw_clips = []
-    try:
-        raw_clips = list(t.arrangement_clips)
-    except Exception:
-        raw_clips = []
+    if not is_fold:
+        try:
+            raw_clips = list(t.arrangement_clips)
+        except Exception:
+            raw_clips = []
     for c in raw_clips:
         is_audio_c = getattr(c, 'is_audio_clip', False)
         notes_arr = []
@@ -526,15 +527,34 @@ for idx, t in enumerate(song.tracks):
             'is_active': getattr(d, 'is_active', True)
         })
 
+    arm_val = False
+    if getattr(t, 'can_be_armed', False):
+        try:
+            arm_val = bool(t.arm)
+        except Exception:
+            arm_val = False
+
+    mute_val = False
+    try:
+        mute_val = bool(t.mute)
+    except Exception:
+        mute_val = False
+
+    solo_val = False
+    try:
+        solo_val = bool(t.solo)
+    except Exception:
+        solo_val = False
+
     tracks_data.append({
         'index': idx,
         'name': getattr(t, 'name', f'Track {idx}'),
         'is_audio': is_audio,
         'is_midi': is_midi,
         'is_foldable': is_fold,
-        'arm': getattr(t, 'arm', False),
-        'mute': getattr(t, 'mute', False),
-        'solo': getattr(t, 'solo', False),
+        'arm': arm_val,
+        'mute': mute_val,
+        'solo': solo_val,
         'volume': float(getattr(t.mixer_device.volume, 'value', 0.85)),
         'panning': float(getattr(t.mixer_device.panning, 'value', 0.0)),
         'devices': devs,
@@ -961,7 +981,7 @@ result = {'tracks': tracks_data, 'master': master_info, 'cue_points': cue_points
                 t_name_l = t["name"].lower()
                 is_synth = (
                     any(k in t_name_l for k in ["synth", "lead", "vital", "serum", "saw", "pad", "chord", "arpeg", "arpeggio"])
-                    and not any(k in t_name_l for k in ["kick", "bombo", "drum", "hat", "clap", "snare", "perc", "bass", "sub", "808"])
+                    and not any(k in t_name_l for k in ["kick", "bombo", "drum", "hat", "clap", "snare", "perc", "bass", "sub", "808", "vocal", "voz"])
                 )
                 if not is_synth:
                     continue
@@ -1049,6 +1069,11 @@ result = {'tracks': tracks_data, 'master': master_info, 'cue_points': cue_points
         # 4. AUDITORÍA CREATIVA & PREDECIBILIDAD MUSICAL (Music Director / A&R)
         try:
             from engine.production.copilot.phases.phase_10.music_director import MusicDirector
+            from engine.core.roles.classifier import RoleClassifier
+            for trk in raw_tracks:
+                if not trk.get("role"):
+                    dev_names = [d.get("name", "") for d in trk.get("devices", [])]
+                    trk["role"] = RoleClassifier.classify(trk.get("name", ""), dev_names).value
             class DummySession:
                 def __init__(self, tracks_data, sections_data):
                     self.data = {"tracks": tracks_data, "sections": sections_data}

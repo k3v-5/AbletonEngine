@@ -85,6 +85,36 @@ INSTRUMENT_ROLE_CATALOG: Dict[str, Dict[str, Any]] = {
         "description": "Capas de ruido orgánico de fondo (lluvia, vinilo, murmullos, texturas granulares) a -24 dBFS para contexto espacial único.",
         "frequency_range": "40 Hz - 15 kHz",
         "acoustic_role": "Organic ambient bed, spatial glue, and textural depth"
+    },
+    "RHYTHM_GUITAR": {
+        "description": "Guitarras acústicas rasgueadas y eléctricas rítmicas crunch/estéreo para base armónica (Rock, Pop, Funk).",
+        "frequency_range": "100 Hz - 5 kHz",
+        "acoustic_role": "Rhythmic harmonic bed and stereo drive"
+    },
+    "LEAD_GUITAR": {
+        "description": "Guitarras eléctricas solistas, riffs melódicos, punteos expresivos y solos distorsionados con sustain.",
+        "frequency_range": "250 Hz - 7 kHz",
+        "acoustic_role": "Lead melodic riffs, expressive solos, and harmonic bite"
+    },
+    "808_BASS": {
+        "description": "Subgrave monofónico puro saturado con pitch glide y decay largo característico de Trap y Reggaeton.",
+        "frequency_range": "30 Hz - 120 Hz",
+        "acoustic_role": "Monophonic low-end weight and sub-glide foundation"
+    },
+    "ELECTRIC_BASS": {
+        "description": "Bajo eléctrico articulado con púa o dedos, pastillas analógicas y medios presentes para Rock y Pop.",
+        "frequency_range": "40 Hz - 2.5 kHz",
+        "acoustic_role": "Articulated electric bass groove and punchy harmonic root"
+    },
+    "DEMBOW": {
+        "description": "Célula rítmica urbana sincopada de reggaeton (Kick en negras + Snare/Rim sincopado 3-3-2 + Palito/Timbal).",
+        "frequency_range": "40 Hz - 15 kHz",
+        "acoustic_role": "Syncopated urban rhythm anchor and Latin groove"
+    },
+    "BACKING_VOCALS": {
+        "description": "Armonías vocales en terceras/quintas, doblajes estéreo, respuestas y adlibs para Pop, Trap y Reggaeton.",
+        "frequency_range": "200 Hz - 10 kHz",
+        "acoustic_role": "Stereo vocal spread, harmonic call-and-response, and adlib depth"
     }
 }
 
@@ -249,6 +279,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "macro",
                 "parameters": {"P1 Brightness": 0.65, "P1 Timbre": 0.55, "P1 Time": 0.45, "P1 Movement": 0.30},
                 "description": "Warm vintage Rhodes keys with analog presence and subtle stereo movement."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_vital_keys",
+            name="Vital Audio Ambient Keys",
+            role="KEYS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Lush wavetable acoustic-electric hybrid keys with spectral modulation and stereo space.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.70, "AMP_ATTACK": 0.01, "AMP_RELEASE": 0.40, "REVERB_MIX": 0.35},
+                "description": "Lush spectral hybrid keys with gentle reverb."
             },
         ),
         SoundSourceOption(
@@ -1484,36 +1528,6 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     ],
     "TEXTURE_FOLEY": [
         SoundSourceOption(
-            id="native_harmonic_reprocessed_pad",
-            name="Harmonic Reprocessed Pad (Drift / Wavetable)",
-            role="TEXTURE_FOLEY",
-            category=InstrumentSourceCategory.NATIVE_SYNTH,
-            uri="query:Synths#Drift",
-            vendor="Ableton",
-            description="Multi-voice harmonic pad playing song progression, reprocessed through wavefolding saturation and formant filtering.",
-            blueprint={
-                "sculpt_type": "semantic",
-                "parameters": {"FILTER_CUTOFF": 0.55, "RESONANCE": 0.45, "ATTACK": 0.40, "RELEASE": 0.65},
-                "description": "Dense harmonic pad reprocessed for rich overtones matching the song's chords.",
-                "insert_chain": ["Saturator", "EQ Eight", "OTT", "Compressor"]
-            },
-        ),
-        SoundSourceOption(
-            id="vst3_pigments_harmonic_pad",
-            name="Arturia Pigments Harmonic Texture",
-            role="TEXTURE_FOLEY",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Arturia:Pigments",
-            vendor="Arturia",
-            description="Cinematic granular & spectral pad generating organic overtones in harmony with the track.",
-            blueprint={
-                "sculpt_type": "semantic",
-                "parameters": {"FILTER_CUTOFF": 0.60, "AMP_ATTACK": 0.45, "AMP_RELEASE": 0.70},
-                "description": "Evolving harmonic texture pad.",
-                "insert_chain": ["Saturator", "EQ Eight", "OTT", "Compressor"]
-            },
-        ),
-        SoundSourceOption(
             id="native_vinyl_distortion",
             name="Ableton Vinyl Distortion",
             role="TEXTURE_FOLEY",
@@ -1582,6 +1596,118 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "parameters": {"FILTER_CUTOFF": 0.55, "AMP_ATTACK": 0.50, "AMP_RELEASE": 0.80},
                 "description": "Evolving cinematic soundscape."
             },
+        ),
+    ],
+    "RHYTHM_GUITAR": [
+        SoundSourceOption(
+            id="native_rhythm_electric_guitar",
+            name="Electric Guitar Clean Rhythms (.adg)",
+            role="RHYTHM_GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_5066",
+            vendor="Ableton",
+            description="Clean and crunch electric rhythm guitar, optimized for wide stereo strumming and funk/rock chords.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Tone": 0.60, "Drive": 0.30, "Attack": 0.05, "Release": 0.35}},
+        ),
+        SoundSourceOption(
+            id="native_steel_acoustic_rhythm",
+            name="Guitar Acoustic Steel Strum (.adg)",
+            role="RHYTHM_GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_6432",
+            vendor="Ableton",
+            description="Steel acoustic guitar with rich mid presence for energetic pop/rock strumming beds.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Brightness": 0.65, "Body": 0.70, "Attack": 0.04}},
+        ),
+    ],
+    "LEAD_GUITAR": [
+        SoundSourceOption(
+            id="native_lead_solo_guitar",
+            name="Rock Lead Solo Guitar (.adv)",
+            role="LEAD_GUITAR",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Guitar%20&%20Plucked:FileId_5066",
+            vendor="Ableton",
+            description="Sustained overdriven electric lead guitar with tube bite, harmonic feedback, and singing vibrato.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Drive": 0.65, "Tone": 0.75, "Sustain": 0.85, "Delay": 0.30}},
+        ),
+        SoundSourceOption(
+            id="vst3_serum_guitar_lead",
+            name="Serum 2 Electric Guitar Lead",
+            role="LEAD_GUITAR",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Xfer%20Records:Serum%202",
+            vendor="Xfer Records",
+            description="Physically-modeled electric lead guitar patch in Serum 2 with pickup modeling and amp simulation.",
+            blueprint={"sculpt_type": "semantic", "parameters": {"DRIVE": 0.60, "FILTER_CUTOFF": 0.78, "AMP_SUSTAIN": 0.80}},
+        ),
+    ],
+    "808_BASS": [
+        SoundSourceOption(
+            id="vst3_sublab_xl_808",
+            name="FAW SubLab XL (808 Engine)",
+            role="808_BASS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:FAW:SubLab%20XL",
+            vendor="Future Audio Workshop",
+            description="Gold standard sub-bass and 808 synthesis with glide, harmonic distortion, and sub-octave layering.",
+            blueprint={"sculpt_type": "semantic", "parameters": {"SUB_LEVEL": 0.95, "DRIVE": 0.35, "AMP_DECAY": 0.75, "AMP_RELEASE": 0.40}},
+        ),
+        SoundSourceOption(
+            id="native_808_drifter_bass",
+            name="808 Drifter Bass (.adg)",
+            role="808_BASS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Bass:FileId_5176",
+            vendor="Ableton",
+            description="Punchy analog 808 with saturator and pitch glide envelope for trap and modern hip-hop.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Sub Level": 0.90, "Drive": 0.25, "Decay": 0.70}},
+        ),
+    ],
+    "ELECTRIC_BASS": [
+        SoundSourceOption(
+            id="native_upright_electric_bass",
+            name="Classic Electric Finger Bass (.adg)",
+            role="ELECTRIC_BASS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Bass:FileId_5176",
+            vendor="Ableton",
+            description="Classic precision electric fingerstyle bass with dynamic velocity layers and woody fretboard definition.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Tone": 0.55, "Body": 0.75, "Attack": 0.05, "Decay": 0.60}},
+        ),
+        SoundSourceOption(
+            id="vst3_scarbee_rickenbacker",
+            name="Native Instruments Scarbee Rickenbacker Bass",
+            role="ELECTRIC_BASS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Native%20Instruments:Kontakt%207",
+            vendor="Native Instruments",
+            description="Crisp picked rock bass guitar with crunch amplifier saturation and solid fundamental low-end.",
+            blueprint={"sculpt_type": "semantic", "parameters": {"DRIVE": 0.30, "FILTER_CUTOFF": 0.65, "AMP_ATTACK": 0.04}},
+        ),
+    ],
+    "DEMBOW": [
+        SoundSourceOption(
+            id="native_dembow_urban_kit",
+            name="Urban Reggaeton Dembow Kit (.adg)",
+            role="DEMBOW",
+            category=InstrumentSourceCategory.DRUM_KIT,
+            uri="query:Drums#FileId_5422",
+            vendor="Ableton",
+            description="Curated dembow kit: punchy kick, syncopated tight snare, timbal, and palito for authentic Latin rhythm.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Kick Punch": 0.85, "Snare Snap": 0.90, "Timbal Tone": 0.70}},
+        ),
+    ],
+    "BACKING_VOCALS": [
+        SoundSourceOption(
+            id="native_backing_vocal_chain",
+            name="Backing Vocal Stereo Spread (.adg)",
+            role="BACKING_VOCALS",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Voice:FileId_4993",
+            vendor="Ableton",
+            description="Stereo-widened backing vocal instrument with micro-pitch shift, chorus and warm hall space.",
+            blueprint={"sculpt_type": "macro", "parameters": {"Stereo Width": 0.85, "Reverb": 0.40, "Warmth": 0.60}},
         ),
     ],
 }

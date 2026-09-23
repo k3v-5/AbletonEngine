@@ -10,10 +10,37 @@ import math
 import random
 from engine.music.models import Chord, NoteEvent
 from engine.music.harmony.full_song import FullSongHarmonyEngine
+from engine.music.melody.hook_contour import HookContourEngine, HookContourType, HookEvaluationReport
 
 
 class TopLineMelodyEngine:
-    """Composes conversational, singable top-line lead melodies across sections."""
+    """Composes conversational, singable top-line lead melodies and commercial hooks across sections."""
+
+    @classmethod
+    def evaluate_melody_hook(cls, notes: List[NoteEvent]) -> HookEvaluationReport:
+        """Evaluates melodic memorability, leap-step integrity, and vocal range confinement."""
+        return HookContourEngine.evaluate_hook(notes)
+
+    @classmethod
+    def generate_commercial_hook(
+        cls,
+        start_beat: float = 0.0,
+        key_root: str = "F",
+        scale: str = "natural_minor",
+        energy_level: float = 0.85,
+        contour: str = "ARCH",
+        seed: int = 42
+    ) -> List[NoteEvent]:
+        """Generates a commercial hook obeying Hook Theory and cognitive retention principles."""
+        c_type = getattr(HookContourType, contour.upper(), HookContourType.ARCH)
+        return HookContourEngine.generate_hook_motif(
+            key_root=key_root,
+            scale=scale,
+            start_beat=start_beat,
+            contour=c_type,
+            energy_level=energy_level,
+            phrase_seed=seed
+        )
 
     # F Minor Scale Degrees (MIDI Octave 4 & 5: F4=65, G4=67, Ab4=68, Bb4=70, C5=72, Db5=73, Eb5=75, F5=77)
     F_MINOR_SCALE = [60, 61, 63, 65, 67, 68, 70, 72, 73, 75, 77, 80] # C4 to Ab5

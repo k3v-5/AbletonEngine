@@ -5,7 +5,7 @@ Inspects clips and tracks before playback to detect empty clips, muted faders,
 or out-of-range notes, repairing them automatically.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger("ClipHealer")

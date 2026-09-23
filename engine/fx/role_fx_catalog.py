@@ -340,6 +340,135 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Width", "name": "Stereo Width", "range": "0.0 a 1.0 (0% a 400%)", "behavior": "Apertura estéreo espacial del retorno de efecto.", "default": 1.0}
             ]
         }
+    ],
+    "RHYTHM_GUITAR": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "Corte de graves en 110-140 Hz para limpiar retumbes de caja/pastillas.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0 (80 a 160 Hz)", "behavior": "Protege el espacio de bombo y bajo.", "default": 0.28},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Corte Barro)", "range": "0.0 o 1.0", "behavior": "Limpieza en 350-450 Hz para eliminar tono acartonado.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia Corte Mud", "range": "0.0 a 1.0", "behavior": "Despeja el centro de la mezcla.", "default": 0.44},
+                {"id": "Band 3 On", "name": "Banda 3 Bell (Mordida)", "range": "0.0 o 1.0", "behavior": "Realce en 2.5-3.5 kHz para articulación rítmica del rasgueo.", "default": 1.0},
+                {"id": "3 Frequency A", "name": "Frecuencia Presencia", "range": "0.0 a 1.0", "behavior": "Definición del ataque de púa.", "default": 0.68}
+            ]
+        },
+        {
+            "name": "Glue Compressor",
+            "uri": "query:AudioFx#Glue%20Compressor",
+            "params": [
+                {"id": "Threshold", "name": "Threshold", "range": "-40.0 dB a 0.0 dB", "behavior": "Nivel de contención de rasgueos dinámicos.", "default": -14.0},
+                {"id": "Ratio", "name": "Ratio", "range": "1.0 (2:1) o 2.0 (4:1)", "behavior": "Compresión suave y transparente.", "default": 1.0},
+                {"id": "Attack", "name": "Attack", "range": "0.0 a 1.0 (10 a 30 ms)", "behavior": "Ataque medio para dejar pasar el ataque de la púa.", "default": 0.50},
+                {"id": "Release", "name": "Release", "range": "0.0 a 1.0", "behavior": "Relajación natural al tempo.", "default": 0.0}
+            ]
+        }
+    ],
+    "LEAD_GUITAR": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "Corte de frecuencias graves en 100 Hz.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Eliminación de zumbidos de amplificador.", "default": 0.25},
+                {"id": "Band 3 On", "name": "Banda 3 Bell (Presencia Solo)", "range": "0.0 o 1.0", "behavior": "Realce solista en 3.0-4.0 kHz para sobresalir en la mezcla.", "default": 1.0},
+                {"id": "3 Frequency A", "name": "Frecuencia Presencia", "range": "0.0 a 1.0", "behavior": "Mordida solista armónica.", "default": 0.72}
+            ]
+        },
+        {
+            "name": "Delay",
+            "uri": "query:AudioFx#Delay",
+            "params": [
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Nivel de eco y repeticiones estéreo.", "default": 0.25},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 1.0", "behavior": "Sostenimiento de las estelas melódicas.", "default": 0.35}
+            ]
+        }
+    ],
+    "808_BASS": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass Subsónico", "range": "0.0 o 1.0", "behavior": "Filtro pasa-altos estricto en 25-30 Hz para salvar headroom.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0 (20 a 35 Hz)", "behavior": "Eliminación de rumble inaudible que hace clipear el limitador.", "default": 0.16},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Fundamental 808)", "range": "0.0 o 1.0", "behavior": "Alineación en la nota tónica fundamental (35-65 Hz).", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia Fundamental", "range": "0.0 a 1.0", "behavior": "Potencia del subgrave mono.", "default": 0.22}
+            ]
+        },
+        {
+            "name": "Saturator",
+            "uri": "query:AudioFx#Saturator",
+            "params": [
+                {"id": "Drive", "name": "Drive (Armónicos Medios)", "range": "0.0 a 1.0", "behavior": "Genera 2do y 3er armónico para que el 808 se escuche en smartphones.", "default": 0.25},
+                {"id": "Base", "name": "Base (Graves Limpios)", "range": "0.0 a 1.0", "behavior": "Mantiene el sub fundamental senoidal limpio sin distorsión.", "default": 0.0}
+            ]
+        }
+    ],
+    "ELECTRIC_BASS": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "Corte subsónico en 35 Hz.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Protección contra rumble de escenario.", "default": 0.18},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Cuerpo Bajo)", "range": "0.0 o 1.0", "behavior": "Cuerpo del bajo en 90-140 Hz.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia Cuerpo", "range": "0.0 a 1.0", "behavior": "Pegada armónica del mástil.", "default": 0.28},
+                {"id": "Band 3 On", "name": "Banda 3 Bell (Corte Conflicto)", "range": "0.0 o 1.0", "behavior": "Corte de frecuencias huecas en 400-600 Hz.", "default": 1.0},
+                {"id": "3 Frequency A", "name": "Frecuencia Dip", "range": "0.0 a 1.0", "behavior": "Abre espacio a guitarras y teclados.", "default": 0.48}
+            ]
+        },
+        {
+            "name": "Compressor",
+            "uri": "query:AudioFx#Compressor",
+            "params": [
+                {"id": "Threshold", "name": "Threshold", "range": "-40.0 dB a 0.0 dB", "behavior": "Control de dinámica de pulsación de dedos.", "default": -16.0},
+                {"id": "Ratio", "name": "Ratio", "range": "1.0 a 8.0", "behavior": "Compresión consistente en graves.", "default": 3.0},
+                {"id": "Attack", "name": "Attack", "range": "0.0 a 1.0 (5 a 20 ms)", "behavior": "Conserva el click inicial de la cuerda.", "default": 0.35}
+            ]
+        }
+    ],
+    "DEMBOW": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "Filtro pasa-altos en 32 Hz para dejar libre el sub 808.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Corte subsónico de pegada urbana.", "default": 0.17},
+                {"id": "Band 3 On", "name": "Banda 3 Bell (Snap de Caja)", "range": "0.0 o 1.0", "behavior": "Realce agudo en 2.8 kHz para el golpe sincopado de reggaeton.", "default": 1.0},
+                {"id": "3 Frequency A", "name": "Frecuencia Snap Snare", "range": "0.0 a 1.0", "behavior": "Acento cortante y brillante del dembow.", "default": 0.68}
+            ]
+        },
+        {
+            "name": "Drum Buss",
+            "uri": "query:AudioFx#Drum%20Buss",
+            "params": [
+                {"id": "Drive", "name": "Drive", "range": "0.0 a 1.0", "behavior": "Crunch y pegada agresiva característica de música urbana.", "default": 0.30},
+                {"id": "Transients", "name": "Transients", "range": "0.0 a 1.0", "behavior": "Acentúa la pegada del timbal y rimshot.", "default": 0.65}
+            ]
+        }
+    ],
+    "BACKING_VOCALS": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "Corte de graves más alto en 160-200 Hz para no chocar con la voz líder.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Asegura que los coros sean ligeros y no compitan en graves.", "default": 0.35},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Dip Medios)", "range": "0.0 o 1.0", "behavior": "Atenuación en 1.5-2.5 kHz para dejar el frente libre a la voz principal.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia Dip", "range": "0.0 a 1.0", "behavior": "Coloca los coros detrás de la voz solista.", "default": 0.60},
+                {"id": "Band 4 On", "name": "Banda 4 High-Shelf (Aire)", "range": "0.0 o 1.0", "behavior": "Realce de aire en 10-12 kHz para halo angelical estéreo.", "default": 1.0},
+                {"id": "4 Frequency A", "name": "Frecuencia Air", "range": "0.0 a 1.0", "behavior": "Brillo sedoso superior.", "default": 0.85}
+            ]
+        },
+        {
+            "name": "Chorus-Ensemble",
+            "uri": "query:AudioFx#Chorus%20Ensemble",
+            "params": [
+                {"id": "Amount", "name": "Amount", "range": "0.0 a 1.0", "behavior": "Multiplicación coral estéreo.", "default": 0.40},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Espaciamiento de fondo.", "default": 0.45}
+            ]
+        }
     ]
 }
 
@@ -422,6 +551,42 @@ ROLE_FREQUENCY_GUIDE: Dict[str, Dict[str, str]] = {
         "conflict_points": "Enmascaramiento en frecuencias medias-bajas (200-500 Hz) y saturación descontrolada en altas frecuencias.",
         "eq_recommendation": "Corte de graves pasa-altos en 80-100 Hz; atenuación suave de asperezas en 3.5 kHz y 14 kHz.",
         "transient_handling": "Control dinámico con limitación o compresión suave para prevenir que los picos del efecto sobrecarguen el bus maestro."
+    },
+    "RHYTHM_GUITAR": {
+        "dominant_zone": "Cuerpo en 150-350 Hz; mordida de rasgueo y textura rítmica en 1.5-3 kHz.",
+        "conflict_points": "Cuerpo grave (< 120 Hz) choca con el bajo; barro en 300-450 Hz enturbia la mezcla con el teclado/pad.",
+        "eq_recommendation": "HPF en 110-130 Hz; muesca en 400 Hz para limpiar barro; boost amplio en 2.5 kHz para definición rítmica.",
+        "transient_handling": "Compresor VCA con ataque de 15-20 ms para respetar el rasgueo antes de emparejar el sustain."
+    },
+    "LEAD_GUITAR": {
+        "dominant_zone": "Fundamental solista en 300-1200 Hz; sustain y brillo de solo en 2.5-5 kHz.",
+        "conflict_points": "Estridencias punzantes en 3.5-4.5 kHz; competencia directa en el centro con la voz principal si no se panean o ecualizan en oposición.",
+        "eq_recommendation": "HPF en 130-150 Hz; notch estrecho en 3.8 kHz si hay asperezas; realce en 2.8 kHz para cortar la mezcla.",
+        "transient_handling": "Saturador/Overdrive para compresión natural de armónicos; limitación de picos agudos para evitar fatiga auditiva."
+    },
+    "808_BASS": {
+        "dominant_zone": "Subgrave masivo mono en 30-65 Hz; saturación armónica en 120-300 Hz (para celulares).",
+        "conflict_points": "Colisión destructiva instantánea de fase con el bombo (Kick) en 40-70 Hz; frecuencias subsónicas inaudibles (< 25 Hz) que ahogan el compresor maestro.",
+        "eq_recommendation": "HPF en 28-30 Hz; sidechain sustractivo dinámico en la frecuencia fundamental del Kick; saturación armónica en 200 Hz para traducir en altavoces pequeños.",
+        "transient_handling": "Preservar el ataque del transitorio en los primeros 10-15 ms o recortar el ataque para dejar que el Kick pegue primero."
+    },
+    "ELECTRIC_BASS": {
+        "dominant_zone": "Fundamentales de bajo en 50-180 Hz; ataque metálico de cuerda/dedo/púa en 800-2.5 kHz.",
+        "conflict_points": "Barro resonante en 200-300 Hz; colisión en subgraves con bombos acústicos pesados.",
+        "eq_recommendation": "HPF en 35-40 Hz; notch en 220-250 Hz; realce de presencia y dedos en 1.2-1.8 kHz.",
+        "transient_handling": "Opto/1176 en serie: ataque medio-rápido para controlar dinámicas de dedos y dar pegada sólida y consistente."
+    },
+    "DEMBOW": {
+        "dominant_zone": "Pegada de bombo reggaeton en 60-100 Hz; chasquido sincopado de caja/timbal en 1.5-3.5 kHz.",
+        "conflict_points": "Exceso de graves de timbal que ensucian el 808; retumbes de sala en la percusión.",
+        "eq_recommendation": "HPF en 32 Hz; realce en 2.8 kHz en la caja para darle el chasquido característico; corte sustractivo en 400 Hz.",
+        "transient_handling": "Drum Buss con Transients agresivos y saturación Hard para ese filo urbano inconfundible."
+    },
+    "BACKING_VOCALS": {
+        "dominant_zone": "Medios armónicos en 400-2000 Hz; halo sedoso y apertura estéreo en 8-15 kHz.",
+        "conflict_points": "Enmascaramiento de la voz principal si retienen demasiada presencia en 1-3 kHz o cuerpo en 200-300 Hz.",
+        "eq_recommendation": "HPF en 160-200 Hz; dip pronunciado en 1.5-2.5 kHz para hundir los coros detrás de la voz solista; high-shelf en 10 kHz para aire angelical.",
+        "transient_handling": "Compresión densa y rápida (4:1 a 6:1) para aplanar la dinámica coral y mantenerla como un colchón uniforme detrás del lead."
     }
 }
 

@@ -18,8 +18,12 @@ class AudioStemSeparator:
     """Separates a mixed audio track into Drums, Bass, Vocals, and Other stems."""
 
     def __init__(self, output_dir: Optional[str] = None):
-        self.output_dir = Path(output_dir) if output_dir else Path(r"F:\Dev\AbletonEngine\stems")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        repo_root = Path(__file__).resolve().parent.parent.parent.parent
+        self.output_dir = Path(output_dir) if output_dir else repo_root / "stems"
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
 
     @staticmethod
     def _compute_rms_db(data: np.ndarray) -> float:

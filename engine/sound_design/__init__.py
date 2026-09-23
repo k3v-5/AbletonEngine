@@ -82,6 +82,13 @@ from .sonic_identity_audit_v2 import (
     SonicIdentityAuditV2Report,
     SonicIdentityAuditV2,
 )
+from .vital_parameter_schema import VitalParameterSchema
+from .vital_wavetable_synth import WavetableSynthesizer
+from .vital_archetype_catalog import ArchetypeCatalog
+from .vital_sound_sculptor import VitalSoundSculptor
+from .vital_sound_engine import VitalSoundEngine
+from .vital_design_validator import VitalDesignValidator, VitalValidationError, ValidationReport
+from .vital_modular_designer import VitalModularDesigner
 
 __all__ = [
     "ProductionTechniqueFamily",
@@ -133,4 +140,13 @@ __all__ = [
     "AuditPointResult",
     "SonicIdentityAuditV2Report",
     "SonicIdentityAuditV2",
+    "VitalParameterSchema",
+    "WavetableSynthesizer",
+    "ArchetypeCatalog",
+    "VitalSoundSculptor",
+    "VitalSoundEngine",
+    "VitalDesignValidator",
+    "VitalValidationError",
+    "ValidationReport",
+    "VitalModularDesigner",
 ]

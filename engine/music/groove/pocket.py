@@ -129,8 +129,76 @@ class GroovePocketEngine:
             return PocketStyle.BOOM_BAP
         return PocketStyle.ORGANIC_HUMAN
 
-    @staticmethod
+    POCKET_LEVEL_SCALERS: Dict[int, float] = {
+        1: 0.20,  # Level 1: Ultra subtle
+        2: 0.45,  # Level 2: Sutil Natural (Default)
+        3: 0.70,  # Level 3: Moderado Expresivo
+        4: 0.90,  # Level 4: Pronunciado Neo-Soul / Funk
+        5: 1.25,  # Level 5: Brusco Agradable / Dilla Time Slip
+    }
+
+    # Deterministic micro push/pull per role (base offsets in ms)
+    ROLE_MICRO_PUSH_PULL_MS: Dict[str, float] = {
+        "snare": 8.0,        # Lazy snare behind the beat
+        "SNARE": 8.0,
+        "clap": 7.5,
+        "CLAP": 7.5,
+        "hihat": -3.0,       # Rushed hats ahead of the beat (urgency)
+        "HIHAT": -3.0,
+        "hi_hats": -3.0,
+        "HI_HATS": -3.0,
+        "hat_closed": -2.5,
+        "hat_open": -1.0,
+        "sub_bass": 4.5,     # Dragging 808/sub-bass
+        "SUB_BASS": 4.5,
+        "bass": 4.0,
+        "BASS": 4.0,
+        "808": 4.5,
+        "percussion": 3.0,
+        "PERCUSSION": 3.0,
+        "kick": 0.0,         # Absolute grid lock
+        "KICK": 0.0,
+    }
+
+    @classmethod
+    def clamp_ghost_note_velocity(cls, accent_velocity: int, candidate_velocity: int) -> int:
+        """Clamps ghost note velocity strictly between 35% and 45% of peak accent velocity."""
+        min_v = int(round(accent_velocity * 0.35))
+        max_v = int(round(accent_velocity * 0.45))
+        return max(min_v, min(max_v, candidate_velocity))
+
+    @classmethod
+    def apply_pocket_by_level(
+        cls,
+        notes: List[NoteEvent],
+        level: int = 2,
+        role: str = "drums",
+        pocket_style: Union[PocketStyle, str] = PocketStyle.ATLANTA_TRAP,
+        tempo: float = 120.0,
+        bpm: Optional[float] = None,
+        seed: Optional[int] = 42
+    ) -> List[NoteEvent]:
+        """
+        Applies parameterized micro-timing pocket matching the 5 discrete humanization levels.
+        Scales deterministic push/pull (lazy snare, rushed hats, dragging 808) and ghost note dynamics.
+        """
+        if not notes:
+            return []
+        effective_tempo = bpm if bpm is not None else tempo
+        clamped_level = max(1, min(5, int(level)))
+        scaler = cls.POCKET_LEVEL_SCALERS.get(clamped_level, 0.45)
+        return cls.apply_pocket_to_notes(
+            notes=notes,
+            role=role,
+            pocket_style=pocket_style,
+            tempo=effective_tempo,
+            strength=scaler,
+            seed=seed
+        )
+
+    @classmethod
     def apply_pocket_to_notes(
+        cls,
         notes: List[NoteEvent],
         role: str = "lead",
         pocket_style: Union[PocketStyle, str] = PocketStyle.ATLANTA_TRAP,
@@ -140,7 +208,7 @@ class GroovePocketEngine:
     ) -> List[NoteEvent]:
         """
         Applies role-specific micro-timing displacement, velocity variance,
-        and swing to NoteEvents based on genre pocket physics.
+        and swing to NoteEvents based on genre pocket physics and deterministic push/pull.
         """
         if strength <= 0.0 or not notes:
             return [NoteEvent(**n.__dict__) for n in notes]
@@ -151,11 +219,18 @@ class GroovePocketEngine:
         role_clean = role.lower().replace("-", "_").replace(" ", "_")
         mean_offset_ms, std_jitter_ms = budgets.get(role_clean, (2.0, 3.0))
 
+        # Use deterministic role push/pull if explicitly defined for this role
+        if role_clean in cls.ROLE_MICRO_PUSH_PULL_MS:
+            mean_offset_ms = cls.ROLE_MICRO_PUSH_PULL_MS[role_clean]
+
         ms_per_beat = (60.0 / tempo) * 1000.0
         beats_per_ms = 1.0 / ms_per_beat
 
         rng = random.Random(seed)
         pocketed: List[NoteEvent] = []
+
+        # Detect max velocity to calculate proportional ghost note ratio
+        max_vel = max((n.velocity for n in notes), default=100)
 
         for note in notes:
             # Velocity-correlated jitter: louder notes are more accurately timed
@@ -168,6 +243,11 @@ class GroovePocketEngine:
             # Organic velocity variance (+/- 4 to 8 units)
             vel_jitter = int(rng.gauss(0.0, 5.0 * strength))
             new_vel = max(1, min(127, note.velocity + vel_jitter))
+
+            # Ghost note dynamic ratio: strictly 35% to 45% of peak accent
+            if note.velocity <= 55 or note.accent < -0.3:
+                target_ghost_ratio = 0.38 + rng.uniform(-0.03, 0.03) * strength
+                new_vel = max(15, min(65, int(max_vel * target_ghost_ratio)))
 
             # Duration subtle variance (+/- 3%)
             dur_scale = 1.0 + rng.uniform(-0.03, 0.03) * strength
@@ -184,7 +264,8 @@ class GroovePocketEngine:
                 velocity=new_vel,
                 channel=note.channel,
                 probability=note.probability,
-                accent=note.accent
+                accent=note.accent,
+                mute=note.mute
             ))
 
         return pocketed
@@ -259,7 +340,13 @@ class GroovePocketEngine:
                     velocity=new_vel,
                     channel=note.channel,
                     probability=note.probability,
-                    accent=note.accent
+                    accent=note.accent,
+                    mute=note.mute
                 ))
 
         return sorted(strummed_notes, key=lambda n: n.start)
+
+
+# Module-level convenience aliases
+POCKET_LEVEL_SCALERS = GroovePocketEngine.POCKET_LEVEL_SCALERS
+ROLE_MICRO_PUSH_PULL_MS = GroovePocketEngine.ROLE_MICRO_PUSH_PULL_MS

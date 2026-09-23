@@ -44,6 +44,30 @@ class Phase6Arranger:
         if conn is None or not hasattr(conn, "send_command"):
             return True
 
+        session_obj = kwargs.get("session") or (session_or_conn if hasattr(session_or_conn, "data") else None)
+        hum_level = 2
+        bpm = 120.0
+        is_custom_ai = kwargs.get("is_custom_ai", False)
+        if session_obj and hasattr(session_obj, "data"):
+            hum_level = session_obj.data.get("humanization_level", 2)
+            bpm = float(session_obj.data.get("bpm", 120.0))
+            if session_obj.data.get("ai_composed", False):
+                is_custom_ai = True
+        elif "humanization_level" in kwargs:
+            hum_level = kwargs["humanization_level"]
+
+        if is_custom_ai:
+            final_notes_dicts = s_notes_dicts
+        else:
+            from engine.music.groove.humanizer import DynamicGrooveHumanizer
+            role_for_hum = str(trk.get("role", "drums")).lower()
+            final_notes_dicts = DynamicGrooveHumanizer.humanize_with_level(
+                dict_notes=s_notes_dicts,
+                level=hum_level,
+                role=role_for_hum,
+                tempo=bpm
+            ) if s_notes_dicts else []
+
         notes_payload = [
             {
                 "pitch": int(d["pitch"]),
@@ -52,7 +76,7 @@ class Phase6Arranger:
                 "velocity": min(127, max(1, int(d.get("velocity", 100)))),
                 "mute": bool(d.get("mute", False))
             }
-            for d in s_notes_dicts
+            for d in (final_notes_dicts or s_notes_dicts)
         ]
 
         def _do_deploy():

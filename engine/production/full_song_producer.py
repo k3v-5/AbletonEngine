@@ -16,7 +16,9 @@ import json
 import logging
 from typing import Dict, Any, List
 
-sys.path.insert(0, r"F:\Dev\AbletonEngine")
+repo_root = str(Path(__file__).resolve().parent.parent.parent)
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("FullSongProducer")
@@ -453,7 +455,7 @@ def produce_song_0_to_100():
         master_res = LiveMasterChainEngine.setup_live_mastering_chain(conn=conn, track_index=0, target_profile="STREAMING")
 
         # Build Commercial Release Package
-        out_dir = r"F:\Dev\AbletonEngine\build\release_package"
+        out_dir = str(Path(__file__).resolve().parent.parent.parent / "build" / "release_package")
         os.makedirs(out_dir, exist_ok=True)
         pkg = CommercialReleasePackager.create_release_package(
             output_directory=out_dir,

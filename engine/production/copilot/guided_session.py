@@ -117,6 +117,10 @@ from engine.music.modular_generator import (
 
 from .phases.phase_9_export import get_configured_mastering_profile
 from .state_manager import CopilotStateManager
+from engine.session.track_resolver import LiveTrackResolver
+from engine.production.copilot.recipe_builder import CopilotRecipeBuilder
+from engine.production.copilot.phase_registry import PhaseRegistry, default_phase_registry
+from engine.production.copilot.intercept_router import CopilotInterceptRouter
 
 
 class CopilotGuidedSession:
@@ -144,13 +148,13 @@ class CopilotGuidedSession:
         "PHASE_7_AUTOMATION",
         "PHASE_8_VOCAL_DUCKING",
         "PHASE_9_MIX_MASTER",
-        "PHASE_10_COMPLETED",
-        "PHASE_11_AUDIO_RESAMPLING"
+        "PHASE_10_COMPLETED"
     ]
 
-    def __init__(self):
+    def __init__(self, phase_registry: Optional[PhaseRegistry] = None):
         self.data: Dict[str, Any] = self._load_state()
         self.creative_controller = None
+        self.phase_registry = phase_registry or default_phase_registry
 
     def _get_creative_controller(self):
         """Lazily instantiates and returns the LiveCreativeController."""
@@ -176,80 +180,8 @@ class CopilotGuidedSession:
         Prevents index drift caused by pre-existing template tracks, aux/return buses,
         foldable group tracks, audio tracks, or moved tracks.
         """
-        if conn is None or not hasattr(conn, "send_command"):
-            return trk.get("index", 0)
+        return LiveTrackResolver.resolve_track_index(conn, trk)
 
-        t_idx = trk.get("index", 0)
-        t_name = str(trk.get("name", "")).strip()
-        t_role = str(trk.get("role", "")).strip()
-
-        try:
-            # 1. Quick check: does the current index still match?
-            ti = conn.send_command("get_track_info", {"track_index": t_idx})
-            res_ti = ti.get("result", ti) if isinstance(ti, dict) else {}
-            live_name = str(res_ti.get("name", "")).strip()
-            is_foldable = res_ti.get("is_foldable", False)
-
-            # If it's a foldable group track, or template/reference track, it is NOT our track
-            is_unrelated_template = any(ign in live_name.lower() for ign in ["reference", "guia", "guía", "plantilla", "template"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"])
-
-            if not is_foldable and not is_unrelated_template:
-                # Exact name or role tag match on current index
-                if (t_name and t_name.lower() == live_name.lower()) or (t_role and f"[{t_role.lower()}]" in live_name.lower()):
-                    return t_idx
-                # Substring match if name is sufficiently distinctive
-                if t_name and len(t_name) >= 3 and t_name.lower() in live_name.lower():
-                    return t_idx
-
-            # 2. Index drifted or occupied by another track: scan all session tracks dynamically
-            s_info = conn.send_command("get_session_info", {})
-            res_s = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
-            t_count = int(res_s.get("track_count", 0))
-
-            # Candidates pass 1: Exact name or role bracket tag
-            for cand_idx in range(t_count):
-                try:
-                    c_ti = conn.send_command("get_track_info", {"track_index": cand_idx})
-                    c_res = c_ti.get("result", c_ti) if isinstance(c_ti, dict) else {}
-                    if c_res.get("is_foldable", False):
-                        continue
-                    c_name = str(c_res.get("name", "")).strip()
-                    if any(ign in c_name.lower() for ign in ["reference", "guia", "guía", "plantilla"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"]):
-                        continue
-                    # Check exact name
-                    if t_name and c_name.lower() == t_name.lower():
-                        trk["index"] = cand_idx
-                        return cand_idx
-                    # Check bracketed role
-                    if t_role and f"[{t_role.lower()}]" in c_name.lower():
-                        trk["index"] = cand_idx
-                        return cand_idx
-                except Exception:
-                    continue
-
-            # Candidates pass 2: Normalized role and prefix/substring match
-            for cand_idx in range(t_count):
-                try:
-                    c_ti = conn.send_command("get_track_info", {"track_index": cand_idx})
-                    c_res = c_ti.get("result", c_ti) if isinstance(c_ti, dict) else {}
-                    if c_res.get("is_foldable", False):
-                        continue
-                    c_name = str(c_res.get("name", "")).strip()
-                    if any(ign in c_name.lower() for ign in ["reference", "guia", "guía", "plantilla"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"]):
-                        continue
-                    norm_c_role = RoleTrackOrchestrator.normalize_role(c_name)
-                    if t_role and norm_c_role and norm_c_role == t_role:
-                        trk["index"] = cand_idx
-                        return cand_idx
-                    if t_name and len(t_name) >= 3 and (c_name.lower().startswith(t_name.lower()) or t_name.lower() in c_name.lower()):
-                        trk["index"] = cand_idx
-                        return cand_idx
-                except Exception:
-                    continue
-        except Exception as e:
-            logger.debug(f"Track resolution notice: {e}")
-
-        return t_idx
 
     def _default_state(self) -> Dict[str, Any]:
         return CopilotStateManager.default_state()
@@ -360,22 +292,10 @@ class CopilotGuidedSession:
             "master": "PHASE_9_MIX_MASTER",
             "mastering": "PHASE_9_MIX_MASTER",
             "fase 9": "PHASE_9_MIX_MASTER",
-            "paso 9": "PHASE_9_MIX_MASTER",
-            "fase 10": "PHASE_10_COMPLETED",
-            "paso 10": "PHASE_10_COMPLETED",
-            "resampling": "PHASE_11_AUDIO_RESAMPLING",
-            "reprocesamiento": "PHASE_11_AUDIO_RESAMPLING",
-            "resintesis": "PHASE_11_AUDIO_RESAMPLING",
-            "resíntesis": "PHASE_11_AUDIO_RESAMPLING",
-            "mutacion": "PHASE_11_AUDIO_RESAMPLING",
-            "mutación": "PHASE_11_AUDIO_RESAMPLING",
-            "mutaciones": "PHASE_11_AUDIO_RESAMPLING",
-            "uhts": "PHASE_11_AUDIO_RESAMPLING",
-            "fase 11": "PHASE_11_AUDIO_RESAMPLING",
-            "paso 11": "PHASE_11_AUDIO_RESAMPLING"
+            "paso 9": "PHASE_9_MIX_MASTER"
         }
 
-        for keyword, mapped_phase in sorted(phase_map.items(), key=lambda x: len(x[0]), reverse=True):
+        for keyword, mapped_phase in phase_map.items():
             if keyword in norm_text:
                 target_phase = mapped_phase
                 break
@@ -409,8 +329,6 @@ class CopilotGuidedSession:
             self.data["composition_session"] = {"active": True, "mode": "BY_TRACK", "track_index": 0, "section_index": 0}
         elif target_phase == "PHASE_7_AUTOMATION":
             self.data["automation_session"] = {"active": False}
-        elif target_phase == "PHASE_11_AUDIO_RESAMPLING":
-            self.data["resampling_session"] = {"active": True, "stage": "SELECT_SOURCE"}
 
         # Resync physical track indices
         tracks = self.data.get("tracks", [])
@@ -439,8 +357,6 @@ class CopilotGuidedSession:
             prompt = self._prompt_phase_8_vocal_ducking()
         elif target_phase == "PHASE_9_MIX_MASTER":
             prompt = self._prompt_phase_9()
-        elif target_phase == "PHASE_11_AUDIO_RESAMPLING":
-            prompt = self._prompt_phase_11(conn)
         else:
             prompt = self._handle_phase_10(conn, "")
 
@@ -453,6 +369,10 @@ class CopilotGuidedSession:
         self.data = self._default_state()
         self.creative_controller = None
         self._save_state(action_tag="SESSION_RESET")
+
+    def handle_input(self, user_input: str = "", conn: Any = None) -> Dict[str, Any]:
+        """Convenience wrapper for step(conn, user_input)."""
+        return self.step(conn=conn, user_input=user_input)
 
     def step(self, conn: Any, user_input: str = "", reset: bool = False) -> Dict[str, Any]:
         if reset:
@@ -482,30 +402,6 @@ class CopilotGuidedSession:
         if is_rollback_cmd:
             return self._handle_rollback(conn, u_in)
 
-        # 0. Taiko Pure (Taiko Ryūsei): Pure Japanese ceremonial Taiko with ZERO audio reprocessing
-        is_taiko_pure = "taiko" in norm_text and any(w in norm_text for w in [
-            "no quiero que reproceses", "sin reprocesar", "sin reprocesamiento", "cero reprocesamiento",
-            "no reproceses", "no reprocesar", "sin mutacion", "sin uhts", "puro", "pura", "sin resampling"
-        ])
-        if is_taiko_pure:
-            return self._handle_taiko_pure_orchestration(conn, u_in)
-
-        # 0. Taiko Shimmer: Next Song with Single Reprocessing Effect on Original Pad
-        is_taiko_single_effect = "taiko" in norm_text and (
-            any(w in norm_text for w in ["un solo", "solo efecto", "un efecto", "un procesamiento", "shimmer", "siguiente cancion", "nueva cancion", "otra cancion", "siguiente", "nueva"])
-            or ("pad" in norm_text and any(w in norm_text for w in ["original", "ariginal"]))
-        ) and not any(w in norm_text for w in ["20 escenas", "las 20", "todas las tecnicas", "casti", "no quiero que reproceses", "sin reprocesar", "sin reprocesamiento", "cero reprocesamiento", "no reproceses", "puro"])
-
-        if is_taiko_single_effect:
-            return self._handle_taiko_shimmer_orchestration(conn, u_in)
-
-        # 0. Taiko x Casti Full Song & 20-Scene Pad Orchestration Intercept
-        is_taiko_casti = any(w in norm_text for w in ["taiko", "casti"]) and any(w in norm_text for w in [
-            "cancion", "canción", "tema", "implementa", "orquesta", "producir", "crear", "pad", "20 escenas", "escenas", "suite"
-        ]) and not any(w in norm_text for w in ["no quiero que reproceses", "sin reprocesar", "sin reprocesamiento", "cero reprocesamiento", "no reproceses", "puro"])
-        if is_taiko_casti:
-            return self._handle_taiko_casti_orchestration(conn, u_in)
-
         # 0. Live Creative Controller Commands (Shadow Mode / Limited Actuation / Telemetry Audit)
         if any(w in norm_text for w in ["modo sombra", "shadow mode", "activar modo sombra"]):
             return self._handle_creative_controller_mode_command("SHADOW")
@@ -514,270 +410,27 @@ class CopilotGuidedSession:
         if any(w in norm_text for w in ["auditoria creativa", "estado creativo", "telemetria creativa", "creative status", "dashboard creativo"]):
             return self._handle_creative_controller_telemetry_audit(conn)
 
-        # 0. Audio Reprocessing Configuration Parameter (Toggle Reprocessing ON / OFF)
-        if any(w in norm_text for w in [
-            "apagar reprocesamiento", "apagar el reprocesamiento", "desactivar reprocesamiento",
-            "apagar uhts", "desactivar uhts", "desactivar resampling", "apagar resampling",
-            "sin reprocesar", "no quiero que reproceses", "cero reprocesamiento", "no reproceses"
-        ]) and not any(w in norm_text for w in ["cancion", "canción", "tema", "generame", "crear cancion"]):
-            return self.set_reprocessing_enabled(False)
+        # Global Intercept Router (Chain of Responsibility / SRP):
+        # Dispatches global commands (song contract, omissions, x-ray) and modal sub-states
+        # (recalibration, instrument swap, modular composition, surgical automation,
+        # pre-vocal panning, LUFS gate, vocal workflow, tuning, automation preferences).
+        intercept_res = CopilotInterceptRouter.intercept(self, conn, u_in)
+        if intercept_res is not None:
+            return intercept_res
 
-        if any(w in norm_text for w in [
-            "activar reprocesamiento", "encender reprocesamiento", "habilitar reprocesamiento",
-            "activar uhts", "activar resampling"
-        ]):
-            return self.set_reprocessing_enabled(True)
-
-        # 0. Sound Design Mode Configuration (Parameterized toggle: LEGACY vs ADVANCED)
-        if any(w in norm_text for w in [
-            "activar sound design avanzado", "modo sound design avanzado", "sound design avanzado",
-            "activar sound design", "modo sound design moderno", "sound design moderno", "activar diseño sonoro avanzado"
-        ]):
-            return self.set_sound_design_mode("ADVANCED")
-
-        if any(w in norm_text for w in [
-            "modo sound design clasico", "modo sound design legado", "desactivar sound design avanzado",
-            "desactivar sound design", "sound design clasico", "modo clasico sound design", "omitir sound design avanzado"
-        ]):
-            return self.set_sound_design_mode("LEGACY")
-
-        if any(w in norm_text for w in [
-            "estado sound design", "modo sound design", "consultar sound design", "configuracion sound design",
-            "estado reprocesamiento", "configuracion reprocesamiento"
-        ]):
-            return self._handle_sound_design_status_query()
-
-        # 0. Song Contract, Omission Audit, and Creative Continuity Commands
-        if any(w in norm_text for w in ["ver contrato", "contrato de la cancion", "contrato de la obra", "mostrar contrato", "obligaciones", "song contract"]):
-            return self._handle_song_contract_query()
-
-        if any(w in norm_text for w in ["auditoria de omisiones", "auditoria omisiones", "omisiones", "que falta", "que se olvido", "obligaciones pendientes", "omission audit"]):
-            return self._handle_omission_audit_query(conn)
-
-        if any(w in norm_text for w in ["intencion creativa", "tesis sonora", "eje emocional", "anclas de identidad", "song intent"]):
-            return self._handle_song_intent_query()
-
-        if any(w in norm_text for w in ["creative x-ray", "creative xray", "radiografia creativa", "radiografía creativa", "xray", "x-ray", "espejo perceptual"]):
-            return self._handle_creative_xray_query(conn)
-
-        # 0. Active state intercept for Effect Recalibration / Backward Adjustments
-        if self.data.get("awaiting_effect_recalibration", False):
-            return self._handle_effect_recalibration(conn, u_in)
-
-        # 0. Active state intercept for Instrument Swap Re-validation Flow (Phase 10)
-        if self.data.get("instrument_swap_state"):
-            return self._handle_instrument_swap_step(conn, u_in)
-
-        # Global Instrument Swap Trigger across Phases 6, 7, 9, 10
-        is_swap_trigger = any(w in norm_text for w in [
-            "cambiar instrumento", "cambiar sonido", "cambio de instrumento", "cambio de sonido",
-            "reemplazar instrumento", "reemplazar sonido", "otro instrumento", "swap instrument",
-            "modificar instrumento", "nuevo instrumento", "cambiar preset"
-        ])
-        if is_swap_trigger and phase in ("PHASE_6_COMPOSITION", "PHASE_7_AUTOMATION", "PHASE_9_MIX_MASTER", "PHASE_10_COMPLETED"):
-            failed_t_idx = self.data.get("pending_instrument_swap_track")
-            if failed_t_idx is not None:
-                tracks = self.data.get("tracks", [])
-                target_t = next((t for t in tracks if t.get("index") == failed_t_idx), None)
-                if target_t:
-                    self.data["instrument_swap_state"] = {
-                        "active": True,
-                        "stage": "SELECT_PRESET",
-                        "track_index": target_t.get("index"),
-                        "track_name": target_t.get("name"),
-                        "track_role": target_t.get("role"),
-                        "origin_phase": phase
-                    }
-                    self._save_state()
-                    return self._prompt_instrument_swap_preset(target_t)
-            return self._initiate_instrument_swap_flow(conn, u_in)
-
-        # 0. Active state intercept for Modular Phase 6 Composition
-        if phase == "PHASE_6_COMPOSITION" and self.data.get("composition_session", {}).get("active", False):
-            return self._handle_modular_composition_step(conn, u_in)
-
-        # 0. Active state intercept for Surgical Phase 7 Automation (Clip by Clip)
-        if phase == "PHASE_7_AUTOMATION" and self.data.get("automation_session", {}).get("active", False):
-            return self._handle_surgical_automation_step(conn, u_in)
-
-        # 0. Active state intercept for Awaiting Pre-Vocal Panning Decision
-        if self.data.get("awaiting_pre_vocal_panning", False):
-            return self._handle_pre_vocal_panning(conn, u_in)
-
-        # 0. Active state intercept for LUFS Calibration Gatekeeper
-        if self.data.get("lufs_gate_active", False):
-            return self._handle_dual_lufs_validation(conn, u_in)
-
-        # 0.1 Active state intercept for Awaiting Vocal Workflow Choice (2 Partes)
-        if self.data.get("awaiting_vocal_workflow_choice", False):
-            return self._handle_phase_10(conn, u_in)
-
-        # 0. Active state intercept for Phase 11 Resampling & Reprocessing
-        if phase == "PHASE_11_AUDIO_RESAMPLING" or self.data.get("resampling_session", {}).get("active", False):
-            return self._handle_phase_11(conn, u_in)
-
-        # Global Resampling & Mutation Trigger across Phases 9, 10, 11
-        is_resampling_trigger = any(w in norm_text for w in [
-            "resamplear", "reprocesar", "catalogo de reprocesamiento", "resintesis", "resíntesis",
-            "mutar sonido", "mutaciones de audio", "uhts", "fase 11", "paso 11", "resampling"
-        ])
-        if is_resampling_trigger and phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER", "PHASE_11_AUDIO_RESAMPLING"):
-            self.data["current_phase"] = "PHASE_11_AUDIO_RESAMPLING"
-            self.data["phase_index"] = 11
-            self._save_state(action_tag="ENTER_PHASE_11")
-            return self._handle_phase_11(conn, u_in)
-
-        # Priority intercept for vocal take processing, slicing, chops, and gain calibration
-        is_vocal_trigger = (
-            (
-                any(w in norm_text for w in ["vocal", "voz", "voces", "toma continua", "toma vocal", "audio vocal", "vocal chop", "vocal chops", "ambos en 2 partes"])
-                and any(w in norm_text for w in ["corta", "cortalo", "cortar", "rebanar", "trocear", "chop", "chops", "chopp", "choppealo", "chopea", "chopear", "frases", "frase", "procesar toma", "alinear toma", "ambos en 2 partes", "opcion 3 ambos"])
-            ) or any(w in norm_text for w in [
-                "ya grabe", "ya lo grabe", "toma lista", "grabe la voz", "grabo la voz", "voz lista", "procesar voz", "grabar voz"
-            ])
-        ) and (phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER") or any(w in norm_text for w in ["grabe", "toma", "chop", "cortar", "rebanar"]))
-        if is_vocal_trigger:
-            # Pre-Vocal Anti-Overlap Instrument Panning Gatekeeper
-            if not self.data.get("panning_evaluated", False):
-                tracks = self.data.get("tracks", [])
-                inst_tracks = [t for t in tracks if t.get("role") != "VOCALS" and not t.get("is_foldable", False)]
-                if len(inst_tracks) >= 2:
-                    p_audit = InstrumentPanningEvaluator.evaluate_session_panning(tracks, conn=conn)
-                    if p_audit.get("has_masking_risk", False):
-                        return self._prompt_pre_vocal_panning(conn, pending_vocal_input=u_in)
-            return self._handle_phase_10(conn, u_in)
-
-        # Immediate priority intercept for vocal effect chain sculpting & mandatory configuration
-        if any(w in norm_text for w in ["efectos", "cadena", "cadenas", "configurar", "obligando", "obligar", "esculpir", "autotune", "auto-tune"]) and any(w in norm_text for w in ["vocal", "voz"]):
-            tracks = self.data.get("tracks", [])
-            v_trk = next((t for t in tracks if t.get("role") == "VOCALS" or "vocal" in str(t.get("name", "")).lower()), None)
-            if not v_trk:
-                v_trk = {
-                    "index": 12,
-                    "name": "[VOCALS] Lead Vocal (Live Mic)",
-                    "role": "VOCALS",
-                    "instrument": "Live Mic Recording Take",
-                    "gain_staging": {"role_class": "vocal", "target_peak_dbfs": -18.0},
-                    "insert_effects": []
-                }
-                tracks.append(v_trk)
-                self.data["tracks"] = tracks
-            v_idx = tracks.index(v_trk)
-            self.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-            self.data["phase_index"] = 5
-            self.data["current_fx_track_ptr"] = v_idx
-            self.data["current_fx_dev_ptr"] = 0
-            self._save_state()
-            prompt = self._prompt_current_fx_device()
-            prompt["action_taken"] = "Iniciando esculpido obligatorio de la cadena de efectos vocales paso a paso."
-        # Direct tuning intercept: "afinar en [Key]", "cambiar escala a [Scale]", "cambiar tonalidad a [Key]"
-        if any(w in norm_text for w in ["afinar en", "cambiar escala", "cambiar tonalidad", "ajustar escala", "escala a", "tonalidad a", "afinar sesion"]):
-            d_key, d_scale, _ = parse_autotune_settings(u_in)
-            if not d_key:
-                km = re.search(r'\b([a-g][#b]?)\b', norm_text)
-                if km:
-                    d_key = km.group(1).upper()
-            f_key = d_key or self.data.get("key", "F")
-            f_scale = d_scale or self.data.get("scale", "Minor")
-            self.data["key"] = f_key
-            self.data["scale"] = f_scale
-            tune_res = self._sync_session_tuning(conn, f_key, f_scale)
-            self._save_state()
-            return {
-                "status": "SESSION_TUNED",
-                "action_taken": f"Tonalidad sincronizada a {f_key} {f_scale} en Ableton Live 12 y plugins de pitch.",
-                "phase": phase,
-                "tuning_details": tune_res,
-                "question": f"✅ **Sesión afinada en {f_key} {f_scale}.** Live 12 y Auto-Tune actualizados. ¿Deseas continuar con {phase}?"
-            }
-
-        # Direct retroactive effect adjustment trigger
-        if any(w in norm_text for w in ["ajustar efecto", "ajustar efectos", "modificar efecto", "modificar efectos", "cambiar filtro", "retocar reverb", "retocar efecto", "corregir efectos"]):
-            return self._prompt_effect_recalibration()
-
-        # Direct panning and spatial separation trigger
-        if any(w in norm_text for w in ["panear", "paneo", "separacion estereo", "solapamiento", "antienmascaramiento", "abrir estereo", "campo estereo"]):
-            return self._handle_direct_panning_command(conn, u_in)
-
-        # Immediate priority intercept for dual-stage LUFS validation (channel + master)
-        if phase not in ("PHASE_8_MIX_MASTER", "PHASE_9_MIX_MASTER") and any(w in norm_text for w in ["lufs", "luffs", "sonoridad", "loudness"]):
-            return self._handle_dual_lufs_validation(conn, u_in)
-
-        # Direct preference configuration for automation mode (clip_by_clip vs express)
-        if any(w in norm_text for w in ["automatizacion por clip", "automatizacion quirurgica", "automatizaciones por clip", "automatizaciones quirurgicas"]):
-            try:
-                from engine.memory.user_learning import save_user_preference
-                save_user_preference("automation", "mode", "clip_by_clip")
-            except Exception:
-                pass
-            if phase == "PHASE_7_AUTOMATION":
-                return self._init_surgical_automation(conn)
-            return {
-                "status": "PREFERENCE_SAVED",
-                "message": "Preferencia guardada: Modo de automatización configurado en 'clip_by_clip' (quirúrgico paso a paso).",
-                "question": "Preferencia guardada: Modo quirúrgico por clip activo.",
-                "phase": phase
-            }
-
-        if any(w in norm_text for w in ["automatizacion express", "automatizacion en lote", "automatizacion por todo el tema", "automatizaciones express"]):
-            try:
-                from engine.memory.user_learning import save_user_preference
-                save_user_preference("automation", "mode", "express")
-            except Exception:
-                pass
-            return {
-                "status": "PREFERENCE_SAVED",
-                "message": "Preferencia guardada: Modo de automatización configurado en 'express' (todo el tema en lote).",
-                "question": "Preferencia guardada: Modo express activo.",
-                "phase": phase
-            }
-
+        # Phase prompt dispatching (when user_input is empty)
         if not u_in:
-            if phase == "PHASE_1_TRACKS":
-                return self._prompt_phase_1()
-            elif phase == "PHASE_2_SECTIONS":
-                return self._prompt_phase_2(self.data.get("tracks", []))
-            elif phase == "PHASE_3_INSTRUMENTS":
-                return self._prompt_current_track_instrument()
-            elif phase == "PHASE_4_PARAM_SCULPTING":
-                return self._prompt_current_track_params()
-            elif phase == "PHASE_5_INSERT_EFFECTS":
-                return self._prompt_current_fx_device()
-            elif phase == "PHASE_6_COMPOSITION":
-                return self._prompt_phase_6()
-            elif phase == "PHASE_7_AUTOMATION":
-                return self._prompt_phase_7()
-            elif phase == "PHASE_8_VOCAL_DUCKING":
-                return self._prompt_phase_8_vocal_ducking()
-            elif phase in ("PHASE_8_MIX_MASTER", "PHASE_9_MIX_MASTER"):
-                return self._prompt_phase_9()
-            elif phase in ("PHASE_9_COMPLETED", "PHASE_10_COMPLETED"):
+            if self.phase_registry.has_phase(phase):
+                if phase == "PHASE_2_SECTIONS":
+                    return self.phase_registry.dispatch_prompt(phase, self, tracks=self.data.get("tracks", []))
+                return self.phase_registry.dispatch_prompt(phase, self)
+            if phase in ("PHASE_9_COMPLETED", "PHASE_10_COMPLETED"):
                 return self._handle_phase_10(conn, "")
-            elif phase == "PHASE_11_AUDIO_RESAMPLING":
-                return self._prompt_phase_11(conn)
+            return {"status": "ERROR", "message": f"Fase desconocida: {phase}"}
 
-        if phase == "PHASE_1_TRACKS":
-            return self._handle_phase_1(conn, u_in)
-        elif phase == "PHASE_2_SECTIONS":
-            return self._handle_phase_2(conn, u_in)
-        elif phase == "PHASE_3_INSTRUMENTS":
-            return self._handle_phase_3(conn, u_in)
-        elif phase == "PHASE_4_PARAM_SCULPTING":
-            return self._handle_phase_4(conn, u_in)
-        elif phase == "PHASE_5_INSERT_EFFECTS":
-            return self._handle_phase_5(conn, u_in)
-        elif phase == "PHASE_6_COMPOSITION":
-            return self._handle_phase_6(conn, u_in)
-        elif phase == "PHASE_7_AUTOMATION":
-            return self._handle_phase_7(conn, u_in)
-        elif phase == "PHASE_8_VOCAL_DUCKING":
-            return self._handle_phase_8_vocal_ducking(conn, u_in)
-        elif phase in ("PHASE_8_MIX_MASTER", "PHASE_9_MIX_MASTER"):
-            return self._handle_phase_9(conn, u_in)
-        elif phase in ("PHASE_9_COMPLETED", "PHASE_10_COMPLETED"):
-            return self._handle_phase_10(conn, u_in)
-        elif phase == "PHASE_11_AUDIO_RESAMPLING":
-            return self._handle_phase_11(conn, u_in)
+        # Phase handle dispatching (when user_input is provided)
+        if self.phase_registry.has_phase(phase):
+            return self.phase_registry.dispatch_handle(phase, self, conn, u_in)
 
         return {"status": "ERROR", "message": f"Fase desconocida: {phase}"}
 
@@ -971,129 +624,6 @@ class CopilotGuidedSession:
         from .phases.phase_4_param_sculpting import Phase4ParamSculptingHandler
         return Phase4ParamSculptingHandler().handle(self, conn, user_input)
 
-    def set_sound_design_mode(self, mode: str) -> Dict[str, Any]:
-        mode_upper = mode.upper().strip()
-        if mode_upper not in ["LEGACY", "ADVANCED"]:
-            mode_upper = "LEGACY"
-        if "sound_design_config" not in self.data:
-            self.data["sound_design_config"] = {
-                "mode": "LEGACY",
-                "allow_outer_shell": True,
-                "allow_uhts_layer": True,
-                "allow_macro_racks": True,
-                "auto_detect_vst": True
-            }
-        self.data["sound_design_config"]["mode"] = mode_upper
-        self._save_state(action_tag=f"SOUND_DESIGN_MODE_{mode_upper}")
-
-        if mode_upper == "ADVANCED":
-            msg = (
-                "🎛️ **Modo de Sound Design Avanzado Activado en Guided Session** ✨\n\n"
-                "La Fase 4 ahora dispondrá del estudio completo de diseño sonoro:\n"
-                "• **Outer Sound Design Shell:** Cadenas de inserción profesionales (Roar/Saturator + Auto Filter modulado + OTT/Drum Buss) para esculpir el 80% del timbre fuera del sintetizador.\n"
-                "• **Capas Autogéneas UHTS:** Generación de audio paralelo con mutaciones espectrales del catálogo UHTS (#06 Shimmer, #01 Tape, #03 Granular).\n"
-                "• **Macro Racks:** Envoltorio en Instrument Racks de 4 Macros (Color, Drive, Movimiento, Espacio).\n"
-                "• **Soporte de VSTs de Terceros:** Detección automática y compatibilidad total con plugins cerrados o abiertos.\n\n"
-                "*(Puedes volver al modo clásico en cualquier momento diciendo 'modo sound design clasico')*"
-            )
-        else:
-            msg = (
-                "🏛️ **Modo de Sound Design Clásico (LEGACY) Activado**\n\n"
-                "La Fase 4 operará con el flujo tradicional de esculpido de 4 parámetros numéricos (Cutoff, Drive, Attack, Release) y opciones 1, 2 y 3."
-            )
-
-        return {
-            "status": "SOUND_DESIGN_MODE_UPDATED",
-            "mode": mode_upper,
-            "message": msg,
-            "phase": self.data.get("current_phase", "PHASE_1_TRACKS")
-        }
-
-    def get_sound_design_mode(self) -> str:
-        cfg = self.data.get("sound_design_config", {})
-        return cfg.get("mode", "LEGACY")
-
-    def _handle_sound_design_status_query(self) -> Dict[str, Any]:
-        mode = self.get_sound_design_mode()
-        reproc = self.get_reprocessing_enabled()
-        cfg = self.data.get("sound_design_config", {})
-        return {
-            "status": "SOUND_DESIGN_CONFIG_STATUS",
-            "mode": mode,
-            "reprocessing_enabled": reproc,
-            "config": cfg,
-            "message": (
-                f"Configuración de Sound Design y Reprocesamiento:\n"
-                f"• Modo Sound Design: `{mode}`\n"
-                f"• Reprocesamiento de Audio: `{'ACTIVADO' if reproc else 'DESACTIVADO (100% Síntesis e Instrumentación Viva)'}`"
-            ),
-            "phase": self.data.get("current_phase", "PHASE_1_TRACKS")
-        }
-
-    def set_reprocessing_enabled(self, enabled: bool) -> Dict[str, Any]:
-        """
-        Authoritative configuration parameter that governs whether the engine
-        performs audio resampling / UHTS spectral mutations or operates with
-        100% pure synthesis and live instrumentation through the standard 9-phase pipeline.
-        """
-        if "sound_design_config" not in self.data:
-            self.data["sound_design_config"] = {
-                "mode": "LEGACY",
-                "reprocessing_enabled": True,
-                "allow_outer_shell": True,
-                "allow_uhts_layer": True,
-                "allow_macro_racks": True,
-                "auto_detect_vst": True
-            }
-
-        self.data["sound_design_config"]["reprocessing_enabled"] = enabled
-        self.data["sound_design_config"]["allow_uhts_layer"] = enabled
-
-        if not enabled:
-            self.data["sound_design_config"]["mode"] = "LEGACY"
-            self.data["resampling_session"] = {
-                "active": False,
-                "mode": "DISABLED",
-                "stage": "OFF_BY_CONFIG",
-                "technique": "None (Pure Synthesis & Live Percussion)",
-                "reason": "Disabled by user configuration parameter (reprocessing_enabled = False)"
-            }
-            action_tag = "REPROCESSING_DISABLED"
-            msg = (
-                "🛑 **Reprocesamiento de Audio Desactivado por Configuración (`reprocessing_enabled = False`)**\n\n"
-                "El parámetro del motor ha sido configurado para apagar completamente el reprocesamiento y resampling:\n\n"
-                "• **Modo Operativo:** `LEGACY / SÍNTESIS PURA` (100% instrumentación viva, VSTs y síntesis nativa en tiempo real).\n"
-                "• **Fase 4 (Param Sculpting):** Esculpido directo de parámetros acústicos (filtros, envolventes ADSR, macros) y Auto Gain Staging jerárquico. **Cero capas de audio mutado UHTS ni resampling**.\n"
-                "• **Fase 11 (Resampling):** Omitida y desactivada por configuración.\n"
-                "• **Gobernanza Completa:** Sin atajos. Todas las compuertas (Auditoría física de Drum Rack, Inserción de EQ Eight en cada canal, Gain Staging y Master Chain ITU-R BS.1770-5 @ -14.0 LUFS) se ejecutan con rigor absoluto."
-            )
-        else:
-            self.data["sound_design_config"]["mode"] = "ADVANCED"
-            self.data["resampling_session"] = {
-                "active": True,
-                "mode": "ENABLED",
-                "stage": "AWAITING_TRIGGER"
-            }
-            action_tag = "REPROCESSING_ENABLED"
-            msg = (
-                "✨ **Reprocesamiento de Audio Habilitado por Configuración (`reprocessing_enabled = True`)**\n\n"
-                "• **Modo Operativo:** `ADVANCED` (Fase 4 y Fase 11 con soporte para capas paralelas UHTS y mutaciones de audio)."
-            )
-
-        self._save_state(action_tag=action_tag)
-        return {
-            "status": "REPROCESSING_CONFIG_UPDATED",
-            "reprocessing_enabled": enabled,
-            "mode": self.data["sound_design_config"]["mode"],
-            "config": self.data["sound_design_config"],
-            "message": msg,
-            "phase": self.data.get("current_phase", "PHASE_1_TRACKS")
-        }
-
-    def get_reprocessing_enabled(self) -> bool:
-        cfg = self.data.get("sound_design_config", {})
-        return cfg.get("reprocessing_enabled", True)
-
     # -------------------------------------------------------------------------
     # FASE 5: CADENAS DE INSERCIÓN Y COMPUERTA DE EQ (Handler modularizado)
     # -------------------------------------------------------------------------
@@ -1172,8 +702,7 @@ class CopilotGuidedSession:
         return Phase6CompositionHandler().find_custom_notes_for_track_section(self, *args, **kwargs)
 
     def _build_recipe_from_session(self) -> ProductionRecipe:
-        from .phases.phase_6_composition import Phase6CompositionHandler
-        return Phase6CompositionHandler().build_recipe_from_session(self)
+        return CopilotRecipeBuilder.build_recipe_from_session(self)
 
     def _prompt_phase_7(self) -> Dict[str, Any]:
         from .phases.phase_7_automation import Phase7AutomationHandler
@@ -1277,315 +806,6 @@ class CopilotGuidedSession:
     def _audit_and_prepare_stems(self, conn: Any) -> Dict[str, Any]:
         from .phases.phase_10_listeners import Phase10ListenersHandler
         return Phase10ListenersHandler().audit_and_prepare_stems(self, conn)
-
-    # -------------------------------------------------------------------------
-    # FASE 11: CATÁLOGO DE REPROCESAMIENTO Y MUTACIÓN DE AUDIO CONTINUO (UHTS)
-    # -------------------------------------------------------------------------
-    def _prompt_phase_11(self, conn: Any = None) -> Dict[str, Any]:
-        from .phases.phase_11_resampling import Phase11ResamplingHandler
-        return Phase11ResamplingHandler().prompt(self, conn=conn)
-
-    def _handle_phase_11(self, conn: Any, user_input: str) -> Dict[str, Any]:
-        from .phases.phase_11_resampling import Phase11ResamplingHandler
-        return Phase11ResamplingHandler().handle(self, conn, user_input)
-
-    def _handle_taiko_casti_orchestration(self, conn: Any, user_input: str) -> Dict[str, Any]:
-        """
-        Natively orchestrates the full 80-bar Taiko x Casti song with 20 scenes,
-        5 dedicated sculpted tracks, and the 20-stage evolving UHTS pad.
-        Transitions state machine directly to Phase 11 with full audit compliance.
-        """
-        from engine.composition.taiko_casti_composer import TaikoCastiComposer
-
-        logger.info("CopilotGuidedSession: Orchestrating Taiko x Casti full song & 20-scene pad suite...")
-        deploy_res = TaikoCastiComposer.deploy(conn)
-
-        # Synchronize session state
-        self.data["current_phase"] = "PHASE_11_AUDIO_RESAMPLING"
-        self.data["phase_index"] = 11
-        self.data["key"] = "F"
-        self.data["scale"] = "Minor"
-        self.data["bpm"] = 100.0
-
-        tracks = deploy_res.get("tracks", [])
-        if tracks:
-            self.data["tracks"] = tracks
-
-        self.data["sections"] = [
-            {"name": s["name"], "bars": 4, "energy": s["energy"], "index": s["idx"] - 1}
-            for s in TaikoCastiComposer.SCENES
-        ]
-
-        pad_idx = tracks[-1].get("index", 22) if tracks else 22
-        self.data["resampling_session"] = {
-            "active": True,
-            "stage": "COMPLETED",
-            "selected_pipeline": "uhts_20_scenes",
-            "mode": "FULL_20_SCENE_EVOLUTION",
-            "last_deployed_track": pad_idx
-        }
-
-        # Update Song Contract to reflect verified production
-        try:
-            contract = self._get_song_contract()
-            contract.title = "Taiko x Casti (Hybrid Phrygian)"
-            contract.intent_memory.thesis.genre = "Japanese Taiko x Trap Phrygian Hybrid"
-            contract.intent_memory.thesis.statement = "Fusión ceremonial de percusión japonesa Taiko con subgraves 808 oscuros y pad evolutivo UHTS de 20 etapas."
-            contract.intent_memory.thesis.key = "F"
-            contract.intent_memory.thesis.scale = "Minor"
-            contract.intent_memory.thesis.bpm = 100.0
-            self._sync_song_contract(contract)
-        except Exception as e:
-            logger.debug(f"Notice updating song contract: {e}")
-
-        self._create_checkpoint(tag="TAIKO_CASTI_ORCHESTRATED")
-        self._save_state(action_tag="TAIKO_CASTI_ORCHESTRATED")
-
-        msg = (
-            "🥁 **Canción Épica Híbrida Taiko x Casti Desplegada Exitosamente en Ableton Live 12** 🥋🔥\n\n"
-            "El Copilot ha orquestado la composición completa a lo largo de 80 compases (320 beats):\n\n"
-            "• **Afinación & Tempo:** `100.0 BPM` | `F Minor Phrygian` (Tonalidad y BPM sincronizados en Live).\n"
-            "• **Pistas Dedicadas y Esculpidas (Gobernanza Cumplida):**\n"
-            "  1. `[TAIKO] Master Drums` (Drum Rack cargado y macro-esculpido: O-Daiko, Nagado, Shime, Bachi)\n"
-            "  2. `[CASTI] 808 Sub-Bass` (Drift sintetizado con subgrave profundo en Fm Frigio)\n"
-            "  3. `[CASTI] Phrygian Lead` (Drift con motivo melódico Casti F4 $\\to$ Gb4 $\\to$ F4 $\\to$ C4)\n"
-            "  4. `[CASTI] Dark Chords` (Drift con acordes oscuros Fm9 - Gbmaj7#11 - Bbm9 - C7alt)\n"
-            "  5. `[PAD] UHTS 20-Stage Audio` (Pista de audio con Fader a -6 dBFS y 20 texturas continuas)\n\n"
-            "• **Session View:** 20 escenas operativas con sus respectivos clips MIDI y de audio continuo.\n"
-            "• **Arrangement View:** Línea temporal completa de **80 compases** con **20 Cue Points / Locators** sincronizados.\n"
-            "• **Pad Evolutivo UHTS:** Las 20 técnicas del catálogo de reprocesamiento (Spectral Freeze, Comb Chimes, Vocal Formants, Micro-Clouds, Haas 3D, Stutter, etc.) están activas y enlazadas a la evolución de la obra.\n"
-            "• **Estado del Copilot:** La sesión ha avanzado a **Fase 11 (Audio Resampling & Reprocessing)** con todas las etapas previas verificadas."
-        )
-
-        return {
-            "status": "TAIKO_CASTI_ORCHESTRATED",
-            "phase": "PHASE_11_AUDIO_RESAMPLING",
-            "phase_index": 11,
-            "action_taken": "Canción híbrida Taiko x Casti y pad evolutivo de 20 escenas orquestados en Ableton Live 12.",
-            "bpm": 100.0,
-            "tonality": "F Minor Phrygian",
-            "bars": 80,
-            "scenes_count": 20,
-            "tracks": tracks,
-            "message": msg,
-            "question": "La obra Taiko x Casti está sonando en Ableton Live. ¿Deseas aislar o calibrar el Pad UHTS, exportar stems (Fase 10), o realizar ajustes de mezcla (Fase 9)?"
-        }
-
-    def _handle_taiko_shimmer_orchestration(self, conn: Any, user_input: str) -> Dict[str, Any]:
-        """
-        Natively orchestrates the next Taiko composition ('Taiko Shimmer: Kaze no Hikari')
-        featuring an authentic source synthesizer pad in D Minor Insen and a single
-        reprocessing mutation (UHTS Technique #06: Pitch-Shifted Shimmer Diffusion).
-        Transitions state machine directly to Phase 11 with full audit compliance.
-        """
-        from engine.composition.taiko_shimmer_composer import TaikoShimmerComposer
-
-        logger.info("CopilotGuidedSession: Orchestrating Taiko Shimmer full song with single UHTS #06 pad...")
-        deploy_res = TaikoShimmerComposer.deploy(conn)
-
-        # Synchronize session state
-        self.data["current_phase"] = "PHASE_11_AUDIO_RESAMPLING"
-        self.data["phase_index"] = 11
-        self.data["key"] = "D"
-        self.data["scale"] = "Minor"
-        self.data["bpm"] = 105.0
-
-        tracks = deploy_res.get("tracks", [])
-        if tracks:
-            self.data["tracks"] = tracks
-
-        self.data["sections"] = [
-            {"name": s["name"], "bars": 4, "energy": s["energy"], "index": s["idx"] - 1}
-            for s in TaikoShimmerComposer.SCENES
-        ]
-
-        pad_idx = tracks[-1].get("index", 22) if tracks else 22
-        self.data["resampling_session"] = {
-            "active": True,
-            "stage": "COMPLETED",
-            "selected_pipeline": "uhts_06_shimmer",
-            "mode": "SINGLE_TECHNIQUE_PAD",
-            "technique": "Pitch-Shifted Shimmer Diffusion",
-            "technique_index": 6,
-            "source_role": "PAD",
-            "last_deployed_track": pad_idx
-        }
-
-        # Update Song Contract to reflect verified production
-        try:
-            contract = self._get_song_contract()
-            contract.title = "Taiko Shimmer: Kaze no Hikari"
-            contract.intent_memory.thesis.genre = "Japanese Taiko x Cinematic Bass x Shimmer Pad"
-            contract.intent_memory.thesis.statement = "Fusión ceremonial de percusión japonesa Taiko con subgraves 808 en Re Menor y un pad atmosférico original elevado mediante la Técnica #06 (Pitch-Shifted Shimmer Diffusion)."
-            contract.intent_memory.thesis.key = "D"
-            contract.intent_memory.thesis.scale = "Minor"
-            contract.intent_memory.thesis.bpm = 105.0
-            self._sync_song_contract(contract)
-        except Exception as e:
-            logger.debug(f"Notice updating song contract: {e}")
-
-        self._create_checkpoint(tag="TAIKO_SHIMMER_ORCHESTRATED")
-        self._save_state(action_tag="TAIKO_SHIMMER_ORCHESTRATED")
-
-        msg = (
-            "🥁 **Nueva Canción Taiko Shimmer Desplegada Exitosamente en Ableton Live 12** ✨🏯\n\n"
-            "El Copilot ha orquestado la composición completa a lo largo de 40 compases (160 beats @ 105.0 BPM):\n\n"
-            "• **Afinación & Tempo:** `105.0 BPM` | `D Minor Insen / Phrygian` (Tonalidad y BPM configurados en Live).\n"
-            "• **Pistas Dedicadas y Esculpidas (Gobernanza Cumplida):**\n"
-            "  1. `[TAIKO] Master Drums` (Drum Rack cargado y macro-esculpido: O-Daiko, Nagado, Shime, Bachi)\n"
-            "  2. `[BASS] Insen 808 Sub` (Drift sintetizado con subgrave profundo en Re Menor Frigio)\n"
-            "  3. `[LEAD] Koto/Insen Motif` (Drift con motivo melódico tradicional japonés Insen)\n"
-            "  4. `[PAD-SRC] Original Atmospheric Pad` (Pista MIDI con acordes sostenidos Dm9 - Ebmaj7#11 - Gm9 - Asus4)\n"
-            "  5. `[PAD-UHTS] Shimmer Diffusion Audio` (Pista de Audio con fader a -6 dBFS y el pad procesado mediante Técnica #06)\n\n"
-            "• **Único Efecto de Reprocesamiento:** **Técnica UHTS #06 (*Pitch-Shifted Shimmer Diffusion*)** aplicada al Pad original, generando una estela celestial de octava superior (+12st) que se eleva sobre los tambores Taiko.\n"
-            "• **Session View:** 10 escenas operativas con clips y nombres sincronizados.\n"
-            "• **Arrangement View:** Línea temporal completa de **40 compases** con **10 Cue Points / Locators**.\n"
-            "• **Estado del Copilot:** La sesión ha avanzado a **Fase 11 (Audio Resampling & Reprocessing)** con modo `SINGLE_TECHNIQUE_PAD` activo."
-        )
-
-        return {
-            "status": "TAIKO_SHIMMER_ORCHESTRATED",
-            "phase": "PHASE_11_AUDIO_RESAMPLING",
-            "phase_index": 11,
-            "action_taken": "Canción Taiko Shimmer con pad original y efecto único de procesamiento UHTS #06 desplegada en Ableton Live 12.",
-            "bpm": 105.0,
-            "tonality": "D Minor Insen",
-            "bars": 40,
-            "scenes_count": 10,
-            "technique": "Pitch-Shifted Shimmer Diffusion",
-            "tracks": tracks,
-            "message": msg,
-            "question": "La obra Taiko Shimmer está sonando en Ableton Live 12. ¿Deseas aislar en solo la pista de Shimmer Pad, ajustar el balance en Fase 9, o exportar stems en Fase 10?"
-        }
-
-    def _handle_taiko_pure_orchestration(self, conn: Any, user_input: str) -> Dict[str, Any]:
-        """
-        Orchestrates Taiko Ryūsei (太鼓流星): Pure Japanese ceremonial Taiko composition
-        in A Minor Insen @ 112.0 BPM with ZERO audio reprocessing (100% live MIDI tracks
-        and pure real-time synthesis). Transitions session to Phase 6 with verified SongContract.
-        """
-        from engine.composition.taiko_pure_composer import TaikoPureComposer
-
-        logger.info("CopilotGuidedSession: Orchestrating Taiko Ryūsei pure song with ZERO audio reprocessing...")
-        deploy_res = TaikoPureComposer.deploy(conn)
-
-        # Synchronize session state
-        self.data["current_phase"] = "PHASE_6_COMPOSITION"
-        self.data["phase_index"] = 6
-        self.data["key"] = "A"
-        self.data["scale"] = "Minor"
-        self.data["bpm"] = 112.0
-
-        tracks = deploy_res.get("tracks", [])
-        if tracks:
-            self.data["tracks"] = tracks
-
-        self.data["sections"] = [
-            {"name": s["name"], "bars": 4, "energy": s["energy"], "index": s["idx"] - 1}
-            for s in TaikoPureComposer.SCENES
-        ]
-
-        # Explicitly declare ZERO audio reprocessing
-        self.data["resampling_session"] = {
-            "active": False,
-            "stage": "SKIPPED_USER_PREFERENCE",
-            "mode": "NO_REPROCESSING",
-            "technique": "None (Pure Synthesis & Live Percussion)",
-            "technique_index": None,
-            "source_role": None,
-            "reason": "Direct user constraint: zero audio reprocessing requested"
-        }
-
-        # Update Song Contract to reflect verified production
-        try:
-            contract = self._get_song_contract()
-            contract.title = "Taiko Ryūsei (太鼓流星)"
-            contract.intent_memory.thesis.genre = "Japanese Ceremonial Taiko x Pure Insen Synthesis"
-            contract.intent_memory.thesis.statement = "Composición ceremonial de percusión japonesa Taiko con subgraves 808, flauta Shakuhachi, punteos Koto y acordes sintoístas en La Menor Insen, realizada con CERO reprocesamiento de audio (100% síntesis e instrumentación viva)."
-            contract.intent_memory.thesis.key = "A"
-            contract.intent_memory.thesis.scale = "Minor"
-            contract.intent_memory.thesis.bpm = 112.0
-            self._sync_song_contract(contract)
-        except Exception as e:
-            logger.debug(f"Notice updating song contract: {e}")
-
-        self._create_checkpoint(tag="TAIKO_PURE_ORCHESTRATED")
-        self._save_state(action_tag="TAIKO_PURE_ORCHESTRATED")
-
-        # ENFORCE GOVERNANCE INTEGRITY AUDIT (Rules 1-7)
-        governance_audit = {
-            "drum_rack_pads_verified": False,
-            "mandatory_eq_applied": False,
-            "gain_staging_applied": True,
-            "master_chain_active": False,
-            "target_lufs": -14.0,
-            "max_true_peak": -1.0
-        }
-        if conn is not None and hasattr(conn, "send_command"):
-            try:
-                # 1. Audit drum pads
-                t18_idx = tracks[0]["index"] if tracks else 18
-                p_res = conn.send_command("get_drum_rack_pads", {"track_index": t18_idx})
-                p_data = p_res.get("result", p_res) if isinstance(p_res, dict) else {}
-                governance_audit["drum_rack_pads_verified"] = (p_data.get("active_pad_count", 0) > 0)
-
-                # 2. Audit EQ Eight on all 5 tracks
-                eq_count = 0
-                for trk in tracks:
-                    ti = conn.send_command("get_track_info", {"track_index": trk["index"]})
-                    td = ti.get("result", ti) if isinstance(ti, dict) else {}
-                    if any("EQ Eight" in d.get("name", "") for d in td.get("devices", [])):
-                        eq_count += 1
-                governance_audit["mandatory_eq_applied"] = (eq_count == len(tracks))
-
-                # 3. Audit Master Chain on Master track
-                s_info = conn.send_command("get_session_info", {})
-                s_data = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
-                m_idx = s_data.get("track_count", 23)
-                m_info = conn.send_command("get_track_info", {"track_index": m_idx})
-                m_data = m_info.get("result", m_info) if isinstance(m_info, dict) else {}
-                m_devs = [d.get("name", "") for d in m_data.get("devices", [])]
-                governance_audit["master_chain_active"] = any("Limiter" in n for n in m_devs)
-            except Exception as ex_gov:
-                logger.warning(f"Governance audit notice: {ex_gov}")
-
-        self.data["governance_audit"] = governance_audit
-
-        msg = (
-            "🥁 **Canción Taiko Pura ('Taiko Ryūsei' - 太鼓流星) Desplegada en Ableton Live 12** 🎋🏯\n\n"
-            "El Copilot ha orquestado la composición respetando al 100% la restricción de **CERO REPROCESAMIENTO DE AUDIO**:\n\n"
-            "• **Afinación & Tempo:** `112.0 BPM` | `A Minor Insen / Hirajoshi` (La Menor modal japonés).\n"
-            "• **5 Pistas de Instrumentación Viva (0% Audio Reprocesado / 100% MIDI & Síntesis):**\n"
-            "  1. `[TAIKO] Ceremonial Drums` (Drum Rack con 808 Core Kit, O-Daiko, Nagado cuerpo/borde, Shime y Bachi)\n"
-            "  2. `[BASS] Insen 808 Sub` (Drift sintetizado con subgrave profundo en La Menor)\n"
-            "  3. `[LEAD] Shakuhachi / Insen Flute` (Drift con viento soplado y articulación tradicional)\n"
-            "  4. `[KOTO] Ceremonial Pluck` (Drift con punteos rápidos en intervalos pentatónicos)\n"
-            "  5. `[PAD-PURE] Shinto Temple Chords` (Drift con acordes armónicos Am9 - Bbmaj7#11 - Dm9 - Em7(b9))\n\n"
-            "• **Gobernanza & Auditoría Acústica Ejecutada:**\n"
-            f"  - Drum Rack Pads Verificados: `{'ACTIVO (16 pads)' if governance_audit['drum_rack_pads_verified'] else 'PENDIENTE'}`\n"
-            f"  - EQ Eight Obligatorio en Todas las Pistas: `{'APLICADO' if governance_audit['mandatory_eq_applied'] else 'PENDIENTE'}`\n"
-            "  - Headroom & Gain Staging: `-2 a -7 dBFS` en faders de pistas activas.\n"
-            f"  - Cadena Master Nativa (5 procesadores): `{'ACTIVA' if governance_audit['master_chain_active'] else 'PENDIENTE'}` (Objetivo Streaming -14.0 LUFS / -1.0 dBTP).\n"
-            "• **Garantía de Cero Reprocesamiento:** Ningún archivo de audio ha sido resampleado ni mutado. Todas las fuentes son sintetizadores e instrumentos en tiempo real.\n"
-            "• **Session View:** 8 escenas organizadas y nombradas.\n"
-            "• **Arrangement View:** Línea temporal completa de **32 compases** con **8 Cue Points / Locators**.\n"
-            "• **Estado del Copilot:** La sesión avanza a **Fase 6 (Composition)** con `resampling_session.active = False`."
-        )
-
-        return {
-            "status": "TAIKO_PURE_ORCHESTRATED",
-            "phase": "PHASE_6_COMPOSITION",
-            "phase_index": 6,
-            "action_taken": "Canción Taiko Ryūsei (CERO reprocesamiento de audio) desplegada en Ableton Live 12.",
-            "bpm": 112.0,
-            "tonality": "A Minor Insen",
-            "bars": 32,
-            "scenes_count": 8,
-            "reprocessing": "NONE",
-            "tracks": tracks,
-            "message": msg,
-            "question": "La obra Taiko Ryūsei está sonando en Ableton Live 12. ¿Deseas escuchar la pieza completa, calibrar niveles en Fase 9, o modular algún arpegio de Koto?"
-        }
 
     # -------------------------------------------------------------------------
     # FASE 7: CONTROLADOR Y OBSERVADOR CREATIVO REVERSIBLE
@@ -1800,6 +1020,629 @@ class CopilotGuidedSession:
             "message": xray_res.get("markdown_report", ""),
             "question": "¿Cómo interpretas estos hallazgos y qué decisión creativa prefieres tomar?"
         }
+
+    def _handle_emotional_arc_query(self) -> Dict[str, Any]:
+        """Conversational query returning the orchestrated emotional trajectory across song sections."""
+        from engine.arrangement.emotional_arc import EmotionalArcDirector
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        genre = self.data.get("genre", "trap")
+        key = self.data.get("key", "F")
+        scale = self.data.get("scale", "natural_minor")
+        sections = self.data.get("sections", [])
+
+        inferred_emotion = EmotionalArcDirector.infer_emotion(genre=genre, key=key, scale=scale)
+        arc = self.data.get("emotional_arc")
+        if not arc or len(arc) != len(sections):
+            arc = EmotionalArcDirector.orchestrate_arc(
+                sections=sections,
+                genre=genre,
+                emotion=inferred_emotion,
+                key=key,
+                scale=scale
+            )
+            self.data["emotion"] = inferred_emotion.value
+            self.data["emotional_arc"] = arc
+            self._save_state(action_tag="EMOTIONAL_ARC_EVALUATED")
+
+        profile = EmotionalArcDirector.EMOTIONAL_PROFILES.get(inferred_emotion, {})
+        md = [
+            f"### 🎭 Director de Arco Emocional y Dinámica Macro",
+            f"- **Tonalidad & Escala:** `{key} {scale}` | **Género:** `{genre.capitalize()}`",
+            f"- **Emoción Inferida:** `{profile.get('name', inferred_emotion.value)}` ({inferred_emotion.value})",
+            f"- **Tesis Emocional:** {profile.get('description', '')}\n",
+            "| Sección | Compases | Energía (%) | Dispositivo de Tensión | Retención de Inercia Rítmica |",
+            "| :--- | :---: | :---: | :--- | :--- |"
+        ]
+        for sec in arc:
+            s_name = sec.get("name", "Sección")
+            s_bars = sec.get("bars", 8)
+            s_energy = int(float(sec.get("target_energy", 0.5)) * 100)
+            s_tension = sec.get("tension_device", "STANDARD")
+            s_inertia = ", ".join(sec.get("inertia_keep_roles", [])) or "—"
+            md.append(f"| **{s_name}** | {s_bars} | {s_energy}% | `{s_tension}` | {s_inertia} |")
+
+        md.append("\n💡 *Regla de Éxito Comercial: El Verso 2 no colapsa la inercia rítmica, conservando elementos del Coro/Drop.*")
+
+        return {
+            "status": "EMOTIONAL_ARC_SUMMARY",
+            "phase": curr_phase,
+            "emotion": inferred_emotion.value,
+            "emotional_arc": arc,
+            "message": "\n".join(md),
+            "question": f"Arco emocional '{inferred_emotion.value}' orquestado. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_bus_architecture_query(self) -> Dict[str, Any]:
+        """Conversational query returning non-destructive submaster stem bus routing."""
+        from engine.mix.bus_architecture import LiveBusArchitectureEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        bus_plan = self.data.get("bus_architecture")
+        if not bus_plan or not bus_plan.get("buses"):
+            bus_plan = LiveBusArchitectureEngine.analyze_topology(tracks)
+            self.data["bus_architecture"] = bus_plan
+            self._save_state(action_tag="BUS_TOPOLOGY_ANALYZED")
+
+        md = [
+            "### 🎛️ Arquitectura de Buses Submaster (Stem Submixes)",
+            "Enrutamiento comercial no destructivo para cohesión de mezcla y pegamento dinámico:\n",
+            bus_plan.get("summary_table", ""),
+            "\n🔒 *Garantía de Invariante: Ninguna pista, clip o efecto de usuario es alterado ni sobreescrito.*"
+        ]
+
+        return {
+            "status": "BUS_ARCHITECTURE_SUMMARY",
+            "phase": curr_phase,
+            "bus_architecture": bus_plan,
+            "message": "\n".join(md),
+            "question": f"Matriz de submaster con {bus_plan.get('active_buses_count', 0)} buses activos. ¿Cómo deseas proceder?"
+        }
+
+    def _handle_hook_evaluation_query(self) -> Dict[str, Any]:
+        """Conversational query auditing melodic hook memorability and commercial compliance."""
+        from engine.music.melody.hook_contour import HookContourEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        notes = self.data.get("hook_architecture", {}).get("notes", [])
+        if not notes:
+            key = self.data.get("key", "F")
+            scale = self.data.get("scale", "natural_minor")
+            notes = HookContourEngine.generate_hook_motif(key_root=key, scale=scale)
+            if "hook_architecture" not in self.data:
+                self.data["hook_architecture"] = {}
+            self.data["hook_architecture"]["notes"] = [n.to_dict() if hasattr(n, "to_dict") else dict(n.__dict__) for n in notes]
+
+        from engine.music.models import NoteEvent
+        note_objs = [n if isinstance(n, NoteEvent) else NoteEvent(**n) for n in notes]
+        report = HookContourEngine.evaluate_hook(note_objs)
+
+        md = [
+            f"### 🪝 Auditoría de Psicología Melódica y Hook Theory (`HookContourEngine`)",
+            f"- **Puntuación Hook Factor:** **{report.score:.1f} / 100** {'⭐ (Comercial Hit)' if report.is_valid_commercial_hook else '⚠️ (Requiere Pulido)'}",
+            f"- **Contorno Geométrico:** `{report.detected_contour.value}`",
+            f"- **Rango Vocal:** `{report.vocal_range_semitones}` semitonos (Límite máximo: 18)",
+            f"- **Violaciones Salto-Paso:** `{report.leap_step_violations}`",
+            f"- **Respiración y Silencios:** `{'Sí (Frases humanas)' if report.has_breathing_space else 'No (Sin pausas)'}`",
+            f"- **Simetría de Motivos:** `{int(report.motif_symmetry_ratio * 100)}%`\n"
+        ]
+        if report.recommendations:
+            md.append("#### 💡 Recomendaciones de Retención:")
+            for rec in report.recommendations:
+                md.append(f"- {rec}")
+
+        return {
+            "status": "HOOK_EVALUATION_REPORT",
+            "phase": curr_phase,
+            "hook_report": report.to_dict(),
+            "message": "\n".join(md),
+            "question": f"Hook Factor: {report.score:.1f}/100. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_ear_candy_query(self) -> Dict[str, Any]:
+        """Conversational query returning organic ear candy timeline and micro-gestures."""
+        from engine.arrangement.transitions.ear_candy import SmartEarCandyEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        sections = self.data.get("sections", [])
+        tot_bars = self.data.get("total_bars", 64)
+        density = self.data.get("ear_candy", {}).get("density_level", 2)
+
+        events = SmartEarCandyEngine.generate_ear_candy_package(
+            sections=sections,
+            total_bars=tot_bars,
+            density_level=density
+        )
+        self.data["ear_candy"] = {
+            "density_level": density,
+            "events": [e.to_dict() for e in events]
+        }
+        self._save_state(action_tag="EAR_CANDY_SCHEDULED")
+
+        summary_md = SmartEarCandyEngine.render_markdown_summary(events, density_level=density)
+        return {
+            "status": "EAR_CANDY_SUMMARY",
+            "phase": curr_phase,
+            "density_level": density,
+            "events_count": len(events),
+            "ear_candy": self.data["ear_candy"],
+            "message": summary_md,
+            "question": f"Ear candy programado con densidad {density}/5 ({len(events)} micro-eventos). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_space_ducking_query(self) -> Dict[str, Any]:
+        """Conversational query returning ducked reverbs and delays status."""
+        from engine.mix.space_ducking import DynamicSpaceDucker, SpaceDuckingMode
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        mode_str = self.data.get("space_ducking", {}).get("mode", "COMMERCIAL_STANDARD")
+        try:
+            mode = SpaceDuckingMode(mode_str)
+        except Exception:
+            mode = SpaceDuckingMode.COMMERCIAL_STANDARD
+
+        recipe = DynamicSpaceDucker.get_recipe(mode)
+        summary_md = DynamicSpaceDucker.render_markdown_summary(recipe)
+        return {
+            "status": "SPACE_DUCKING_SUMMARY",
+            "phase": curr_phase,
+            "mode": mode.value,
+            "recipe": recipe,
+            "message": summary_md,
+            "question": f"Space Ducking activo en modo '{mode.value}' (-{abs(recipe['duck_amount_db'])} dB). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_modal_harmony_query(self) -> Dict[str, Any]:
+        """Conversational query returning modal borrowing and smooth voice leading analysis."""
+        from engine.music.harmony.modal_voice_leading import ModalVoiceLeadingEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        key = self.data.get("key", "F")
+        scale = self.data.get("scale", "natural_minor")
+
+        voiced_chords = ModalVoiceLeadingEngine.enrich_progression_with_borrowing(
+            key_root=key,
+            scale=scale,
+            inject_emotional_borrowing=True
+        )
+        self.data["modal_voice_leading"] = {
+            "key": key,
+            "scale": scale,
+            "chords": [c.to_dict() for c in voiced_chords]
+        }
+        self._save_state(action_tag="MODAL_HARMONY_EVALUATED")
+
+        summary_md = ModalVoiceLeadingEngine.render_markdown_summary(voiced_chords, key=key, scale=scale)
+        return {
+            "status": "MODAL_HARMONY_SUMMARY",
+            "phase": curr_phase,
+            "chords": [c.to_dict() for c in voiced_chords],
+            "message": summary_md,
+            "question": f"Progresión modal optimizada en {key} {scale}. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_metric_modulation_query(self) -> Dict[str, Any]:
+        """Conversational query returning active micro-rhythmic metric modulation setup."""
+        from engine.music.groove.metric_modulation import MetricModulationEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        level = self.data.get("metric_modulation", {}).get("level", 2)
+        summary_md = MetricModulationEngine.render_markdown_summary(level)
+
+        return {
+            "status": "METRIC_MODULATION_SUMMARY",
+            "phase": curr_phase,
+            "level": level,
+            "config": MetricModulationEngine.get_config(level),
+            "message": summary_md,
+            "question": f"Modulación métrica configurada en Nivel {level}/5. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_antiphonal_dialogue_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning rotational Call & Response dialogue architecture."""
+        from engine.music.antiphonal_dialogue import AntiphonalDialogueEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+
+        dialogue = self.data.get("antiphonal_dialogue")
+        if not dialogue:
+            focal_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("VOCALS", "VOCAL", "VOX", "LEAD", "SYNTH_LEAD")), None)
+            f_idx = focal_trk.get("index", 0) if focal_trk else 0
+            f_notes = focal_trk.get("notes", []) if focal_trk else []
+            if not f_notes:
+                f_notes = [
+                    {"pitch": 64, "start_time": 0.0, "duration": 1.5, "velocity": 100},
+                    {"pitch": 67, "start_time": 2.0, "duration": 1.5, "velocity": 105},
+                    {"pitch": 65, "start_time": 4.0, "duration": 1.5, "velocity": 98}
+                ]
+            dialogue = AntiphonalDialogueEngine.orchestrate_rotational_dialogue(
+                tracks=tracks,
+                focal_track_index=f_idx,
+                focal_notes=f_notes,
+                total_beats=32.0,
+                scale_root_pitch=60
+            )
+            self.data["antiphonal_dialogue"] = dialogue
+            self._save_state(action_tag="ANTIPHONAL_DIALOGUE_EVALUATED")
+
+        summary_md = (
+            "🗣️ **Arquitectura de Interacción Call & Response (Antiphonal Dialogue)**\n\n"
+            f"• **Política de Diálogo:** `{dialogue.get('policy', 'ROTATIONAL')}` (Rotación estricta secuencial)\n"
+            f"• **Pista Focal (Líder):** Pista {dialogue.get('focal_track_index', 0)}\n"
+            f"• **Instrumentos Elegibles en Rotación:** {dialogue.get('eligible_responders_count', len(dialogue.get('eligible_responders', [])))}\n"
+            f"• **Total de Respuestas Antifonales:** {dialogue.get('total_responses', 0)}\n"
+            "• **Garantía Anti-Colisión:** Margen de seguridad $\\ge 0.05$ beats ante notas líderes."
+        )
+        return {
+            "status": "ANTIPHONAL_DIALOGUE_SUMMARY",
+            "phase": curr_phase,
+            "policy": dialogue.get("policy", "ROTATIONAL"),
+            "total_responses": dialogue.get("total_responses", 0),
+            "antiphonal_dialogue": dialogue,
+            "message": summary_md,
+            "question": f"Call & Response antifonal configurado ({dialogue.get('total_responses', 0)} respuestas). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_phase_correlation_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning low-end phase and polarity correlation audit."""
+        from engine.mix.phase_correlation_sentinel import PhaseCorrelationSentinel
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        phase_audit = PhaseCorrelationSentinel.audit_kick_bass_coherence(tracks, conn=conn)
+        self.data["phase_correlation"] = phase_audit
+        self._save_state(action_tag="PHASE_CORRELATION_AUDITED")
+
+        summary_md = (
+            "🎛️ **Auditoría de Alineación de Fase y Polaridad Low-End (Phase Correlation Sentinel)**\n\n"
+            f"• **Pista Kick:** Pista {phase_audit.get('kick_track_index', 'N/A')}\n"
+            f"• **Pista Bass:** Pista {phase_audit.get('bass_track_index', 'N/A')}\n"
+            f"• **Coeficiente de Correlación (ρ):** `{phase_audit.get('correlation_coefficient', 1.0):.2f}`\n"
+            f"• **Diagnóstico:** `{phase_audit.get('status', 'OK')}`\n"
+            f"• **Inversión de Polaridad (180°):** `{'REQUERIDA' if phase_audit.get('directives', {}).get('invert_polarity_180') else 'No necesaria'}`\n"
+            f"• **Micro-Delay:** `{phase_audit.get('directives', {}).get('delay_ms', 0.0):.2f} ms`\n"
+            f"• **Bass Mono (<120 Hz):** `{'ACTIVO' if phase_audit.get('directives', {}).get('bass_mono_enabled') else 'Inactivo'}`"
+        )
+        return {
+            "status": "PHASE_CORRELATION_SUMMARY",
+            "phase": curr_phase,
+            "audit": phase_audit,
+            "message": summary_md,
+            "question": f"Alineación de fase auditada (ρ = {phase_audit.get('correlation_coefficient', 1.0):.2f}). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_resonance_carver_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning dynamic resonance carving & anti-masking audit."""
+        from engine.mix.smart_resonance_carver import SmartResonanceCarver
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        carve_audit = SmartResonanceCarver.audit_session_resonances(tracks, conn=conn)
+        self.data["smart_resonance_carver"] = carve_audit
+        self._save_state(action_tag="RESONANCE_CARVER_AUDITED")
+
+        clashes = carve_audit.get("detected_clashes", [])
+        clash_lines = [f"• `{c.get('pair')}` ({c.get('center_freq_hz')} Hz): {c.get('remedy')}" for c in clashes] if clashes else ["• No se detectaron colisiones de enmascaramiento críticas."]
+
+        summary_md = (
+            "🔬 **Ecualización Dinámica Anti-Enmascaramiento en Tiempo Real (Smart Resonance Carver)**\n\n"
+            f"• **Pistas Auditadas:** {len(tracks)}\n"
+            f"• **Puntos de Conflicto Espectral:** {len(clashes)}\n"
+            + "\n".join(clash_lines)
+        )
+        return {
+            "status": "RESONANCE_CARVER_SUMMARY",
+            "phase": curr_phase,
+            "audit": carve_audit,
+            "clashes_count": len(clashes),
+            "message": summary_md,
+            "question": f"Tallado anti-enmascaramiento evaluado ({len(clashes)} colisiones). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_crossover_stacking_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning psychoacoustic 3-band crossover layer architecture."""
+        from engine.sound.crossover_stacking import MultiLayerCrossoverStacker
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        target_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("BASS", "SYNTH", "KEYS", "LEAD")), None)
+        trk_name = target_trk.get("name", "Synth Layer") if target_trk else "Bass/Synth"
+        split_plan = MultiLayerCrossoverStacker.create_crossover_split(source_track_name=trk_name)
+        self.data["crossover_stacking"] = split_plan
+        self._save_state(action_tag="CROSSOVER_STACKING_EVALUATED")
+
+        summary_md = (
+            "🎚️ **Separación de Capas por Crossover Psicoacústico (Multi-Layer Crossover Stacker)**\n\n"
+            f"• **Pista Fuente:** `{trk_name}`\n"
+            "• **Capa Sub (<90 Hz):** Mono absoluto, limpieza de fase, compresión pesada.\n"
+            "• **Capa Body (90 - 1200 Hz):** Stereo width 0.35, saturación armónica analógica.\n"
+            "• **Capa Air (>1200 Hz):** Stereo width 0.95, micro-modulación estéreo y brillo dimensional."
+        )
+        return {
+            "status": "CROSSOVER_STACKING_SUMMARY",
+            "phase": curr_phase,
+            "split_plan": split_plan,
+            "message": summary_md,
+            "question": f"Crossover psicoacústico de 3 capas configurado en '{trk_name}'. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_vocal_harmonies_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning intelligent vocal harmony and wide stereo spread stack."""
+        from engine.music.vocal_harmony import VocalHarmonyEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        harmonies = self.data.get("vocal_harmonies")
+        if not harmonies:
+            harmonies = VocalHarmonyEngine.generate_vocal_harmony_stack(
+                lead_notes=[
+                    {"pitch": 64, "start_time": 0.0, "duration": 1.5, "velocity": 100},
+                    {"pitch": 67, "start_time": 2.0, "duration": 1.5, "velocity": 105},
+                    {"pitch": 65, "start_time": 4.0, "duration": 1.5, "velocity": 98}
+                ],
+                scale_root_pitch=60,
+                bpm=float(self.data.get("bpm", 120.0))
+            )
+            self.data["vocal_harmonies"] = harmonies
+            self._save_state(action_tag="VOCAL_HARMONIES_EVALUATED")
+
+        summary_md = (
+            "🎤 **Generador de Armonías y Coros Estéreo Inteligentes (Vocal Harmony Engine)**\n\n"
+            f"• **High Harmony:** +3 / +4 semitonos diatónicos paneados al `60L`.\n"
+            f"• **Low Harmony:** -3 / -4 semitonos diatónicos paneados al `60R`.\n"
+            f"• **Total Notas de Armonía:** {harmonies.get('total_harmony_notes', 0)}\n"
+            "• **Humanización de Micro-Timing:** Jitter anti-comb filtering de 8 ms."
+        )
+        return {
+            "status": "VOCAL_HARMONY_SUMMARY",
+            "phase": curr_phase,
+            "harmonies": harmonies,
+            "message": summary_md,
+            "question": f"Armonías vocales generadas ({harmonies.get('total_harmony_notes', 0)} notas). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_drum_fills_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning adaptive high-fidelity drum fill details."""
+        from engine.music.drums.adaptive_fill import AdaptiveDrumFillGenerator
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        fills = self.data.get("adaptive_drum_fills")
+        if not fills:
+            fills = AdaptiveDrumFillGenerator.generate_turnaround_fill(
+                section_length_beats=32.0,
+                fill_duration_beats=4.0,
+                genre=self.data.get("genre", "pop"),
+                bpm=float(self.data.get("bpm", 120.0))
+            )
+            self.data["adaptive_drum_fills"] = fills
+            self._save_state(action_tag="ADAPTIVE_DRUM_FILLS_EVALUATED")
+
+        summary_md = (
+            "🥁 **Motor de Fills y Redobles Frecuencialmente Adaptativos (Adaptive Drum Fills)**\n\n"
+            f"• **Estilo Aplicado:** `{fills.get('style_applied', 'POP')}`\n"
+            f"• **Duración:** {fills.get('duration_beats', 4.0)} beats en compás de turnaround\n"
+            f"• **Total de Notas de Redoble:** {fills.get('note_count', 0)}\n"
+            f"• **Estructura:** 4 capas (Toms afinados 41-48, Snare flams/rolls, Címbalos/Splash)\n"
+            "• **Kick Dropout:** Silencio de bombo en beats 3-4 para evitar enmascaramiento."
+        )
+        return {
+            "status": "ADAPTIVE_DRUM_FILLS_SUMMARY",
+            "phase": curr_phase,
+            "fills": fills,
+            "message": summary_md,
+            "question": f"Redoble adaptativo de 4 capas configurado ({fills.get('note_count', 0)} notas). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_micro_stutter_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning tape stop curve and glitch micro-stutter envelopes."""
+        from engine.arrangement.transitions.micro_stutter import MicroStutterEngine
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tape_stop = self.data.get("tape_stop")
+        if not tape_stop:
+            tape_stop = MicroStutterEngine.generate_tape_stop_envelope(
+                pre_drop_beat=32.0,
+                stop_duration_beats=2.0,
+                pitch_drop_semitones=-24.0,
+                curve_shape="EXPONENTIAL",
+                preserve_drum_fills=True
+            )
+            self.data["tape_stop"] = tape_stop
+            self._save_state(action_tag="TAPE_STOP_EVALUATED")
+
+        summary_md = (
+            "📼 **Generador de Micro-Edits Glitch y Tape Stops (Micro Stutter Engine)**\n\n"
+            f"• **Tape Stop en Pre-Drop:** Curva exponencial de {tape_stop.get('stop_duration_beats', 2.0)} beats\n"
+            f"• **Caída de Tono:** `{tape_stop.get('pitch_drop_semitones', -24.0)} semitonos`\n"
+            f"• **Alcance de Procesamiento:** `Opción A (Music Bus Exclusivo)`\n"
+            "• **Batería y Fills:** 100% limpios y secos en primer plano durante la caída."
+        )
+        return {
+            "status": "MICRO_STUTTER_SUMMARY",
+            "phase": curr_phase,
+            "tape_stop": tape_stop,
+            "message": summary_md,
+            "question": f"Tape Stop pre-drop configurado en Music Bus (-24st, fills limpios). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_metric_displacement_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning off-beat metric displacement status."""
+        from engine.music.groove.metric_displacement import OffBeatMetricDisplacer
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        disp_data = self.data.get("metric_displacement")
+        if not disp_data:
+            target_trk = next((t for t in tracks if any(el in str(t.get("role", "")).upper() for el in OffBeatMetricDisplacer.ELIGIBLE_ROLES)), None)
+            notes = target_trk.get("notes", []) if target_trk else [
+                {"pitch": 36, "start_time": 0.0, "duration": 1.0, "velocity": 100},
+                {"pitch": 36, "start_time": 4.0, "duration": 1.0, "velocity": 100},
+                {"pitch": 38, "start_time": 8.0, "duration": 1.0, "velocity": 100}
+            ]
+            role = target_trk.get("role", "BASS") if target_trk else "BASS"
+            disp_res = OffBeatMetricDisplacer.apply_metric_displacement(notes, role=role, displacement_level=2)
+            disp_data = {"status": "APPLIED", "tracks": [{"track": role, "role": role, "bars": disp_res.get("displaced_bars", [2]), "shift": 0.25}]}
+            self.data["metric_displacement"] = disp_data
+            summary_md = OffBeatMetricDisplacer.render_markdown_summary(disp_res)
+        else:
+            summary_md = (
+                "🕺 **Motor de Acentos de Contratiempo y Desplazamiento Métrico (Metric Displacer)**\n\n"
+                f"• **Pistas Sincopadas:** {len(disp_data.get('tracks', []))}\n"
+                "• **Patrón:** Desplazamiento micro-rítmico (+0.25 beats) en compases 2 y 6 para añadir rebote orgánico."
+            )
+
+        return {
+            "status": "METRIC_DISPLACEMENT_SUMMARY",
+            "phase": curr_phase,
+            "metric_displacement": disp_data,
+            "message": summary_md,
+            "question": f"Desplazamiento métrico evaluado. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_z_plane_depth_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning 3D Z-plane psychoacoustic depth distribution."""
+        from engine.mix.z_plane_depth import ZPlaneDepthArchitect
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        depth_audit = ZPlaneDepthArchitect.evaluate_session_depth(tracks)
+        self.data["z_plane_depth"] = depth_audit
+        summary_md = ZPlaneDepthArchitect.render_markdown_summary(depth_audit)
+
+        return {
+            "status": "Z_PLANE_DEPTH_SUMMARY",
+            "phase": curr_phase,
+            "z_plane_depth": depth_audit,
+            "message": summary_md,
+            "question": f"Profundidad en eje Z evaluada ({len(depth_audit.get('depth_distribution', {}).get('FOREGROUND', []))} foreground, {len(depth_audit.get('depth_distribution', {}).get('BACKGROUND', []))} background). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_sub_stereo_morph_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning dynamic sub-to-stereo drop expansion envelope."""
+        from engine.sound.sub_stereo_morpher import DynamicSubToStereoMorpher
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        drop_sec = next((s for s in self.data.get("sections", []) if any(w in str(s.get("name", "")).lower() for w in ["drop", "climax", "coro"])), None)
+        drop_start = float(drop_sec.get("start_bar", 0) * 4.0) if drop_sec else 32.0
+
+        morph = self.data.get("sub_stereo_morph")
+        if not morph:
+            morph = DynamicSubToStereoMorpher.generate_drop_expansion_envelope(
+                drop_start_beat=drop_start,
+                pre_drop_duration_beats=4.0,
+                drop_stereo_width=1.35
+            )
+            self.data["sub_stereo_morph"] = morph
+
+        summary_md = DynamicSubToStereoMorpher.render_markdown_summary(morph)
+        return {
+            "status": "SUB_STEREO_MORPH_SUMMARY",
+            "phase": curr_phase,
+            "sub_stereo_morph": morph,
+            "message": summary_md,
+            "question": f"Apertura sub-a-estéreo configurada (ancho en drop: {morph.get('drop_stereo_width', 1.35)}). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_foley_bed_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning atmospheric foley bed prescription."""
+        from engine.arrangement.textures.foley_bed import AtmosphericFoleyBedGenerator
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        genre = str(self.data.get("genre", "pop"))
+
+        foley = self.data.get("foley_bed")
+        if not foley:
+            foley = AtmosphericFoleyBedGenerator.generate_foley_bed_prescription(
+                genre=genre,
+                target_level_dbfs=-30.0
+            )
+            self.data["foley_bed"] = foley
+
+        summary_md = AtmosphericFoleyBedGenerator.render_markdown_summary(foley)
+        return {
+            "status": "FOLEY_BED_SUMMARY",
+            "phase": curr_phase,
+            "foley_bed": foley,
+            "message": summary_md,
+            "question": f"Cama foley '{foley.get('preset', 'VINYL_WARMTH')}' calibrada a {foley.get('target_level_dbfs', -30.0)} dBFS. ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_crest_factor_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning pre-master crest factor & headroom audit."""
+        from engine.mix.crest_factor_optimizer import PreMasterCrestFactorOptimizer
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        crest_audit = PreMasterCrestFactorOptimizer.audit_session_crest_factors(tracks, conn=conn)
+        self.data["crest_factor_audit"] = crest_audit
+        summary_md = PreMasterCrestFactorOptimizer.render_markdown_summary(crest_audit)
+
+        return {
+            "status": "CREST_FACTOR_SUMMARY",
+            "phase": curr_phase,
+            "crest_factor_audit": crest_audit,
+            "message": summary_md,
+            "question": f"Factor de cresta auditado (Pico max: {crest_audit.get('max_track_crest_factor', 0.0):.1f} dB, Soft-clipping: {crest_audit.get('clip_instances', 0)} pistas). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_hihat_mutation_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning evolutionary hi-hat mutation status."""
+        from engine.music.drums.hihat_mutator import EvolutionaryHiHatMutator
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        genre = str(self.data.get("genre", "trap"))
+        hh_data = self.data.get("hihat_mutations")
+        if not hh_data:
+            # Generate demonstration 8-bar pattern
+            demo_notes = []
+            for b in range(32):
+                demo_notes.append({"pitch": 42, "start_time": float(b), "duration": 0.25, "velocity": 85})
+            hh_data = EvolutionaryHiHatMutator.mutate_hihat_pattern(
+                notes=demo_notes,
+                bars=8,
+                genre=genre,
+                intensity=0.6
+            )
+            self.data["hihat_mutations"] = hh_data
+
+        summary_md = EvolutionaryHiHatMutator.render_markdown_summary(hh_data)
+        return {
+            "status": "HIHAT_MUTATION_SUMMARY",
+            "phase": curr_phase,
+            "hihat_mutations": hh_data,
+            "message": summary_md,
+            "question": f"Mutación de Hi-Hats activa ({len(hh_data.get('mutations_applied', []))} mutaciones en 8 compases). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_pedal_suspension_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning harmonic pedal points and suspended chords status."""
+        from engine.music.harmony.pedal_suspension import PedalPointSuspensionWeaver
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        pedal_data = self.data.get("pedal_suspensions")
+        if not pedal_data:
+            pedal_data = PedalPointSuspensionWeaver.weave_pedal_point_progression(
+                chords_or_notes=[],
+                pedal_pitch=36,
+                section_name="pre_chorus",
+                suspension_type="AUTO"
+            )
+            self.data["pedal_suspensions"] = pedal_data
+
+        summary_md = PedalPointSuspensionWeaver.render_markdown_summary(pedal_data)
+        return {
+            "status": "PEDAL_SUSPENSION_SUMMARY",
+            "phase": curr_phase,
+            "pedal_suspensions": pedal_data,
+            "message": summary_md,
+            "question": f"Tensión armónica pedal configurada (Tensión: {int(pedal_data.get('harmonic_tension_score', 0.8) * 100)}%). ¿Deseas continuar con {curr_phase}?"
+        }
+
+    def _handle_underwater_sweep_query(self, conn: Any = None) -> Dict[str, Any]:
+        """Conversational query returning underwater / radio acoustic sweep transition curves."""
+        from engine.arrangement.transitions.underwater_sweep import UnderwaterRadioSweepGenerator
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        drop_sec = next((s for s in self.data.get("sections", []) if any(w in str(s.get("name", "")).lower() for w in ["drop", "climax", "coro"])), None)
+        drop_start = float(drop_sec.get("start_bar", 0) * 4.0) if drop_sec else 32.0
+
+        sweep = self.data.get("underwater_sweep")
+        if not sweep:
+            sweep = UnderwaterRadioSweepGenerator.generate_underwater_sweep(
+                drop_start_beat=drop_start,
+                duration_beats=4.0,
+                mode="UNDERWATER"
+            )
+            self.data["underwater_sweep"] = sweep
+
+        summary_md = UnderwaterRadioSweepGenerator.render_markdown_summary(sweep)
+        return {
+            "status": "UNDERWATER_SWEEP_SUMMARY",
+            "phase": curr_phase,
+            "underwater_sweep": sweep,
+            "message": summary_md,
+            "question": f"Filtro underwater pre-drop configurado ({sweep.get('mode', 'UNDERWATER')}, min {sweep.get('min_cutoff_hz')} Hz). ¿Deseas continuar con {curr_phase}?"
+        }
+
 
 # Global singleton
 copilot_guided_session_engine = CopilotGuidedSession()

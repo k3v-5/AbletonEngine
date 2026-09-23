@@ -75,14 +75,14 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
                 "history": [],
                 "telemetry_summary": {}
             },
-            "sound_design_config": {
-                "mode": "LEGACY",
-                "reprocessing_enabled": True,
-                "allow_outer_shell": True,
-                "allow_uhts_layer": True,
-                "allow_macro_racks": True,
-                "auto_detect_vst": True
-            }
+            "emotion": "DARK_AGGRESSIVE",
+            "hook_architecture": {"enabled": True, "target_contour": "ARCH", "min_hook_score": 70.0},
+            "bus_architecture": {"enabled": True, "deployed": False, "topology": {}},
+            "tension_dynamics": {"dead_air_enabled": True, "stereo_narrowing_enabled": True, "gain_dip_enabled": True},
+            "ear_candy": {"density_level": 2, "events": []},
+            "space_ducking": {"mode": "COMMERCIAL_STANDARD", "enabled": True},
+            "modal_voice_leading": {"enabled": True, "optimized": False},
+            "metric_modulation": {"level": 2, "enabled": True}
         }
 
     @classmethod

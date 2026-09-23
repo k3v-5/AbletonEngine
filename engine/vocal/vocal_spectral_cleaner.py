@@ -8,7 +8,22 @@ Spectral Vocal Cleaner & Dynamics Guardian:
 
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
-from scipy import signal
+try:
+    from scipy import signal
+except ImportError:
+    signal = None
+
+
+def _fft_filter(mono: np.ndarray, sr: int, low_hz: Optional[float] = None, high_hz: Optional[float] = None) -> np.ndarray:
+    n = len(mono)
+    freqs = np.fft.rfftfreq(n, d=1.0 / sr)
+    spec = np.fft.rfft(mono)
+    mask = np.ones_like(freqs, dtype=bool)
+    if low_hz is not None:
+        mask = mask & (freqs >= low_hz)
+    if high_hz is not None:
+        mask = mask & (freqs <= high_hz)
+    return np.fft.irfft(spec * mask, n=n)
 
 
 class VocalSpectralCleaner:
@@ -28,8 +43,11 @@ class VocalSpectralCleaner:
         nyq = 0.5 * sr
         low = max(0.01, min(0.85, 5500.0 / nyq))
         high = max(low + 0.05, min(0.99, 9000.0 / nyq))
-        sos_sib = signal.butter(4, [low, high], 'bandpass', output='sos')
-        sib_band = signal.sosfilt(sos_sib, mono)
+        if signal is not None:
+            sos_sib = signal.butter(4, [low, high], 'bandpass', output='sos')
+            sib_band = signal.sosfilt(sos_sib, mono)
+        else:
+            sib_band = _fft_filter(mono, sr, low_hz=5500.0, high_hz=9000.0)
 
         # RMS ratio
         rms_total = np.sqrt(np.mean(mono ** 2) + 1e-12)
@@ -60,8 +78,11 @@ class VocalSpectralCleaner:
             return {"has_plosives": False, "plosive_count": 0}
 
         nyq = 0.5 * sr
-        sos_sub = signal.butter(4, min(60.0 / nyq, 0.49), 'lowpass', output='sos')
-        sub_bursts = signal.sosfilt(sos_sub, mono)
+        if signal is not None:
+            sos_sub = signal.butter(4, min(60.0 / nyq, 0.49), 'lowpass', output='sos')
+            sub_bursts = signal.sosfilt(sos_sub, mono)
+        else:
+            sub_bursts = _fft_filter(mono, sr, low_hz=None, high_hz=60.0)
 
         # Detect transient peaks in sub
         peak_sub = np.max(np.abs(sub_bursts))

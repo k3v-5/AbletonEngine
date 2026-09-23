@@ -200,6 +200,21 @@ class RoleClassifier:
         """
         Adapter method for SpatialPanner pan spread classification.
         """
+        r_clean = str(role or "").upper().strip().replace(" ", "_").replace("-", "_")
+        n_clean = str(name or "").lower()
+        if r_clean in ("RHYTHM_GUITAR", "GUITAR_RHYTHM") or "rhythm guitar" in n_clean:
+            return "RHYTHM_GUITAR"
+        if r_clean in ("LEAD_GUITAR", "GUITAR_LEAD", "SOLO_GUITAR") or "lead guitar" in n_clean:
+            return "LEAD_GUITAR"
+        if r_clean in ("808_BASS", "808") or "808" in n_clean:
+            return "808_BASS"
+        if r_clean in ("ELECTRIC_BASS", "BASS_GUITAR") or "electric bass" in n_clean or "bajo electrico" in n_clean:
+            return "ELECTRIC_BASS"
+        if r_clean == "DEMBOW" or "dembow" in n_clean:
+            return "DEMBOW"
+        if r_clean in ("BACKING_VOCALS", "COROS", "BACKING_VOCAL") or any(w in n_clean for w in ["backing", "coros", "harmonies", "adlib"]):
+            return "BACKING_VOCALS"
+
         canonical = cls.classify(name, fallback_role=role)
         if canonical == CanonicalRole.KICK:
             return "KICK"

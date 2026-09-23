@@ -10,4 +10,10 @@ if _pkg_root not in sys.path:
     sys.path.insert(0, _pkg_root)
 
 # Expose key classes and functions for easier imports
-from .server import AbletonConnection, get_ableton_connection
+try:
+    from .server import AbletonConnection, get_ableton_connection
+except ImportError:
+    try:
+        from server import AbletonConnection, get_ableton_connection
+    except ImportError:
+        pass

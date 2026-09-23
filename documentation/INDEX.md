@@ -10,6 +10,7 @@
 ```
 AbletonEngine/
 ├── docs/                                    # Documentación consolidada del sistema
+│   ├── VITAL_SOUND_SYNTHESIS_ENGINE.md      # Motor Autónomo de Síntesis y Diseño Sonoro de Vital (Wavetables, Modular, 7 Leyes KSHMR, Seguridad Permisiva)
 │   ├── audit/                               # Reportes de auditoría y líneas base (Pasos 01-03)
 │   │   ├── HITO_1_AUDIT_REPORT.md           # Auditoría técnica inicial y análisis de dependencias
 │   │   ├── HITO_1_BASELINE.md               # Congelación de baseline criptográfica SHA-256
@@ -66,6 +67,14 @@ AbletonEngine/
 │   │   ├── chains/                          # Plantillas de cadenas de efectos
 │   │   ├── presets/                         # Scoring y recomendación de presets
 │   │   └── profiles/                        # Normalización de perfiles tímbricos
+│   ├── sound_design/                        # MOTOR AUTÓNOMO DE SÍNTESIS VITAL (.vital)
+│   │   ├── vital_sound_engine.py            # Orquestador maestro (create_preset, design_granular, audit)
+│   │   ├── vital_modular_designer.py        # Diseñador modular (síntesis de ondas, Diode/Comb/Dirty, LFO S&H, FX)
+│   │   ├── vital_design_validator.py        # Validador y auditor de especificaciones granulares
+│   │   ├── vital_sound_sculptor.py          # Escultor semántico macro (7 Principios de KSHMR)
+│   │   ├── vital_wavetable_synth.py         # Sintetizador matemático Base64 (2048 float32) y Sampler PCM
+│   │   ├── vital_archetype_catalog.py       # Catálogo indexador de 61 presets en 10 categorías
+│   │   └── vital_parameter_schema.py        # Esquema de 772 parámetros, límites e invariantes anti-silencio
 │   ├── mix/                                 # Fase 5: Motor de mezcla y Digital Ear
 │   │   ├── loudness_analyzer.py             # DSP normativo ITU-R BS.1770-5 (K-Weighting, Gating)
 │   │   ├── loudness_standards.py            # Perfiles de entrega (EBU R 128, STREAMING, CLUB)

@@ -1,4 +1,5 @@
 # engine/audio/stem_bouncer.py
+from __future__ import annotations
 import os
 import json
 import time

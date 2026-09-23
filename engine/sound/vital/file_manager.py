@@ -12,7 +12,7 @@ from pathlib import Path
 from engine.sound.vital.models import VitalPresetSpec
 
 USER_VITAL_PRESETS_DIR = Path(r"D:\Documentos\Vital\User\Presets\PIE_Presets")
-ENGINE_PRESETS_DIR = Path(r"F:\Dev\AbletonEngine\presets\vital")
+ENGINE_PRESETS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "presets" / "vital"
 TEMPLATE_PATH = Path(__file__).parent / "template.vital"
 
 class VitalPresetManager:
@@ -28,8 +28,11 @@ class VitalPresetManager:
         self.engine_dir = engine_dir or ENGINE_PRESETS_DIR
         self.template_path = template_path or TEMPLATE_PATH
         
-        # Ensure target directories exist
-        self.engine_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure target directories exist safely
+        try:
+            self.engine_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
         try:
             self.user_dir.mkdir(parents=True, exist_ok=True)
         except Exception:
@@ -211,7 +214,7 @@ class VitalPresetManager:
         for sdir in dirs_to_scan:
             if not sdir.exists():
                 continue
-            for f in sdir.glob("*.vital"):
+            for f in sdir.rglob("*.vital"):
                 if f.name in scanned_names:
                     continue
                 scanned_names.add(f.name)

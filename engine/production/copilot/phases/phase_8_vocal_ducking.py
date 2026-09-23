@@ -14,6 +14,7 @@ from engine.vocal.pipeline import VocalProductionEngine
 from engine.mix.resonance_detector import ResonanceDetector
 from engine.mix.lufs_validation_gate import LUFSValidationGate, LoudnessAuditResult, DualLoudnessAuditResult
 from engine.fx.role_fx_catalog import ROLE_INSERT_EFFECTS
+from engine.mix.spectral_sidechain import DynamicSpectralSidechainEngine
 
 logger = logging.getLogger("Phase8VocalDucking")
 
@@ -275,38 +276,13 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
                 "• **Personalizado**: Puedes especificar cualquier valor exacto (ej: `-3.0 dB`, `-2.0 dB`).\n\n"
                 "*Responde con 'Opción A', 'Opción B', 'Bypass' o tu nivel personalizado deseado.*"
             ),
-            "instructions_for_ai": "Analiza las necesidades espectrales y decide la intensidad de vocal ducking (-2.5 dB, -1.5 dB, personalizado o Bypass).",
+            "instructions_for_ai": "Analiza las necesidades espectrales y decide la intensidad de vocal ducking (-2.5 dB, -1.5 dB, personalizado o Bypass). Si existe pista vocal activa, no omitas (Bypass) para evitar enmascaramiento armónico con sintes y colchones; selecciona Opción A (-2.5 dB) u Opción B (-1.5 dB). Solo usa Bypass en producciones 100% instrumentales sin voces.",
             "phase": "PHASE_8_VOCAL_DUCKING"
         }
 
     def _handle_phase_8_vocal_ducking(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         text = _normalize_text(user_input)
         is_bypass = ("bypass" in text or "omitir" in text or "opcion c" in text or "opcion 3" in text or "boton c" in text or text in ["c", "3", "no"] or "sin ducking" in text)
-
-        # Apply instrument anti-overlap panning if not yet applied and not in explicit bypass
-        if not is_bypass and not session.data.get("panning_evaluated", False):
-            try:
-                tracks = session.data.get("tracks", [])
-                p_audit = InstrumentPanningEvaluator.evaluate_session_panning(tracks, conn=conn)
-                InstrumentPanningEvaluator.apply_panning_plan(conn, p_audit.get("directives", []))
-                session.data["panning_evaluated"] = True
-                session.data["panning_plan_applied"] = p_audit
-            except Exception as ex_p:
-                logger.debug(f"Notice applying pre-vocal panning in Phase 8: {ex_p}")
-
-        duck_amount_db = -2.5
-        if not is_bypass:
-            if "1.5" in text or "sutil" in text or "opcion b" in text or "opcion 2" in text or "boton b" in text or text in ["b", "2"]:
-                duck_amount_db = -1.5
-            else:
-                custom_m = re.search(r"(-?\d+(?:\.\d+)?)\s*(?:db)?", text)
-                if custom_m and "opcion" not in text:
-                    try:
-                        val = float(custom_m.group(1))
-                        if val != 0.0:
-                            duck_amount_db = -abs(val)
-                    except ValueError:
-                        pass
 
         tracks = session.data.get("tracks", [])
         vocal_idx = None
@@ -332,6 +308,41 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
             except Exception as ex_v:
                 logger.debug(f"Live vocal track scan notice: {ex_v}")
 
+        # AI token shortcut guard: When an active vocal track exists, bypassing ducking
+        # causes severe acoustic masking against vocals in the 200 Hz - 4 kHz harmonic band.
+        # Clamp bypass to subtle transparent ducking (-1.5 dB) to preserve mix intelligibility.
+        clamped_bypass_to_subtle = False
+        if is_bypass and vocal_idx is not None:
+            is_bypass = False
+            duck_amount_db = -1.5
+            clamped_bypass_to_subtle = True
+            logger.info("Vocal ducking bypass clamped to -1.5 dB transparent ducking because active vocal track is present.")
+        elif not is_bypass:
+            duck_amount_db = -2.5
+            if "1.5" in text or "sutil" in text or "opcion b" in text or "opcion 2" in text or "boton b" in text or text in ["b", "2"]:
+                duck_amount_db = -1.5
+            else:
+                custom_m = re.search(r"(-?\d+(?:\.\d+)?)\s*(?:db)?", text)
+                if custom_m and "opcion" not in text:
+                    try:
+                        val = float(custom_m.group(1))
+                        if val != 0.0:
+                            duck_amount_db = -abs(val)
+                    except ValueError:
+                        pass
+        else:
+            duck_amount_db = 0.0
+
+        # Apply instrument anti-overlap panning if not yet applied and not in explicit bypass
+        if not is_bypass and not session.data.get("panning_evaluated", False):
+            try:
+                p_audit = InstrumentPanningEvaluator.evaluate_session_panning(tracks, conn=conn)
+                InstrumentPanningEvaluator.apply_panning_plan(conn, p_audit.get("directives", []))
+                session.data["panning_evaluated"] = True
+                session.data["panning_plan_applied"] = p_audit
+            except Exception as ex_p:
+                logger.debug(f"Notice applying pre-vocal panning in Phase 8: {ex_p}")
+
         target_indices = []
         for trk in tracks:
             t_idx_cand = trk.get("index")
@@ -346,8 +357,9 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
             target_indices = [t.get("index") for t in tracks if t.get("index") != vocal_idx and t.get("role") not in ("DRUMS", "BASS", "VOCALS") and not t.get("is_audio")]
 
         ducking_report = {
-            "status": "BYPASS" if is_bypass else "CONFIGURED",
+            "status": "BYPASS" if is_bypass else ("CLAMPED_SUBTLE" if clamped_bypass_to_subtle else "CONFIGURED"),
             "is_bypass": is_bypass,
+            "bypass_clamped": clamped_bypass_to_subtle,
             "duck_amount_db": 0.0 if is_bypass else duck_amount_db,
             "vocal_source_track": vocal_idx,
             "target_tracks": target_indices,
@@ -451,6 +463,53 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
 
         session.data["vocal_ducking"] = ducking_report
 
+        # Dynamic Spectral Sidechain (Frequency-Selective Unmasking)
+        try:
+            kick_idx = next((t.get("index") for t in tracks if t.get("role") == "DRUMS" or "kick" in str(t.get("name", "")).lower()), None)
+            bass_idx = next((t.get("index") for t in tracks if t.get("role") in ("BASS", "808") or any(k in str(t.get("name", "")).lower() for k in ("bass", "808", "sub"))), None)
+
+            spectral_sc = {}
+            if kick_idx is not None and bass_idx is not None:
+                spectral_sc["kick_bass"] = DynamicSpectralSidechainEngine.configure_kick_bass_spectral_carving(
+                    conn=conn, kick_track_idx=kick_idx, bass_track_idx=bass_idx
+                )
+            else:
+                spectral_sc["kick_bass"] = DynamicSpectralSidechainEngine.calculate_kick_bass_carving()
+
+            if vocal_idx is not None and target_indices:
+                spectral_sc["vocal_music"] = DynamicSpectralSidechainEngine.configure_vocal_music_spectral_carving(
+                    conn=conn, vocal_track_idx=vocal_idx, target_tracks_indices=target_indices
+                )
+            else:
+                spectral_sc["vocal_music"] = DynamicSpectralSidechainEngine.calculate_vocal_music_carving()
+
+            session.data["spectral_sidechain"] = spectral_sc
+            ducking_report["spectral_sidechain"] = spectral_sc
+        except Exception as ex_spec:
+            logger.debug(f"Dynamic spectral sidechain notice: {ex_spec}")
+
+        # Dynamic Space Ducking (Reverbs & Delays Duckeados con Bloom)
+        try:
+            from engine.mix.space_ducking import DynamicSpaceDucker, SpaceDuckingMode
+            space_mode = SpaceDuckingMode.COMMERCIAL_STANDARD
+            if "profundo" in text or "deep" in text:
+                space_mode = SpaceDuckingMode.DEEP_BLOOM
+            elif "sutil" in text or "transparente" in text:
+                space_mode = SpaceDuckingMode.TRANSPARENT
+
+            space_recipe = DynamicSpaceDucker.get_recipe(space_mode)
+            reverb_idx = next((t.get("index") for t in tracks if any(k in str(t.get("name", "")).lower() for k in ("reverb", "delay", "space", "echo"))), None)
+
+            if reverb_idx is not None and vocal_idx is not None:
+                space_cfg = DynamicSpaceDucker.configure_space_ducking_device(conn, reverb_idx, vocal_idx, space_mode)
+            else:
+                space_cfg = {"status": "CALCULATED", "recipe": space_recipe}
+
+            session.data["space_ducking"] = space_cfg
+            ducking_report["space_ducking"] = space_cfg
+        except Exception as ex_sp:
+            logger.debug(f"Dynamic space ducking notice: {ex_sp}")
+
         tracks = session.data.get("tracks", [])
         m_idx = 0
         if conn and hasattr(conn, "send_command"):
@@ -471,6 +530,38 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
             session.data["low_mid_resonances_clean"] = res_clean
         except Exception as ex_res:
             logger.debug(f"Post-vocal resonance cleaner notice: {ex_res}")
+
+        # Low-End Phase & Polar Alignment Certification Pass
+        try:
+            from engine.mix.phase_correlation_sentinel import PhaseCorrelationSentinel
+            phase_audit = PhaseCorrelationSentinel.audit_kick_bass_coherence(tracks, conn=conn)
+            session.data["final_phase_coherence"] = phase_audit
+        except Exception as ex_phase:
+            logger.debug(f"Final phase coherence audit notice: {ex_phase}")
+
+        # Smart Resonance Anti-Masking Audit Pass
+        try:
+            from engine.mix.smart_resonance_carver import SmartResonanceCarver
+            carve_audit = SmartResonanceCarver.audit_session_resonances(tracks, conn=conn)
+            session.data["final_resonance_audit"] = carve_audit
+        except Exception as ex_carve:
+            logger.debug(f"Final smart resonance audit notice: {ex_carve}")
+
+        # Pre-Master Crest Factor & Headroom Optimizer Pass
+        try:
+            from engine.mix.crest_factor_optimizer import PreMasterCrestFactorOptimizer
+            crest_audit = PreMasterCrestFactorOptimizer.audit_session_crest_factors(tracks, conn=conn)
+            session.data["crest_factor_audit"] = crest_audit
+        except Exception as ex_crest:
+            logger.debug(f"Pre-master crest factor audit notice: {ex_crest}")
+
+        # Z-Plane Psychoacoustic Depth Architecture Pass
+        try:
+            from engine.mix.z_plane_depth import ZPlaneDepthArchitect
+            depth_audit = ZPlaneDepthArchitect.evaluate_session_depth(tracks)
+            session.data["z_plane_depth"] = depth_audit
+        except Exception as ex_depth:
+            logger.debug(f"Z-plane depth architecture audit notice: {ex_depth}")
 
         session.data["current_phase"] = "PHASE_9_MIX_MASTER"
         session.data["phase_index"] = 9
@@ -589,6 +680,23 @@ vol.value = max(0.05, min(1.0, cur_v * {linear_m}))
         session.data["dual_lufs_audit"] = dual_res.to_dict()
 
         if not dual_res.passed:
+            bypass_blocked = False
+            bypass_blocked_reason = ""
+            if wants_flexible_bypass:
+                # Anti-token shortcut guard: block bypass if digital inter-sample clipping exists
+                # or loudness deviation exceeds 2.5 dB
+                clipping_detected = (ch_rep.true_peak_dbtp > 0.0 or m_rep.true_peak_dbtp > 0.0)
+                severe_deviation = (abs(ch_rep.lufs_deviation_db) > 2.5 or abs(m_rep.lufs_deviation_db) > 2.5)
+                if clipping_detected or severe_deviation:
+                    bypass_blocked = True
+                    reasons = []
+                    if clipping_detected:
+                        reasons.append(f"distorsión True Peak > 0.0 dBTP (Canal: {ch_rep.true_peak_dbtp:.2f} dBTP, Master: {m_rep.true_peak_dbtp:.2f} dBTP)")
+                    if severe_deviation:
+                        reasons.append(f"desviación excesiva de sonoridad > 2.5 dB (Canal: {ch_rep.lufs_deviation_db:+.1f} dB, Master: {m_rep.lufs_deviation_db:+.1f} dB)")
+                    bypass_blocked_reason = " y ".join(reasons)
+                    wants_flexible_bypass = False
+
             if wants_flexible_bypass:
                 session.data["lufs_gate_active"] = False
                 session.data["lufs_gate_passed"] = True
@@ -598,7 +706,18 @@ vol.value = max(0.05, min(1.0, cur_v * {linear_m}))
                 session.data["lufs_gate_passed"] = False
                 session._save_state()
 
+                alert_prefix = ""
+                if bypass_blocked:
+                    alert_prefix = (
+                        f"⛔ **BLOQUEO DE SEGURIDAD ACÚSTICA (ANTI-BYPASS DE SONORIDAD):**\n"
+                        f"Se ha rechazado la solicitud de omitir/bypass (Opción 3) debido a un riesgo técnico crítico:\n"
+                        f"• {bypass_blocked_reason}.\n"
+                        f"Ignorar esta compuerta causaría clipping digital o rechazo comercial en plataformas de streaming.\n"
+                        f"Debes seleccionar obligatoriamente **Opción 1** (Calibración automática) u **Opción 2** (Ajuste manual en dB).\n\n"
+                    )
+
                 q_text = (
+                    f"{alert_prefix}"
                     f"📊 **Auditoría de Sonoridad ITU-R BS.1770-5 en Dos Etapas (Canal y Master):**\n\n"
                     f"{dual_res.summary_table}\n\n"
                     f"⚠️ **COMPUERTA DE SONORIDAD — CALIBRACIÓN O CONFIRMACIÓN REQUERIDA:**\n"
@@ -611,19 +730,21 @@ vol.value = max(0.05, min(1.0, cur_v * {linear_m}))
                     f"📋 **Formato de Respuesta y Opciones Disponibles:**\n"
                     f"• **Opción 1:** Aplicar Calibración Automática de Ganancia y Re-auditar ({ch_trim_txt} en canal vocal, {m_trim_txt} en master). *Escribe: 'Opción 1' o 'Calibrar'.*\n"
                     f"• **Opción 2:** Introducir ajuste manual en dB (ej: '+2.5 dB', '-1.5 dB').\n"
-                    f"• **Opción 3:** Aceptar y Continuar con tolerancia flexible / Bypass de compuerta. *Escribe: 'Opción 3', 'Continuar', 'Aceptar' o 'Bypass'.*\n\n"
+                    f"• **Opción 3:** Aceptar y Continuar con tolerancia flexible / Bypass de compuerta (solo disponible si True Peak ≤ 0.0 dBTP y desviación ≤ 2.5 dB). *Escribe: 'Opción 3', 'Continuar', 'Aceptar' o 'Bypass'.*\n\n"
                     f"🧠 **Decisión Requerida:**\n"
-                    f"Elige una de las 3 opciones para calibrar el audio o avanzar con la sesión."
+                    f"Elige una opción para calibrar el audio o avanzar con la sesión."
                 )
 
                 return {
                     "status": "LUFS_CALIBRATION_REQUIRED",
                     "passed": False,
                     "retry_required": True,
+                    "bypass_blocked": bypass_blocked,
+                    "bypass_blocked_reason": bypass_blocked_reason,
                     "current_step": "COMPUERTA DE SONORIDAD: CALIBRACIÓN O TOLERANCIA FLEXIBLE (ITU-R BS.1770-5)",
-                    "action_taken": f"Sonoridad evaluada: Canal '{v_name}' ({ch_rep.integrated_lufs:.1f} LUFS) y Master ({m_rep.integrated_lufs:.1f} LUFS). Esperando decisión del productor.",
+                    "action_taken": f"Sonoridad evaluada: Canal '{v_name}' ({ch_rep.integrated_lufs:.1f} LUFS) y Master ({m_rep.integrated_lufs:.1f} LUFS). Esperando decisión del productor." if not bypass_blocked else f"Bypass rechazado por {bypass_blocked_reason}. Calibración requerida.",
                     "question": q_text,
-                    "instructions_for_ai": "Informa al usuario de los niveles de sonoridad medidos y ofrece las 3 opciones (Opción 1: Calibrar, Opción 2: Manual en dB, Opción 3: Continuar/Bypass).",
+                    "instructions_for_ai": "Informa al usuario de los niveles de sonoridad medidos. Si el bypass fue rechazado por clipping (>0.0 dBTP) o desviación (>2.5 dB), indica que debe calibrarse obligatoriamente con Opción 1 u Opción 2.",
                     "dual_lufs_audit": dual_res.to_dict(),
                     "phase": session.data.get("current_phase", "PHASE_5_INSERT_EFFECTS")
                 }

@@ -412,14 +412,23 @@ class Phase9ExportHandler(BasePhaseHandler):
             if real_audio is not None and real_audio.size > 1000:
                 audio_mono = real_audio[0] if real_audio.ndim == 2 else real_audio
                 # Spectral separation for masker (Kick/Sub <120Hz) vs target (Low-Mids/Mids 120-1500Hz)
-                from scipy.signal import butter, sosfilt
-                nyq = 0.5 * sr
-                low_cut = min(120.0, nyq - 10.0)
-                mid_cut = min(1500.0, nyq - 10.0)
-                sos_low = butter(4, low_cut / nyq, 'lowpass', output='sos')
-                sos_mid = butter(4, [low_cut / nyq, mid_cut / nyq], 'bandpass', output='sos')
-                masker_sub = sosfilt(sos_low, audio_mono)
-                target_mid = sosfilt(sos_mid, audio_mono)
+                try:
+                    from scipy.signal import butter, sosfilt
+                    nyq = 0.5 * sr
+                    low_cut = min(120.0, nyq - 10.0)
+                    mid_cut = min(1500.0, nyq - 10.0)
+                    sos_low = butter(4, low_cut / nyq, 'lowpass', output='sos')
+                    sos_mid = butter(4, [low_cut / nyq, mid_cut / nyq], 'bandpass', output='sos')
+                    masker_sub = sosfilt(sos_low, audio_mono)
+                    target_mid = sosfilt(sos_mid, audio_mono)
+                except ImportError:
+                    # Pure numpy FFT filtering fallback if scipy not installed
+                    fft_data = np.fft.rfft(audio_mono)
+                    freqs = np.fft.rfftfreq(len(audio_mono), 1.0 / sr)
+                    fft_low = np.where(freqs <= 120.0, fft_data, 0.0)
+                    masker_sub = np.fft.irfft(fft_low, n=len(audio_mono))
+                    fft_mid = np.where((freqs > 120.0) & (freqs <= 1500.0), fft_data, 0.0)
+                    target_mid = np.fft.irfft(fft_mid, n=len(audio_mono))
 
                 psycho_res = PsychoacousticMaskingAuditor.audit_masking_conflict(
                     masker_audio=masker_sub,
@@ -535,9 +544,8 @@ class Phase9ExportHandler(BasePhaseHandler):
             "*(Ej: 'Saltar al Drop 1', 'Ir al Breakdown', 'Reproducir compás 32', 'Escuchar la Intro')*\n\n"
             "📦 **Exportación de Stems Verificada:** Responde 'Exportar stems' o 'Revisar stems' para auditar la correlación de fase en subgraves, headroom dinámico y generar el manifiesto oficial de distribución.\n"
             "🔄 **Cambio de Instrumento con Re-Validación:** Responde 'Cambiar instrumento' o 'Cambiar sonido' para reemplazar el instrumento de cualquier canal y ejecutar el ciclo completo de validación técnica (Carga VST -> Esculpido Delta >= 1 -> EQ Eight Obligatorio -> Notas MIDI -> Re-auditoría LUFS).\n"
-            "🧪 **Fase 11: Catálogo de Reprocesamiento y Resíntesis de Audio (UHTS):** Responde 'Fase 11', 'Reprocesar' o 'Resamplear' para acceder a los 20 algoritmos de mutación de audio continuo (Karplus-Strong tuned, Formants, Sub-growl, Stutters, Wow/Flutter, etc.) y crear capas texturales únicas en pistas de audio nuevas.\n"
             "🎧 **El Copilot permanece activo y escuchando en esta misma herramienta.**\n"
-            "Puedes solicitar cualquier ajuste en lenguaje natural (ej: 'Fase 11', 'Saltar al Drop 1', 'Exportar stems', 'Cambiar instrumento', 'Sube 1.5 dB al bajo', 'Cambia el tempo a 128 BPM')."
+            "Puedes solicitar cualquier ajuste en lenguaje natural (ej: 'Saltar al Drop 1', 'Exportar stems', 'Cambiar instrumento', 'Sube 1.5 dB al bajo', 'Cambia el tempo a 128 BPM')."
         )
 
         return {
