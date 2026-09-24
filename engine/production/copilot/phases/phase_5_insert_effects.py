@@ -260,7 +260,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
             f"• JSON: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
             f"• Calibración recomendada: `\"Opción 1\"` (Aplica valores óptimos para este procesador)\n"
-            f"• 🚀 **Cadena Express (Recomendada)**: Escribe `'cadena express'` o `'lote'` para calibrar todos los efectos de esta pista ({t_name}) en 1 solo paso y avanzar.\n"
+            f"• Decisión deliberada por procesador: Evalúa si {eff_name} aporta a la claridad, calidez o pegada de '{t_name}', define sus parámetros conscientemente o indica 'Bypass' si está de más.\n"
             f"• Bypass puntual: Solo si determinas acústicamente que este canal no requiere este proceso (máximo 35% de la sesión)."
         )
     
@@ -277,7 +277,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"{action_note}"
                 f"{params_format_banner}"
             ),
-            "instructions_for_ai": f"Define los parámetros para {eff_name} en '{t_name}' o escribe 'cadena express' para configurar la pista completa.",
+            "instructions_for_ai": f"Evalúa la función acústica de {eff_name} en '{t_name}' ({role}), define deliberadamente sus parámetros específicos o indica 'Bypass' si no es necesario. Cero atajos genéricos.",
             "target_track": t_idx,
             "target_device": eff_name,
             "device_index_in_chain": dev_ptr + 1,
@@ -442,7 +442,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         f"⛔ **CUOTA MÁXIMA DE BYPASS EXCEDIDA ({current_bypassed}/{tot_non_eq} procesadores omitidos)**\n\n"
                         f"Una producción comercial de alto nivel exige control dinámico (compresión), calidez armónica (saturación) y espacialidad.\n"
                         f"No se permite omitir `{eff_name}` en la pista '{trk.get('name')}'.\n\n"
-                        f"Por favor define los parámetros para `{eff_name}` (o responde 'Opción 1' para aplicar la calibración recomendada, o 'cadena express' para toda la pista)."
+                        f"Por favor define los parámetros específicos para `{eff_name}` (o responde 'Opción 1' para aplicar la calibración recomendada)."
                     ),
                     "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name} o escribe 'Opción 1'.",
                     "target_track": t_idx,

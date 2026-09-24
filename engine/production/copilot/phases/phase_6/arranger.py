@@ -302,37 +302,46 @@ if len(arr_clips) == 0:
                             s_notes_dicts = list(base_notes)
 
             if not s_notes_dicts and not custom_notes_map:
-                key = session.data.get("key", "F")
-                scale = session.data.get("scale", "natural_minor")
-                bpm = session.data.get("bpm", 120.0)
-                genre = session.data.get("genre", "trap")
-                role = trk.get("role", "OTHER")
-                raw_gen = generate_modular_section_notes(
-                    role=role,
-                    section_index=s_idx,
-                    section_name=s_name,
-                    section_bars=s_bars,
-                    key=key,
-                    scale=scale,
-                    bpm=bpm,
-                    genre=genre
-                )
-                s_notes_dicts = []
-                for n in raw_gen:
-                    if hasattr(n, "start") and hasattr(n, "pitch"):
-                        s_notes_dicts.append({
-                            "pitch": int(n.pitch),
-                            "start_time": float(n.start),
-                            "duration": float(n.duration),
-                            "velocity": int(n.velocity)
-                        })
-                    elif isinstance(n, dict):
-                        s_notes_dicts.append({
-                            "pitch": int(n.get("pitch", 60)),
-                            "start_time": float(n.get("start_time", n.get("start", 0.0))),
-                            "duration": float(n.get("duration", 1.0)),
-                            "velocity": int(n.get("velocity", 100))
-                        })
+                allow_autonomous = bool(session.data.get("allow_autonomous_note_generation", False))
+                if allow_autonomous:
+                    key = session.data.get("key", "F")
+                    scale = session.data.get("scale", "natural_minor")
+                    bpm = session.data.get("bpm", 120.0)
+                    genre = session.data.get("genre", "trap")
+                    role = trk.get("role", "OTHER")
+                    raw_gen = generate_modular_section_notes(
+                        role=role,
+                        section_index=s_idx,
+                        section_name=s_name,
+                        section_bars=s_bars,
+                        key=key,
+                        scale=scale,
+                        bpm=bpm,
+                        genre=genre
+                    )
+                    s_notes_dicts = []
+                    for n in raw_gen:
+                        if hasattr(n, "start") and hasattr(n, "pitch"):
+                            s_notes_dicts.append({
+                                "pitch": int(n.pitch),
+                                "start_time": float(n.start),
+                                "duration": float(n.duration),
+                                "velocity": int(n.velocity)
+                            })
+                        elif isinstance(n, dict):
+                            s_notes_dicts.append({
+                                "pitch": int(n.get("pitch", 60)),
+                                "start_time": float(n.get("start_time", n.get("start", 0.0))),
+                                "duration": float(n.get("duration", 1.0)),
+                                "velocity": int(n.get("velocity", 100))
+                            })
+                else:
+                    # Strict assistant policy: engine NEVER autonomously writes chords or notes on its own
+                    s_notes_dicts = []
+                    logger.debug(
+                        f"Phase 6 Assistant Policy: zero autonomous note generation on track {t_idx} "
+                        f"('{trk.get('name')}') section {s_idx} ('{s_name}'). Empty clip prepared on arrangement timeline."
+                    )
 
             # Auto-tile section motifs if shorter than section length
             if s_notes_dicts and not any(w in s_name.lower() for w in ["silence", "silencio", "false ending", "falso final"]):
@@ -420,6 +429,41 @@ if len(arr_clips) == 0:
                     else:
                         vacuumed_notes.append(d)
                 s_notes_dicts = vacuumed_notes
+
+            # Outro Decay Room & Boundary Enforcement:
+            # Clamps all notes in the final section so they do not sustain past the song boundary,
+            # leaving natural breathing room for the reverb and delay tail to decay into the fade-out
+            is_last_section = (s_idx == len(sections) - 1)
+            if is_last_section and s_notes_dicts:
+                decay_buffer_beats = min(4.0, max(1.0, s_beats * 0.25))
+                max_note_boundary = max(1.0, s_beats - decay_buffer_beats)
+                bounded_notes = []
+                for d in s_notes_dicts:
+                    st = float(d.get("start_time", d.get("start", 0.0)))
+                    dur = float(d.get("duration", 1.0))
+                    if st >= max_note_boundary:
+                        continue
+                    elif (st + dur) > max_note_boundary:
+                        d_c = dict(d)
+                        d_c["duration"] = max(0.1, round(max_note_boundary - st, 4))
+                        bounded_notes.append(d_c)
+                    else:
+                        bounded_notes.append(d)
+                s_notes_dicts = bounded_notes
+
+            # Intro Soft Start:
+            # Prevents pad/synth notes from slamming at sample 0 of beat 0.0 with maximum transient
+            is_first_section = (s_idx == 0)
+            if is_first_section and s_notes_dicts and any(r in str(role).upper() for r in ["PAD", "ATMOSPHERE", "SYNTH", "KEYS"]):
+                softened_intro = []
+                for d in s_notes_dicts:
+                    st = float(d.get("start_time", d.get("start", 0.0)))
+                    d_c = dict(d)
+                    if st == 0.0:
+                        d_c["velocity"] = min(int(d_c.get("velocity", 90)), 78)
+                        d_c["start_time"] = 0.02
+                    softened_intro.append(d_c)
+                s_notes_dicts = softened_intro
 
             # 8-bar Turnaround variation enforcement
             from .turnaround_engine import TurnaroundEngine

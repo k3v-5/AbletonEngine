@@ -20,6 +20,65 @@ class Phase2SectionsHandler(BasePhaseHandler):
     def handle(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         return self._handle_phase_2(session, conn, user_input)
 
+    @staticmethod
+    def _suggest_structure(genre: str, bpm: float) -> Dict[str, Any]:
+        """Provides an intelligent, genre-adapted arrangement suggestion without imposing rigid templates."""
+        g = str(genre).lower()
+        if any(w in g for w in ["trap", "hip_hop", "hiphop", "boom_bap", "rap", "drill"]):
+            return {
+                "name": "Estructura Dinámica Urbana (80 Compases)",
+                "total_bars": 80,
+                "sections": [
+                    {"name": "Intro", "bars": 8},
+                    {"name": "Verso 1", "bars": 16},
+                    {"name": "Hook / Coro 1", "bars": 8},
+                    {"name": "Verso 2", "bars": 16},
+                    {"name": "Hook / Coro 2", "bars": 8},
+                    {"name": "Puente", "bars": 8},
+                    {"name": "Hook Final", "bars": 8},
+                    {"name": "Outro", "bars": 8}
+                ]
+            }
+        elif any(w in g for w in ["edm", "house", "techno", "dubstep", "club", "dance", "electronic"]):
+            return {
+                "name": "Estructura Club / Electronic Build & Drop (96 Compases)",
+                "total_bars": 96,
+                "sections": [
+                    {"name": "Intro", "bars": 8},
+                    {"name": "Build 1", "bars": 16},
+                    {"name": "Drop 1", "bars": 16},
+                    {"name": "Breakdown / Puente", "bars": 16},
+                    {"name": "Build 2", "bars": 8},
+                    {"name": "Drop 2 (Climax)", "bars": 16},
+                    {"name": "Outro", "bars": 16}
+                ]
+            }
+        elif any(w in g for w in ["ambient", "cinematic", "lofi", "chill"]):
+            return {
+                "name": "Estructura Progresiva Orgánica (64 Compases)",
+                "total_bars": 64,
+                "sections": [
+                    {"name": "Atmosphere Intro", "bars": 8},
+                    {"name": "Development A", "bars": 16},
+                    {"name": "Theme B", "bars": 16},
+                    {"name": "Expansion", "bars": 16},
+                    {"name": "Outro Fade", "bars": 8}
+                ]
+            }
+        else:
+            return {
+                "name": "Estructura Canción Estándar (80 Compases)",
+                "total_bars": 80,
+                "sections": [
+                    {"name": "Intro", "bars": 8},
+                    {"name": "Verso 1", "bars": 16},
+                    {"name": "Coro 1", "bars": 16},
+                    {"name": "Verso 2", "bars": 16},
+                    {"name": "Coro 2", "bars": 16},
+                    {"name": "Outro", "bars": 8}
+                ]
+            }
+
     def _prompt_phase_2(self, session: Any, tracks: List[Dict[str, Any]]) -> Dict[str, Any]:
         t_lines = []
         for t in tracks:
@@ -27,29 +86,33 @@ class Phase2SectionsHandler(BasePhaseHandler):
             rec_str = f" ➔ Plugins recomendados: {', '.join(recs)}" if recs else ""
             t_lines.append(f"• Pista {t.get('index')}: **{t['name']}** [{t['role']}]{rec_str}")
         t_summary = "\n".join(t_lines)
+
+        genre = session.data.get("genre", "trap")
+        bpm = float(session.data.get("bpm", 120.0))
+        suggestion = self._suggest_structure(genre, bpm)
+        sug_lines = [f"  - {s['name']}: {s['bars']} compases" for s in suggestion["sections"]]
+        sug_text = "\n".join(sug_lines)
+
         return {
             "current_step": "PASO 2 DE 7: ESTRUCTURA FORMAL, MARCADORES Y TONALIDAD/ESCALA",
             "action_taken": f"Se crearon {len(tracks)} canales en Live y se seleccionaron los mejores plugins para cada rol.",
             "question": (
                 f"📐 **Paso 2 de 7: Estructura Formal, Marcadores de Arrangement y Tonalidad/Escala**\n\n"
                 f"**Canales y Plugins Recomendados en Live:**\n{t_summary}\n\n"
-                f"**Rangos y Dinámica Estructural del Arreglo:**\n"
-                f"• **Duración total estándar**: Rango de 64 a 128 compases (típicamente 2:00 a 4:00 minutos según el tempo en BPM).\n"
-                f"• **Duración por sección**: 8 compases para secciones de transición y preparación (Intro, Buildup, Puente, Outro); 16 compases para desarrollo temático y liberación energética (Verso, Drop, Coro).\n"
-                f"• **Arco de energía dinámico**: Es necesario alternar secciones de acumulación de tensión, liberación rítmica y valles de descanso armónico.\n\n"
-                f"Estructuras canónicas configuradas:\n"
-                f"• **Opción A (Formato Estándar - 96 Compases)**: Intro (8), Verso 1 (16), Buildup (8), Drop 1 (16), Puente (8), Drop 2 (16), Outro (8).\n"
-                f"• **Opción B (Formato Compacto - 64 Compases)**: Intro (8), Verso (16), Coro/Drop (16), Puente (8), Coro Final (16).\n"
-                f"• **Opción C (EDM / Club - 128 Compases)**: Intro (16), Build (8), Drop 1 (16), Breakdown (16), Build (8), Drop 2 (16), Outro (16).\n"
-                f"• **Opción D (Hip-Hop / Boom-Bap - 88 Compases)**: Intro (4), Verse 1 (16), Hook 1 (8), Verse 2 (16), Hook 2 (8), Bridge (8), Hook 3 (8), Outro (4).\n\n"
+                f"💡 **Sugerencia Adaptativa de Estructura para {genre.capitalize()} ({suggestion['total_bars']} Compases):**\n"
+                f"{sug_text}\n\n"
+                f"✨ **Flexibilidad Total (Cero Imposición Rígida):**\n"
+                f"El motor no impone plantillas fijas. Puedes:\n"
+                f"• **Aprobar la sugerencia:** Responde `'Aprobar sugerencia en [Tonalidad Escala]'` (ej: `'Aprobar sugerencia en Fa Menor'`).\n"
+                f"• **Dictar tu propia estructura:** Escribe tus secciones libremente (ej: `'Intro 8, Verso 16, Coro 16, Puente 8, Outro 8 en Fa Menor'`).\n"
+                f"• **Elegir formatos de referencia:** Opción A (96c Estándar), Opción B (64c Compacto), Opción C (128c Club) u Opción D (88c Hip-Hop).\n\n"
                 f"🎹 **Afinación Armónica (Escala y Tonalidad del Proyecto):**\n"
-                f"El motor afinará automáticamente Ableton Live 12 (`song.root_note`, `song.scale_name`) y los plugins de afinación (Auto-Tune Artist/Pro).\n"
-                f"• *Recomendaciones por género:* Dubstep/Bass Music: **Fa Menor (F Minor)** o **Re Menor (D Minor)**; Trap: **Do Menor (C Minor)**; Pop/House: **La Menor (A Minor)** / **Do Mayor (C Major)**.\n\n"
+                f"El motor afinará automáticamente Ableton Live 12 (`song.root_note`, `song.scale_name`) y plugins vocales/sintetizadores.\n"
+                f"• *Recomendaciones por género:* Dubstep/Bass: **Fa Menor** / **Re Menor**; Trap: **Do Menor**; Pop/House: **La Menor** / **Do Mayor**.\n\n"
                 f"🧠 **Decisión Técnica Requerida:**\n"
-                f"Elige la estructura y **obligatoriamente** la tonalidad y escala deseadas (la tonalidad ya no es opcional ni se asume por defecto).\n\n"
-                f"*Ejemplo de respuesta: 'Opción A en Fa Menor', 'Opción B en Re Menor', 'Opción C en Do Menor'.*"
+                f"Indica la estructura deseada (aprobando la sugerencia, dictando la tuya o eligiendo opción) acompañada **obligatoriamente** de la tonalidad y escala."
             ),
-            "instructions_for_ai": "Selecciona la estructura (Opción A, B, C o D) y obligatoriamente la tonalidad y escala (ej. 'Opción A en Fa Menor').",
+            "instructions_for_ai": "Sugiere o aprueba la estructura (ej: 'Aprobar sugerencia en Fa Menor' o 'Intro 8, Verso 16, Coro 16, Outro 8 en Fa Menor') con su tonalidad y escala.",
             "phase": "PHASE_2_SECTIONS"
         }
     
@@ -132,6 +195,22 @@ class Phase2SectionsHandler(BasePhaseHandler):
             except Exception:
                 pass
     
+        genre = session.data.get("genre", "trap")
+        bpm = float(session.data.get("bpm", 120.0))
+
+        # Check for freeform NLP custom section specification (e.g. "intro 8, verso 16, coro 16, outro 8")
+        nlp_custom_sections = []
+        parts = re.split(r'[,;y\n]+', text)
+        curr_b = 0
+        for p in parts:
+            p_str = p.strip()
+            m = re.search(r'\b(intro|verso\s*\d*|verse\s*\d*|coro\s*\d*|chorus\s*\d*|hook\s*\d*|puente\s*\d*|bridge\s*\d*|drop\s*\d*|build\w*\s*\d*|break\w*\s*\d*|outro|estribillo|solo)\b.*?(\d+)\s*(?:compases|bars|c)?', p_str, re.IGNORECASE)
+            if m:
+                s_name = m.group(1).strip().capitalize()
+                s_len = int(m.group(2))
+                nlp_custom_sections.append({"name": s_name, "bars": s_len, "start_bar": curr_b})
+                curr_b += s_len
+
         if parsed_custom and isinstance(parsed_custom, list):
             sections = []
             curr_bar = 0
@@ -144,6 +223,29 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 })
                 curr_bar += bars
             total_bars = curr_bar
+        elif len(nlp_custom_sections) >= 2:
+            sections = nlp_custom_sections
+            total_bars = curr_b
+        elif any(w in text for w in ["sugerencia", "aprobar sugerencia", "aceptar sugerencia", "recomendada", "propuesta", "opcion sugerida"]):
+            sug = self._suggest_structure(genre, bpm)
+            total_bars = sug["total_bars"]
+            sections = []
+            curr_bar = 0
+            for s in sug["sections"]:
+                sections.append({"name": s["name"], "bars": s["bars"], "start_bar": curr_bar})
+                curr_bar += s["bars"]
+        elif "80" in text and ("compas" in text or "bars" in text or "estructura" in text or "80c" in text):
+            total_bars = 80
+            sections = [
+                {"name": "Intro", "bars": 8, "start_bar": 0},
+                {"name": "Verso 1", "bars": 16, "start_bar": 8},
+                {"name": "Hook / Coro 1", "bars": 8, "start_bar": 24},
+                {"name": "Verso 2", "bars": 16, "start_bar": 32},
+                {"name": "Hook / Coro 2", "bars": 8, "start_bar": 48},
+                {"name": "Puente", "bars": 8, "start_bar": 56},
+                {"name": "Hook Final", "bars": 8, "start_bar": 64},
+                {"name": "Outro", "bars": 8, "start_bar": 72}
+            ]
         elif "drumstep" in text or "175" in text or "intro: 16" in text or "intro 16" in text:
             total_bars = 96
             sections = [
@@ -188,7 +290,7 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 {"name": "Hook 3", "bars": 8, "start_bar": 60},
                 {"name": "Outro", "bars": 4, "start_bar": 68}
             ]
-        else:
+        elif "opcion a" in text or "96" in text or "estandar" in text:
             total_bars = 96
             sections = [
                 {"name": "Intro", "bars": 8, "start_bar": 0},
@@ -199,6 +301,15 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 {"name": "Drop 2 (Climax)", "bars": 16, "start_bar": 56},
                 {"name": "Outro", "bars": 8, "start_bar": 72}
             ]
+        else:
+            # Adaptive suggestion fallback based on genre
+            sug = self._suggest_structure(genre, bpm)
+            total_bars = sug["total_bars"]
+            sections = []
+            curr_bar = 0
+            for s in sug["sections"]:
+                sections.append({"name": s["name"], "bars": s["bars"], "start_bar": curr_bar})
+                curr_bar += s["bars"]
     
         session.data["sections"] = sections
         session.data["total_bars"] = total_bars

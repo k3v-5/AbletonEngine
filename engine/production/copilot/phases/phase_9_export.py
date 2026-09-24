@@ -230,15 +230,23 @@ class Phase9ExportHandler(BasePhaseHandler):
                 )
                 session.data["master_gain_boost"] = boost_res
 
-                # Top & Tail checks: Pre-roll compás 0 (sin ruidos residuales) y fade out reverb en compás 63-64 a -inf dB
-                tot_bars = float(session.data.get("total_bars", 64.0))
+                # Top & Tail checks: Pre-roll suave en compás 0 y fade out a -inf dB en compás final
+                sections = session.data.get("sections", [])
+                if sections:
+                    tot_bars = float(sum(int(s.get("bars", 8)) for s in sections))
+                    session.data["total_bars"] = tot_bars
+                else:
+                    tot_bars = float(session.data.get("total_bars", 64.0))
+
                 tt_res = TopTailGuard.apply_top_and_tail_guards(
                     conn=conn,
                     master_track_index=master_target_idx,
-                    total_bars=tot_bars
+                    total_bars=tot_bars,
+                    fade_bars=2.0,
+                    session_data=session.data
                 )
                 session.data["top_and_tail"] = tt_res
-                mastering_status = f"Cadena Master (5 VSTs) con Boost +3.0 dB y Top&Tail activos en Pista {master_target_idx}"
+                mastering_status = f"Cadena Master (5 VSTs) con Boost +3.0 dB y Top&Tail activos en Pista {master_target_idx} (Outro fade compás {int(tot_bars-2)}-{int(tot_bars)})"
             except Exception as e:
                 mastering_status = f"Mastering warning: {e}"
 

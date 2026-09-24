@@ -63,6 +63,18 @@ class Phase6Prompts:
                 "⚠️ *Para evitar pads silenciosos en Ableton Live, mapea tus notas a partir de C1 (pitch 36 a 51).*"
             )
 
+        key = session.data.get("key", "F")
+        scale = session.data.get("scale", "Minor")
+        harmonic_guide = (
+            f"\n\n💡 **Asistencia Armónica y Teórica (Tonalidad: {key} {scale}):**\n"
+            f"• **Rol actual:** `{cur_trk.get('role')}`\n"
+            f"• El motor te asiste con la teoría, pero **nunca escribe notas por su cuenta**.\n"
+            f"• Puedes:\n"
+            f"  1. Dictar acordes o notas explícitas (ej: `'Acordes: {key}m - Db - Eb'` o enviar JSON con `notes`).\n"
+            f"  2. Grabar o dibujar las notas directamente en Ableton Live.\n"
+            f"  3. Escribir `'vacio'` o `'siguiente'` para dejar los clips preparados en el Arrangement listos para tu interpretación."
+        )
+
         return {
             "status": "AWAITING_TRACK_COMPOSITION",
             "current_step": f"PASO 6 (POR PISTA {trk_idx + 1}/{len(tracks)}): COMPOSICIÓN PARA '{cur_trk.get('name')}'",
@@ -72,12 +84,13 @@ class Phase6Prompts:
                 f"• **Secciones del Arreglo:** {sec_str}\n"
                 f"• **Rol Musical:** `{cur_trk.get('role')}`\n"
                 f"• **Instrumento:** {cur_trk.get('instrument', cur_trk.get('name'))}\n\n"
-                f"⚠️ **Regla de Oro (Cero Relleno Procedural):**\n"
-                f"Define las notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) **únicamente para esta pista** en todas sus secciones activas.\n\n"
-                f"Puedes enviar un JSON con `notes` (para todo el arreglo o sección) o `sections` detallando las notas por sección."
+                f"⚠️ **Regla Estricta (Cero Relleno Procedural):**\n"
+                f"El motor asiste pero **jamás escribe notas o acordes sin tu autorización explícita**.\n"
+                f"Define las notas MIDI explícitas únicamente para esta pista, o indica 'vacio' para preparar el clip en blanco en el Arrangement."
                 f"{drum_spec_block}"
+                f"{harmonic_guide}"
             ),
-            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para la pista '{cur_trk.get('name')}' ({cur_trk.get('role')}). El motor no autocompletará notas.",
+            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para '{cur_trk.get('name')}' o escribe 'vacio' para dejar el clip preparado en blanco. El motor no autocompletará notas.",
             "phase": "PHASE_6_COMPOSITION",
             "track_index": trk_idx,
             "track_name": cur_trk.get("name"),
