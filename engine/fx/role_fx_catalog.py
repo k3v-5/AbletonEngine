@@ -2,7 +2,24 @@
 """
 Role-based insert effects catalog and psychoacoustic spectral guide.
 """
-from typing import Dict, List, Any
+from typing import List, Dict, Any
+
+VALHALLA_VINTAGE_VERB_PARAMS: List[Dict[str, Any]] = [
+    {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de señal directa y reverberada.", "default": 0.20},
+    {"id": "Decay", "name": "Decay (RT60)", "range": "0.0 a 1.0 (0.2s a 70.0s)", "behavior": "Longitud de la cola de reverberación.", "default": 0.25},
+    {"id": "PreDelay", "name": "Pre-delay", "range": "0.0 a 1.0 (0 ms a 500 ms)", "behavior": "Separación temporal para preservar el ataque transitorio seco.", "default": 0.05},
+    {"id": "Mode", "name": "Algorithmic Mode", "range": "22 Modos (Concert Hall, Plate, Room, Smooth Plate, Nonlin...)", "behavior": "Topología algorítmica de estudio.", "default": 0.0},
+    {"id": "ColorMode", "name": "Color Mode (Era)", "range": "1970s, 1980s, Now", "behavior": "Ancho de banda y grano analógico/vintage.", "default": 0.50},
+    {"id": "Size", "name": "Room Size", "range": "0.0 a 1.0", "behavior": "Dimensión percibida del espacio acústico.", "default": 0.50},
+    {"id": "Attack", "name": "Attack Shape", "range": "0.0 a 1.0", "behavior": "Desarrollo del transitorio reverberado; en Nonlin pasa de gated a inverso.", "default": 0.0},
+    {"id": "BassMult", "name": "Bass Multiply", "range": "0.0 a 1.0 (0.25x a 4.0x)", "behavior": "Multiplicador de decaimiento en graves relativo al Decay.", "default": 0.50},
+    {"id": "LowCut", "name": "Low Cut (HPF)", "range": "0.0 a 1.0 (10 Hz a 500 Hz)", "behavior": "Filtro pasa-altos anti-barro protector.", "default": 0.20},
+    {"id": "HighCut", "name": "High Cut (LPF)", "range": "0.0 a 1.0 (1000 Hz a 20000 Hz)", "behavior": "Filtro pasa-bajos para calidez analógica.", "default": 0.65},
+    {"id": "EarlyDiffusion", "name": "Early Diffusion", "range": "0.0 a 1.0", "behavior": "Densidad de reflexiones tempranas.", "default": 1.0},
+    {"id": "LateDiffusion", "name": "Late Diffusion", "range": "0.0 a 1.0", "behavior": "Densidad de la cola tardía.", "default": 1.0},
+    {"id": "ModRate", "name": "Modulation Rate", "range": "0.0 a 1.0 (0.05 Hz a 5.0 Hz)", "behavior": "Velocidad de coros internos.", "default": 0.25},
+    {"id": "ModDepth", "name": "Modulation Depth", "range": "0.0 a 1.0", "behavior": "Profundidad de modulación de tono.", "default": 0.50}
+]
 
 ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
     "KICK": [
@@ -63,6 +80,20 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Dry/Wet", "name": "Dry/Wet (Mezcla)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de procesamiento paralelo; permite compresión estilo New York sin perder transientes.", "default": 0.85},
                 {"id": "Makeup", "name": "Makeup Gain", "range": "0.0 a 1.0 (0 dB a +40 dB)", "behavior": "Compensación de nivel post-compresión para igualar la ganancia percibida.", "default": 0.15}
             ]
+        },
+        {
+            "name": "Surge XT Effects",
+            "uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+            "params": [
+                {"id": "FX A1 Type", "name": "Slot 1 DSP Type (Tape Saturation)", "range": "fxt_tape, fxt_conditioner, fxt_dist", "behavior": "Saturación Chow Tape para agregar pegada, transientes analógicos y grosor en el bus de batería.", "default": "fxt_tape"},
+                {"id": "FX A1 Drive", "name": "Slot 1 Tape Drive", "range": "0.0 a 1.0 (0 dB a +36 dB)", "behavior": "Intensidad de compresión y saturación magnética de cinta.", "default": 0.28},
+                {"id": "FX A1 Mix", "name": "Slot 1 Dry/Wet", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de saturación paralela.", "default": 0.75}
+            ]
+        },
+        {
+            "name": "ValhallaVintageVerb",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": VALHALLA_VINTAGE_VERB_PARAMS
         }
     ],
     "BASS": [
@@ -81,6 +112,15 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Drive", "name": "Drive (Distorsión armónica)", "range": "0.0 a 1.0 (0 dB a +36 dB)", "behavior": "Generación de armónicos superiores para que el bajo sea audible en altavoces pequeños.", "default": 0.22},
                 {"id": "Base", "name": "Base (Graves limpios)", "range": "0.0 a 1.0 (-inf a 0 dB)", "behavior": "Aislamiento del subgrave fundamental para evitar distorsión indeseada en < 80 Hz.", "default": 0.0},
                 {"id": "Output", "name": "Output Trim", "range": "0.0 a 1.0 (-inf a 0 dB)", "behavior": "Atenuación de salida para conservar el headroom de mezcla.", "default": 0.70}
+            ]
+        },
+        {
+            "name": "Surge XT Effects",
+            "uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+            "params": [
+                {"id": "FX A1 Type", "name": "Slot 1 DSP Type (Analog Tape / Drive)", "range": "fxt_tape, fxt_dist, fxt_conditioner", "behavior": "Generación de armónicos de cinta y cuerpo analógico en el bajo.", "default": "fxt_tape"},
+                {"id": "FX A1 Drive", "name": "Slot 1 Tape Drive", "range": "0.0 a 1.0", "behavior": "Nivel de color y saturación.", "default": 0.20},
+                {"id": "FX A1 Mix", "name": "Slot 1 Dry/Wet", "range": "0.0 a 1.0", "behavior": "Proporción procesada sin alterar el fundamental subgrave.", "default": 0.65}
             ]
         }
     ],
@@ -108,9 +148,29 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
         {
             "name": "ValhallaVintageVerb",
             "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": VALHALLA_VINTAGE_VERB_PARAMS
+        },
+        {
+            "name": "ValhallaSupermassive",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
             "params": [
-                {"id": "Mix", "name": "Mix (Mezcla de Reverb)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Proporción de señal procesada; valores moderados (15-25%) evitan enturbiar el plano armónico.", "default": 0.18},
-                {"id": "Decay", "name": "Decay (Tiempo de reverberación)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Longitud de la cola de reverberación y tamaño del espacio acústico.", "default": 0.25}
+                {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de espacialidad cósmica y retardos envolventes.", "default": 0.20},
+                {"id": "Mode", "name": "Algorithmic Mode", "range": "0.0 a 1.0 (22 Modos: Gemini, Hydra, Andromeda, Lyra, Capricorn...)", "behavior": "Topología algorítmica de retardos y densidad de difusión.", "default": 0.38},
+                {"id": "DelaySync", "name": "Delay Sync", "range": "0.0 (ms) o 1.0 (Sincronizado a compás)", "behavior": "Sincronización rítmica métrica al tempo militar de la sesión.", "default": 1.0},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 0.95 (0% a 95%)", "behavior": "Regeneración de ecos y cola ambiental (máx 0.95 anti-runaway).", "default": 0.50},
+                {"id": "Warp", "name": "Warp", "range": "0.0 a 1.0", "behavior": "Desfase y modulación de tiempos de retardo dentro de la red.", "default": 0.50},
+                {"id": "Density", "name": "Density", "range": "0.0 a 1.0", "behavior": "Densidad de reflexiones; transforma retardos discretos en reverb suave.", "default": 0.60},
+                {"id": "LowCut", "name": "Low Cut (HPF)", "range": "0.05 a 1.0 (20 Hz a 1500 Hz)", "behavior": "Filtro pasa-altos protector anti-barro (mínimo 0.05 obligatorio).", "default": 0.20},
+                {"id": "HighCut", "name": "High Cut (LPF)", "range": "0.0 a 1.0 (1000 Hz a 20000 Hz)", "behavior": "Filtro pasa-bajos para atenuar estridencias y dar profundidad analógica.", "default": 0.65}
+            ]
+        },
+        {
+            "name": "Surge XT Effects",
+            "uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+            "params": [
+                {"id": "FX A1 Type", "name": "Slot 1 DSP Type (Ensemble / Tape / Multi-Slot)", "range": "fxt_ensemble, fxt_tape, fxt_chow", "behavior": "Rack Multi-FX vintage: modulación BBD, calidez de cinta y apertura estéreo.", "default": "fxt_ensemble"},
+                {"id": "FX A1 Drive", "name": "Slot 1 Drive / Depth", "range": "0.0 a 1.0", "behavior": "Intensidad armónica y modulación analógica.", "default": 0.35},
+                {"id": "FX A1 Mix", "name": "Slot 1 Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance de procesamiento armónico en paralelo.", "default": 0.65}
             ]
         }
     ],
@@ -143,6 +203,26 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Depth", "name": "Depth (Profundidad Multibanda)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Cantidad de compresión ascendente/descendente sobre las tres bandas espectrales.", "default": 0.25},
                 {"id": "Time", "name": "Time (Velocidad dinámica)", "range": "0.0 a 1.0 (10% a 1000%)", "behavior": "Escala de constantes de tiempo de ataque y relajación de la compresión.", "default": 0.50}
             ]
+        },
+        {
+            "name": "ValhallaSupermassive",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
+            "params": [
+                {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de eco cósmico y halo espacial para melodías solistas.", "default": 0.22},
+                {"id": "Mode", "name": "Algorithmic Mode", "range": "0.0 a 1.0 (22 Modos)", "behavior": "Topología algorítmica de delay / reverb (e.g. Capricorn, Andromeda).", "default": 0.42},
+                {"id": "DelaySync", "name": "Delay Sync", "range": "0.0 o 1.0", "behavior": "Sincronización al BPM de la sesión.", "default": 1.0},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 0.95", "behavior": "Repeticiones y estela melódica.", "default": 0.45},
+                {"id": "LowCut", "name": "Low Cut", "range": "0.05 a 1.0", "behavior": "Corte de frecuencias bajas para no chocar con el bajo/acordes.", "default": 0.25}
+            ]
+        },
+        {
+            "name": "Surge XT Effects",
+            "uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+            "params": [
+                {"id": "FX A1 Type", "name": "Slot 1 DSP Type (Overdrive / Tape)", "range": "fxt_chow, fxt_tape, fxt_dist", "behavior": "Overdrive analógico y saturación de cinta para leads protagónicos.", "default": "fxt_chow"},
+                {"id": "FX A1 Drive", "name": "Slot 1 Drive", "range": "0.0 a 1.0", "behavior": "Ganancia de overdrive y saturación armónica.", "default": 0.35},
+                {"id": "FX A1 Mix", "name": "Slot 1 Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance de señal directa y distorsión armónica.", "default": 0.60}
+            ]
         }
     ],
     "STRINGS": [
@@ -157,9 +237,16 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
         {
             "name": "ValhallaVintageVerb",
             "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": VALHALLA_VINTAGE_VERB_PARAMS
+        },
+        {
+            "name": "ValhallaSupermassive",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
             "params": [
-                {"id": "Mix", "name": "Mix (Espacio ambiental)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Profundidad ambiental para empujar las cuerdas al fondo del plano auditivo.", "default": 0.28},
-                {"id": "Decay", "name": "Decay (Cola larga)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Sustain sedoso que une las transiciones de notas.", "default": 0.32}
+                {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0", "behavior": "Espacio orquestal envolvente y nubes de difusión estéreo.", "default": 0.30},
+                {"id": "Mode", "name": "Algorithmic Mode", "range": "0.0 a 1.0", "behavior": "Modo Lyra o Andromeda para colas orquestales infinitas.", "default": 0.33},
+                {"id": "DelaySync", "name": "Delay Sync", "range": "0.0 o 1.0", "behavior": "Sincronización rítmica.", "default": 1.0},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 0.95", "behavior": "Sustain sedoso sin acumulación explosiva.", "default": 0.55}
             ]
         }
     ],
@@ -206,10 +293,17 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
         {
             "name": "ValhallaVintageVerb",
             "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": VALHALLA_VINTAGE_VERB_PARAMS
+        },
+        {
+            "name": "ValhallaSupermassive",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
             "params": [
-                {"id": "Mix", "name": "Mix (Mezcla de Reverberación)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Espacio acústico; 15-20% añade profundidad tridimensional sin alejar la voz.", "default": 0.18},
-                {"id": "Decay", "name": "Decay (Tiempo de Reverberación)", "range": "0.2 s a 70 s", "behavior": "Longitud de la cola ambiental (1.8s a 2.5s ideal para trap/pop).", "default": 0.25},
-                {"id": "PreDelay", "name": "Pre-Delay (Retardo Inicial)", "range": "0 ms a 200 ms", "behavior": "Separa la voz seca del inicio de la reverberación para máxima inteligibilidad.", "default": 0.15}
+                {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0", "behavior": "Halo ambiental espacial y brillo aéreo para adlibs y voces etéreas.", "default": 0.16},
+                {"id": "Mode", "name": "Algorithmic Mode", "range": "0.0 a 1.0", "behavior": "Modo Cirrus Minor o Hydra para ecos vocales difusos.", "default": 0.28},
+                {"id": "DelaySync", "name": "Delay Sync", "range": "0.0 o 1.0", "behavior": "Sincronización rítmica militar.", "default": 1.0},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 0.95", "behavior": "Ecos controlados sin enturbiar el centro vocal.", "default": 0.35},
+                {"id": "LowCut", "name": "Low Cut", "range": "0.05 a 1.0", "behavior": "Corte de graves estricto en la reverb para inteligibilidad vocal.", "default": 0.30}
             ]
         }
     ],
@@ -225,9 +319,26 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
         {
             "name": "ValhallaVintageVerb",
             "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": VALHALLA_VINTAGE_VERB_PARAMS
+        },
+        {
+            "name": "ValhallaSupermassive",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
             "params": [
-                {"id": "Mix", "name": "Mix (Ambiente estéreo)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Profundidad ambiental para texturas de fondo.", "default": 0.30},
-                {"id": "Decay", "name": "Decay (Sostenimiento largo)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Cola extendida para colchón armónico.", "default": 0.35}
+                {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0", "behavior": "Apertura cósmica de pad y texturas shimmer infinitas.", "default": 0.35},
+                {"id": "Mode", "name": "Algorithmic Mode", "range": "0.0 a 1.0", "behavior": "Modo Andromeda o Sagittarius para densidad espacial tridimensional.", "default": 0.38},
+                {"id": "DelaySync", "name": "Delay Sync", "range": "0.0 o 1.0", "behavior": "Sincronizado a compás.", "default": 1.0},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 0.95", "behavior": "Cola extendida para textura infinita.", "default": 0.65},
+                {"id": "LowCut", "name": "Low Cut", "range": "0.05 a 1.0", "behavior": "Corte de graves para no colisionar con bajo.", "default": 0.22}
+            ]
+        },
+        {
+            "name": "Surge XT Effects",
+            "uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+            "params": [
+                {"id": "FX A1 Type", "name": "Slot 1 DSP Type (Nimbus / Granular)", "range": "fxt_nimbus, fxt_reverb2, fxt_chorus", "behavior": "Texturizador granular Nimbus y nubes difusas para pads etéreos.", "default": "fxt_nimbus"},
+                {"id": "FX A1 Drive", "name": "Slot 1 Density / Depth", "range": "0.0 a 1.0", "behavior": "Densidad granular y difusión estéreo.", "default": 0.40},
+                {"id": "FX A1 Mix", "name": "Slot 1 Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance de textura espacial.", "default": 0.50}
             ]
         }
     ],
@@ -293,10 +404,7 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
         {
             "name": "ValhallaVintageVerb",
             "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
-            "params": [
-                {"id": "Mix", "name": "Mix (Espacio Catedral)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Proporción de espacio eclesiástico para el coro.", "default": 0.35},
-                {"id": "Decay", "name": "Decay (Cola Litúrgica)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Longitud de resonancia de catedral gótica.", "default": 0.45}
-            ]
+            "params": VALHALLA_VINTAGE_VERB_PARAMS
         }
     ],
     "PERCUSSION": [
@@ -338,6 +446,25 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             "params": [
                 {"id": "Gain", "name": "Gain (Nivel de Retorno)", "range": "-inf a +35 dB", "behavior": "Ajuste de nivel del efecto en el contexto de mezcla.", "default": 0.0},
                 {"id": "Width", "name": "Stereo Width", "range": "0.0 a 1.0 (0% a 400%)", "behavior": "Apertura estéreo espacial del retorno de efecto.", "default": 1.0}
+            ]
+        },
+        {
+            "name": "ValhallaSupermassive",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
+            "params": [
+                {"id": "Mix", "name": "Mix (Dry/Wet)", "range": "0.0 a 1.0", "behavior": "Espacio masivo y barridos cósmicos para pistas de FX/transición.", "default": 0.50},
+                {"id": "Mode", "name": "Algorithmic Mode", "range": "0.0 a 1.0", "behavior": "Modo algorítmico (e.g. Centaurus, Sagittarius).", "default": 0.45},
+                {"id": "DelaySync", "name": "Delay Sync", "range": "0.0 o 1.0", "behavior": "Sincronización rítmica métrica.", "default": 1.0},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 0.95", "behavior": "Regeneración de ecos.", "default": 0.60}
+            ]
+        },
+        {
+            "name": "Surge XT Effects",
+            "uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+            "params": [
+                {"id": "FX A1 Type", "name": "Slot 1 DSP Type (Granular / Shimmer / Tape)", "range": "fxt_shaper, fxt_flanger, fxt_chorus, fxt_rotary, fxt_tape", "behavior": "Procesamiento multiefecto para modular transiciones y risers.", "default": "fxt_flanger"},
+                {"id": "FX A1 Drive", "name": "Slot 1 Drive / Modulation", "range": "0.0 a 1.0", "behavior": "Intensidad de distorsión o modulación.", "default": 0.40},
+                {"id": "FX A1 Mix", "name": "Slot 1 Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance de procesamiento del efecto.", "default": 0.80}
             ]
         }
     ],

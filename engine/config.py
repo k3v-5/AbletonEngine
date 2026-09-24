@@ -11,6 +11,10 @@ class EngineConfig:
     TRANSACTIONS_DIR: str = os.path.join(STATE_DIR, "transactions")
     EVENTS_DIR: str = os.path.join(STATE_DIR, "events")
     GRAPH_FILE: str = os.path.join(STATE_DIR, "session_graph.json")
+    DECENT_SAMPLER_LIBRARY_ROOT: str = os.environ.get(
+        "DECENT_SAMPLER_LIB_ROOT", os.path.join(BASE_DIR, "SonidosDecentSampler")
+    )
+
 
     # Safety limits per transaction
     MAX_OPERATIONS_PER_TRANSACTION: int = 500

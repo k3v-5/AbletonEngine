@@ -89,6 +89,12 @@ from .vital_sound_sculptor import VitalSoundSculptor
 from .vital_sound_engine import VitalSoundEngine
 from .vital_design_validator import VitalDesignValidator, VitalValidationError, ValidationReport
 from .vital_modular_designer import VitalModularDesigner
+from . import decent_sampler
+from . import valhalla_supermassive
+from . import surge_xt_fx
+from . import valhalla_vintage_verb
+from . import surge_xt_synth
+
 
 __all__ = [
     "ProductionTechniqueFamily",
@@ -149,4 +155,10 @@ __all__ = [
     "VitalValidationError",
     "ValidationReport",
     "VitalModularDesigner",
+    "decent_sampler",
+    "valhalla_supermassive",
+    "surge_xt_fx",
+    "valhalla_vintage_verb",
+    "surge_xt_synth",
 ]
+

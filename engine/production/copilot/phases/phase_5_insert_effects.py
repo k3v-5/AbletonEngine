@@ -206,7 +206,38 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     
         if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
             fx_kb.append("  ⚠️ **OBLIGATORIO — KEY Y SCALE:** Auto-Tune Artist **exige obligatoriamente** definir la **Key** (Tono: C, C#, D, D#, E, F, F#, G, G#, A, A#, B) y la **Scale** (Escala: Minor o Major). No se permite omitir estos valores.")
-    
+
+        if "supermassive" in eff_name.lower():
+            bpm = session.data.get("bpm", 120.0)
+            from engine.sound_design.valhalla_supermassive.mode_selector import SupermassiveModeSelector
+            rec_mode = SupermassiveModeSelector.recommend_mode_for_role(role)
+            calc_ms = SupermassiveModeSelector.calculate_bpm_delay_ms(bpm, "1/8")
+            haas_ms = SupermassiveModeSelector.calculate_haas_pre_delay(bpm, role)
+            fx_kb.append(f"  🌌 **Valhalla Supermassive (Anti-Arquetipos Vagos & Inteligencia Acústica):** El motor exige moldear el preset al tempo ({bpm} BPM) y al rol '{role}'.")
+            fx_kb.append(f"  🎯 **Modo Óptimo Recomendado:** **{rec_mode}** (de los 22 algoritmos). Delay rítmico: `{calc_ms:.1f} ms` (1/8). Pre-delay Haas: `{haas_ms:.1f} ms`.")
+            fx_kb.append("  💡 **Semillas Acústicas:** Andromeda Cloud (Reverb cósmica densa), Capricorn Echo (Delay rítmico estéreo), Lyra Space (Halo ambiental sedoso).")
+            fx_kb.append("  🛡️ **Seguridad Acústica:** Feedback máximo 0.95 (anti-runaway) y LowCut mínimo 0.05 para evitar enmascaramiento subgrave.")
+            fx_kb.append("  📋 **Inyección por Portapapeles & LOM:** Al confirmar, el XML se copiará automáticamente al Portapapeles de Windows (`Set-Clipboard`) para pegado en 1 clic en Ableton ('Paste from Clipboard') y se sincronizarán los parámetros en vivo.")
+
+        if "surge xt" in eff_name.lower():
+            fx_kb.append(f"  🔥 **Surge XT Effects (Anti-Arquetipos Vagos & Matriz Multi-Slot):** 32 tipos de efecto y 16 slots configurables. Desplegando rack especializado de 3 a 4 procesadores para '{role}'.")
+            fx_kb.append("  💡 **Semillas Acústicas:** Analog Tape Bus (Chow Tape saturación de bus), Granular Shimmer, Vintage Lo-Fi.")
+            fx_kb.append("  🛡️ **Seguridad Acústica:** Máximo 2 etapas de distorsión encadenadas y limitación de resonancia de combulator.")
+            fx_kb.append("  💾 **Persistencia & Control LOM en Vivo:** Se guardará la cadena en .srgfxchain y se inyectarán en tiempo real los 219 parámetros por Ableton Live LOM.")
+
+        if "vintageverb" in eff_name.lower():
+            try:
+                bpm_v = float(session.data.get("bpm", 120.0))
+                from engine.sound_design.valhalla_vintage_verb.mode_selector import VintageVerbModeSelector
+                rec_m, rec_c = VintageVerbModeSelector.recommend_mode_and_color_for_role(role)
+                calc_pre = VintageVerbModeSelector.calculate_haas_pre_delay_ms(bpm_v, role)
+                fx_kb.append(f"  🏛️ **Valhalla VintageVerb (Inteligencia Acústica de 22 Modos):** Modo Óptimo Recomendado: **{rec_m}** (Era Tonal: **{rec_c}**).")
+                fx_kb.append(f"  ⏱️ **Pre-delay Protector Haas:** `{calc_pre:.1f} ms` para preservar el ataque transitorio en rol '{role}'.")
+                fx_kb.append("  🛡️ **Seguridad Acústica:** LowCut obligatorio >= 0.05 para evitar acumulación de barro subgrave y resonancia metálica.")
+                fx_kb.append("  📋 **Inyección por Portapapeles & LOM:** Al confirmar, el XML se copiará automáticamente al Portapapeles (`Set-Clipboard`) para 1-click 'Paste from Clipboard'.")
+            except Exception:
+                pass
+
         if fx_kb:
             params_info.append("\n**Directrices Quirúrgicas de Inserción (FabFilter / Plugins):**\n" + "\n".join(fx_kb))
     
@@ -559,7 +590,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                             val_found = float(jv)
                             break
                         except (ValueError, TypeError):
-                            pass
+                            val_found = jv
+                            break
     
                 # 2. Text regex if not in JSON
                 if val_found is None:
@@ -585,16 +617,134 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                             except ValueError:
                                 pass
     
+                # 3. Categorical / string matches (e.g. Mode, ColorMode, Type, Key, Scale)
+                if val_found is None and p_id == "Mode":
+                    from engine.sound_design.valhalla_supermassive.schema import ValhallaSupermassiveSchema
+                    from engine.sound_design.valhalla_vintage_verb.schema import ValhallaVintageVerbSchema
+                    all_modes = ValhallaVintageVerbSchema.MODES if "vintageverb" in eff_name.lower() else ValhallaSupermassiveSchema.MODE_NAMES
+                    # Check explicit "mode: <name>" first
+                    m_m = re.search(rf"(?:mode|modo)\s*[:=]?\s*([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", text, re.IGNORECASE)
+                    if m_m:
+                        candidate = m_m.group(1).strip()
+                        for mode_name in all_modes:
+                            if mode_name.lower() == candidate.lower():
+                                val_found = mode_name
+                                break
+                    if val_found is None:
+                        for mode_name in all_modes:
+                            if re.search(rf"\b{re.escape(mode_name)}\b", text, re.IGNORECASE):
+                                val_found = mode_name
+                                break
+                elif val_found is None and p_id in ("ColorMode", "Color"):
+                    from engine.sound_design.valhalla_vintage_verb.sanitizer import ValhallaVintageVerbSanitizer
+                    m_c = re.search(rf"(?:color|colormode|era)\s*[:=]?\s*([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", text, re.IGNORECASE)
+                    if m_c:
+                        val_found = ValhallaVintageVerbSanitizer.resolve_color(m_c.group(1).strip())
+                elif val_found is None and (p_id in ("Key", "Scale") or "type" in p_id.lower()):
+                    str_pat = rf"{re.escape(p_clean)}\s*[:=]?\s*([a-zA-Z0-9_\-#]+)"
+                    m_str = re.search(str_pat, text, re.IGNORECASE)
+                    if m_str:
+                        val_found = m_str.group(1).strip()
+
                 if val_found is not None:
                     applied_params[p_id] = val_found
                 else:
-                    applied_params[p_id] = p["default"]
-    
+                    if p_id == "Mode" and ("supermassive" in eff_name.lower() or "vintageverb" in eff_name.lower()):
+                        # Leave unset so intelligent mode selector can choose optimal mode
+                        pass
+                    elif p_id in ("ColorMode", "Color") and "vintageverb" in eff_name.lower():
+                        pass
+                    else:
+                        applied_params[p_id] = p["default"]
+
+            # Specialized builder, 3-tier validation, serialization & clipboard injection
+            if "supermassive" in eff_name.lower():
+                try:
+                    from engine.sound_design.valhalla_supermassive.mode_selector import SupermassiveModeSelector
+                    from engine.sound_design.valhalla_supermassive.validator import ValhallaSupermassiveValidator
+                    from engine.sound_design.valhalla_supermassive.serializer import ValhallaSupermassiveSerializer
+
+                    song_name = session.data.get("song_name", "Session")
+                    t_title = trk.get("name", f"Track_{t_idx}").replace(" ", "_")
+                    bpm = float(session.data.get("bpm", 120.0))
+
+                    sm_model = SupermassiveModeSelector.build_role_preset(
+                        preset_name=f"{song_name}_{t_title}",
+                        role=role,
+                        bpm=bpm,
+                        applied_params=applied_params
+                    )
+                    v_rep = ValhallaSupermassiveValidator.validate(sm_model, strict=False)
+                    if v_rep.is_valid:
+                        preset_p = ValhallaSupermassiveSerializer.save_preset(sm_model, category=song_name)
+                        xml_str = ValhallaSupermassiveSerializer.to_xml_string(sm_model)
+                        cb_ok = ValhallaSupermassiveSerializer.copy_to_clipboard(xml_str)
+                        trk["supermassive_preset_path"] = str(preset_p)
+                        trk["supermassive_clipboard_ready"] = cb_ok
+                        trk["supermassive_mode"] = sm_model.mode_name
+                        logger.info(f"Valhalla Supermassive preset saved: {preset_p} (mode: {sm_model.mode_name}, clipboard: {cb_ok})")
+                except Exception as ex_sm:
+                    logger.warning(f"Notice building Valhalla Supermassive preset: {ex_sm}")
+
+            if "surge xt" in eff_name.lower():
+                try:
+                    from engine.sound_design.surge_xt_fx.rack_factory import SurgeFXRackFactory
+                    from engine.sound_design.surge_xt_fx.validator import SurgeFXValidator
+                    from engine.sound_design.surge_xt_fx.serializer import SurgeFXSerializer
+
+                    song_name = session.data.get("song_name", "Session")
+                    t_title = trk.get("name", f"Track_{t_idx}").replace(" ", "_")
+                    bpm = float(session.data.get("bpm", 120.0))
+
+                    rack_m = SurgeFXRackFactory.create_role_rack(
+                        role=role,
+                        bpm=bpm,
+                        applied_params=applied_params,
+                        track_name=f"{song_name}_{t_title}"
+                    )
+                    v_rep_srg = SurgeFXValidator.validate_rack(rack_m, strict=False)
+                    if v_rep_srg.is_valid:
+                        chain_p = SurgeFXSerializer.save_chain_file(rack_m, category=song_name)
+                        trk["surge_xt_chain_path"] = str(chain_p)
+                        trk["surge_xt_active_slots"] = len(rack_m.get_active_slots())
+                        logger.info(f"Surge XT Effects multi-slot rack saved: {chain_p} ({trk['surge_xt_active_slots']} active slots)")
+                except Exception as ex_srg:
+                    logger.warning(f"Notice building Surge XT FX rack: {ex_srg}")
+
+            if "vintageverb" in eff_name.lower():
+                try:
+                    from engine.sound_design.valhalla_vintage_verb.mode_selector import VintageVerbModeSelector
+                    from engine.sound_design.valhalla_vintage_verb.validator import ValhallaVintageVerbValidator
+                    from engine.sound_design.valhalla_vintage_verb.serializer import ValhallaVintageVerbSerializer
+
+                    song_name = session.data.get("song_name", "Session")
+                    t_title = trk.get("name", f"Track_{t_idx}").replace(" ", "_")
+                    bpm = float(session.data.get("bpm", 120.0))
+
+                    vv_model = VintageVerbModeSelector.build_role_preset(
+                        preset_name=f"{song_name}_{t_title}",
+                        role=role,
+                        bpm=bpm,
+                        applied_params=applied_params
+                    )
+                    v_rep_vv = ValhallaVintageVerbValidator.validate(vv_model, role=role, strict=False)
+                    if v_rep_vv.is_valid:
+                        preset_p = ValhallaVintageVerbSerializer.save_preset(vv_model, category=song_name)
+                        xml_str = ValhallaVintageVerbSerializer.to_xml_string(vv_model)
+                        cb_ok = ValhallaVintageVerbSerializer.copy_to_clipboard(xml_str)
+                        trk["vintage_verb_preset_path"] = str(preset_p)
+                        trk["vintage_verb_clipboard_ready"] = cb_ok
+                        trk["vintage_verb_mode"] = vv_model.mode_name
+                        trk["vintage_verb_color"] = vv_model.color_name
+                        logger.info(f"Valhalla VintageVerb preset saved: {preset_p} (mode: {vv_model.mode_name}, color: {vv_model.color_name}, clipboard: {cb_ok})")
+                except Exception as ex_vv:
+                    logger.warning(f"Notice building Valhalla VintageVerb preset: {ex_vv}")
+
             if conn is not None and hasattr(conn, "send_command"):
                 try:
                     t_info = conn.send_command("get_track_info", {"track_index": t_idx})
                     raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
-    
+
                     # Idempotency check: find existing device matching eff_name or class (protect instruments)
                     matching_indices = []
                     for d_i in range(len(raw_devs)):
@@ -603,11 +753,11 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         d_class = str(d.get("class_name", "")).lower()
                         d_name = d.get("name", "").strip().lower()
                         e_name = eff_name.strip().lower()
-    
+
                         # Never treat an authentic instrument / drum kit as an insert effect
                         if d_type in ("instrument", "synth", "drum_machine") or d_class in ("drumgroupdevice", "instrumentgroupdevice", "drift", "originalsimpler"):
                             continue
-    
+
                         if (e_name in d_name or d_name in e_name or
                             (e_name == "drum buss" and "drumbuss" in d_class) or
                             (e_name == "glue compressor" and "gluecompressor" in d_class) or
@@ -620,6 +770,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                             (e_name == "pro-q 4" and ("pro-q" in d_name or "eq" in d_name)) or
                             (e_name == "saturn 2" and "saturn" in d_name) or
                             (e_name == "compressor" and ("compressor" in d_name and not "glue" in d_name)) or
+                            ("supermassive" in e_name and ("supermassive" in d_name or "supermassive" in d_class)) or
+                            ("surge xt" in e_name and ("surge" in d_name or "surge" in d_class)) or
                             (e_name == "valhallavintageverb" and ("valhalla" in d_name or "vintageverb" in d_name))):
                             matching_indices.append(d_i)
     
@@ -693,6 +845,71 @@ for p in d.parameters:
     elif 'mix' in p_l: p.value = 0.75
 """
                         conn.send_command("execute_code", {"code": code_sat})
+                    elif "supermassive" in eff_name.lower():
+                        sm_mix = float(sm_model.mix if 'sm_model' in locals() else applied_params.get("Mix", 0.20))
+                        sm_feedback = float(sm_model.feedback if 'sm_model' in locals() else min(0.95, float(applied_params.get("Feedback", 0.50))))
+                        sm_lowcut = float(sm_model.low_cut if 'sm_model' in locals() else max(0.05, float(applied_params.get("LowCut", 0.20))))
+                        sm_highcut = float(sm_model.high_cut if 'sm_model' in locals() else float(applied_params.get("HighCut", 0.65)))
+                        sm_mode = float(sm_model.mode if 'sm_model' in locals() else 0.38)
+                        sm_sync = 1.0 if ('sm_model' in locals() and sm_model.delay_sync > 0.0) else (1.0 if float(applied_params.get("DelaySync", 1.0)) >= 0.5 else 0.0)
+                        code_sm = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if 'mix' in p_l: p.value = {sm_mix}
+    elif 'feedback' in p_l: p.value = {sm_feedback}
+    elif 'low cut' in p_l or 'lowcut' in p_l: p.value = {sm_lowcut}
+    elif 'high cut' in p_l or 'highcut' in p_l: p.value = {sm_highcut}
+    elif 'mode' in p_l: p.value = {sm_mode}
+    elif 'sync' in p_l: p.value = {sm_sync}
+"""
+                        conn.send_command("execute_code", {"code": code_sm})
+                    elif "surge xt" in eff_name.lower():
+                        if 'rack_m' in locals():
+                            for p_k, p_v in rack_m.to_lom_command_list(only_active=True):
+                                try:
+                                    conn.send_command("set_device_parameter", {
+                                        "track_index": t_idx,
+                                        "device_index": dev_idx,
+                                        "parameter": p_k,
+                                        "value": float(p_v)
+                                    })
+                                except Exception:
+                                    pass
+                        srg_mix = float(applied_params.get("FX A1 Mix", 0.70))
+                        code_srg = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if ('a1' in p_l or 'insert fx 1' in p_l) and 'mix' in p_l: p.value = {srg_mix}
+"""
+                        conn.send_command("execute_code", {"code": code_srg})
+                    elif "vintageverb" in eff_name.lower():
+                        vv_mix = float(vv_model.mix if 'vv_model' in locals() else applied_params.get("Mix", 0.20))
+                        vv_decay = float(vv_model.decay if 'vv_model' in locals() else applied_params.get("Decay", 0.25))
+                        vv_predelay = float(vv_model.predelay if 'vv_model' in locals() else applied_params.get("PreDelay", 0.05))
+                        vv_size = float(vv_model.size if 'vv_model' in locals() else applied_params.get("Size", 0.50))
+                        vv_lowcut = float(vv_model.low_cut if 'vv_model' in locals() else applied_params.get("LowCut", 0.20))
+                        vv_highcut = float(vv_model.high_cut if 'vv_model' in locals() else applied_params.get("HighCut", 0.65))
+                        vv_mode = float(vv_model.mode if 'vv_model' in locals() else 0.0)
+                        vv_color = float(vv_model.color_mode if 'vv_model' in locals() else 0.50)
+                        code_vv = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if 'mix' in p_l: p.value = {vv_mix}
+    elif 'decay' in p_l: p.value = {vv_decay}
+    elif 'predelay' in p_l or 'pre-delay' in p_l: p.value = {vv_predelay}
+    elif 'low cut' in p_l or 'lowcut' in p_l: p.value = {vv_lowcut}
+    elif 'high cut' in p_l or 'highcut' in p_l: p.value = {vv_highcut}
+    elif 'size' in p_l: p.value = {vv_size}
+    elif 'mode' in p_l: p.value = {vv_mode}
+    elif 'color' in p_l: p.value = {vv_color}
+"""
+                        conn.send_command("execute_code", {"code": code_vv})
                     elif "valhalla" in eff_name.lower():
                         code_val = f"""
 t = song.tracks[{t_idx}]
@@ -741,7 +958,14 @@ for p in d.parameters:
         TransactionGuard.commit_transaction()
     
         if session.data["current_fx_track_ptr"] < len(tracks):
-            return session._prompt_current_fx_device()
+            next_p = self._prompt_current_fx_device(session)
+            if trk.get("supermassive_clipboard_ready"):
+                next_p["action_taken"] = f"Procesador {eff_name} moldeado y copiado automáticamente al portapapeles de Windows (haz 'Paste from Clipboard' en Supermassive en Live)."
+            elif trk.get("vintage_verb_clipboard_ready"):
+                next_p["action_taken"] = f"Procesador {eff_name} moldeado y copiado automáticamente al portapapeles de Windows (haz 'Paste from Clipboard' en VintageVerb en Live)."
+            elif trk.get("surge_xt_chain_path"):
+                next_p["action_taken"] = f"Procesador {eff_name} moldeado y guardado en {trk.get('surge_xt_chain_path')}."
+            return next_p
         else:
             missing_trk = self.find_track_missing_eq(session, conn)
             if missing_trk is not None:

@@ -365,6 +365,22 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "description": "Collector keyboard Rhodes."
             },
         ),
+        SoundSourceOption(
+            id="vst3_surge_xt_keys",
+            name="Surge Synth Team Surge XT (Keys)",
+            role="KEYS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+            vendor="Surge Synth Team",
+            description="FM2 and physical modeling string engines for glassy electric pianos, harpsichords, and hybrid keys.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "osc_type": "FM2",
+                "filter_type": "K35 Lowpass",
+                "parameters": {"FILTER_CUTOFF": 0.70, "AMP_ATTACK": 0.005, "AMP_RELEASE": 0.40},
+                "description": "Crystalline FM keys with warm K35 filtering."
+            },
+        ),
     ],
     "BASS": [
         SoundSourceOption(
@@ -549,6 +565,22 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "description": "Pure analog sub-bass with tight attack."
             },
         ),
+        SoundSourceOption(
+            id="vst3_surge_xt_bass",
+            name="Surge Synth Team Surge XT (Bass)",
+            role="BASS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+            vendor="Surge Synth Team",
+            description="Hybrid modular synth engine with Modern/Classic oscs and Ladder LP filter for deep sub-bass and reese tones.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "osc_type": "Modern",
+                "filter_type": "Ladder Lowpass 24dB",
+                "parameters": {"FILTER_CUTOFF": 0.35, "DRIVE": 0.25, "AMP_ATTACK": 0.005, "AMP_RELEASE": 0.15},
+                "description": "Deep hybrid bass with Ladder 24dB warm saturation."
+            },
+        ),
     ],
     "LEAD": [
         SoundSourceOption(
@@ -647,6 +679,22 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "semantic",
                 "parameters": {"FILTER_CUTOFF": 0.72, "UNISON_VOICES": 0.50, "PORTAMENTO_GLIDE": 0.14},
                 "description": "Hyper-modern soaring lead with stereo spread."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_surge_xt_lead",
+            name="Surge Synth Team Surge XT (Lead)",
+            role="LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+            vendor="Surge Synth Team",
+            description="High-definition multi-algorithm lead synthesizer with Plaits-based Twist, unison stacking, and razor-sharp filters.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "osc_type": "Twist",
+                "filter_type": "OB-Xd Lowpass 24dB",
+                "parameters": {"FILTER_CUTOFF": 0.80, "FILTER_RESONANCE": 0.25, "UNISON_VOICES": 0.40, "AMP_ATTACK": 0.005},
+                "description": "Cutting eurorack Twist lead with OB-Xd 24dB filtering."
             },
         ),
     ],
@@ -1019,6 +1067,22 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "macro",
                 "parameters": {"P1 Brightness": 0.60, "P1 Timbre": 0.65, "P1 Time": 0.55, "P1 Movement": 0.45},
                 "description": "Rich vintage analog polysynth pads."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_surge_xt_pad",
+            name="Surge Synth Team Surge XT (Pad)",
+            role="PAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+            vendor="Surge Synth Team",
+            description="Lush polyphonic evolving pads with wavetable unison detune, dual filters, and expansive stereo dispersion.",
+            blueprint={
+                "sculpt_type": "semantic",
+                "osc_type": "Wavetable",
+                "filter_type": "Chowdhury Tri-Pole Lowpass",
+                "parameters": {"FILTER_CUTOFF": 0.65, "AMP_ATTACK": 0.45, "AMP_RELEASE": 0.85},
+                "description": "Lush wavetable ambient pad with gentle attack and long decay."
             },
         ),
     ],

@@ -1,7 +1,7 @@
 # Ableton Production Intelligence Engine (PIE) — Índice Maestro y Sitemap
 
 > **Directorio de Referencia y Mapa Arquitectónico Integral del Proyecto**  
-> Última actualización: Fases 1 a 16 + Studio Doctor & Forensic Delivery Package | 956 Tests (100% Verde) | 301 MCP Tools
+> Última actualización: Fases 1 a 16 + VST Expansion (Valhalla & Surge XT) | 1,125 Tests (100% Verde) | 301 MCP Tools
 
 ---
 
@@ -12,6 +12,9 @@ AbletonEngine/
 ├── docs/                                    # Documentación técnica y operativa consolidada
 │   ├── INDEX.md                             # El presente índice maestro y sitemap integral
 │   ├── VITAL_SOUND_SYNTHESIS_ENGINE.md      # Motor Autónomo de Síntesis y Diseño Sonoro de Vital (Wavetables, Modular, 7 Leyes KSHMR, Seguridad Permisiva)
+│   ├── DECENT_SAMPLER_ENGINE.md             # Compilador de Instrumentos Decent Sampler (IR, 3-Tier Validation, SampleMapPlanner, Templates)
+│   ├── VALHALLA_VINTAGE_VERB_ENGINE.md      # Motor de Reverberación Valhalla VintageVerb (22 Modos, 3 Eras, 3-Tier Validation, Haas Pre-Delay, Presets XML y LOM)
+│   ├── SURGE_XT_SYNTH_ENGINE.md             # Sintetizador Híbrido Surge XT (10 Osciladores, Filtros Duales, 3-Tier Guardrails, Envolventes AHDSR, XML .surgepatch y LOM)
 │   ├── INTENTIONAL_PERFORMANCE_AND_HUMANIZATION.md # Nivel T: Intentional Musical Performance & Humanization (Core, Groove, Breathing, Identity, Closed-Loop)
 │   ├── CLOSED_LOOP_CREATIVE_EVOLUTION.md    # Nivel S: Orquestador de retroalimentación activa (Comp ↔ Sound ↔ Arrg ↔ Mix), Planner, Budget y Rollback
 │   ├── CONTEXTUAL_SONIC_CRITIC.md           # Nivel R: Contextual Sonic Critic, evaluación in-situ (10D) y flexibilización de distancia
@@ -92,8 +95,42 @@ AbletonEngine/
 │   │   ├── macros/                          # Mapeo de perillas Macro de racks
 │   │   ├── chains/                          # Cadenas de inserción y channel strips
 │   │   └── presets/                         # Scoring y recomendación de presets
-│   ├── sound_design/                        # MOTOR AUTÓNOMO DE SÍNTESIS VITAL (.vital)
-│   │   ├── vital_sound_engine.py            # Orquestador maestro (create_preset, design_granular, audit)
+│   ├── fx/                                  # Efectos de inserción por rol, supervisión LOM y channel strips
+│   │   ├── __init__.py                      # Exportaciones de ROLE_INSERT_EFFECTS, supervisor y racks
+│   │   ├── role_fx_catalog.py               # Catálogo de inserciones por rol psicoacústico y parámetros
+│   │   ├── device_parameter_supervisor.py   # Supervisor semántico de parámetros de dispositivos
+│   │   └── track_fx_rack.py                 # Racks de efectos y channel strips por pista
+│   ├── sound_design/                        # MOTORES DE SÍNTESIS, COMPILADORES Y EFECTOS VST
+│   │   ├── decent_sampler/                  # COMPILADOR DE INSTRUMENTOS DECENT SAMPLER (.dspreset)
+│   │   │   ├── schema.py                    # Formato y tokens canónicos (Tier 1)
+│   │   │   ├── model.py                     # Modelo Intermedio (IR) InstrumentModel, Group, SampleZone
+│   │   │   ├── policies.py                  # AudioSafetyPolicy, ResourcePolicy, UXPolicy (Tier 3)
+│   │   │   ├── sample_analyzer.py           # Extractor de metadata (pitch, onset, rms)
+│   │   │   ├── sample_mapper.py             # SampleMapPlanner (mapeo gapless y velocidad)
+│   │   │   ├── validator.py                 # Validador de los 3 niveles con ValidationReport
+│   │   │   ├── sanitizer.py                 # Auto-corrector y normalizador resiliente
+│   │   │   ├── serializer.py                # Serializador/Deserializador determinista XML
+│   │   │   ├── builder.py                   # API fluida DecentSamplerBuilder
+│   │   │   └── templates/                   # Arquetipos: Piano, Strings, Drum Kit, 808
+│   │   ├── surge_xt_synth/                  # SINTETIZADOR HÍBRIDO SURGE XT
+│   │   │   ├── schema.py                    # Esquema de 10 osciladores, filtros y parámetros
+│   │   │   ├── validator.py                 # Validador 3-Tier (anti-click, anti-runaway, saneamiento)
+│   │   │   ├── patch_factory.py             # Fábrica de arquetipos (Bass, Lead, Pad, Keys, Pluck)
+│   │   │   └── serializer.py                # Serializador XML .surgepatch determinista
+│   │   ├── surge_xt_fx/                     # PROCESADOR MULTI-EFECTOS SURGE XT EFFECTS
+│   │   │   ├── schema.py                    # Esquema y rangos de FX (Reverb, Delay, Chorus, Distortion)
+│   │   │   ├── validator.py                 # Validación 3-Tier de inserción
+│   │   │   └── patch_factory.py             # Presets por rol y modelado psicoacústico
+│   │   ├── valhalla_vintage_verb/           # REVERBERACIÓN ALGORÍTMICA VINTAGEVERB
+│   │   │   ├── schema.py                    # 22 modos, 3 eras de color y 16 parámetros normalizados
+│   │   │   ├── validator.py                 # Validación 3-Tier (física, acústica, saneamiento)
+│   │   │   ├── preset_factory.py            # Presets de sala, plate, chamber, nonlin y ambient
+│   │   │   └── xml_serializer.py            # Generador XML para inyección portapapeles Live
+│   │   ├── valhalla_supermassive/           # DELAY / REVERBERACIÓN ESPACIAL SUPERMASSIVE
+│   │   │   ├── schema.py                    # Modos de constelación y parámetros de espacio profundo
+│   │   │   ├── validator.py                 # Validador 3-Tier de seguridad acústica
+│   │   │   └── preset_factory.py            # Presets etéreos, shimmers y nubes sonoras
+│   │   ├── vital_sound_engine.py            # Orquestador maestro Vital (create_preset, design_granular)
 │   │   ├── vital_modular_designer.py        # Diseñador modular (síntesis de ondas, Diode/Comb/Dirty, LFO S&H, FX)
 │   │   ├── vital_design_validator.py        # Validador y auditor de especificaciones granulares
 │   │   ├── vital_sound_sculptor.py          # Escultor semántico macro (7 Principios de KSHMR)
@@ -258,9 +295,9 @@ La superficie de control FastMCP se estructura en 11 dominios funcionales:
 - `vocal_get_profile`, `vocal_calculate_ducking`, `apply_adaptive_deesser`, `generate_vocal_hook_chops`, `chop_drum_loop_transients`, `generate_organic_foley_bed`, `dna_create_creative_brief`, `dna_scaffold_live_project`, `dna_get_reference_profiles`, `get_vocal_chain_guide`.\n
 ---
 
-## 5. Índice Completo de la Suite de Pruebas (956 Tests — 100% Verde)
+## 5. Índice Completo de la Suite de Pruebas (1,125 Tests — 100% Verde)
 
-La suite oficial cuenta con **956 pruebas automatizadas** que garantizan cero regresiones acústicas, determinismo total y estabilidad de red:
+La suite oficial cuenta con **1,125 pruebas automatizadas** que garantizan cero regresiones acústicas, determinismo total y estabilidad de red:
 
 ### 5.1 Resumen Consolidado por Dominios
 | Dominio Funcional | Cantidad de Archivos | Tests Totales | Tasa de Aprobación |
@@ -268,14 +305,14 @@ La suite oficial cuenta con **956 pruebas automatizadas** que garantizan cero re
 | **Copilot & Studio Doctor** | 5 | **51** | 100% PASS |
 | **Gobernanza Causal, Transacciones & Snapshots** | 54 | **430** | 100% PASS |
 | **Teoría Musical, Armonía & Composición** | 9 | **56** | 100% PASS |
-| **Instrumentos, Navegador & Esculpido VST** | 13 | **76** | 100% PASS |
+| **Instrumentos, Navegador, Síntesis & Esculpido VST** | 21 | **245** | 100% PASS |
 | **Arreglo, Transiciones & Estructura** | 15 | **87** | 100% PASS |
 | **Digital Ear, Mezcla, Balance & Resonancias** | 16 | **83** | 100% PASS |
 | **Masterización, Loudness & Gain Staging** | 7 | **53** | 100% PASS |
 | **Audio Forense, STFT & Verificación** | 10 | **33** | 100% PASS |
 | **Stems, Exportación & Pipeline E2E** | 6 | **33** | 100% PASS |
 | **Voz, Procesamiento Vocal & Resiliencia** | 10 | **54** | 100% PASS |
-| **TOTAL OFICIAL MAESTRO** | **145** | **956** | **100% PASS** |
+| **TOTAL OFICIAL MAESTRO** | **153** | **1,125** | **100% PASS** |
 
 ### 5.2 Desglose Exhaustivo por Archivo de Prueba
 | Módulo de Prueba | Pruebas | Estado |
@@ -351,7 +388,7 @@ La suite oficial cuenta con **956 pruebas automatizadas** que garantizan cero re
 | [`tests/test_musical_os_and_prosody.py`](file:///F:/Dev/AbletonEngine/tests/test_musical_os_and_prosody.py) | 5 | 100% PASS |
 | [`tests/test_phrase_evolver.py`](file:///F:/Dev/AbletonEngine/tests/test_phrase_evolver.py) | 4 | 100% PASS |
 | [`tests/test_scale_tuning_and_automation_optimization.py`](file:///F:/Dev/AbletonEngine/tests/test_scale_tuning_and_automation_optimization.py) | 3 | 100% PASS |
-| **--- INSTRUMENTOS, NAVEGADOR & ESCULPIDO VST (76 Tests) ---** | | |
+| **--- INSTRUMENTOS, NAVEGADOR & ESCULPIDO VST (245 Tests) ---** | | |
 | [`tests/test_analog_lab_ui_automator.py`](file:///F:/Dev/AbletonEngine/tests/test_analog_lab_ui_automator.py) | 2 | 100% PASS |
 | [`tests/test_browser_catalog.py`](file:///F:/Dev/AbletonEngine/tests/test_browser_catalog.py) | 2 | 100% PASS |
 | [`tests/test_drum_rack_guard.py`](file:///F:/Dev/AbletonEngine/tests/test_drum_rack_guard.py) | 5 | 100% PASS |
@@ -365,6 +402,14 @@ La suite oficial cuenta con **956 pruebas automatizadas** que garantizan cero re
 | [`tests/test_vst_normalizer.py`](file:///F:/Dev/AbletonEngine/tests/test_vst_normalizer.py) | 8 | 100% PASS |
 | [`tests/test_vst_preset_search.py`](file:///F:/Dev/AbletonEngine/tests/test_vst_preset_search.py) | 9 | 100% PASS |
 | [`tests/test_vst_vocal_chain_detection.py`](file:///F:/Dev/AbletonEngine/tests/test_vst_vocal_chain_detection.py) | 3 | 100% PASS |
+| [`tests/test_valhalla_vintage_verb.py`](file:///F:/Dev/AbletonEngine/tests/test_valhalla_vintage_verb.py) | 21 | 100% PASS |
+| [`tests/test_surge_xt_synth.py`](file:///F:/Dev/AbletonEngine/tests/test_surge_xt_synth.py) | 18 | 100% PASS |
+| [`tests/test_copilot_new_vst_integration.py`](file:///F:/Dev/AbletonEngine/tests/test_copilot_new_vst_integration.py) | 11 | 100% PASS |
+| [`tests/test_valhalla_supermassive.py`](file:///F:/Dev/AbletonEngine/tests/test_valhalla_supermassive.py) | 21 | 100% PASS |
+| [`tests/test_surge_xt_fx.py`](file:///F:/Dev/AbletonEngine/tests/test_surge_xt_fx.py) | 27 | 100% PASS |
+| [`tests/test_super_vst_deepening.py`](file:///F:/Dev/AbletonEngine/tests/test_super_vst_deepening.py) | 15 | 100% PASS |
+| [`tests/test_guided_session_vst_integration.py`](file:///F:/Dev/AbletonEngine/tests/test_guided_session_vst_integration.py) | 13 | 100% PASS |
+| [`tests/decent_sampler/`](file:///F:/Dev/AbletonEngine/tests/decent_sampler/) | 43 | 100% PASS |
 | **--- ARREGLO, TRANSICIONES & ESTRUCTURA (87 Tests) ---** | | |
 | [`tests/test_arrangement_automation_injection.py`](file:///F:/Dev/AbletonEngine/tests/test_arrangement_automation_injection.py) | 2 | 100% PASS |
 | [`tests/test_arrangement_automation_recorder.py`](file:///F:/Dev/AbletonEngine/tests/test_arrangement_automation_recorder.py) | 3 | 100% PASS |
@@ -435,7 +480,7 @@ La suite oficial cuenta con **956 pruebas automatizadas** que garantizan cero re
 | [`tests/test_vocal_slicer_and_acoustics.py`](file:///F:/Dev/AbletonEngine/tests/test_vocal_slicer_and_acoustics.py) | 5 | 100% PASS |
 | [`tests/test_vocal_staging.py`](file:///F:/Dev/AbletonEngine/tests/test_vocal_staging.py) | 4 | 100% PASS |
 | [`tests/test_whisper_and_auto_anti_echo.py`](file:///F:/Dev/AbletonEngine/tests/test_whisper_and_auto_anti_echo.py) | 9 | 100% PASS |
-| **TOTAL CONSOLIDADO** | **956** | **100% PASS** |
+| **TOTAL CONSOLIDADO** | **1,125** | **100% PASS** |
 
 ---
 

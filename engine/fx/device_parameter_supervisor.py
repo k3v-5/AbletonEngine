@@ -253,6 +253,11 @@ class DeviceParameterSupervisor:
             "OSCILLATORS": {"WAVETABLE_WARP": 0.60, "OSC_A_LEVEL": 0.80},
             "ENVELOPES": {"AMP_ATTACK": 0.02, "AMP_DECAY": 0.45, "AMP_RELEASE": 0.30}
         },
+        "SURGE_XT": {
+            "FILTERS": {"FILTER_CUTOFF": 0.65, "FILTER_RESONANCE": 0.30, "FILTER_DRIVE": 0.20},
+            "OSCILLATORS": {"OSC_A_LEVEL": 0.80, "UNISON_VOICES": 0.25, "UNISON_DETUNE": 0.30},
+            "ENVELOPES": {"AMP_ATTACK": 0.02, "AMP_DECAY": 0.45, "AMP_SUSTAIN": 0.70, "AMP_RELEASE": 0.35}
+        },
         "DECAPITATOR": {
             "SATURATION": {"DRIVE": 0.45, "DRIVE_TONE": 0.55, "DRIVE_MIX": 0.85},
             "FILTERS": {"FILTER_HPF": 0.15}
@@ -1458,6 +1463,8 @@ class DeviceParameterSupervisor:
             profile_key = "MASSIVE"
         elif "vital" in dev_lower:
             profile_key = "VITAL"
+        elif "surge" in dev_lower and "effect" not in dev_lower:
+            profile_key = "SURGE_XT"
         elif "pigments" in dev_lower:
             profile_key = "PIGMENTS"
         elif "solina" in dev_lower:

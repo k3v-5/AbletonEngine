@@ -191,7 +191,7 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 f"*Instrumentos y plugins verificados (prioridad a sintetizadores de terceros, nativos al final):*\n"
                 f"{options_block}\n\n"
                 f"• *Responde con el número de opción o nombre de plugin (ej: 'Opción 1', 'SubLab XL', 'Serum 2').*\n"
-                f"• *Si eliges Analog Lab V u Omnisphere, el asistente abrirá el sub-menú de presets por carpeta y la opción de plugin limpio default.*\n"
+                f"• *Si eliges Analog Lab V, Omnisphere o Decent Sampler, el asistente abrirá el sub-menú de presets o librerías auditadas y la opción de plugin limpio default.*\n"
                 f"• *O selecciona el Modo Chopping Autónomo escribiendo 'Opción {chop_idx}' o 'Modo Chopping' (sintetiza una fuente armónica única, la procesa y rebanará en Simpler sin usar librerías externas).*"
             ),
             "instructions_for_ai": f"Indica la opción de instrumento o kit para {t_name}.",
@@ -609,16 +609,27 @@ for slot in t.clip_slots:
                                 selected_opt = opt
                                 break
                     if not selected_opt:
+                        # Check unfiltered raw sources if user specifically requested a VST that was filtered by scan
+                        unfiltered = LiveBrowserCatalogEngine.get_available_sources_for_role(role, filter_installed=False)
+                        for u_opt in unfiltered:
+                            u_o_name = u_opt.name.lower()
+                            u_o_id = u_opt.id.lower()
+                            if u_o_name == u_clean or u_o_id == u_clean or u_clean in u_o_name or u_o_name in u_clean or u_o_id in u_clean:
+                                selected_opt = u_opt
+                                break
+                    if not selected_opt:
                         native_opts = [o for o in options if "native" in o.id.lower() or "native" in str(getattr(o, "category", "")).lower()]
                         selected_opt = native_opts[0] if native_opts else (options[0] if options else None)
     
-                # Check if user selected Analog Lab V or Omnisphere (Multi-preset parent plugin)
+                # Check if user selected Analog Lab V, Omnisphere, or Decent Sampler (Multi-preset parent plugin)
                 opt_name_low = selected_opt.name.lower() if selected_opt else ""
                 is_analog_lab = "analog lab" in opt_name_low or "analog lab" in u_clean
                 is_omnisphere = "omnisphere" in opt_name_low or "omnisphere" in u_clean
+                is_decent_parent = ("decent sampler" in opt_name_low or "decent sampler" in u_clean or u_clean == "decent") and not ("(" in opt_name_low and ")" in opt_name_low)
+                is_surge_parent = ("surge" in opt_name_low or "surge" in u_clean) and "effects" not in opt_name_low and "effects" not in u_clean and not ("(" in opt_name_low and ")" in opt_name_low)
     
-                if is_analog_lab or is_omnisphere:
-                    plug_label = "Analog Lab V" if is_analog_lab else "Omnisphere"
+                if is_analog_lab or is_omnisphere or is_decent_parent or is_surge_parent:
+                    plug_label = "Analog Lab V" if is_analog_lab else ("Omnisphere" if is_omnisphere else ("Decent Sampler" if is_decent_parent else "Surge XT"))
                     clean_keywords = ["default", "limpio", "clean", "crudo", "vst base", "plugin limpio", "sin preset"]
                     if any(w in u_clean for w in clean_keywords):
                         # User explicitly asked for clean default directly in Level 1 prompt
@@ -643,6 +654,8 @@ for slot in t.clip_slots:
                         "query:Drums#FileId_5422" if role == "DRUMS" else "query:Sounds#Piano%20&%20Keys:FileId_4867"
                     )
                     display_name = selected_opt.name if selected_opt else f"{role} Instrument"
+                    if selected_opt and getattr(selected_opt, "blueprint", None):
+                        trk["blueprint"] = selected_opt.blueprint
     
         is_verified = False
         load_error = None
@@ -668,6 +681,10 @@ for slot in t.clip_slots:
                         clean_vst_uri = "query:Plugins#VST3:Spectrasonics:Omnisphere"
                     elif "analog lab" in pending_parent_plugin.lower():
                         clean_vst_uri = "query:Plugins#VST3:Arturia:Analog%20Lab%20V"
+                    elif "decent" in pending_parent_plugin.lower():
+                        clean_vst_uri = "query:Plugins#VST3:Decent%20Samples:Decent%20Sampler"
+                    elif "surge" in pending_parent_plugin.lower():
+                        clean_vst_uri = "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT"
                     logger.warning(f"Custom rack failed verification on Track {t_idx}, attempting clean parent VST: {clean_vst_uri}")
                     try:
                         conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": clean_vst_uri})
@@ -839,6 +856,67 @@ for p in d.parameters:
     
         trk["instrument"] = display_name
         trk["item_uri"] = target_uri
+        if "decent sampler" in display_name.lower():
+            trk["is_decent_sampler"] = True
+            bp = trk.get("blueprint", {})
+            if bp and bp.get("library_name"):
+                trk["decent_sampler_library"] = bp.get("library_name")
+                trk["decent_sampler_preset_path"] = bp.get("preset_path")
+            elif "(" in display_name and ")" in display_name:
+                lib_name = display_name.split("(", 1)[1].rsplit(")", 1)[0].strip()
+                if "default" not in lib_name.lower():
+                    trk["decent_sampler_library"] = lib_name
+                    from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+                    lib_info = DecentSamplerLibraryManager.get_library_by_name(lib_name)
+                    if lib_info and lib_info.preset_path:
+                        trk["decent_sampler_preset_path"] = str(lib_info.preset_path)
+
+        if "surge" in display_name.lower() and "effects" not in display_name.lower():
+            trk["is_surge_synth"] = True
+            try:
+                from engine.sound_design.surge_xt_synth.patch_factory import SurgeSynthPatchFactory
+                from engine.sound_design.surge_xt_synth.validator import SurgeSynthValidator
+                from engine.sound_design.surge_xt_synth.serializer import SurgeSynthSerializer
+                from engine.sound_design.surge_xt_synth.sanitizer import SurgeSynthSanitizer
+
+                bpm = float(session.data.get("bpm", 120.0))
+                bp = trk.get("blueprint", {})
+                applied_p = bp.get("parameters", {})
+
+                if bp and bp.get("patch_model"):
+                    surge_patch = bp.get("patch_model")
+                else:
+                    surge_patch = SurgeSynthPatchFactory.create_role_patch(
+                        role=role,
+                        bpm=bpm,
+                        applied_params=applied_p,
+                        track_name=trk.get("name", "SurgeSynth")
+                    )
+
+                val_rep = SurgeSynthValidator.validate_patch(surge_patch)
+                if not val_rep.is_valid:
+                    surge_patch = SurgeSynthSanitizer.sanitize_patch(surge_patch)
+
+                patch_path = SurgeSynthSerializer.save_patch(surge_patch, category=session.data.get("song_name", "Session"))
+                trk["surge_synth_patch_path"] = str(patch_path)
+                trk["surge_synth_osc_types"] = [osc.osc_type for osc in surge_patch.oscillators]
+                trk["surge_synth_category"] = surge_patch.category
+
+                if conn is not None and hasattr(conn, "send_command") and dev_idx is not None:
+                    lom_cmds = surge_patch.to_lom_command_list()
+                    for p_name, p_val in lom_cmds:
+                        try:
+                            conn.send_command("set_device_parameter", {
+                                "track_index": t_idx,
+                                "device_index": dev_idx,
+                                "parameter_name": p_name,
+                                "value": float(p_val)
+                            })
+                        except Exception as ex_lom:
+                            logger.debug(f"Surge XT parameter dispatch notice: {ex_lom}")
+                logger.info(f"Generated and validated Surge XT synth patch '{surge_patch.patch_name}' for track {t_idx} [{role}]: {patch_path}")
+            except Exception as ex_surge:
+                logger.warning(f"Notice generating Surge XT patch: {ex_surge}")
         session.data["current_track_ptr"] = ptr + 1
         session._save_state()
     

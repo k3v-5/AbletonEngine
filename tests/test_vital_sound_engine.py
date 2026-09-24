@@ -115,6 +115,56 @@ class TestVitalParameterSchema:
         # Decay must be extended so sound is audible
         assert fixed["env_1_decay"] >= 0.15
 
+    def test_structural_integrity_invariants_6_7_8(self):
+        """Verifies Invariants 6, 7, and 8 prevent 'Preset file is corrupted' errors in Vital."""
+        settings = {
+            "volume": 5400.0,
+            "osc_1_on": 1.0,
+            "osc_1_level": 0.8,
+            "lfos": [
+                {
+                    "num_points": 4,
+                    "points": [0.0, 0.0],  # Incomplete points (needs 8)
+                    "powers": [0.0]        # Incomplete powers (needs 4)
+                }
+            ],
+            "wavetables": [
+                {
+                    "version": "1.5.5",
+                    "groups": [
+                        {
+                            "components": [
+                                {
+                                    "type": "Wave Source",
+                                    "audio_file": "non_existent.wav"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "sample": {
+                "name": "Invalid_Custom_Name_That_Crashes"
+            }
+        }
+
+        fixed = VitalParameterSchema.enforce_anti_silence_invariants(settings)
+
+        # Invariant 6: LFO vector lengths must strictly align to num_points
+        lfo0 = fixed["lfos"][0]
+        assert len(lfo0["points"]) == 2 * lfo0["num_points"]
+        assert len(lfo0["powers"]) == lfo0["num_points"]
+
+        # Invariant 7: Wavetable version normalized and audio_file removed
+        wt0 = fixed["wavetables"][0]
+        assert wt0["version"] == "1.0.7"
+        comp0 = wt0["groups"][0]["components"][0]
+        assert "audio_file" not in comp0
+        assert comp0["interpolation"] == 1
+
+        # Invariant 8: Sampler name sanitized to safe string
+        assert fixed["sample"]["name"] == "White Noise"
+
 
 class TestArchetypeCatalog:
     """Verifies preset discovery and archetype matching."""

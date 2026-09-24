@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DecentSampler minVersion="1.0.0" pluginVersion="1">
+  <ui width="812" height="375">
+    <tab>
+      <labeled-knob x="40" y="40" width="90" height="90" label="Tone" type="float" minValue="800.0" maxValue="22000.0" value="22000.0" defaultValue="22000.0" textColor="FFFFFFFF" valueType="hertz">
+        <binding type="effect" level="instrument" parameter="FX_FILTER_FREQUENCY" position="0" translationOutputMin="800.0" translationOutputMax="22000.0"/>
+      </labeled-knob>
+      <labeled-knob x="140" y="40" width="90" height="90" label="Space" type="float" minValue="0.0" maxValue="1.0" value="0.18" defaultValue="0.18" textColor="FFFFFFFF" valueType="percent">
+        <binding type="effect" level="instrument" parameter="FX_REVERB_WET_LEVEL" position="1" translationOutputMin="0.0" translationOutputMax="1.0"/>
+      </labeled-knob>
+      <labeled-knob x="240" y="40" width="90" height="90" label="Release" type="float" minValue="0.1" maxValue="3.0" value="0.6" defaultValue="0.6" textColor="FFFFFFFF" valueType="linear">
+        <binding type="amp" level="instrument" parameter="ENV_RELEASE" position="0" translationOutputMin="0.1" translationOutputMax="3.0"/>
+      </labeled-knob>
+    </tab>
+  </ui>
+  <groups>
+    <group attack="0.001" decay="12.0" sustain="0.0" release="0.6">
+      <sample path="Samples/piano_c2.wav" rootNote="36" loNote="21" hiNote="41" loVel="0" hiVel="127"/>
+      <sample path="Samples/piano_c3.wav" rootNote="48" loNote="42" hiNote="53" loVel="0" hiVel="127"/>
+      <sample path="Samples/piano_c4.wav" rootNote="60" loNote="54" hiNote="65" loVel="0" hiVel="127"/>
+      <sample path="Samples/piano_c5.wav" rootNote="72" loNote="66" hiNote="77" loVel="0" hiVel="127"/>
+      <sample path="Samples/piano_c6.wav" rootNote="84" loNote="78" hiNote="108" loVel="0" hiVel="127"/>
+    </group>
+  </groups>
+  <effects>
+    <effect type="lowpass" tags="tone_filter" frequency="22000.0" resonance="0.7"/>
+    <effect type="reverb" tags="concert_hall" roomSize="0.65" damping="0.35" wetLevel="0.18"/>
+  </effects>
+</DecentSampler>

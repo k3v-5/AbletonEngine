@@ -126,6 +126,84 @@ class CopilotInterceptRouter:
         if any(w in norm_text for w in ["filtro underwater", "underwater sweep", "ruptura acustica", "filtro radio", "transicion underwater", "ver underwater"]):
             return session._handle_underwater_sweep_query(conn)
 
+        # Decent Sampler Library Directory Configuration & Query Commands
+        if any(w in norm_text for w in ["ver librerias decent sampler", "listar librerias decent sampler", "librerias decent sampler", "decent sampler librerias", "ver librerias"]):
+            from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+            root = DecentSamplerLibraryManager.get_library_root()
+            libs = DecentSamplerLibraryManager.scan_libraries(require_valid=False)
+            valid_libs = [l for l in libs if l.is_valid]
+            invalid_libs = [l for l in libs if not l.is_valid]
+            
+            lines = [f"📁 **Carpeta de librerías Decent Sampler:** `{root}`\n"]
+            lines.append(f"✅ **Librerías Válidas ({len(valid_libs)}):**")
+            for vl in valid_libs:
+                lines.append(f"  • **{vl.name}** [{vl.role_hint}] ({vl.sample_count} samples)")
+            if invalid_libs:
+                lines.append(f"\n⚠️ **Librerías Descartadas / Corruptas ({len(invalid_libs)}):**")
+                for il in invalid_libs:
+                    err_summary = "; ".join(il.validation_errors[:2])
+                    lines.append(f"  • *{il.name}*: {err_summary}")
+            
+            return {
+                "status": "SUCCESS",
+                "action_taken": f"Consulta de librerías Decent Sampler ({len(valid_libs)} válidas en {root}).",
+                "question": "\n".join(lines),
+                "phase": phase
+            }
+
+        m_set_lib = re.search(
+            r"(?:cambiar|configurar|setear|actualizar|definir)\s+(?:la\s+)?(?:carpeta|ruta|directorio)\s+(?:de\s+)?(?:librerias|muestras|sonidos|decent\s*sampler)?\s+(?:a|en|por)?\s*[:=]?\s*([a-zA-Z]:[\\/][^\n\r]+|\/[^\n\r]+|~[\\/][^\n\r]+)",
+            user_input,
+            re.IGNORECASE
+        )
+        if not m_set_lib:
+            m_set_lib = re.search(
+                r"(?:carpeta|ruta|directorio)\s+(?:de\s+)?(?:librerias|decent\s*sampler)?\s*[:=]\s*([a-zA-Z]:[\\/][^\n\r]+|\/[^\n\r]+|~[\\/][^\n\r]+)",
+                user_input,
+                re.IGNORECASE
+            )
+        
+        if m_set_lib:
+            candidate_path = m_set_lib.group(1).strip().strip('"').strip("'")
+            from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+            try:
+                new_root = DecentSamplerLibraryManager.set_library_root(candidate_path)
+                all_scanned = DecentSamplerLibraryManager.scan_libraries(require_valid=False)
+                val_scanned = [l for l in all_scanned if l.is_valid]
+                inv_scanned = [l for l in all_scanned if not l.is_valid]
+                
+                resp_lines = [
+                    f"✅ **Carpeta de librerías Decent Sampler actualizada exitosamente:**\n`{new_root}`\n",
+                    f"🔍 **Auditoría Pre-Flight completada:**",
+                    f"• Librerías certificadas y listas para usar: **{len(val_scanned)}**"
+                ]
+                for vl in val_scanned:
+                    resp_lines.append(f"  - 🎹 **{vl.name}** [{vl.role_hint}]: {vl.sample_count} muestras.")
+                if inv_scanned:
+                    resp_lines.append(f"• Carpetas descartadas por corrupción o sin muestras válidas: **{len(inv_scanned)}**")
+                
+                resp_lines.append(f"\n💡 *Esta ruta se ha guardado en la configuración persistente (`state/engine_settings.json`).*")
+                
+                return {
+                    "status": "LIBRARY_ROOT_UPDATED",
+                    "action_taken": f"Carpeta principal de Decent Sampler actualizada a {new_root} ({len(val_scanned)} librerías válidas).",
+                    "question": "\n".join(resp_lines),
+                    "new_library_root": str(new_root),
+                    "valid_libraries_count": len(val_scanned),
+                    "phase": phase
+                }
+            except Exception as ex_set:
+                return {
+                    "status": "ERROR",
+                    "action_taken": f"Error al cambiar carpeta de librerías: {ex_set}",
+                    "question": (
+                        f"⚠️ **Error al configurar carpeta de librerías:**\n\n"
+                        f"{str(ex_set)}\n\n"
+                        f"Por favor verifica que la ruta exista en tu disco y sea accesible."
+                    ),
+                    "phase": phase
+                }
+
         # 2. Active sub-states (Awaiting Recalibration, Swap, Pre-Vocal Panning, LUFS, etc.)
         if session.data.get("awaiting_effect_recalibration", False):
             return session._handle_effect_recalibration(conn, user_input)

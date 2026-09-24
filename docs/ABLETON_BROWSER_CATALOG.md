@@ -129,6 +129,10 @@ The engine auto-indexes and natively communicates with installed external VST3 p
 | **Efx REFRACT** | Arturia | Stereo Refraction & Modulation | `query:Plugins#VST3:Arturia:Efx%20REFRACT` |
 | **Efx MOTIONS** | Arturia | Rhythmic Motion & Tape Saturator | `query:Plugins#VST3:Arturia:Efx%20MOTIONS` |
 | **VintageVerb** | Valhalla DSP | Algorithmic Reverb | `query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb` |
+| **Supermassive** | Valhalla DSP | Reverb / Delay / Space | `query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive` |
+| **Surge XT** | Surge Synth Team | Flagship Hybrid Synthesizer | `query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT` |
+| **Surge XT FX** | Surge Synth Team | Multi-FX Processor Rack | `query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20FX` |
+| **Decent Sampler** | Decent Samples | Multi-Sample Instrument Player | `query:Plugins#VST3:Decent%20Samples:Decent%20Sampler` |
 | **ShaperBox 3** | Cableguys | Multiband Rhythmic Modulation | `query:Plugins#VST3:Cableguys:ShaperBox%203` |
 
 ### Loading VST3 Plugins via FastMCP

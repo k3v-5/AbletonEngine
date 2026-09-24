@@ -406,6 +406,46 @@ class InstalledPluginScanner:
             "description": "World-class algorithmic reverbs and delays (VintageVerb, Delay, Supermassive).",
             "is_instrument": False,
         },
+        "supermassive": {
+            "vendor": "Valhalla DSP",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "REVERB", "DELAY", "SPACE", "LEAD", "PAD", "KEYS", "STRINGS", "VOCALS"],
+            "description": "Massive algorithmic delay and reverb network with 22 celestial modes, chorus, and diffusion.",
+            "is_instrument": False,
+            "live_uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaSupermassive",
+        },
+        "vintageverb": {
+            "vendor": "Valhalla DSP",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "REVERB", "SPACE", "DRUMS", "VOCALS", "KEYS", "PAD", "LEAD", "CHOIR"],
+            "description": "Studio algorithmic reverb modeled on 1970s and 1980s classic hardware with 22 modes and 3 color eras.",
+            "is_instrument": False,
+            "live_uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+        },
+        "surge xt effects": {
+            "vendor": "Surge Synth Team",
+            "primary_role": "FX",
+            "supported_roles": ["FX", "DISTORTION", "CHORUS", "DELAY", "MODULATION", "MASTER", "DRUMS", "BASS", "KEYS"],
+            "description": "Multi-effect rack engine with 32 DSP types, 16 slots, tape saturation, and complex routing.",
+            "is_instrument": False,
+            "live_uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT%20Effects",
+        },
+        "surge xt": {
+            "vendor": "Surge Synth Team",
+            "primary_role": "LEAD",
+            "supported_roles": ["BASS", "LEAD", "PAD", "KEYS", "FX", "STRINGS", "PLUCK"],
+            "description": "Hybrid synthesizer with 10 oscillator algorithms (FM, wavetable, physical modeling strings, twist), 20 filter models, and AHDSR envelopes.",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+        },
+        "decent sampler": {
+            "vendor": "Decent Samples",
+            "primary_role": "KEYS",
+            "supported_roles": ["KEYS", "GUITAR", "PAD", "STRINGS", "BASS", "LEAD", "DRUMS", "PERCUSSION"],
+            "description": "Multi-sample playback engine hosting custom acoustic and hybrid sample libraries (.dspreset).",
+            "is_instrument": True,
+            "live_uri": "query:Plugins#VST3:Decent%20Samples:Decent%20Sampler",
+        },
         "shaperbox": {
             "vendor": "Cableguys",
             "primary_role": "FX",
@@ -643,6 +683,8 @@ class InstalledPluginScanner:
             if sig in lower_name:
                 # Avoid false positives like "supermassive" matching "massive"
                 if sig == "massive" and "supermassive" in lower_name:
+                    continue
+                if sig == "surge xt" and "surge xt effects" in lower_name:
                     continue
 
                 plug_id = f"{category.value}_{lower_name.replace(' ', '_').replace('.', '_')}"

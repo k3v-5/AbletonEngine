@@ -303,6 +303,38 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 "target_dbfs": target_db,
                 "phase": "PHASE_4_PARAM_SCULPTING"
             }
+
+        # Decent Sampler Multi-Sample Sculpting Prompt
+        if trk.get("is_decent_sampler") or "decent sampler" in inst.lower():
+            ds_lib = trk.get("decent_sampler_library", "Custom Library")
+            ds_path = trk.get("decent_sampler_preset_path", "Archivo .dspreset en disco")
+            return {
+                "current_step": f"PASO 4 DE 7: ESCULPIDO DE MUESTRAS EN DECENT SAMPLER (PISTA {ptr + 1} DE {len(tracks)})",
+                "action_taken": f"Decent Sampler ({ds_lib}) verificado en Pista {t_idx}. Target de nivel: {target_db} dBFS.",
+                "question": (
+                    f"🎹 **Paso 4 de 7: Esculpido y Calibración de Decent Sampler para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                    f"Librería activa: **{ds_lib}**\n"
+                    f"Ruta física del preset: `{ds_path}`\n"
+                    f"Target de nivel: `{target_db} dBFS` de headroom pre-fader.\n\n"
+                    f"**Controles Acústicos de Decent Sampler:**\n"
+                    f"• `AMP_ATTACK` (0.0 a 1.0): Ataque del instrumento ({'0.01-0.05 percusivo/rápido' if role in ('KEYS', 'GUITAR', 'BASS') else '0.2-0.5 crescendo pad'}).\n"
+                    f"• `AMP_RELEASE` (0.0 a 1.0): Caída y resonancia natural al levantar las notas.\n"
+                    f"• `FILTER_CUTOFF` (0.0 a 1.0): Filtro pasa-bajos para ubicar el instrumento en su slot de frecuencias sin enmascarar.\n"
+                    f"• `TONE` (0.0 a 1.0): Brillo armónico y calidez de las muestras.\n"
+                    f"• `REVERB` (0.0 a 1.0): Espacio y profundidad acústica interna.\n"
+                    f"• `CHORUS` (0.0 a 1.0): Modulación y apertura estéreo.\n\n"
+                    f"🧠 **Moldeado Requerido por la IA:**\n"
+                    f"No uses un preset estático vago. Modela los parámetros de ataque, relajación, corte y tono considerando el rol '{role}' y el tempo del tema.\n\n"
+                    f"*Especifica tus parámetros (ej: 'Attack: 0.05, Release: 0.40, Cutoff: 0.75, Tone: 0.60') o escribe 'Opción 1' para aplicar los valores recomendados por rol.*"
+                ),
+                "instructions_for_ai": f"Moldea los parámetros de Decent Sampler ({ds_lib}) para {t_name} según su rol {role}.",
+                "target_track": t_idx,
+                "role": role,
+                "is_decent_sampler": True,
+                "target_dbfs": target_db,
+                "preset_path": ds_path,
+                "phase": "PHASE_4_PARAM_SCULPTING"
+            }
     
         from engine.sound.timbre_dna import TimbreRelationshipMatrix
         tdna = TimbreRelationshipMatrix.get_default_for_role(role)
