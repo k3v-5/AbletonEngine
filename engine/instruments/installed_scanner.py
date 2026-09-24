@@ -597,8 +597,14 @@ class InstalledPluginScanner:
         self._cache: Dict[str, ScannedPlugin] = {}
         self._scanned = False
 
+    _global_cache: Dict[str, Any] = {}
+
     def scan(self, force_rescan: bool = False) -> Dict[str, ScannedPlugin]:
         """Scans the configured plugin directories and builds the index."""
+        if not force_rescan and InstalledPluginScanner._global_cache:
+            self._cache = dict(InstalledPluginScanner._global_cache)
+            self._scanned = True
+            return self._cache
         if self._scanned and not force_rescan and self._cache:
             return self._cache
 
@@ -673,6 +679,7 @@ class InstalledPluginScanner:
             )
 
         self._scanned = True
+        InstalledPluginScanner._global_cache = dict(self._cache)
         return self._cache
 
     def _process_plugin_file(self, filename: str, full_path: str, category: PluginCategory):
