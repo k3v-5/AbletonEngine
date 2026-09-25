@@ -56,7 +56,7 @@ class MusicDirector:
         except Exception:
             pass
 
-        if len(tracks) < 4:
+        if len(tracks) < 2:
             return {
                 "status": "AUDIT_SKIPPED",
                 "predictability_score": 0.30,
@@ -64,7 +64,7 @@ class MusicDirector:
                 "issues_detected": [],
                 "recommendations": [],
                 "dimensions": {
-                    "structural": "Boceto inicial (< 4 pistas)",
+                    "structural": "Boceto inicial (< 2 pistas)",
                     "rhythmic": "Boceto inicial",
                     "dialogue": "Boceto inicial",
                     "organic_depth": "Boceto inicial"

@@ -223,7 +223,11 @@ class LiveMasterChainEngine:
         # Execute parameter assignments in a single atomic batch via execute_code (< 50ms)
         batch_success = False
         if all_param_ops:
-            batch_lines = [f"t = song.tracks[{track_index}]"]
+            is_master_target = str(track_index).lower() in ("master", "-1") or (isinstance(track_index, int) and track_index < 0)
+            if is_master_target:
+                batch_lines = ["t = song.master_track"]
+            else:
+                batch_lines = [f"t = song.master_track if {track_index} >= len(song.tracks) else song.tracks[{track_index}]"]
             for d_idx, p_idx, val in all_param_ops:
                 batch_lines.append(f"try: t.devices[{d_idx}].parameters[{p_idx}].value = {val}\nexcept Exception: pass")
             batch_code = "\n".join(batch_lines) + "\nres = 'ok'"

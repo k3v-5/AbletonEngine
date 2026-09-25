@@ -137,7 +137,7 @@ class Phase1TracksHandler(BasePhaseHandler):
                 "Debes enviar una lista explícita de nombres o roles de instrumentos separados por comas. Puedes combinar libremente cualquiera de los 21 roles acústicos:\n\n"
                 "• **Formato requerido:** `[Instrumento 1], [Instrumento 2], [Instrumento 3], ...`\n"
                 "• **Ejemplo Rock:** `Batería, Bajo Eléctrico, Guitarra Rítmica, Guitarra Lead, Voz, Coros`\n"
-                "• **Ejemplo Trap / Urbano:** `Drums, Kick, 808 Bass, Dembow, Keys, Lead, Vocals, Backing Vocals, FX (Audio)`\n"
+                "• **Ejemplo Trap / Urbano:** `Batería, Bombo, Bajo 808, Dembow, Keys, Lead, Vocals, Backing Vocals, FX (Audio)`\n"
                 "• **Ejemplo Esencial:** `Drums, Kick, Bass, Keys, Lead`\n\n"
                 "**Catálogo de Roles Soportados:**\n"
                 "  1. `DRUMS`: Batería base acústica, breakbeat o drum rack.\n"
@@ -313,7 +313,36 @@ class Phase1TracksHandler(BasePhaseHandler):
             if g_candidate in text:
                 session.data["genre"] = g_candidate.replace(" ", "_").replace("hip_hop", "trap").replace("lofi", "boom_bap").replace("dnb", "drum_and_bass")
                 break
-    
+
+        if not session.data.get("genre"):
+            roles_set = {r for _, r, *_ in roles}
+            if "808_BASS" in roles_set or any("808" in n.lower() for n, *_ in roles):
+                session.data["genre"] = "trap"
+            elif "DEMBOW" in roles_set:
+                session.data["genre"] = "reggaeton"
+            elif "ELECTRIC_BASS" in roles_set or "RHYTHM_GUITAR" in roles_set or "LEAD_GUITAR" in roles_set:
+                session.data["genre"] = "rock"
+            elif "STRINGS" in roles_set or "BRASS" in roles_set or "CHOIR" in roles_set:
+                session.data["genre"] = "cinematic"
+            else:
+                session.data["genre"] = "pop"
+
+        # Pre-calibrate genre-tailored standard BPM (eliminates blind 120.0 fallback)
+        genre_bpm_map = {
+            "trap": 140.0,
+            "reggaeton": 94.0,
+            "boom_bap": 90.0,
+            "edm": 126.0,
+            "house": 126.0,
+            "techno": 130.0,
+            "drum_and_bass": 174.0,
+            "rock": 120.0,
+            "cinematic": 90.0,
+            "pop": 115.0
+        }
+        if "bpm" not in session.data:
+            session.data["bpm"] = genre_bpm_map.get(session.data.get("genre", "pop"), 120.0)
+
         # Apply Suite 2.0 Autonomous Foundation: Colors, Headroom Faders & Submix Buses
         try:
             ColorPaletteManager.apply_role_colors_to_session(conn, created_tracks)
@@ -321,9 +350,31 @@ class Phase1TracksHandler(BasePhaseHandler):
             session.data["submix_buses"] = BusRoutingManager.setup_submix_buses(conn, created_tracks)
         except Exception as e_found:
             logger.debug(f"Suite foundation notice: {e_found}")
-    
-        session.data["current_phase"] = "PHASE_2_SECTIONS"
-        session.data["phase_index"] = 2
+
+        # Register musical context and track roles into InterPhaseStateBus
+        if hasattr(session, "state_bus") and session.state_bus is not None:
+            bpm = float(session.data.get("bpm", 120.0))
+            genre = str(session.data.get("genre", "pop"))
+            root_note = str(session.data.get("key", "C"))
+            scale = str(session.data.get("scale", "Minor"))
+            session.state_bus.set_musical_context(
+                bpm=bpm,
+                root_note=root_note,
+                scale=scale,
+                genre=genre
+            )
+            for t in created_tracks:
+                session.state_bus.register_track_role(
+                    track_index=t.get("index", 0),
+                    track_name=t.get("name", ""),
+                    role=t.get("role", "OTHER")
+                )
+
+        if hasattr(session, "advance_phase"):
+            session.advance_phase("PHASE_2_SECTIONS")
+        else:
+            session.data["current_phase"] = "PHASE_2_SECTIONS"
+            session.data["phase_index"] = 2
         session._save_state()
     
         return session._prompt_phase_2(created_tracks)

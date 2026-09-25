@@ -105,7 +105,7 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 f"El motor no impone plantillas fijas. Puedes:\n"
                 f"• **Aprobar la sugerencia:** Responde `'Aprobar sugerencia en [Tonalidad Escala]'` (ej: `'Aprobar sugerencia en Fa Menor'`).\n"
                 f"• **Dictar tu propia estructura:** Escribe tus secciones libremente (ej: `'Intro 8, Verso 16, Coro 16, Puente 8, Outro 8 en Fa Menor'`).\n"
-                f"• **Elegir formatos de referencia:** Opción A (96c Estándar), Opción B (64c Compacto), Opción C (128c Club) u Opción D (88c Hip-Hop).\n\n"
+                f"• **Elegir formatos de referencia (Rango de 64 a 128 compases):** Opción A (96c Estándar), Opción B (64c Compacto), Opción C (128c Club) u Opción D (88c Hip-Hop).\n\n"
                 f"🎹 **Afinación Armónica (Escala y Tonalidad del Proyecto):**\n"
                 f"El motor afinará automáticamente Ableton Live 12 (`song.root_note`, `song.scale_name`) y plugins vocales/sintetizadores.\n"
                 f"• *Recomendaciones por género:* Dubstep/Bass: **Fa Menor** / **Re Menor**; Trap: **Do Menor**; Pop/House: **La Menor** / **Do Mayor**.\n\n"
@@ -196,7 +196,32 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 pass
     
         genre = session.data.get("genre", "trap")
-        bpm = float(session.data.get("bpm", 120.0))
+        genre_default_bpm = {
+            "trap": 140.0,
+            "reggaeton": 94.0,
+            "boom_bap": 90.0,
+            "edm": 126.0,
+            "house": 126.0,
+            "techno": 130.0,
+            "drum_and_bass": 174.0,
+            "rock": 120.0,
+            "cinematic": 90.0,
+            "pop": 115.0
+        }.get(genre, 120.0)
+        bpm = float(session.data.get("bpm", genre_default_bpm))
+
+        # Check for freeform NLP BPM specification (e.g. "168 BPM" or "tempo 168")
+        bpm_match = re.search(r'\b(\d{2,3}(?:\.\d+)?)\s*bpm\b', text, re.IGNORECASE) or re.search(r'\b(?:bpm|tempo)\s*:?\s*(\d{2,3}(?:\.\d+)?)\b', text, re.IGNORECASE)
+        if bpm_match:
+            try:
+                user_bpm = float(bpm_match.group(1))
+                if 20.0 <= user_bpm <= 999.0:
+                    bpm = user_bpm
+                    session.data["bpm"] = bpm
+            except Exception:
+                pass
+        else:
+            session.data["bpm"] = bpm
 
         # Check for freeform NLP custom section specification (e.g. "intro 8, verso 16, coro 16, outro 8")
         nlp_custom_sections = []
@@ -346,12 +371,27 @@ class Phase2SectionsHandler(BasePhaseHandler):
     
         if conn is not None and hasattr(conn, "send_command"):
             try:
+                conn.send_command("set_tempo", {"tempo": float(session.data.get("bpm", 120.0))})
+            except Exception as ex_bpm:
+                logger.debug(f"Physical tempo sync notice: {ex_bpm}")
+            try:
                 TransportManager.sync_section_cue_points(conn, sections)
             except Exception as ex_cue:
                 logger.debug(f"TransportManager cue sync notice: {ex_cue}")
-    
-        session.data["current_phase"] = "PHASE_3_INSTRUMENTS"
-        session.data["phase_index"] = 3
+
+        if hasattr(session, "state_bus") and session.state_bus is not None:
+            session.state_bus.set_musical_context(
+                bpm=float(session.data.get("bpm", 120.0)),
+                root_note=final_key,
+                scale=final_scale,
+                genre=genre
+            )
+
+        if hasattr(session, "advance_phase"):
+            session.advance_phase("PHASE_3_INSTRUMENTS")
+        else:
+            session.data["current_phase"] = "PHASE_3_INSTRUMENTS"
+            session.data["phase_index"] = 3
         session.data["current_track_ptr"] = 0
         session._save_state()
     

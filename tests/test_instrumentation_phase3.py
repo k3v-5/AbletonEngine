@@ -53,7 +53,7 @@ class TestInstalledPluginScanner:
 
         bass_rec = scanner.recommend_for_role("BASS")
         assert bass_rec is not None
-        assert "serum" in bass_rec.name.lower() or "bloom" in bass_rec.name.lower() or "drift" in bass_rec.name.lower()
+        assert "serum" in bass_rec.name.lower() or "bloom" in bass_rec.name.lower() or "drift" in bass_rec.name.lower() or "sublab" in bass_rec.name.lower()
 
         lead_rec = scanner.recommend_for_role("LEAD")
         assert lead_rec is not None

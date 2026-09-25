@@ -237,6 +237,20 @@ class TechniqueCatalog:
                 DeviceRecipe("Spectral Smear", "Echo", "query:AudioFx#Echo", {"Feedback": "88%", "Echo Time": "1/16", "Filter": "On"}, "Spectral diffusion feedback"),
             ]
         ))
+        cls._register(TechniqueDefinition(
+            family=ProductionTechniqueFamily.SPECTRAL_DESIGN,
+            technique_id="UNIVERSAL_HARMONIC_TRANSFORMATION_SUITE",
+            name="Universal Harmonic Transformation Suite (UHTS)",
+            description="Comprehensive 20-algorithm DSP resampling and acoustic mutation pipeline for textures and sound design.",
+            character_tags=["uhts", "spectral", "mutation", "resampling", "sound_design"],
+            recipes=[
+                DeviceRecipe("Surgical EQ", "EQ Eight", "query:AudioFx#EQ%20Eight", {"Band 1 Mode": "High Pass 48dB/oct", "Band 1 Freq": "35 Hz"}, "Clean sub rumble"),
+                DeviceRecipe("Harmonic Exciter", "Saturator", "query:AudioFx#Saturator", {"Drive": "+4.0 dB", "Curve": "Soft Sine"}, "Harmonic density expansion"),
+                DeviceRecipe("Spectral Dynamics", "Multiband Dynamics", "query:AudioFx#Multiband%20Dynamics", {"Time": "100%", "Amount": "100%"}, "Multiband transient control"),
+                DeviceRecipe("Diffusion Reverb", "Reverb", "query:AudioFx#Reverb", {"Decay Time": "6.0 s", "Dry/Wet": "40%"}, "Spatial wash"),
+                DeviceRecipe("Stereo Widener", "Utility", "query:AudioFx#Utility", {"Width": "125%", "Bass Mono": "120 Hz"}, "Stereo dimension preservation"),
+            ]
+        ))
 
         # 11. Convolution Recontextualization
         cls._register(TechniqueDefinition(

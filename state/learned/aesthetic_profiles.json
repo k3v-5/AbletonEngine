@@ -1,0 +1,339 @@
+{
+  "trap": {
+    "genre": "trap",
+    "display_name": "Trap / Modern Urban",
+    "roles": {
+      "DRUMS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Glue Compressor"
+        ],
+        "optional_effects": [
+          "Saturator",
+          "Redux",
+          "ValhallaVintageVerb"
+        ],
+        "descriptions": {
+          "EQ Eight": "Sub-cut at 25 Hz on kick, transient air bump at 8 kHz on snare.",
+          "Glue Compressor": "2:1 to 4:1 ratio for bus glue and transient control.",
+          "Saturator": "Soft Sine drive on 808 snare and claps.",
+          "Redux": "Lo-fi downsampling for dark hi-hat rolls.",
+          "ValhallaVintageVerb": "Plate mode 1980s for airy snare decay."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "BASS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Utility"
+        ],
+        "optional_effects": [
+          "Saturator",
+          "Glue Compressor"
+        ],
+        "descriptions": {
+          "EQ Eight": "HPF at 25 Hz, notch at 200 Hz to unmask low mids.",
+          "Utility": "Bass Mono engaged below 120 Hz to preserve center phase.",
+          "Saturator": "Warm Drive 2.5 dB to generate 2nd/3rd harmonics for mobile speaker audibility."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "KEYS": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Chorus-Ensemble",
+          "ValhallaVintageVerb",
+          "Delay"
+        ],
+        "descriptions": {
+          "EQ Eight": "Cut below 150 Hz to clear space for 808 bass fundamental.",
+          "Chorus-Ensemble": "Subtle 2-voice stereo width modulation.",
+          "ValhallaVintageVerb": "Chamber or Room mode for realistic studio depth."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "PAD": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "ValhallaSupermassive",
+          "ValhallaVintageVerb",
+          "Auto Pan"
+        ],
+        "descriptions": {
+          "EQ Eight": "Gentle band-pass leaving 300 Hz - 7 kHz.",
+          "ValhallaSupermassive": "Andromeda Cloud for massive ambient halo.",
+          "ValhallaVintageVerb": "Cathedral 1970s mode for dark cinematic width."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "LEAD": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Compressor"
+        ],
+        "optional_effects": [
+          "Delay",
+          "ValhallaVintageVerb",
+          "Saturator"
+        ],
+        "descriptions": {
+          "EQ Eight": "Surgical notch at harsh resonance peaks (2.5 kHz - 4 kHz).",
+          "Compressor": "Fast clamp for consistent melodic presence in dense drop.",
+          "Delay": "Dotted 8th note stereo ping-pong bounce."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "VOCALS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Compressor"
+        ],
+        "optional_effects": [
+          "ValhallaVintageVerb",
+          "Delay",
+          "Auto-Tune Artist"
+        ],
+        "descriptions": {
+          "EQ Eight": "High-pass at 85 Hz, de-mud notch at 350 Hz, high shelf at 12 kHz.",
+          "Compressor": "Opto style or peak limiting 4:1 ratio.",
+          "ValhallaVintageVerb": "Smooth Plate 1980s mode for clean silkiness."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "FX": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Auto Pan",
+          "ValhallaSupermassive",
+          "Delay"
+        ],
+        "descriptions": {
+          "EQ Eight": "Cut low end below 200 Hz on sweep risers.",
+          "ValhallaSupermassive": "Space expansion for cinematic impact."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      }
+    },
+    "instrument_decisions": {},
+    "aesthetic_notes": "Punchy transient drums, clipped sub-bass, clean stereo separation, dark warm chords."
+  },
+  "edm": {
+    "genre": "edm",
+    "display_name": "Electronic Dance Music / Progressive",
+    "roles": {
+      "DRUMS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Glue Compressor"
+        ],
+        "optional_effects": [
+          "Saturator",
+          "Overdrive"
+        ],
+        "descriptions": {
+          "EQ Eight": "Tight low cut at 30 Hz, surgical snap at 4 kHz.",
+          "Glue Compressor": "Punch mode (Attack 30ms, Release auto) for transient punch."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "BASS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Compressor",
+          "Utility"
+        ],
+        "optional_effects": [
+          "Saturator",
+          "Dynamic EQ"
+        ],
+        "descriptions": {
+          "EQ Eight": "Sub anchor preservation, notch kick frequency.",
+          "Compressor": "Sidechain ducking triggered by main kick.",
+          "Utility": "Strict Bass Mono <= 130 Hz."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "LEAD": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Compressor"
+        ],
+        "optional_effects": [
+          "ValhallaVintageVerb",
+          "Delay",
+          "OTT"
+        ],
+        "descriptions": {
+          "EQ Eight": "Cut below 250 Hz, presence boost at 5 kHz.",
+          "Compressor": "Heavy pumping sidechain for drop impact.",
+          "ValhallaVintageVerb": "Bright Hall mode for soaring festival leads."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "PAD": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "ValhallaSupermassive",
+          "Chorus-Ensemble"
+        ],
+        "descriptions": {
+          "EQ Eight": "Low cut at 180 Hz.",
+          "ValhallaSupermassive": "Lyra Space for lush floating chords."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "KEYS": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "ValhallaVintageVerb",
+          "Chorus-Ensemble"
+        ],
+        "descriptions": {
+          "EQ Eight": "Clean body 200 Hz - 8 kHz.",
+          "ValhallaVintageVerb": "Concert Hall for concert piano depth."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "VOCALS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Compressor"
+        ],
+        "optional_effects": [
+          "ValhallaVintageVerb",
+          "Delay"
+        ],
+        "descriptions": {
+          "EQ Eight": "Bright modern pop curve with air shelf.",
+          "Compressor": "Dual stage peak + leveling."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "FX": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Delay",
+          "ValhallaSupermassive"
+        ],
+        "descriptions": {
+          "EQ Eight": "Band pass filtering for risers and sweeps."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      }
+    },
+    "instrument_decisions": {},
+    "aesthetic_notes": "High dynamic contrast, heavy sidechain ducking, pristine ultra-bright top end, wide stereo leads."
+  },
+  "techno": {
+    "genre": "techno",
+    "display_name": "Peak Time / Raw Techno",
+    "roles": {
+      "DRUMS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Saturator"
+        ],
+        "optional_effects": [
+          "ValhallaVintageVerb",
+          "Overdrive",
+          "Glue Compressor"
+        ],
+        "descriptions": {
+          "EQ Eight": "Weight at 50 Hz, cut harshness above 10 kHz.",
+          "Saturator": "Hard Curve or Sinoid for aggressive analog punch.",
+          "ValhallaVintageVerb": "Dirty Hall mode for techno kick rumble sub."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "BASS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Utility"
+        ],
+        "optional_effects": [
+          "Saturator",
+          "Compressor"
+        ],
+        "descriptions": {
+          "EQ Eight": "Tight sub focus, HPF at 28 Hz.",
+          "Utility": "Mono below 140 Hz strictly enforced."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "LEAD": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Delay",
+          "ValhallaVintageVerb",
+          "Redux"
+        ],
+        "descriptions": {
+          "EQ Eight": "Dark filter sweep 400 Hz to 4 kHz.",
+          "Delay": "Hypnotic 16th note ping-pong with high feedback."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "PAD": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "ValhallaVintageVerb",
+          "Phaser"
+        ],
+        "descriptions": {
+          "EQ Eight": "High-cut at 6 kHz for dark dystopian textures."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "FX": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Delay",
+          "Redux"
+        ],
+        "descriptions": {
+          "EQ Eight": "Resonant sweep filtering."
+        },
+        "default_parameters": {},
+        "role_notes": ""
+      }
+    },
+    "instrument_decisions": {},
+    "aesthetic_notes": "Rumbling industrial sub-reverb, dark analog warmth, repetitive hypnotic filtering, distortion harmonics."
+  }
+}

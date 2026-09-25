@@ -87,12 +87,8 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 "• `FILTER_SWEEP_UP`: Apertura de filtro de `200 Hz -> 18,000 Hz` en build-ups (crecimiento progresivo de energía espectral).\n"
                 "• `REVERB_WASHOUT`: Rango de mezcla `0% -> 75% -> 0%` en pre-drop (difuminación espacial con corte súbito en el downbeat).\n"
                 "• `PRE_DROP_VACUUM`: Rango de ganancia `0 dB -> -inf dB` en los últimos 2 beats previos al drop (corte absoluto de señal para máximo impacto).\n"
-                "• `OUTRO_FADE`: Rango `0 dB -> -inf dB` sobre los últimos compases del arreglo.\n\n"
                 f"{anti_climax_warning}"
-                "\n⚡ **Técnicas de Transición de la Enciclopedia:**\n"
-                "  • `pre_drop_vacuum`: Silencio absoluto 2 beats antes del drop para impacto sísmico.\n"
-                "  • `snare_roll`: Aceleración rítmica (1/4 -> 1/8 -> 1/16 -> 1/32) con pitch bend ascendente.\n"
-                "  • `white_noise_riser`: Riser de ruido blanco con apertura progresiva de filtro HP y reverb.\n\n"
+                + (f"\n⚡ **Catálogo de Transiciones Contextuales ({str(session.data.get('genre', 'trap')).capitalize()}):**\n" + __import__('engine.arrangement.transitions.contextual_catalog', fromlist=['ContextualTransitionCatalog']).ContextualTransitionCatalog.format_transition_menu_for_prompt(session.data.get('genre', 'trap')) + "\n" if True else "") +
                 "🧠 **Decisión Técnica Requerida (Automatizaciones Obligatorias):**\n"
                 "Las automatizaciones en transiciones, pre-drops y caídas son obligatorias para garantizar dinámica profesional.\n"
                 "Decide cómo deseas estructurar e inyectar estas curvas en Arrangement:\n\n"

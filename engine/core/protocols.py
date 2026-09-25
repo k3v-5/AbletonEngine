@@ -66,8 +66,17 @@ class TrackResolverProtocol(Protocol):
 
 @runtime_checkable
 class InterceptHandlerProtocol(Protocol):
-    """Protocol for global user-input intercept handlers (Chain of Responsibility)."""
+    """Protocol for global user-input intercept handlers (Chain of Responsibility & SRP/OCP)."""
+
+    def can_handle(self, norm_text: str, user_input: str, session: Any, phase: str) -> bool:
+        """Determines if this handler can handle the given user input."""
+        ...
+
+    def handle(self, norm_text: str, user_input: str, session: Any, conn: Any, phase: str) -> Optional[Dict[str, Any]]:
+        """Handles user input if relevant; returns response dict or None."""
+        ...
 
     def handle_intercept(self, session: Any, conn: Any, user_input: str) -> Optional[Dict[str, Any]]:
-        """Handles user input if relevant; returns None to allow regular phase processing."""
+        """Legacy compatibility adapter for direct intercept calls."""
         ...
+

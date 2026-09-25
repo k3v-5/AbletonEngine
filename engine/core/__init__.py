@@ -7,3 +7,15 @@ from .protocols import (
     TrackResolverProtocol,
     InterceptHandlerProtocol,
 )
+from .device_execution_verifier import DeviceExecutionVerifier, VerificationError
+
+__all__ = [
+    "CommandSenderProtocol",
+    "AbletonConnectionProtocol",
+    "PhaseHandlerProtocol",
+    "SessionStateProtocol",
+    "TrackResolverProtocol",
+    "InterceptHandlerProtocol",
+    "DeviceExecutionVerifier",
+    "VerificationError",
+]

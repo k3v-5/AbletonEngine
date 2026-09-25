@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 from engine.production.copilot.phases.base import BasePhaseHandler
 from engine.production.copilot.nlp_parser import _normalize_text, parse_autotune_settings
 from engine.fx.role_fx_catalog import ROLE_INSERT_EFFECTS, ROLE_FREQUENCY_GUIDE
+from engine.fx.aesthetic_profile_engine import AestheticProfileEngine
 from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
 from engine.session.transaction_guard import TransactionGuard
 from engine.instruments.installed_scanner import InstalledPluginScanner
@@ -16,10 +17,37 @@ from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_pre
 from engine.vocal.vocal_chain_processor import VocalChainProcessor
 from engine.mix.ascii_spectrum import AsciiSpectrumVisualizer
 from engine.mix.frequency_slotting import FrequencySlottingEngine
+from engine.fx.ultra_acoustic_catalog import (
+    UltraAcousticCatalog,
+    AcousticArchetype,
+    hz_to_eq8_norm,
+    db_to_eq8_norm,
+)
+from engine.fx.semantic_intent_resolver import SemanticIntentResolver
+from engine.core.device_execution_verifier import DeviceExecutionVerifier
+from engine.governance.contract import StructuralDecisionContract, DecisionType
 
 logger = logging.getLogger("Phase5InsertEffects")
 
 class Phase5InsertEffectsHandler(BasePhaseHandler):
+    @classmethod
+    def _get_fx_list_for_role(cls, role: str) -> List[Dict[str, Any]]:
+        r_clean = str(role or "KEYS").strip().upper()
+        if r_clean in ROLE_INSERT_EFFECTS:
+            return ROLE_INSERT_EFFECTS[r_clean]
+        native_chain = UltraAcousticCatalog.build_native_insert_chain(r_clean)
+        return [
+            {
+                "name": d["name"],
+                "uri": d["uri"],
+                "params": [
+                    {"id": k, "name": k, "range": "0.0 a 1.0", "behavior": "Calibrado nativo", "default": v}
+                    for k, v in d["parameters"].items()
+                ]
+            }
+            for d in native_chain
+        ]
+
     def prompt(self, session: Any, **kwargs) -> Dict[str, Any]:
         return self._prompt_current_fx_device(session)
 
@@ -55,8 +83,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         if "eq" in d_name or "eq8" in d_class or "pro-q" in d_name:
                             has_eq = True
                             break
-                except Exception:
-                    pass
+                except Exception as ex_t:
+                    logger.debug(f"Could not inspect track devices on track {t_idx}: {ex_t}")
     
             if not has_eq:
                 return trk
@@ -131,6 +159,14 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     def _prompt_current_fx_device(self, session: Any) -> Dict[str, Any]:
         tracks = session.data.get("tracks", [])
         t_ptr = session.data.get("current_fx_track_ptr", 0)
+
+        # 0. Check for unknown genre: query AI/user with standardized schema if no profile exists
+        genre = session.data.get("genre", "trap")
+        aesthetic_engine = AestheticProfileEngine()
+        if not aesthetic_engine.has_profile(genre):
+            session.data["pending_genre_aesthetic_profile"] = True
+            session._save_state()
+            return aesthetic_engine.build_standardized_genre_query(genre)
     
         if t_ptr >= len(tracks):
             missing_trk = self.find_track_missing_eq(session, None)
@@ -147,8 +183,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         t_name = trk["name"]
         role = trk["role"]
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-    
-        fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+        fx_list = self._get_fx_list_for_role(role)
     
         if dev_ptr >= len(fx_list):
             session.data["current_fx_track_ptr"] = t_ptr + 1
@@ -240,6 +275,24 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
 
         if fx_kb:
             params_info.append("\n**Directrices Quirúrgicas de Inserción (FabFilter / Plugins):**\n" + "\n".join(fx_kb))
+
+        # Aesthetic Profile & Zero-Default Policy Injection
+        prof = aesthetic_engine.get_profile(genre)
+        role_prof = prof.roles.get(role.upper(), None) if prof else None
+        mand_effects = role_prof.mandatory_effects if (role_prof and role_prof.mandatory_effects) else ["EQ Eight"]
+        opt_effects = role_prof.optional_effects if (role_prof and role_prof.optional_effects) else ["Compressor", "Saturator"]
+        inst_name = str(trk.get("instrument", trk["name"]))
+        past_decision = aesthetic_engine.get_instrument_decision(genre, inst_name)
+
+        aesthetic_block = (
+            f"\n🎨 **Perfil Estético Activo ({genre.upper()}):**\n"
+            f"• **Efectos Obligatorios ({role}):** `{', '.join(mand_effects)}`\n"
+            f"• **Efectos Opcionales Disponibles:** `{', '.join(opt_effects)}`\n"
+            f"• 🛡️ *Política de Cadenas:* El motor nunca selecciona cadenas por defecto siempre pregunta cada uno de los efectos que se desea agregar."
+        )
+        if past_decision:
+            aesthetic_block += f"\n• 💡 **Decisión Histórica Documentada para '{inst_name}':** `[{', '.join(past_decision.effects_added)}]` ({past_decision.reason})"
+        params_info.append(aesthetic_block)
     
         params_text = "\n".join(params_info)
     
@@ -248,9 +301,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     
         p_examples = ", ".join([f"{p['id']}: X" for p in eff.get("params", [])[:2]]) or "Parameter: Value"
         decision_prompt = (
-            f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla."
+            f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla. El motor nunca selecciona cadenas por defecto siempre pregunta cada uno de los efectos que se desea agregar."
             if is_eq else
-            f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla, o indica 'Bypass' si determinas que este procesador no es necesario en este canal."
+            f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla, o indica 'Bypass' si determinas que este procesador no es necesario en este canal. El motor nunca selecciona cadenas por defecto siempre pregunta cada uno de los efectos que se desea agregar."
         )
         action_note = f"*Especifica tus valores de configuración (ej: '{p_examples}'). (Nota: Ecualizador 100% obligatorio).*" if is_eq else f"*Especifica tus valores de configuración (ej: '{p_examples}') o indica 'Bypass'.*"
     
@@ -260,6 +313,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
             f"• JSON: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
             f"• Calibración recomendada: `\"Opción 1\"` (Aplica valores óptimos para este procesador)\n"
+            f"• Cadena personalizada: `\"Cadena: EQ Eight, Saturator, ValhallaVintageVerb\"` (El motor documentará la decisión para {inst_name})\n"
             f"• Decisión deliberada por procesador: Evalúa si {eff_name} aporta a la claridad, calidez o pegada de '{t_name}', define sus parámetros conscientemente o indica 'Bypass' si está de más.\n"
             f"• Bypass puntual: Solo si determinas acústicamente que este canal no requiere este proceso (máximo 35% de la sesión)."
         )
@@ -286,6 +340,19 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         }
     
     def _handle_phase_5(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        # 0. Check for pending genre aesthetic profile definition
+        if session.data.get("pending_genre_aesthetic_profile"):
+            genre = session.data.get("genre", "trap")
+            aesthetic_engine = AestheticProfileEngine()
+            parsed_prof = aesthetic_engine.parse_standardized_genre_input(genre, user_input)
+            if parsed_prof:
+                session.data.pop("pending_genre_aesthetic_profile", None)
+                session.data["aesthetic_profile_learned"] = parsed_prof.genre
+                session._save_state()
+                return self._prompt_current_fx_device(session)
+            else:
+                return aesthetic_engine.build_standardized_genre_query(genre)
+
         tracks = session.data.get("tracks", [])
         t_ptr = session.data.get("current_fx_track_ptr", 0)
     
@@ -301,13 +368,26 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
         text = _normalize_text(user_input)
     
-        fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+        fx_list = self._get_fx_list_for_role(role)
     
         if dev_ptr >= len(fx_list):
             session.data["current_fx_track_ptr"] = t_ptr + 1
             session.data["current_fx_dev_ptr"] = 0
             session._save_state()
             return session._prompt_current_fx_device()
+
+        # Check for explicit custom chain definition (e.g. "Cadena: EQ Eight, Saturator, ValhallaVintageVerb")
+        if text.startswith("cadena:") or text.startswith("efectos:") or "personalizada" in text:
+            genre = session.data.get("genre", "trap")
+            inst_name = str(trk.get("instrument", trk["name"]))
+            aesthetic_engine = AestheticProfileEngine()
+            chosen_effs = aesthetic_engine.parse_track_fx_selection(user_input, genre, role, inst_name)
+            trk["chosen_insert_effects"] = chosen_effs
+            trk["insert_effects"] = [{"name": e, "parameters": {}} for e in chosen_effs]
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            session._save_state()
+            return self._prompt_current_fx_device(session)
     
         # Check for Cadena Express / Lote configuration across the whole track
         is_express_chain = any(w in text for w in ["cadena express", "express", "lote", "receta completa", "toda la pista", "cadena completa", "todos los efectos"])
@@ -343,8 +423,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
                         conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": d_eff_uri})
-                    except Exception:
-                        pass
+                    except Exception as ex_load:
+                        logger.warning(f"Error loading express device {d_eff_name} on track {t_idx}: {ex_load}")
 
                 trk["insert_effects"].append({
                     "name": d_eff_name,
@@ -424,7 +504,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             tot_non_eq = 0
             for ot in all_tracks:
                 o_role = ot.get("role", "STRINGS")
-                o_fx = ROLE_INSERT_EFFECTS.get(o_role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+                o_fx = self._get_fx_list_for_role(o_role)
                 for fx_item in o_fx:
                     if not any(q in fx_item.get("name", "").lower() for q in ["eq", "equalizer", "pro-q"]):
                         tot_non_eq += 1
@@ -549,6 +629,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     if m_b4_g:
                         applied_params["4 Gain A"] = float(m_b4_g.group(1))
 
+            resolved_intent = SemanticIntentResolver.resolve_intent(user_input, role)
+            arch_spec = UltraAcousticCatalog.get_role_archetype_spec(role, resolved_intent.archetype.value)
+
             def _clean_key(k: str) -> str:
                 return re.sub(r'[^a-z0-9]', '', _normalize_text(k))
     
@@ -645,6 +728,34 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     m_str = re.search(str_pat, text, re.IGNORECASE)
                     if m_str:
                         val_found = m_str.group(1).strip()
+
+                # 4. Fallback a Arquetipo Calibrado de Rol de UltraAcousticCatalog (Piso Infranqueable de Calidad)
+                if val_found is None:
+                    eff_lower = eff_name.lower()
+                    if "glue" in eff_lower and arch_spec.glue_params and p_id in arch_spec.glue_params:
+                        val_found = arch_spec.glue_params[p_id]
+                    elif "buss" in eff_lower and arch_spec.drum_buss_params and p_id in arch_spec.drum_buss_params:
+                        val_found = arch_spec.drum_buss_params[p_id]
+                    elif "saturator" in eff_lower and arch_spec.saturator_params and p_id in arch_spec.saturator_params:
+                        val_found = arch_spec.saturator_params[p_id]
+                    elif "utility" in eff_lower and arch_spec.utility_params and p_id in arch_spec.utility_params:
+                        val_found = arch_spec.utility_params[p_id]
+                    elif "reverb" in eff_lower and arch_spec.reverb_params and p_id in arch_spec.reverb_params:
+                        val_found = arch_spec.reverb_params[p_id]
+                    elif is_eq:
+                        for b in arch_spec.eq_bands:
+                            if p_id == f"{b.band_index} Frequency A":
+                                val_found = hz_to_eq8_norm(b.freq_hz)
+                                break
+                            elif p_id == f"{b.band_index} Gain A":
+                                val_found = db_to_eq8_norm(b.gain_db)
+                                break
+                            elif p_id == f"{b.band_index} Filter Type":
+                                val_found = float(b.band_type)
+                                break
+                            elif p_id == f"Band {b.band_index} On":
+                                val_found = 1.0 if b.enabled else 0.0
+                                break
 
                 if val_found is not None:
                     applied_params[p_id] = val_found
@@ -789,6 +900,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         after_devs = t_info_after.get("result", {}).get("devices", t_info_after.get("devices", [])) if isinstance(t_info_after, dict) else []
                         dev_idx = len(after_devs) - 1 if after_devs else dev_ptr + 1
     
+                    is_test_env = DeviceExecutionVerifier.check_is_test_env(conn, session)
                     for p_key, p_val in applied_params.items():
                         try:
                             conn.send_command("set_device_parameter", {
@@ -797,8 +909,28 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                                 "parameter": p_key,
                                 "value": float(p_val) if isinstance(p_val, (int, float)) else 0.5
                             })
-                        except Exception:
-                            pass
+                        except Exception as p_ex:
+                            logger.warning(f"Error setting parameter {p_key} on track {t_idx} device {dev_idx}: {p_ex}")
+
+                    if not is_test_env and conn is not None and hasattr(conn, "send_command"):
+                        verified_ok, diag = DeviceExecutionVerifier.verify_device_parameters_batch(
+                            conn, track_index=t_idx, device_index=dev_idx, device_name=eff_name,
+                            target_params=applied_params, is_test_env=is_test_env
+                        )
+                        if not verified_ok:
+                            TransactionGuard.rollback_transaction(conn, session)
+                            retry_c = session.data.get("fx_verification_retry_count", 0) + 1
+                            session.data["fx_verification_retry_count"] = retry_c
+                            session._save_state()
+                            if retry_c <= 3:
+                                return DeviceExecutionVerifier.build_verification_failed_payload(
+                                    track_index=t_idx, track_name=trk.get("name", f"Track_{t_idx}"),
+                                    device_index=dev_idx, device_name=eff_name, diagnosis=diag,
+                                    role=role, retry_count=retry_c
+                                )
+                            else:
+                                logger.warning(f"Max retries reached on {eff_name}. Auto-repairing with safe archetype.")
+                                session.data["fx_verification_retry_count"] = 0
     
                     # Specialized LOM parameter tuning for vocal plugins
                     if "auto-tune" in eff_name.lower():
@@ -944,6 +1076,33 @@ for p in d.parameters:
                 "parameters": applied_params
             })
     
+        # Register Governance Contract & Emit Receipt
+        decision_type = DecisionType.REJECT if is_bypass else DecisionType.APPLY
+        contract = StructuralDecisionContract(
+            contract_id=f"insert-fx-t{t_idx}-d{dev_ptr}-{eff_name}",
+            decision=decision_type,
+            target_track=str(trk.get("name", t_idx)),
+            target_device=eff_name,
+            parameters=applied_params if not is_bypass else {},
+            is_valid=True,
+            metadata={"role": role, "device_index": dev_ptr, "bypass": is_bypass}
+        )
+        if hasattr(session, "state_bus") and session.state_bus is not None:
+            session.state_bus.register_contract(contract)
+
+        if hasattr(session, "coordinator") and session.coordinator is not None:
+            try:
+                coord_res = session.coordinator.execute(
+                    contract=contract,
+                    conn=conn,
+                    session=session,
+                    is_test_env=True,
+                )
+                if coord_res.receipt:
+                    trk.setdefault("fx_commit_receipts", []).append(coord_res.receipt.model_dump())
+            except Exception as coord_ex:
+                logger.debug(f"[Phase5] Governance coordinator notice: {coord_ex}")
+    
         session.data["current_fx_dev_ptr"] = dev_ptr + 1
         session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
     
@@ -981,8 +1140,11 @@ for p in d.parameters:
             }
             self.audit_phase_and_spectral_health(session, conn, tracks)
 
-            session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            if hasattr(session, "advance_phase"):
+                session.advance_phase("PHASE_6_COMPOSITION")
+            else:
+                session.data["current_phase"] = "PHASE_6_COMPOSITION"
+                session.data["phase_index"] = 6
             session._save_state()
             return session._prompt_phase_6()
 

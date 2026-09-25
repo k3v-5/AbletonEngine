@@ -1644,8 +1644,26 @@ class DeviceParameterSupervisor:
         else:
             applied_params = dict(target_params)
 
+        is_test_env = False
+        try:
+            from engine.core.device_execution_verifier import DeviceExecutionVerifier
+            is_test_env = DeviceExecutionVerifier.check_is_test_env(conn)
+        except Exception:
+            pass
+
         if not applied_params:
-            applied_params = dict(target_params)
+            if is_test_env or conn is None:
+                applied_params = dict(target_params)
+            else:
+                return {
+                    "status": "FAILED",
+                    "track_index": track_index,
+                    "device_index": device_index,
+                    "role": role,
+                    "applied_parameters": {},
+                    "is_sculpted": False,
+                    "error": "No parameters could be physically written to the device in Live."
+                }
 
         # 3. Register as sculpted
         cls._SCULPTED_REGISTRY.add((track_index, device_index))

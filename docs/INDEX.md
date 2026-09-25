@@ -15,6 +15,7 @@ AbletonEngine/
 │   ├── DECENT_SAMPLER_ENGINE.md             # Compilador de Instrumentos Decent Sampler (IR, 3-Tier Validation, SampleMapPlanner, Templates)
 │   ├── VALHALLA_VINTAGE_VERB_ENGINE.md      # Motor de Reverberación Valhalla VintageVerb (22 Modos, 3 Eras, 3-Tier Validation, Haas Pre-Delay, Presets XML y LOM)
 │   ├── SURGE_XT_SYNTH_ENGINE.md             # Sintetizador Híbrido Surge XT (10 Osciladores, Filtros Duales, 3-Tier Guardrails, Envolventes AHDSR, XML .surgepatch y LOM)
+│   ├── AESTHETIC_PROFILE_ENGINE.md          # Motor de Perfiles Estéticos (Cero Cadenas por Defecto, Mandatory vs Optional, Ledger de Decisiones y Persistencia)
 │   ├── INTENTIONAL_PERFORMANCE_AND_HUMANIZATION.md # Nivel T: Intentional Musical Performance & Humanization (Core, Groove, Breathing, Identity, Closed-Loop)
 │   ├── CLOSED_LOOP_CREATIVE_EVOLUTION.md    # Nivel S: Orquestador de retroalimentación activa (Comp ↔ Sound ↔ Arrg ↔ Mix), Planner, Budget y Rollback
 │   ├── CONTEXTUAL_SONIC_CRITIC.md           # Nivel R: Contextual Sonic Critic, evaluación in-situ (10D) y flexibilización de distancia
@@ -99,7 +100,8 @@ AbletonEngine/
 │   │   ├── __init__.py                      # Exportaciones de ROLE_INSERT_EFFECTS, supervisor y racks
 │   │   ├── role_fx_catalog.py               # Catálogo de inserciones por rol psicoacústico y parámetros
 │   │   ├── device_parameter_supervisor.py   # Supervisor semántico de parámetros de dispositivos
-│   │   └── track_fx_rack.py                 # Racks de efectos y channel strips por pista
+│   │   ├── track_fx_rack.py                 # Racks de efectos y channel strips por pista
+│   │   └── aesthetic_profile_engine.py      # Motor de perfiles estéticos, persistencia JSON y queries estructuradas
 │   ├── sound_design/                        # MOTORES DE SÍNTESIS, COMPILADORES Y EFECTOS VST
 │   │   ├── decent_sampler/                  # COMPILADOR DE INSTRUMENTOS DECENT SAMPLER (.dspreset)
 │   │   │   ├── schema.py                    # Formato y tokens canónicos (Tier 1)

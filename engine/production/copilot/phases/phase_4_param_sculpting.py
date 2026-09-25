@@ -11,6 +11,7 @@ from engine.production.copilot.nlp_parser import _normalize_text
 from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
 from engine.mix.gain_staging.auto_stager import AutoGainStagingEngine
 from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+from engine.governance.contract import StructuralDecisionContract, DecisionType
 
 logger = logging.getLogger("Phase4ParamSculpting")
 
@@ -256,7 +257,28 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
     
         role_class = AutoGainStagingEngine.classify_role(t_name)
         target_db = AutoGainStagingEngine.HIERARCHY_TARGETS.get(role_class, -14.0)
-    
+
+        # Advanced Sound Design Mode Prompt
+        if getattr(session, "get_sound_design_mode", lambda: "LEGACY")() == "ADVANCED":
+            return {
+                "current_step": f"PASO 4 DE 7: SOUND DESIGN AVANZADO (PISTA {ptr + 1} DE {len(tracks)})",
+                "action_taken": f"Modo de sound design avanzado activo para Pista {t_idx} ('{t_name}', Rol: {role}).",
+                "question": (
+                    f"🔬 **Paso 4 de 7: Configuración de Sound Design Avanzado para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role}, Instrumento: {inst})**\n\n"
+                    f"Selecciona la estrategia de diseño sonoro:\n"
+                    f"1. **Opción 1: Outer Sound Design Shell** (Rack envolvente de modulación y carácter tímbrico).\n"
+                    f"2. **Opción 2: Capa UHTS Shimmer** (Resíntesis y difusión espectral afinada a escala).\n"
+                    f"3. **Opción 3: Macro Rack** (Asignación de 4 macros de control dinámico).\n"
+                    f"4. **Omitir** (Preservar sonido actual sin procesamiento adicional)."
+                ),
+                "instructions_for_ai": f"Selecciona la estrategia de sound design para '{t_name}' (Outer Shell, Capa UHTS, Macro Rack u Omitir).",
+                "sound_design_mode": "ADVANCED",
+                "target_track": t_idx,
+                "role": role,
+                "target_dbfs": target_db,
+                "phase": "PHASE_4_PARAM_SCULPTING"
+            }
+
         # Audio / Vocal Track Gain Staging Prompt
         if is_audio and not trk.get("chopping_mode"):
             is_fx_audio = (role == "FX" and is_audio) or trk.get("is_fx_audio", False)
@@ -312,7 +334,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 "current_step": f"PASO 4 DE 7: ESCULPIDO DE MUESTRAS EN DECENT SAMPLER (PISTA {ptr + 1} DE {len(tracks)})",
                 "action_taken": f"Decent Sampler ({ds_lib}) verificado en Pista {t_idx}. Target de nivel: {target_db} dBFS.",
                 "question": (
-                    f"🎹 **Paso 4 de 7: Esculpido y Calibración de Decent Sampler para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                    f"🎹 **Paso 4 de 7: Esculpido de Síntesis y Calibración de Decent Sampler para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
                     f"Librería activa: **{ds_lib}**\n"
                     f"Ruta física del preset: `{ds_path}`\n"
                     f"Target de nivel: `{target_db} dBFS` de headroom pre-fader.\n\n"
@@ -370,14 +392,14 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 f"📋 **5 Presets Especializados para `{role}` (con ajustes acústicos adaptados y TimbreDNA explícito):**\n"
                 f"{presets_block}\n\n"
                 f"🔀 **Separación Psicoacústica Crossover (Opcional):**\n"
-                f"Puedes responder con el número de preset (ej: 'Opción 1') o agregar 'crossover' (ej: 'Opción 1 crossover') para dividir este sonido en 3 capas: Sub (<90 Hz Mono), Body (Warmth) y Air (>1.2 kHz Wide).\n\n"
+                f"Puedes agregar 'crossover' para dividir este sonido en 3 capas psicoacústicas: Sub (<90 Hz Mono), Body (Warmth) y Air (>1.2 kHz Wide).\n\n"
                 f"🧬 **Ajuste de Timbre Obligatorio:**\n"
-                f"El motor exige definir el timbre acústico. Debes elegir una de las 5 opciones de preset adaptadas a {role} o proporcionar tus propios valores de TimbreDNA (ej: 'Brillo: 0.8, Aspereza: 0.4, Cutoff: 0.75').\n\n"
+                f"El motor exige definir el carácter acústico. Puedes elegir el perfil sonoro adaptado a {role} (ej: 'Cálido Vintage', 'Brillante Moderno', 'Sub Monofónico') o proporcionar tus propios valores de TimbreDNA y síntesis (ej: 'Cutoff: 0.75, Drive: 0.30, Brillo: 0.8, Ancho: 0.7').\n\n"
                 f"🧠 **Decisión Técnica Requerida:**\n"
                 f"Analiza la función acústica de '{t_name}' ({role}) dentro del arreglo y define los valores que esculpirán la identidad del sonido.\n\n"
-                f"*Responde con el número de preset (ej: 'Opción 1'), 'crossover' o tus parámetros personalizados de síntesis y timbre.*"
+                f"*Indica el perfil sonoro deseado o tus parámetros específicos de síntesis y timbre.*"
             ),
-            "instructions_for_ai": f"Razona sobre el rol {role} de '{t_name}' y selecciona el preset adaptativo del 1 al 5 o envía parámetros explícitos.",
+            "instructions_for_ai": f"Define la intención tímbrica y acústica para '{t_name}' ({role}) indicando el perfil sonoro o parámetros explícitos.",
             "target_track": t_idx,
             "role": role,
             "target_dbfs": target_db,
@@ -404,7 +426,39 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
         inst = trk.get("instrument", "")
         text = _normalize_text(user_input)
         is_audio = trk.get("is_audio", False) or role == "VOCALS"
-    
+
+        # Advanced Sound Design Mode Handling
+        if getattr(session, "get_sound_design_mode", lambda: "LEGACY")() == "ADVANCED":
+            if any(w in text for w in ["omitir", "skip", "saltar", "preservar", "ninguno"]):
+                trk["sound_design"] = {
+                    "strategy": "SKIPPED",
+                    "status": "PRESERVED"
+                }
+            elif any(w in text for w in ["uhts", "shimmer", "opcion 2", "opción 2"]):
+                trk["sound_design"] = {
+                    "strategy": "UHTS_RESAMPLING_LAYER",
+                    "technique": "Pitch-Shifted Shimmer Diffusion"
+                }
+            elif any(w in text for w in ["macro rack", "macro", "opcion 3", "opción 3"]):
+                trk["sound_design"] = {
+                    "strategy": "MACRO_RACK_4_CHARS",
+                    "macros": {
+                        "MACRO_1": "Cutoff / Tone",
+                        "MACRO_2": "Warmth / Drive",
+                        "MACRO_3": "Space / Reverb",
+                        "MACRO_4": "Punch / Transient"
+                    }
+                }
+            else:
+                # Default / Option 1: Outer Shell
+                trk["sound_design"] = {
+                    "strategy": "OUTER_SOUND_DESIGN_SHELL",
+                    "applied": True
+                }
+            session.data["current_param_ptr"] = ptr + 1
+            session._save_state(action_tag=f"ADVANCED_SOUND_DESIGN_TRACK_{ptr}")
+            return self._prompt_current_track_params(session)
+
         # Direct Gain Staging for Audio / Vocal tracks (bypass synth oscillator sculpting)
         if is_audio and not trk.get("chopping_mode"):
             role_class = AutoGainStagingEngine.classify_role(trk["name"])
@@ -618,6 +672,47 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             "fader_linear": fader_linear,
             "headroom_to_master_db": -6.0
         }
+
+        # 3. Verifiable Governance Contract Registration & Receipt Emission
+        chosen_preset_name = (
+            role_presets.get(selected_preset, {}).get("name", f"Custom_{role}")
+            if selected_preset
+            else f"Custom_{role}"
+        )
+        contract = StructuralDecisionContract(
+            contract_id=f"param-sculpt-track-{t_idx}-{inst}",
+            decision=DecisionType.CUSTOM if not selected_preset else DecisionType.APPLY,
+            target_track=str(trk.get("name", t_idx)),
+            target_device=str(inst),
+            parameters=sculpt_applied,
+            is_valid=True,
+            metadata={
+                "role": role,
+                "preset": selected_preset or "custom",
+                "timbre_dna": tdna_dict,
+            },
+        )
+        if hasattr(session, "state_bus") and session.state_bus is not None:
+            session.state_bus.register_timbre_decision(
+                track_index=t_idx,
+                archetype=chosen_preset_name,
+                quadrants=sculpt_applied,
+                timbre_dna=tdna_dict,
+            )
+            session.state_bus.register_contract(contract)
+
+        if hasattr(session, "coordinator") and session.coordinator is not None:
+            try:
+                coord_res = session.coordinator.execute(
+                    contract=contract,
+                    conn=conn,
+                    session=session,
+                    is_test_env=True,
+                )
+                if coord_res.receipt:
+                    trk["commit_receipt"] = coord_res.receipt.model_dump()
+            except Exception as coord_ex:
+                logger.debug(f"[Phase4] Governance coordinator notice: {coord_ex}")
     
         session.data["current_param_ptr"] = ptr + 1
         session._save_state()
@@ -625,8 +720,11 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
         if session.data["current_param_ptr"] < len(tracks):
             return session._prompt_current_track_params()
         else:
-            session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-            session.data["phase_index"] = 5
+            if hasattr(session, "advance_phase"):
+                session.advance_phase("PHASE_5_INSERT_EFFECTS")
+            else:
+                session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+                session.data["phase_index"] = 5
             session.data["current_fx_track_ptr"] = 0
             session.data["current_fx_dev_ptr"] = 0
             session.data["current_fx_ptr"] = 0

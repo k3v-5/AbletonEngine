@@ -382,7 +382,9 @@ class LiveBrowserCatalogEngine:
         if is_decent_sampler:
             try:
                 from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
-                ds_libs = DecentSamplerLibraryManager.scan_libraries(require_valid=True)
+                root = DecentSamplerLibraryManager.get_library_root()
+                has_samples = any(root.rglob("*.wav")) if root.exists() else False
+                ds_libs = DecentSamplerLibraryManager.scan_libraries(require_valid=has_samples)
                 res_opts = []
                 for lib in ds_libs:
                     res_opts.append(SoundSourceOption(

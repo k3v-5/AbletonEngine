@@ -187,7 +187,13 @@ if 0 <= track_idx < len(song.tracks):
         if hasattr(dev, 'available_input_routing_types'):
             for t in dev.available_input_routing_types:
                 t_name = getattr(t, 'display_name', str(t)).lower()
-                if query_src in t_name or (len(query_src) > 3 and any(w in t_name for w in query_src.split())):
+                is_src_match = (query_src in t_name)
+                if not is_src_match and len(query_src) > 3:
+                    for w in query_src.split():
+                        if w in t_name:
+                            is_src_match = True
+                            break
+                if is_src_match:
                     dev.input_routing_type = t
                     matched_type = getattr(t, 'display_name', str(t))
                     break

@@ -596,6 +596,78 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Espaciamiento de fondo.", "default": 0.45}
             ]
         }
+    ],
+    "SUB": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass Subsónico", "range": "0.0 o 1.0", "behavior": "Filtro pasa-altos estricto en 22-26 Hz.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0 (20 a 30 Hz)", "behavior": "Elimina rumble inaudible.", "default": 0.14},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Sub Fundamental)", "range": "0.0 o 1.0", "behavior": "Acentuación en 40-50 Hz.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia Fundamental", "range": "0.0 a 1.0", "behavior": "Cuerpo del sub puro.", "default": 0.20}
+            ]
+        },
+        {
+            "name": "Utility",
+            "uri": "query:AudioFx#Utility",
+            "params": [
+                {"id": "Bass Mono", "name": "Bass Mono", "range": "0.0 o 1.0", "behavior": "Monofoniza el subgrave estrictamente.", "default": 1.0},
+                {"id": "Width", "name": "Stereo Width", "range": "0.0 a 4.0", "behavior": "Ancho mono en canal sub.", "default": 0.0}
+            ]
+        }
+    ],
+    "COUNTER_LEAD": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "HPF en 180 Hz para despejar el espectro bajo.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Corte de medios-bajos.", "default": 0.32},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Dip Lead)", "range": "0.0 o 1.0", "behavior": "Atenuación en 2.5 kHz para no chocar con el lead.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia Dip", "range": "0.0 a 1.0", "behavior": "Abre espacio a la melodía frontal.", "default": 0.65}
+            ]
+        },
+        {
+            "name": "Reverb",
+            "uri": "query:AudioFx#Reverb",
+            "params": [
+                {"id": "DecayTime", "name": "Decay Time", "range": "0.0 a 1.0", "behavior": "Cola espacial de fondo.", "default": 0.35},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Mezcla ambiental.", "default": 0.28}
+            ]
+        }
+    ],
+    "EAR_CANDY": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "HPF alto en 250 Hz.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Despeja graves y medios.", "default": 0.38},
+                {"id": "Band 4 On", "name": "Banda 4 High-Shelf", "range": "0.0 o 1.0", "behavior": "Brillo en 12 kHz para destellos estéreo.", "default": 1.0},
+                {"id": "4 Frequency A", "name": "Frecuencia Aire", "range": "0.0 a 1.0", "behavior": "Apertura en agudos.", "default": 0.88}
+            ]
+        },
+        {
+            "name": "Delay",
+            "uri": "query:AudioFx#Delay",
+            "params": [
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Eco rítmico estéreo.", "default": 0.30},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 1.0", "behavior": "Repeticiones de adorno.", "default": 0.35}
+            ]
+        }
+    ],
+    "TEXTURE_FOLEY": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 o 1.0", "behavior": "HPF en 100 Hz para evitar lodo sub.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Corte de subgraves sucios.", "default": 0.24},
+                {"id": "Band 4 On", "name": "Banda 4 Low-Pass", "range": "0.0 o 1.0", "behavior": "LPF en 8 kHz para controlar siseo.", "default": 1.0},
+                {"id": "4 Frequency A", "name": "Frecuencia LPF", "range": "0.0 a 1.0", "behavior": "Calidez orgánica.", "default": 0.75}
+            ]
+        }
     ]
 }
 
@@ -714,6 +786,30 @@ ROLE_FREQUENCY_GUIDE: Dict[str, Dict[str, str]] = {
         "conflict_points": "Enmascaramiento de la voz principal si retienen demasiada presencia en 1-3 kHz o cuerpo en 200-300 Hz.",
         "eq_recommendation": "HPF en 160-200 Hz; dip pronunciado en 1.5-2.5 kHz para hundir los coros detrás de la voz solista; high-shelf en 10 kHz para aire angelical.",
         "transient_handling": "Compresión densa y rápida (4:1 a 6:1) para aplanar la dinámica coral y mantenerla como un colchón uniforme detrás del lead."
+    },
+    "SUB": {
+        "dominant_zone": "Subgrave puro senoidal en 30-65 Hz.",
+        "conflict_points": "Cancelación de fase con bombo e invasión de headroom en frecuencias subsónicas.",
+        "eq_recommendation": "HPF en 22-26 Hz; LPF en 120-140 Hz para eliminar armónicos medios indeseados.",
+        "transient_handling": "Sustain continuo puro monofónico sin transientes percusivos."
+    },
+    "COUNTER_LEAD": {
+        "dominant_zone": "Medios melódicos en 600-2000 Hz; respuesta en 2.5-5 kHz.",
+        "conflict_points": "Choque frontal en el centro con el LEAD principal o la voz solista.",
+        "eq_recommendation": "HPF en 180-220 Hz; dip de -2 dB en 2.5 kHz; apertura estéreo lateral.",
+        "transient_handling": "Atenuación dinámica y colas de delay sincronizadas al tempo."
+    },
+    "EAR_CANDY": {
+        "dominant_zone": "Destellos agudos en 3-16 kHz en los bordes extremos del panorama.",
+        "conflict_points": "Sobrecarga de agudos si no se filtran resonancias ásperas.",
+        "eq_recommendation": "HPF alto en 250-350 Hz; vaciado de medios-bajos; realce de aire en 12-14 kHz.",
+        "transient_handling": "Transientes afilados, breves e hiperdinámicos."
+    },
+    "TEXTURE_FOLEY": {
+        "dominant_zone": "Ruido distribuido de banda ancha (100 Hz a 10 kHz) en nivel de suelo (-24 dBFS).",
+        "conflict_points": "Retumbes subgraves accidentales y siseo continuo fatigante.",
+        "eq_recommendation": "HPF estricto en 100 Hz; LPF en 8-10 kHz para calidez analógica.",
+        "transient_handling": "Cero transientes percusivos; compresión transparente o nivel estático."
     }
 }
 

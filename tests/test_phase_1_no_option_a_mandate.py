@@ -92,7 +92,7 @@ def test_production_mode_accepts_custom_comma_separated_instruments():
         assert res["phase"] == "PHASE_2_SECTIONS"
         assert len(session.data["tracks"]) == 8
         roles = [t["role"] for t in session.data["tracks"]]
-        assert roles == ["DRUMS", "KICK", "BASS", "GUITAR", "KEYS", "STRINGS", "CHOIR", "LEAD"]
+        assert roles == ["DRUMS", "KICK", "808_BASS", "GUITAR", "KEYS", "STRINGS", "CHOIR", "LEAD"]
     finally:
         if old_val:
             os.environ["PYTEST_CURRENT_TEST"] = old_val

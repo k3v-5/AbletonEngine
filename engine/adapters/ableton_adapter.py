@@ -118,6 +118,82 @@ class LiveAbletonAdapter(BaseAbletonAdapter):
         })
 
     def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        params = params or {}
+
+        # 1. Repair and translate add_automation_points to create_arrangement_automation_envelope / master automation
+        if command_type == "add_automation_points":
+            p = dict(params)
+            t_id = p.get("track_index", p.get("track", 0))
+            pts = p.get("points", [])
+            param_name = p.get("parameter", "Volume")
+            dev_idx = p.get("device_index", p.get("device"))
+            clip_idx = p.get("clip_index")
+
+            # Check if targeting master track explicitly or out of range
+            is_master = str(t_id).lower() in ("master", "-1")
+            if not is_master and isinstance(t_id, int):
+                try:
+                    return self._send("create_arrangement_automation_envelope", {
+                        "track_index": t_id,
+                        "device_index": dev_idx,
+                        "parameter": param_name,
+                        "points": pts,
+                        "clip_index": clip_idx
+                    })
+                except Exception as ex_arr:
+                    if "out of range" in str(ex_arr).lower():
+                        is_master = True
+                    else:
+                        raise ex_arr
+
+            if is_master:
+                # Master track volume/pan automation via LOM
+                code_lines = ["# Master automation injection"]
+                if pts and str(param_name).lower() in ("volume", "master volume"):
+                    final_v = float(pts[0].get("value", 0.85))
+                    code_lines.append(f"song.master_track.mixer_device.volume.value = {final_v}")
+                code_lines.append(f"result = {{'status': 'success', 'master_automated': True, 'points': {len(pts)}}}")
+                return self._send("execute_code", {"code": "\n".join(code_lines)})
+            else:
+                return self._send("create_arrangement_automation_envelope", {
+                    "track_index": t_id,
+                    "device_index": dev_idx,
+                    "parameter": param_name,
+                    "points": pts,
+                    "clip_index": clip_idx
+                })
+
+        # 2. Translate ensure_device to track check and load_browser_item
+        if command_type == "ensure_device":
+            p = dict(params)
+            t_idx = p.get("track_index", p.get("track", 0))
+            d_name = str(p.get("device_name", "Utility"))
+            try:
+                t_info = self._send("get_track_info", {"track_index": t_idx})
+                devices = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
+                for idx, d in enumerate(devices):
+                    if d_name.lower() in str(d.get("name", "")).lower() or d_name.lower() in str(d.get("class_name", "")).lower():
+                        return {"status": "ALREADY_PRESENT", "track_index": t_idx, "device_index": idx, "device_name": d_name}
+            except Exception:
+                pass
+
+            uri_map = {
+                "utility": "query:AudioFx#Utility",
+                "eq eight": "query:AudioFx#EQ%20Eight",
+                "glue compressor": "query:AudioFx#Glue%20Compressor",
+                "compressor": "query:AudioFx#Compressor",
+                "redux": "query:AudioFx#Redux",
+                "erosion": "query:AudioFx#Erosion",
+                "saturator": "query:AudioFx#Saturator",
+                "beat repeat": "query:AudioFx#Beat%20Repeat",
+            }
+            target_uri = uri_map.get(d_name.lower(), f"query:AudioFx#{d_name}")
+            try:
+                load_res = self._send("load_browser_item", {"track_index": t_idx, "item_uri": target_uri})
+                return {"status": "SUCCESS", "track_index": t_idx, "device_name": d_name, "load_result": load_res}
+            except Exception as ex_load:
+                return {"status": "FALLBACK", "track_index": t_idx, "device_name": d_name, "notice": str(ex_load)}
+
         return self._send(command_type, params)
 
     def get_cue_points(self) -> Dict[str, Any]:

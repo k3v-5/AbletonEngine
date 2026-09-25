@@ -234,6 +234,9 @@ class Phase6Parser:
                 role_aliases.append(r_extra)
 
         keys_to_check = [
+            ("current", s_idx),
+            ("current", str(s_idx)),
+            ("current", s_name_lower),
             (t_idx, s_idx),
             (str(t_idx), s_idx),
             (str(t_idx), str(s_idx)),
@@ -266,6 +269,7 @@ class Phase6Parser:
 
         # Check fallback to "all"
         all_keys = [
+            ("current", "all"),
             (t_idx, "all"),
             (str(t_idx), "all"),
             (t_name, "all"),

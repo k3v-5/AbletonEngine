@@ -57,6 +57,10 @@ class PhaseRegistry:
 
         return None
 
+    def get_handler(self, phase_name: str) -> Optional[BasePhaseHandler]:
+        """Resolves the handler for a given phase name (alias for get)."""
+        return self.get(phase_name)
+
     def has_phase(self, phase_name: str) -> bool:
         """Checks if a handler exists for the given phase."""
         return (
@@ -74,7 +78,12 @@ class PhaseRegistry:
                 "message": f"Fase desconocida o sin handler registrado: {phase_name}",
                 "phase": phase_name
             }
-        return handler.prompt(session, **kwargs)
+        res = handler.prompt(session, **kwargs)
+        if isinstance(res, dict) and hasattr(session, "state_bus") and session.state_bus is not None:
+            bus_ctx = session.state_bus.get_musical_context()
+            if bus_ctx is not None:
+                res["state_bus_summary"] = session.state_bus.export_summary_for_prompt()
+        return res
 
     def dispatch_handle(self, phase_name: str, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         """Polymorphically dispatches user input handling to the appropriate phase handler."""
@@ -130,6 +139,10 @@ class PhaseRegistry:
             from .phases.phase_10.handler import Phase10ListenersHandler
             return Phase10ListenersHandler()
 
+        def _p11():
+            from .phases.phase_11_resampling import Phase11ResamplingHandler
+            return Phase11ResamplingHandler()
+
         self.register_lazy("PHASE_1_TRACKS", _p1)
         self.register_lazy("PHASE_2_SECTIONS", _p2)
         self.register_lazy("PHASE_3_INSTRUMENTS", _p3)
@@ -144,6 +157,8 @@ class PhaseRegistry:
         self.register_lazy("PHASE_10_COMPLETED_CANONICAL", _p10)
         self.register_lazy("PHASE_10_COMPLETED", _p10)
         self.register_lazy("PHASE_9_COMPLETED", _p10)
+        self.register_lazy("PHASE_11_AUDIO_RESAMPLING", _p11)
+        self.register_lazy("PHASE_11_RESAMPLING", _p11)
 
 
 # Default singleton instance for standard use

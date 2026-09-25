@@ -65,14 +65,24 @@ class Phase6Prompts:
 
         key = session.data.get("key", "F")
         scale = session.data.get("scale", "Minor")
+        genre = session.data.get("genre", "trap")
+        transitions_hint = ""
+        try:
+            from engine.arrangement.transitions.contextual_catalog import ContextualTransitionCatalog
+            t_list = ContextualTransitionCatalog.get_transitions_for_genre(genre)
+            if t_list:
+                t_names = [t.name for t in t_list[:2]]
+                transitions_hint = f"\n• **Transiciones contextuales disponibles para {genre.capitalize()}:** {', '.join(t_names)}"
+        except Exception:
+            pass
+
         harmonic_guide = (
             f"\n\n💡 **Asistencia Armónica y Teórica (Tonalidad: {key} {scale}):**\n"
             f"• **Rol actual:** `{cur_trk.get('role')}`\n"
             f"• El motor te asiste con la teoría, pero **nunca escribe notas por su cuenta**.\n"
-            f"• Puedes:\n"
-            f"  1. Dictar acordes o notas explícitas (ej: `'Acordes: {key}m - Db - Eb'` o enviar JSON con `notes`).\n"
-            f"  2. Grabar o dibujar las notas directamente en Ableton Live.\n"
-            f"  3. Escribir `'vacio'` o `'siguiente'` para dejar los clips preparados en el Arrangement listos para tu interpretación."
+            f"• **Orquestación y Silencio (Tacet):** Se permite y respeta que este canal descanse en ciertas secciones para respiración y contraste, pero **debe tener notas en al menos una sección** del arreglo para no ser una pista muda huérfana.\n"
+            f"• Puedes dictar acordes o notas explícitas (ej: `'Acordes: {key}m - Db - Eb'` o enviar JSON con `notes`)."
+            f"{transitions_hint}"
         )
 
         return {
@@ -84,13 +94,12 @@ class Phase6Prompts:
                 f"• **Secciones del Arreglo:** {sec_str}\n"
                 f"• **Rol Musical:** `{cur_trk.get('role')}`\n"
                 f"• **Instrumento:** {cur_trk.get('instrument', cur_trk.get('name'))}\n\n"
-                f"⚠️ **Regla Estricta (Cero Relleno Procedural):**\n"
-                f"El motor asiste pero **jamás escribe notas o acordes sin tu autorización explícita**.\n"
-                f"Define las notas MIDI explícitas únicamente para esta pista, o indica 'vacio' para preparar el clip en blanco en el Arrangement."
+                f"⚠️ **Regla de Orquestación Profesional:**\n"
+                f"Define las notas MIDI explícitas para esta pista. Si descansa en ciertas secciones (*Tacet*), indica en cuáles secciones sí interviene (ej: 'Entra en Coro 1'). Toda pista registrada debe sonar al menos en una sección de la canción."
                 f"{drum_spec_block}"
                 f"{harmonic_guide}"
             ),
-            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para '{cur_trk.get('name')}' o escribe 'vacio' para dejar el clip preparado en blanco. El motor no autocompletará notas.",
+            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para '{cur_trk.get('name')}'. Si usa Tacet en algunas secciones, define dónde participa. Toda pista debe sonar al menos en una sección.",
             "phase": "PHASE_6_COMPOSITION",
             "track_index": trk_idx,
             "track_name": cur_trk.get("name"),
@@ -196,7 +205,7 @@ class Phase6Prompts:
                 f"⚠️ **Regla de Oro (Cero Relleno Procedural):**\n"
                 f"Define las notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) **únicamente para este bloque de {s_bars} compases en {key} {scale}**.\n\n"
                 "Puedes enviar una lista JSON `[{\"pitch\": X, \"start_time\": Y, ...}]` o un objeto `{\"notes\": [...]}`.\n"
-                "Si este canal debe permanecer en silencio durante esta sección, envía `[]` o escribe 'Silencio'.\n"
+                "Si este canal debe permanecer en silencio durante esta sección (*Tacet*), envía `[]` o escribe 'Silencio' (recuerda que cada pista registrada debe sonar al menos en una sección de la canción).\n"
                 "*(Escribe 'Modo: Por Pista' si deseas alternar a composición pista completa).* "
                 f"{drum_spec_block}"
             ),
@@ -258,6 +267,14 @@ class Phase6Prompts:
         track_lines = [f"• Pista {t.get('index')}: **{t.get('name')}** (Rol: `{t.get('role')}`)" for t in tracks]
         sec_lines = [f"• Sección {i}: **{s.get('name')}** ({s.get('bars')} compases, inicio: c.{s.get('start_bar', i*8)})" for i, s in enumerate(sections)]
 
+        genre = session.data.get("genre", "trap")
+        transitions_catalog_text = ""
+        try:
+            from engine.arrangement.transitions.contextual_catalog import ContextualTransitionCatalog
+            transitions_catalog_text = f"\n⚡ **Catálogo de Transiciones Contextuales ({genre.capitalize()}):**\n" + ContextualTransitionCatalog.format_transition_menu_for_prompt(genre) + "\n"
+        except Exception:
+            pass
+
         return {
             "current_step": "PASO 6 DE 7: COMPOSICIÓN MODULAR DE NOTAS Y DESPLIEGUE EN ARRANGEMENT",
             "action_taken": "Todos los instrumentos y efectos de inserción fueron configurados y afinados físicamente en Live.",
@@ -267,10 +284,12 @@ class Phase6Prompts:
                 + "\n".join(track_lines) + "\n\n"
                 f"**Estructura del Arreglo ({total_bars} compases totales):**\n"
                 + "\n".join(sec_lines) + "\n\n"
+                + transitions_catalog_text +
                 "🧠 **Decisión Técnica Requerida:**\n"
                 "⚠️ **Regla de Oro del Motor (Cero Auto-Relleno Procedural):**\n"
-                "El motor prohíbe terminantemente autocompletar con notas genéricas o sugerir 'Siguiente' para inventar patrones.\n"
-                "La IA debe definir explícitamente las notas MIDI (`pitch`, `start_time`, `duration`, `velocity`) para cada instrumento y sección.\n\n"
+                "El motor prohíbe autocompletar con notas genéricas o inventar patrones a ciegas.\n"
+                "La IA debe definir explícitamente las notas MIDI (`pitch`, `start_time`, `duration`, `velocity`) para cada instrumento y sección.\n"
+                "• **Principio de Orquestación Viva:** Se permite el reposo (*Tacet*) en secciones específicas para generar espacio, pero **toda pista debe sonar al menos en una sección** de la canción.\n\n"
                 "🧠 **Modalidades de Envío de Notas:**\n"
                 "• **Inyección Estructurada Completa (Recomendada)**: Envía un payload JSON con la clave `composition` o `tracks` detallando notas por pista y sección.\n"
                 "• **Composición Modular Por Sección**: Escribe 'Por Sección' para definir notas bloque a bloque.\n"
@@ -278,6 +297,6 @@ class Phase6Prompts:
                 "• **Composición Combinada**: Escribe 'Combinado' para pista y sección específica.\n\n"
                 "*Envía el JSON con la tonalidad, escala y notas de tu composición o indica tu modalidad modular para comenzar.*"
             ),
-            "instructions_for_ai": "Genera y envía las notas MIDI explícitas para cada pista y sección activa. El motor no autocompletará notas.",
+            "instructions_for_ai": "Genera y envía las notas MIDI explícitas para cada pista y sección activa. Toda pista debe sonar al menos en una sección. El motor no autocompletará notas.",
             "phase": "PHASE_6_COMPOSITION"
         }

@@ -121,6 +121,11 @@ from engine.session.track_resolver import LiveTrackResolver
 from engine.production.copilot.recipe_builder import CopilotRecipeBuilder
 from engine.production.copilot.phase_registry import PhaseRegistry, default_phase_registry
 from engine.production.copilot.intercept_router import CopilotInterceptRouter
+from engine.production.copilot.state_bus import InterPhaseStateBus
+from engine.governance.coordinator import ExecutionCoordinator
+from engine.governance.ledger import GovernanceLedger
+from engine.governance.artistic_sentry import ArtisticSentry
+from engine.governance.contract import StructuralDecisionContract, DecisionType
 
 
 class CopilotGuidedSession:
@@ -148,11 +153,61 @@ class CopilotGuidedSession:
         "PHASE_7_AUTOMATION",
         "PHASE_8_VOCAL_DUCKING",
         "PHASE_9_MIX_MASTER",
-        "PHASE_10_COMPLETED"
+        "PHASE_10_COMPLETED",
+        "PHASE_11_AUDIO_RESAMPLING"
     ]
+
+    @property
+    def state_bus(self) -> InterPhaseStateBus:
+        if not hasattr(self, "_state_bus") or self._state_bus is None or getattr(self._state_bus, "_data", None) is not self.data:
+            self._state_bus = InterPhaseStateBus(self.data)
+        return self._state_bus
+
+    @state_bus.setter
+    def state_bus(self, bus: InterPhaseStateBus) -> None:
+        self._state_bus = bus
+
+    @property
+    def coordinator(self) -> ExecutionCoordinator:
+        if not hasattr(self, "_coordinator") or self._coordinator is None:
+            is_test = bool(os.environ.get("PYTEST_CURRENT_TEST") or getattr(self, "_is_test_mode", False))
+            ledger_path = None if is_test else Path("state/ledger/session_ledger.jsonl")
+            ledger = GovernanceLedger(ledger_file=ledger_path)
+            self._coordinator = ExecutionCoordinator(ledger=ledger)
+        return self._coordinator
+
+    @coordinator.setter
+    def coordinator(self, coord: ExecutionCoordinator) -> None:
+        self._coordinator = coord
+
+    def advance_phase(self, target_phase: str) -> None:
+        """
+        Advances to target_phase with strict InterPhaseStateBus integrity audit.
+        Prevents silent drift of BPM, musical scale/key, or track roles across phase transitions.
+        """
+        current_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        if self.state_bus:
+            is_valid, violations = self.state_bus.validate_phase_transition(
+                from_phase=current_phase,
+                to_phase=target_phase,
+                session_data=self.data,
+            )
+            if not is_valid:
+                logger.warning(
+                    f"[StateBus] Phase transition integrity violation from {current_phase} to {target_phase}: {violations}"
+                )
+                ctx = self.state_bus.get_musical_context()
+                if ctx:
+                    self.data["bpm"] = ctx.bpm
+                    self.data["key"] = f"{ctx.root_note} {ctx.scale}"
+        self.data["current_phase"] = target_phase
+        if target_phase in self.PHASES:
+            self.data["phase_index"] = self.PHASES.index(target_phase) + 1
 
     def __init__(self, phase_registry: Optional[PhaseRegistry] = None):
         self.data: Dict[str, Any] = self._load_state()
+        self._state_bus = InterPhaseStateBus(self.data)
+        self._coordinator = None
         self.creative_controller = None
         self.phase_registry = phase_registry or default_phase_registry
 
@@ -194,6 +249,15 @@ class CopilotGuidedSession:
 
     def _create_checkpoint(self, tag: str = "", live_track_map: Optional[Dict[str, int]] = None) -> str:
         return CopilotStateManager.create_checkpoint(self.data, tag=tag, live_track_map=live_track_map)
+
+    def get_sound_design_mode(self) -> str:
+        """Returns the active sound design configuration mode (LEGACY or ADVANCED)."""
+        return self.data.get("sound_design_mode", "LEGACY")
+
+    def set_sound_design_mode(self, mode: str) -> None:
+        """Sets the sound design configuration mode and persists state."""
+        self.data["sound_design_mode"] = mode.upper()
+        self._save_state(action_tag="SET_SOUND_DESIGN_MODE")
 
     def _handle_rollback(self, conn: Any, user_input: str) -> Dict[str, Any]:
         """
@@ -292,11 +356,21 @@ class CopilotGuidedSession:
             "master": "PHASE_9_MIX_MASTER",
             "mastering": "PHASE_9_MIX_MASTER",
             "fase 9": "PHASE_9_MIX_MASTER",
-            "paso 9": "PHASE_9_MIX_MASTER"
+            "paso 9": "PHASE_9_MIX_MASTER",
+            "final": "PHASE_10_COMPLETED",
+            "completado": "PHASE_10_COMPLETED",
+            "fase 10": "PHASE_10_COMPLETED",
+            "paso 10": "PHASE_10_COMPLETED",
+            "resampling": "PHASE_11_AUDIO_RESAMPLING",
+            "resample": "PHASE_11_AUDIO_RESAMPLING",
+            "reprocesamiento": "PHASE_11_AUDIO_RESAMPLING",
+            "fase 11": "PHASE_11_AUDIO_RESAMPLING",
+            "paso 11": "PHASE_11_AUDIO_RESAMPLING"
         }
 
-        for keyword, mapped_phase in phase_map.items():
-            if keyword in norm_text:
+        # Sort by length descending and use regex word boundaries so 'fase 1' doesn't accidentally match 'fase 10' or 'fase 11'
+        for keyword, mapped_phase in sorted(phase_map.items(), key=lambda x: len(x[0]), reverse=True):
+            if re.search(r'\b' + re.escape(keyword) + r'\b', norm_text):
                 target_phase = mapped_phase
                 break
 
@@ -329,6 +403,8 @@ class CopilotGuidedSession:
             self.data["composition_session"] = {"active": True, "mode": "BY_TRACK", "track_index": 0, "section_index": 0}
         elif target_phase == "PHASE_7_AUTOMATION":
             self.data["automation_session"] = {"active": False}
+        elif target_phase == "PHASE_11_AUDIO_RESAMPLING":
+            self.data["resampling_session"] = {"active": True, "stage": "SELECT_SOURCE"}
 
         # Resync physical track indices
         tracks = self.data.get("tracks", [])
@@ -357,6 +433,12 @@ class CopilotGuidedSession:
             prompt = self._prompt_phase_8_vocal_ducking()
         elif target_phase == "PHASE_9_MIX_MASTER":
             prompt = self._prompt_phase_9()
+        elif target_phase == "PHASE_11_AUDIO_RESAMPLING":
+            handler = self.phase_registry.get_handler("PHASE_11_AUDIO_RESAMPLING")
+            if handler:
+                prompt = handler.prompt(self, conn)
+            else:
+                prompt = {"status": "AWAITING_INPUT", "prompt": "Fase 11 de Audio Resampling activada."}
         else:
             prompt = self._handle_phase_10(conn, "")
 
@@ -367,6 +449,8 @@ class CopilotGuidedSession:
     def reset(self):
         """Resets the state machine back to step 1."""
         self.data = self._default_state()
+        self._state_bus = InterPhaseStateBus(self.data)
+        self._coordinator = None
         self.creative_controller = None
         self._save_state(action_tag="SESSION_RESET")
 
@@ -379,6 +463,7 @@ class CopilotGuidedSession:
             self.reset()
         elif not hasattr(self, "data") or not self.data:
             self.data = self._load_state()
+            self._state_bus = InterPhaseStateBus(self.data)
 
         phase = self.data.get("current_phase", "PHASE_1_TRACKS")
         u_in = str(user_input or "").strip()
@@ -893,6 +978,230 @@ class CopilotGuidedSession:
     def _sync_song_contract(self, contract):
         """Saves updated contract back to self.data."""
         self.data["song_contract"] = contract.to_dict()
+
+    def _handle_governance_audit_query(self) -> Dict[str, Any]:
+        """Conversational query returning active governance status, tier authority, state bus anchors, and ledger health."""
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        valid, errors = self.coordinator.ledger.verify_chain_integrity()
+
+        ctx = self.state_bus.get_musical_context()
+        roles = self.state_bus.get_all_track_roles()
+        timbres = self.state_bus.get_timbre_decisions()
+        contracts = self.state_bus.get_active_contracts()
+
+        md = [
+            "### 🛡️ Auditoría de Gobernanza y Verificación Estructural",
+            f"**Fase Actual:** `{curr_phase}` | **Integridad Criptográfica:** {'✅ INTACTA' if valid else '❌ CORRUPTA'}\n",
+            "#### 🔒 Anclas Inmutables de Producción (InterPhaseStateBus):",
+        ]
+        if ctx:
+            md.append(f"- **Contexto Musical:** `{ctx.root_note} {ctx.scale}` @ `{ctx.bpm} BPM` (Anclado en State Bus)")
+        else:
+            md.append("- **Contexto Musical:** *Pendiente de fijar en Fase 1/2*")
+
+        md.append(f"- **Pistas y Roles Acústicos:** {len(roles)} ancladas con slot espectral")
+        for r in roles[:6]:
+            md.append(f"  • Pista {r.track_id} ({r.role}): Slot `{r.frequency_slot or 'AUTO'}`")
+        if len(roles) > 6:
+            md.append(f"  • ... y {len(roles) - 6} pistas más.")
+
+        md.append(f"\n#### 🎨 Contratos de Soberanía Artística Activos ({len(contracts)}):")
+        if contracts:
+            for c in contracts:
+                md.append(f"- `[{c.decision.value}]` **{c.intent or c.contract_id}**")
+        else:
+            md.append("- *Ningún veto o excepción artística activa actualmente.*")
+
+        md.append(f"\n#### ⛓️ Ledger Criptográfico SHA-256:")
+        md.append(f"- **Bloques / Recibos Emitidos:** `{len(self.coordinator.ledger)}`")
+        md.append(f"- **Hash Bloque de Cabeza:** `{self.coordinator.ledger.head_hash}`")
+
+        msg = "\n".join(md)
+        return {
+            "status": "GOVERNANCE_AUDIT_SUCCESS",
+            "phase": curr_phase,
+            "action_taken": "Auditoría de Gobernanza y Verificación Estructural completada.",
+            "is_valid": valid,
+            "ledger_count": len(self.coordinator.ledger),
+            "active_contracts_count": len(contracts),
+            "question": msg,
+            "message": msg
+        }
+
+    def _handle_state_bus_query(self) -> Dict[str, Any]:
+        """Conversational query displaying the current production anchors from InterPhaseStateBus."""
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        summary = self.state_bus.export_summary_for_prompt()
+        if not summary:
+            summary = "ℹ️ No se han establecido anclas de producción aún en el InterPhaseStateBus."
+        return {
+            "status": "STATE_BUS_SUMMARY",
+            "phase": curr_phase,
+            "action_taken": "Consulta de anclas inmutables del InterPhaseStateBus.",
+            "question": summary,
+            "message": summary
+        }
+
+    def _handle_ledger_integrity_query(self) -> Dict[str, Any]:
+        """Conversational query verifying the cryptographic SHA-256 hash chain of the ledger."""
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        valid, errors = self.coordinator.ledger.verify_chain_integrity()
+
+        md = [
+            "### ⛓️ Verificación Criptográfica del Ledger de Gobernanza",
+            f"• **Estado de Integridad:** {'✅ **INTACTA (Sin alteraciones)**' if valid else '❌ **VIOLADA / CORRUPTA**'}",
+            f"• **Recibos Certificados Registrados:** `{len(self.coordinator.ledger)}`",
+            f"• **Hash Génesis:** `{self.coordinator.ledger.genesis_hash}`",
+            f"• **Hash de Cabeza (Head):** `{self.coordinator.ledger.head_hash}`"
+        ]
+        if errors:
+            md.append("\n⚠️ **Violaciones detectadas:**")
+            for err in errors:
+                md.append(f"- {err}")
+        else:
+            md.append("\n*Todos los hashes SHA-256 de contratos, evidencias y políticas coinciden exactamente con la cadena inmutable de bloques.*")
+
+        msg = "\n".join(md)
+        return {
+            "status": "LEDGER_INTEGRITY_VERIFIED" if valid else "LEDGER_INTEGRITY_FAILED",
+            "phase": curr_phase,
+            "action_taken": "Verificación de integridad de hash chain del GovernanceLedger.",
+            "is_valid": valid,
+            "head_hash": self.coordinator.ledger.head_hash,
+            "errors": errors,
+            "question": msg,
+            "message": msg
+        }
+
+    def _handle_artistic_contract_declaration(self, user_input: str, contract_type: str = "auto") -> Dict[str, Any]:
+        """
+        Conversational command registering sovereign artistic declarations (Tier 4 Authority):
+        - TACET (intentional orchestral/track silence without token-filler penalty)
+        - REJECT (explicit artistic veto of unneeded or unwanted techniques)
+        - OVERRIDE (justified structural deviation exceeding contextual boundaries)
+        - VACUUM (pre-drop vacuum / full silence arrangement gesture)
+        """
+        curr_phase = self.data.get("current_phase", "PHASE_1_TRACKS")
+        tracks = self.data.get("tracks", [])
+        norm = _normalize_text(user_input)
+
+        if contract_type == "auto":
+            if any(w in norm for w in ["tacet", "silencio intencional"]):
+                contract_type = "tacet"
+            elif any(w in norm for w in ["rechazar", "rechazado"]):
+                contract_type = "reject"
+            elif any(w in norm for w in ["override"]):
+                contract_type = "override"
+            elif any(w in norm for w in ["vacuum", "vacio"]):
+                contract_type = "vacuum"
+            else:
+                contract_type = "reject"
+
+        contract = None
+        action_msg = ""
+        user_msg = ""
+
+        if contract_type == "tacet":
+            m = re.search(r'(?:en|para|sobre|pista)\s+([a-zA-Z0-9_\-\s]+?)(?:$|\.|\,)', user_input, re.IGNORECASE)
+            candidate = m.group(1).strip() if m else ""
+            target_t = None
+            if candidate:
+                if candidate.isdigit():
+                    t_idx = int(candidate)
+                    target_t = next((t for t in tracks if t.get("index") == t_idx), None)
+                if not target_t:
+                    cand_lower = candidate.lower()
+                    target_t = next((t for t in tracks if cand_lower in str(t.get("name", "")).lower() or cand_lower == str(t.get("role", "")).lower()), None)
+
+            t_name = target_t.get("name") if target_t else (candidate if candidate else "Track 0")
+            t_idx = target_t.get("index", 0) if target_t else 0
+
+            contract = ArtisticSentry.create_tacet_contract(
+                track_name=t_name,
+                artistic_intent=f"Silencio intencional (Tacet) declarado por el artista en '{t_name}'"
+            )
+            contract.target_track = str(t_idx)
+
+            action_msg = f"Tacet artístico certificado en '{t_name}' (Pista {t_idx})."
+            user_msg = (
+                f"✅ **Tacet Artístico Certificado (Soberanía Tier 4):**\n\n"
+                f"• **Pista:** `{t_name}` (ID: {t_idx})\n"
+                f"• **Excepción:** `ORCHESTRAL_TACET` (Silencio Intencional)\n"
+                f"• **Garantía:** El motor respetará el espacio musical sin insertar rellenos ni notas sintéticas."
+            )
+
+        elif contract_type == "reject":
+            m = re.search(r'rechazar\s+(?:la\s+tecnica\s+|el\s+efecto\s+)?(.+?)(?:\s+por\s+artista|\s+como\s+artista|$)', user_input, re.IGNORECASE)
+            technique = m.group(1).strip() if m else "Técnica No Deseada"
+
+            contract = ArtisticSentry.create_rejection_contract(
+                technique_name=technique,
+                artistic_intent=f"Rechazo artístico explícito de '{technique}' para preservar la visión estética"
+            )
+            action_msg = f"Técnica '{technique}' rechazada bajo soberanía artística."
+            user_msg = (
+                f"✅ **Veto Artístico Certificado (Soberanía Tier 4):**\n\n"
+                f"• **Técnica:** `{technique}`\n"
+                f"• **Estado:** `REJECTED_BY_ARTIST` (No-Op Verificado)\n"
+                f"• **Garantía:** La técnica ha sido excluida formalmente del State Bus y no se forzará en la sesión."
+            )
+
+        elif contract_type == "override":
+            m_trk = re.search(r'(?:en|para)\s+([^:\,]+)', user_input, re.IGNORECASE)
+            t_name = m_trk.group(1).strip() if m_trk else "Master Track"
+            m_reason = re.search(r'(?::|porque|justificacion|motivo)\s*(.+)', user_input, re.IGNORECASE)
+            reason = m_reason.group(1).strip() if m_reason else "Decisión estética intencional"
+
+            contract = ArtisticSentry.create_override_contract(
+                technique_name="Structural Override",
+                target_track=t_name,
+                parameter_name="override_authorization",
+                target_value=1.0,
+                reason=reason
+            )
+            action_msg = f"Override estructural autorizado para '{t_name}'."
+            user_msg = (
+                f"✅ **Override Estructural Certificado (Tier 4):**\n\n"
+                f"• **Objetivo:** `{t_name}`\n"
+                f"• **Justificación:** *{reason}*\n"
+                f"• **Garantía:** Parámetro autorizado con control de compensación en el Ledger."
+            )
+
+        elif contract_type == "vacuum":
+            m_bar = re.search(r'(?:compas|compás|bar)\s*(\d+)', user_input, re.IGNORECASE)
+            bar = float(m_bar.group(1)) if m_bar else 16.0
+            contract = ArtisticSentry.create_pre_drop_vacuum_contract(
+                target_bar=bar,
+                duration_beats=2.0,
+                artistic_intent="Pre-drop vacuum: silencio intencional para maximizar el impacto del drop"
+            )
+            action_msg = f"Pre-drop vacuum programado en el compás {int(bar)}."
+            user_msg = (
+                f"✅ **Pre-Drop Vacuum Certificado (Tier 4):**\n\n"
+                f"• **Compás Clímax:** `{int(bar)}` (Duración: 2 beats de vacío total)\n"
+                f"• **Garantía:** Contrato registrado para cortar transitorios previos al impacto."
+            )
+
+        # 1. Register in State Bus
+        self.state_bus.register_contract(contract)
+
+        # 2. Coordinate execution through ExecutionCoordinator (Generates CommitReceipt & appends to Ledger)
+        coord_res = self.coordinator.execute(contract=contract, is_test_env=True)
+        receipt_dict = coord_res.receipt.model_dump() if coord_res.receipt else None
+
+        # 3. Save state
+        self._save_state(action_tag=f"ARTISTIC_CONTRACT_{contract.contract_id}")
+
+        return {
+            "status": "ARTISTIC_CONTRACT_REGISTERED",
+            "phase": curr_phase,
+            "contract_id": contract.contract_id,
+            "decision": contract.decision.value,
+            "action_taken": action_msg,
+            "commit_receipt": receipt_dict,
+            "question": user_msg,
+            "message": user_msg
+        }
 
     def _handle_song_contract_query(self) -> Dict[str, Any]:
         """Conversational query returning active song contract obligations."""

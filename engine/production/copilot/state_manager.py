@@ -60,6 +60,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             "is_complete": False,
             "checkpoints": [],
             "lufs_tolerance_db": 3.0,
+            "sound_design_mode": "LEGACY",
             "music_dna": {
                 "identity": {"concept": "euforia nocturna con sensación de movimiento", "emotional_arc": ["intriga", "anticipación", "euforia", "vacío", "segunda euforia", "resolución"]},
                 "rhythm": {"groove": "syncopated", "kick_behavior": "irregular_phrase_accents", "hat_density": 0.63, "microtiming": 0.18, "signature_pattern": "3-3-2"},

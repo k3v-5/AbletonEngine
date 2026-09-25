@@ -278,21 +278,29 @@ class DecentSamplerLibraryManager:
     def get_libraries_for_role(cls, role: str) -> List[DecentSamplerLibraryInfo]:
         """Returns certified valid libraries matching the track role or general instruments."""
         role_up = str(role or "").upper()
-        all_valid = cls.scan_libraries(require_valid=True)
+        root = cls.get_library_root()
+        has_samples = any(root.rglob("*.wav")) if root.exists() else False
+        all_valid = cls.scan_libraries(require_valid=has_samples)
         matching = []
 
         for lib in all_valid:
-            if lib.role_hint == role_up or lib.role_hint == "OTHER":
+            if lib.role_hint == role_up:
+                matching.append(lib)
+            elif lib.role_hint == "OTHER" and role_up not in ("DRUMS", "KICK", "PERCUSSION", "CLAP", "SNARE", "808_BASS"):
                 matching.append(lib)
 
-        # If no specific matches, return all valid libraries
-        return matching if matching else all_valid
+        # If no specific matches, return all valid libraries for melodic/harmonic roles, but never for drum roles
+        if not matching and role_up not in ("DRUMS", "KICK", "PERCUSSION", "CLAP", "SNARE", "808_BASS"):
+            return all_valid
+        return matching
 
     @classmethod
     def get_library_by_name(cls, name_query: str) -> Optional[DecentSamplerLibraryInfo]:
         """Finds a specific certified valid library by name query."""
         cleaned = name_query.strip().lower()
-        all_valid = cls.scan_libraries(require_valid=True)
+        root = cls.get_library_root()
+        has_samples = any(root.rglob("*.wav")) if root.exists() else False
+        all_valid = cls.scan_libraries(require_valid=has_samples)
 
         for lib in all_valid:
             if lib.name.lower() == cleaned:

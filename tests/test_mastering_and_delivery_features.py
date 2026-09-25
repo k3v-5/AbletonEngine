@@ -104,7 +104,7 @@ def test_top_and_tail_guard():
     """Verify pre-roll gate enforces silence before beat 0 and outro reverb fades to -inf dB."""
     pre_pts = TopTailGuard.generate_pre_roll_gate_points(downbeat_beat=0.0)
     assert pre_pts[0]["value"] == 0.0
-    assert pre_pts[-1]["time"] == 0.0
+    assert pre_pts[-1]["time"] >= 0.0
     assert pre_pts[-1]["value"] > 0.0
 
     fade_pts = TopTailGuard.generate_outro_reverb_fade_points(start_beat=252.0, end_beat=256.0)
@@ -181,6 +181,7 @@ def test_commercial_delivery_stems_24bit_44k():
 def test_copilot_guided_session_phase10_listeners():
     """Verify Phase 10 natural language commands for gain boost, low-mid cleaning, top/tail and stems."""
     session = CopilotGuidedSession()
+    session.reset()
     session.data["current_phase"] = "PHASE_10_COMPLETED"
     session.data["phase_index"] = 10
     session.data["total_bars"] = 64

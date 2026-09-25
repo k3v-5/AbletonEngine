@@ -483,6 +483,8 @@ class MockAbletonAdapter(BaseAbletonAdapter):
             return {"status": "success", "cue_point": params}
         elif command_type == "get_cue_points":
             return {"cue_points": getattr(self, "cue_points", [])}
+        elif command_type == "ensure_device":
+            return {"status": "SUCCESS", "track_index": params.get("track_index", 0), "device_name": params.get("device_name", "Utility")}
         elif command_type in ("add_automation_points", "create_arrangement_automation_envelope", "record_arrangement_automation"):
             if not hasattr(self, "automation_envelopes"):
                 self.automation_envelopes = []

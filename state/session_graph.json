@@ -11,8 +11,8 @@
     "sync_status": "SYNCHRONIZED"
   },
   "tracks": {
-    "track_73e3b08d": {
-      "id": "track_73e3b08d",
+    "track_e0b48f72": {
+      "id": "track_e0b48f72",
       "ableton_index": 0,
       "name": "Kick",
       "type": "midi",
@@ -34,9 +34,9 @@
       "solo": false,
       "arm": false,
       "clips": {
-        "clip_eea812f7": {
-          "id": "clip_eea812f7",
-          "track_id": "track_73e3b08d",
+        "clip_8f70cec6": {
+          "id": "clip_8f70cec6",
+          "track_id": "track_e0b48f72",
           "ableton_track_index": 0,
           "ableton_slot_index": 0,
           "name": "Kick 4x4",
@@ -47,9 +47,9 @@
         }
       },
       "devices": {
-        "device_70f5c306": {
-          "id": "device_70f5c306",
-          "track_id": "track_73e3b08d",
+        "device_a43584d2": {
+          "id": "device_a43584d2",
+          "track_id": "track_e0b48f72",
           "ableton_track_index": 0,
           "ableton_device_index": 0,
           "name": "Drum Buss",
@@ -59,8 +59,8 @@
         }
       }
     },
-    "track_5da2f24c": {
-      "id": "track_5da2f24c",
+    "track_b17e9284": {
+      "id": "track_b17e9284",
       "ableton_index": 1,
       "name": "Bass",
       "type": "midi",
@@ -82,9 +82,9 @@
       "solo": false,
       "arm": false,
       "clips": {
-        "clip_a37d64d0": {
-          "id": "clip_a37d64d0",
-          "track_id": "track_5da2f24c",
+        "clip_b54b79ec": {
+          "id": "clip_b54b79ec",
+          "track_id": "track_b17e9284",
           "ableton_track_index": 1,
           "ableton_slot_index": 0,
           "name": "Rolling Sub",
@@ -95,9 +95,9 @@
         }
       },
       "devices": {
-        "device_6390725e": {
-          "id": "device_6390725e",
-          "track_id": "track_5da2f24c",
+        "device_ded36031": {
+          "id": "device_ded36031",
+          "track_id": "track_b17e9284",
           "ableton_track_index": 1,
           "ableton_device_index": 0,
           "name": "Drift",
@@ -107,8 +107,8 @@
         }
       }
     },
-    "track_92080e80": {
-      "id": "track_92080e80",
+    "track_2541a90a": {
+      "id": "track_2541a90a",
       "ableton_index": 2,
       "name": "HiHat Closed",
       "type": "midi",

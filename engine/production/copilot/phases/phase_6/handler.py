@@ -14,6 +14,7 @@ from engine.production.copilot.nlp_parser import _normalize_text
 from engine.music.modular_generator import resolve_genre_style
 from engine.production.recipe_engine import ProductionRecipe
 from engine.vocal.vocal_chain_processor import VocalChainProcessor
+from engine.arrangement.transport_manager import TransportManager
 from .parser import Phase6Parser
 from .gatekeepers import Phase6Gatekeepers
 from .arranger import Phase6Arranger
@@ -602,6 +603,21 @@ for trk in song.tracks:
             sec_idx += 1
             session_state["section_index"] = sec_idx
             if sec_idx >= len(sections):
+                is_test_env = False
+                try:
+                    from engine.core.device_execution_verifier import DeviceExecutionVerifier
+                    is_test_env = DeviceExecutionVerifier.check_is_test_env(conn, session)
+                except Exception:
+                    pass
+                blk_silent = Phase6Gatekeepers.check_every_track_has_sound(
+                    session=session,
+                    tracks=tracks,
+                    sections=sections,
+                    custom_notes_map=custom_notes_map,
+                    is_test_env=is_test_env
+                )
+                if blk_silent:
+                    return blk_silent
                 session.data["composition_session"] = {"active": False}
                 session.data["current_phase"] = "PHASE_7_AUTOMATION"
                 session.data["phase_index"] = 7
@@ -715,6 +731,21 @@ for trk in song.tracks:
                 trk_idx += 1
                 session_state["track_index"] = trk_idx
                 if trk_idx >= len(tracks):
+                    is_test_env = False
+                    try:
+                        from engine.core.device_execution_verifier import DeviceExecutionVerifier
+                        is_test_env = DeviceExecutionVerifier.check_is_test_env(conn, session)
+                    except Exception:
+                        pass
+                    blk_silent = Phase6Gatekeepers.check_every_track_has_sound(
+                        session=session,
+                        tracks=tracks,
+                        sections=sections,
+                        custom_notes_map=custom_notes_map,
+                        is_test_env=is_test_env
+                    )
+                    if blk_silent:
+                        return blk_silent
                     if hasattr(session, "validate_phase_readiness"):
                         omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                         if omission_blk:
@@ -1228,6 +1259,43 @@ for trk in song.tracks:
         if blk_outro:
             return blk_outro
 
+        # Gatekeeper: Creative Development Contrast & Drop Evolution
+        is_test_env = False
+        try:
+            from engine.core.device_execution_verifier import DeviceExecutionVerifier
+            is_test_env = DeviceExecutionVerifier.check_is_test_env(conn, session)
+        except Exception:
+            pass
+
+        blk_contrast = Phase6Gatekeepers.check_section_contrast(
+            session=session,
+            sections=sections,
+            custom_notes_map=custom_notes_map,
+            is_test_env=is_test_env
+        )
+        if blk_contrast:
+            return blk_contrast
+
+        blk_drop = Phase6Gatekeepers.check_second_drop_transformation(
+            session=session,
+            sections=sections,
+            custom_notes_map=custom_notes_map,
+            is_test_env=is_test_env
+        )
+        if blk_drop:
+            return blk_drop
+
+        # Gatekeeper: Sound Presence Verification (at least one section must have sound)
+        blk_silent = Phase6Gatekeepers.check_every_track_has_sound(
+            session=session,
+            tracks=tracks,
+            sections=sections,
+            custom_notes_map=custom_notes_map,
+            is_test_env=is_test_env
+        )
+        if blk_silent:
+            return blk_silent
+
         # Gatekeeper 5: Omission Audit Gatekeeper (SongContract Physical Evidence)
         if hasattr(session, "validate_phase_readiness"):
             omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
@@ -1235,6 +1303,13 @@ for trk in song.tracks:
                 return omission_blk
 
         self.apply_commercial_arrangement_enrichments(session, conn)
+
+        # Re-sync arrangement cue points now that clips are placed and timeline has full length (Issue 1)
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                TransportManager.sync_section_cue_points(conn, sections)
+            except Exception as ex_cue:
+                logger.debug(f"Phase 6 cue point re-sync notice: {ex_cue}")
 
         session.data["current_phase"] = "PHASE_7_AUTOMATION"
         session.data["phase_index"] = 7
