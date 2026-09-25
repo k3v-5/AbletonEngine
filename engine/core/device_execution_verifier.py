@@ -291,6 +291,60 @@ DEVICE_LOM_MAPPINGS: Dict[str, List[Tuple[str, List[str], List[str]]]] = {
         ("Attack", ["attack"], []),
         ("Release", ["release"], []),
     ],
+    "echo": [
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Feedback", ["feedback", "fb"], []),
+        ("Delay Time", ["delay time", "delaytime", "delay_time", "delay", "time"], []),
+        ("Sync", ["sync", "tempo sync", "delay sync"], []),
+        ("Ping Pong", ["ping pong", "pingpong"], []),
+        ("Wobble", ["wobble", "modulation", "mod"], []),
+        ("Noise", ["noise", "tape noise"], []),
+    ],
+    "pedal": [
+        ("Gain", ["gain", "drive", "distortion", "fuzz"], []),
+        ("Output", ["output", "out", "level", "volume", "vol"], []),
+        ("Bass", ["bass", "low"], []),
+        ("Mid", ["mid", "middle"], []),
+        ("Treble", ["treble", "high"], []),
+        ("Sub", ["sub", "sub bass"], []),
+        ("Type", ["type", "mode", "pedal type"], []),
+    ],
+    "phaser_flanger": [
+        ("Amount", ["amount", "depth", "amt"], []),
+        ("Rate", ["rate", "speed", "frequency"], []),
+        ("Feedback", ["feedback", "fb"], []),
+        ("Warmth", ["warmth"], []),
+        ("Mode", ["mode", "type"], []),
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+    ],
+    "multiband_dynamics": [
+        ("Output Gain", ["output gain", "output", "gain", "volume", "makeup"], []),
+        ("Time", ["time", "time scaling", "speed"], []),
+        ("Amount", ["amount", "depth", "mix", "dry wet"], []),
+        ("Band 1 (Low)", ["low", "band 1", "low band", "bass"], []),
+        ("Band 2 (Mid)", ["mid", "band 2", "mid band"], []),
+        ("Band 3 (High)", ["high", "band 3", "high band", "treble"], []),
+    ],
+    "shifter": [
+        ("Pitch", ["pitch", "coarse", "semitones", "shift"], []),
+        ("Fine", ["fine", "cents", "fine tune"], []),
+        ("Drive", ["drive", "saturation"], []),
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Mode", ["mode", "type"], []),
+    ],
+    "hybrid_reverb": [
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Decay", ["decay", "decay time", "decaytime", "rt60"], []),
+        ("PreDelay", ["predelay", "pre delay", "pre_delay"], ["Pre-delay"]),
+        ("Size", ["size", "room size"], []),
+        ("Blend", ["blend", "algo blend", "convolution blend"], []),
+    ],
+    "erosion": [
+        ("Frequency", ["frequency", "freq"], []),
+        ("Width", ["width", "q"], []),
+        ("Amount", ["amount", "depth"], []),
+        ("Mode", ["mode", "type"], []),
+    ],
     "roar": [
         ("Drive", ["drive", "input drive", "saturation"], []),
         ("Tone", ["tone", "color", "brightness"], []),
@@ -322,7 +376,7 @@ def _detect_device_key(d_norm: str) -> Optional[str]:
         return "drum_buss"
     if "glue" in d_norm:
         return "glue_compressor"
-    if "compressor" in d_norm and "glue" not in d_norm:
+    if "compressor" in d_norm and "glue" not in d_norm and "multiband" not in d_norm:
         return "compressor"
     if any(w in d_norm for w in ("chorus ensemble", "chorus", "ensemble")):
         return "chorus_ensemble"
@@ -334,9 +388,23 @@ def _detect_device_key(d_norm: str) -> Optional[str]:
         return "saturator"
     if any(w in d_norm for w in ("auto filter", "autofilter")):
         return "auto_filter"
+    if "echo" in d_norm and not any(w in d_norm for w in ("supermassive", "vintage", "delay")):
+        return "echo"
+    if "pedal" in d_norm:
+        return "pedal"
+    if any(w in d_norm for w in ("phaser flanger", "phaser-flanger", "phaser", "flanger")):
+        return "phaser_flanger"
+    if any(w in d_norm for w in ("multiband dynamics", "multiband")):
+        return "multiband_dynamics"
+    if "shifter" in d_norm:
+        return "shifter"
+    if any(w in d_norm for w in ("hybrid reverb", "hybridreverb")):
+        return "hybrid_reverb"
+    if "erosion" in d_norm:
+        return "erosion"
     if "roar" in d_norm:
         return "roar"
-    if "reverb" in d_norm and not any(w in d_norm for w in ("vintage", "valhalla")):
+    if "reverb" in d_norm and not any(w in d_norm for w in ("vintage", "valhalla", "hybrid")):
         return "reverb"
 
     return None
