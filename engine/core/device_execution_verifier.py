@@ -14,14 +14,339 @@ Garantiza:
 import os
 import re
 import logging
+import unicodedata
+import urllib.parse
 from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger("DeviceExecutionVerifier")
+
+
+def _strip_accents(text: str) -> str:
+    """Elimina acentos diacríticos para comparación insensible a acentuación."""
+    if not text:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", str(text))
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _normalize_str(text: str) -> str:
+    """Normaliza texto: decodifica URLs, remueve acentos, minúsculas, reemplaza símbolos por espacios."""
+    if not text:
+        return ""
+    unquoted = urllib.parse.unquote(str(text))
+    deaccented = _strip_accents(unquoted).lower().strip()
+    cleaned = re.sub(r"[_\-\/\(\)\[\],.:;]+", " ", deaccented)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def _strip_symbols(text: str) -> str:
+    """Mantiene exclusivamente caracteres alfanuméricos en minúsculas."""
+    if not text:
+        return ""
+    unquoted = urllib.parse.unquote(str(text))
+    deaccented = _strip_accents(unquoted).lower()
+    return re.sub(r"[^a-z0-9]", "", deaccented)
+
+
+def _find_in_available(
+    candidates: List[str],
+    available_params: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Busca si alguno de los candidatos existe en available_params con resolución jerárquica."""
+    if not available_params:
+        return None
+
+    # 1. Exact match
+    for c in candidates:
+        if c in available_params:
+            return c
+
+    # 2. Case-insensitive match
+    lower_map = {k.lower(): k for k in available_params.keys()}
+    for c in candidates:
+        if c.lower() in lower_map:
+            return lower_map[c.lower()]
+
+    # 3. Stripped alphanumeric match
+    stripped_map = {_strip_symbols(k): k for k in available_params.keys()}
+    for c in candidates:
+        s_cand = _strip_symbols(c)
+        if s_cand and s_cand in stripped_map:
+            return stripped_map[s_cand]
+
+    return None
+
+
+def _resolve_surge_xt_param(
+    p_norm: str,
+    p_symbol: str,
+    param_identifier: str,
+    available_params: Optional[Dict[str, Any]]
+) -> str:
+    """Resuelve ranuras modulares y parámetros LOM nativos para Surge XT Effects."""
+    # Detección de Slot en Scene A, Scene B, Send o Global
+    long_prefix: Optional[str] = None
+    short_prefix: Optional[str] = None
+
+    m_a = re.search(r"\b(?:a\s*insert\s*fx|fx\s*a|scene\s*a\s*fx|slot)\s*([1-4])\b", p_norm)
+    if m_a:
+        slot_num = int(m_a.group(1))
+        long_prefix = f"A Insert FX {slot_num}"
+        short_prefix = f"FX A{slot_num}"
+    else:
+        m_b = re.search(r"\b(?:b\s*insert\s*fx|fx\s*b|scene\s*b\s*fx)\s*([1-4])\b", p_norm)
+        if m_b:
+            slot_num = int(m_b.group(1))
+            long_prefix = f"B Insert FX {slot_num}"
+            short_prefix = f"FX B{slot_num}"
+        else:
+            m_s = re.search(r"\b(?:send\s*fx|fx\s*s|send)\s*([1-4])\b", p_norm)
+            if m_s:
+                slot_num = int(m_s.group(1))
+                long_prefix = f"Send FX {slot_num}"
+                short_prefix = f"FX S{slot_num}"
+            else:
+                m_g = re.search(r"\b(?:global\s*fx|fx\s*g|global)\s*([1-4])\b", p_norm)
+                if m_g:
+                    slot_num = int(m_g.group(1))
+                    long_prefix = f"Global FX {slot_num}"
+                    short_prefix = f"FX G{slot_num}"
+
+    # Si se especificó un slot concreto
+    if long_prefix and short_prefix:
+        is_short_requested = bool(re.search(r"\bfx\s*[absg][1-4]\b", p_norm))
+
+        # 1. Tipo de efecto en el slot
+        if any(w in p_norm for w in ("type", "dsp type", "fx type", "algorithm", "algo", "model")):
+            candidates = [f"{long_prefix} Type", f"{short_prefix} Type"]
+            if available_params:
+                found = _find_in_available(candidates, available_params)
+                if found:
+                    return found
+            return f"{short_prefix} Type" if is_short_requested else f"{long_prefix} Type"
+
+        # 2. Parámetros p1 a p12 del slot
+        param_num: Optional[int] = None
+        m_p = re.search(r"\b(?:param|parameter|p)\s*([1-9]|1[0-2])\b", p_norm)
+        if m_p:
+            param_num = int(m_p.group(1))
+        elif any(w in p_norm for w in ("drive", "tape drive", "input drive", "saturation drive")):
+            param_num = 1
+        elif any(w in p_norm for w in ("saturation", "hysteresis", "sat")):
+            param_num = 2
+        elif "bias" in p_norm:
+            param_num = 3
+        elif any(w in p_norm for w in ("speed", "ips")):
+            param_num = 4
+        elif "gap" in p_norm:
+            param_num = 5
+        elif any(w in p_norm for w in ("mix", "dry wet", "wet", "dry")):
+            param_num = 12
+
+        if param_num is not None:
+            candidates = [f"{long_prefix} Param {param_num}", f"{short_prefix} Param {param_num}"]
+            if available_params:
+                found = _find_in_available(candidates, available_params)
+                if found:
+                    return found
+            return f"{short_prefix} Param {param_num}" if is_short_requested else f"{long_prefix} Param {param_num}"
+
+    # Parámetros globales o sin ranura explícita
+    if any(w in p_norm for w in ("output mix", "master mix", "rack mix", "mix", "dry wet", "dry", "wet", "blend")):
+        candidates = ["Output Mix", "Mix", "Dry/Wet"]
+        if available_params:
+            found = _find_in_available(candidates, available_params)
+            if found:
+                return found
+        return "Output Mix"
+
+    if any(w in p_norm for w in ("type", "dsp type", "fx type")):
+        candidates = ["A Insert FX 1 Type", "FX A1 Type", "FX Type"]
+        if available_params:
+            found = _find_in_available(candidates, available_params)
+            if found:
+                return found
+        return "A Insert FX 1 Type"
+
+    if any(w in p_norm for w in ("drive", "saturation", "tape drive")):
+        candidates = ["A Insert FX 1 Param 1", "FX A1 Param 1"]
+        if available_params:
+            found = _find_in_available(candidates, available_params)
+            if found:
+                return found
+        return "A Insert FX 1 Param 1"
+
+    if available_params:
+        for k in available_params:
+            if p_norm in _normalize_str(k) or _normalize_str(k) in p_norm:
+                return k
+
+    return param_identifier
+
+
+# Mapeos canónicos y alias para procesadores de terceros y nativos de Live 12
+DEVICE_LOM_MAPPINGS: Dict[str, List[Tuple[str, List[str], List[str]]]] = {
+    "valhalla_supermassive": [
+        ("Mix", ["mix", "dry wet", "blend", "wet"], []),
+        ("Mode", ["mode", "algorithm", "algo", "reverb mode", "reverb_mode"], []),
+        ("Delay Sync", ["delay sync", "delaysync", "delay_sync", "delay-sync", "sync"], ["DelaySync"]),
+        ("Delay Note", ["delay note", "delaynote", "delay_note", "delay-note", "note", "time sync"], ["DelayNote"]),
+        ("Delay (ms)", ["delay ms", "delayms", "delay", "delay time", "delaytime", "delay_time", "delay-ms", "ms"], ["Delay_Ms", "Delay"]),
+        ("Delay Warp", ["delay warp", "delaywarp", "delay_warp", "delay-warp", "warp"], ["DelayWarp"]),
+        ("Clear", ["clear", "clear buffer", "clear_buffer"], []),
+        ("Feedback", ["feedback", "fb", "regen", "regeneration", "decay"], []),
+        ("Density", ["density", "echo density", "echodensity", "diffusion"], []),
+        ("Width", ["width", "stereo width", "stereowidth", "stereo_width", "spread"], []),
+        ("Low Cut", ["low cut", "lowcut", "low_cut", "low-cut", "hpf", "high pass", "highpass", "high-pass"], ["LowCut"]),
+        ("High Cut", ["high cut", "highcut", "high_cut", "high-cut", "lpf", "low pass", "lowpass", "low-pass"], ["HighCut"]),
+        ("Mod Rate", ["mod rate", "modrate", "mod_rate", "mod-rate", "rate", "modulation rate", "modulation_rate", "mod speed"], ["ModRate"]),
+        ("Mod Depth", ["mod depth", "moddepth", "mod_depth", "mod-depth", "depth", "modulation depth", "modulation_depth", "mod amount"], ["ModDepth"]),
+    ],
+    "valhalla_vintage_verb": [
+        ("Mix", ["mix", "dry wet", "blend", "wet"], []),
+        ("Decay", ["decay", "rt60", "decay time", "decay_time", "decaytime", "reverb time", "time"], []),
+        ("Pre-delay", ["pre delay", "predelay", "pre_delay", "pre-delay", "pre delay time"], ["PreDelay", "Pre Delay"]),
+        ("Mode", ["mode", "algorithm", "algo", "reverb mode", "reverb_mode", "program"], []),
+        ("Color Mode", ["color mode", "colormode", "color_mode", "color", "era"], ["ColorMode"]),
+        ("Size", ["size", "room size", "roomsize", "room_size", "space"], []),
+        ("Attack", ["attack", "attack shape", "attack_shape", "attack time", "shape"], []),
+        ("Bass Multiply", ["bass multiply", "bassmult", "bass_mult", "bass-mult", "bass multiply", "bass_multiply", "bass mult", "bass", "bass x"], ["BassMult", "Bass Multiply"]),
+        ("Low Cut", ["low cut", "lowcut", "low_cut", "low-cut", "hpf", "high pass", "highpass", "high-pass"], ["LowCut"]),
+        ("High Cut", ["high cut", "highcut", "high_cut", "high-cut", "lpf", "low pass", "lowpass", "low-pass"], ["HighCut"]),
+        ("Early Diffusion", ["early diffusion", "earlydiffusion", "early_diffusion", "early diff", "early"], ["EarlyDiffusion"]),
+        ("Late Diffusion", ["late diffusion", "latediffusion", "late_diffusion", "late diff", "late"], ["LateDiffusion"]),
+        ("Mod Rate", ["mod rate", "modrate", "mod_rate", "mod-rate", "rate", "modulation rate", "modulation_rate", "mod speed"], ["ModRate"]),
+        ("Mod Depth", ["mod depth", "moddepth", "mod_depth", "mod-depth", "depth", "modulation depth", "modulation_depth", "mod amount"], ["ModDepth"]),
+    ],
+    "drum_buss": [
+        ("Drive", ["drive", "distortion", "overdrive", "sat", "saturation"], []),
+        ("Crunch", ["crunch", "bite"], []),
+        ("Transients", ["transients", "transient", "attack"], []),
+        ("Boom", ["boom", "sub boom", "sub", "boom level"], []),
+        ("Output Gain", ["output gain", "output", "gain", "volume", "out", "level", "output_gain"], ["Output"]),
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Trim", ["trim"], []),
+        ("Damping", ["damping", "damp"], []),
+        ("Compressor", ["compressor", "comp"], []),
+    ],
+    "compressor": [
+        ("Threshold", ["threshold", "thresh", "umbral"], []),
+        ("Ratio", ["ratio", "relacion", "comp ratio"], []),
+        ("Attack", ["attack", "att", "ataque", "attack time"], []),
+        ("Release", ["release", "rel", "relajacion", "release time"], []),
+        ("Output Gain", ["output gain", "output", "gain", "makeup", "makeup gain", "out", "output_gain"], ["Output"]),
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Knee", ["knee"], []),
+    ],
+    "glue_compressor": [
+        ("Threshold", ["threshold", "thresh", "umbral"], []),
+        ("Ratio", ["ratio", "relacion"], []),
+        ("Attack", ["attack", "att"], []),
+        ("Release", ["release", "rel"], []),
+        ("Output", ["output", "makeup", "makeup gain", "make up", "gain", "out"], ["Makeup"]),
+        ("Dry/Wet", ["dry wet", "mix"], []),
+    ],
+    "chorus_ensemble": [
+        ("Amount", ["amount", "depth", "amt"], []),
+        ("Rate", ["rate", "speed", "frequency", "freq"], []),
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Warmth", ["warmth"], []),
+        ("Width", ["width"], []),
+        ("Feedback", ["feedback"], []),
+    ],
+    "delay": [
+        ("Dry/Wet", ["dry wet", "mix", "blend"], []),
+        ("Feedback", ["feedback", "fb"], []),
+        ("Delay Time", ["delay time", "delaytime", "delay_time", "delay-time", "time", "delay"], []),
+        ("Sync", ["sync", "tempo sync", "delay sync", "temposync"], []),
+        ("Filter Freq", ["filter freq", "filter frequency", "cutoff"], []),
+        ("Filter Width", ["filter width"], []),
+        ("Ping Pong", ["ping pong", "pingpong"], []),
+    ],
+    "utility": [
+        ("Gain", ["gain", "volume", "vol", "level", "output", "out"], ["Output"]),
+        ("Stereo Width", ["stereo width", "width", "stereowidth", "stereo_width", "stereo-width", "pan width"], ["Width"]),
+        ("Bass Mono", ["bass mono", "bassmono", "bass_mono", "bass-mono", "mono bass"], []),
+        ("Bass Freq", ["bass freq", "bassfreq", "bass_freq", "bass frequency", "bass-freq"], []),
+        ("Mono", ["mono", "force mono", "mono on"], []),
+        ("Mute", ["mute", "muting"], []),
+        ("Panorama", ["panorama", "pan"], ["Pan"]),
+    ],
+    "saturator": [
+        ("Base", ["base", "drive base", "drive_base", "base drive"], ["drive_base"]),
+        ("Drive", ["drive", "saturation", "drive gain"], []),
+        ("Dry/Wet", ["dry wet", "mix"], []),
+        ("Output", ["output", "out", "output gain"], []),
+        ("Color", ["color"], []),
+        ("Depth", ["depth"], []),
+        ("Curve", ["curve", "type", "shape"], []),
+    ],
+    "auto_filter": [
+        ("Frequency", ["frequency", "freq", "cutoff", "filter freq"], []),
+        ("Resonance", ["resonance", "res", "q"], []),
+        ("Filter Type", ["filter type", "type", "mode", "filter mode"], []),
+        ("Drive", ["drive", "filter drive", "saturation"], []),
+        ("Morph", ["morph"], []),
+        ("Envelope", ["envelope", "env"], []),
+        ("Attack", ["attack"], []),
+        ("Release", ["release"], []),
+    ],
+    "roar": [
+        ("Drive", ["drive", "input drive", "saturation"], []),
+        ("Tone", ["tone", "color", "brightness"], []),
+        ("Feedback", ["feedback", "fb"], []),
+        ("Stages", ["stages", "stage", "routing"], []),
+        ("Bias", ["bias", "dc bias"], []),
+        ("Dry/Wet", ["dry wet", "mix"], []),
+        ("Output", ["output", "out"], []),
+    ],
+    "reverb": [
+        ("Decay Time", ["decay time", "decaytime", "decay_time", "decay"], []),
+        ("PreDelay", ["predelay", "pre delay", "pre_delay", "pre-delay", "pre delay time"], ["Pre-delay"]),
+        ("Dry/Wet", ["dry wet", "mix"], []),
+    ],
+}
+
+
+def _detect_device_key(d_norm: str) -> Optional[str]:
+    """Identifica la clave del dispositivo normalizando fabricantes, prefijos VST3 y URIs."""
+    if any(w in d_norm for w in ("supermassive", "valhallasupermassive")):
+        return "valhalla_supermassive"
+    if any(w in d_norm for w in ("vintageverb", "vintage verb", "valhallavintageverb")):
+        return "valhalla_vintage_verb"
+    if any(w in d_norm for w in ("surge", "surge xt")):
+        return "surge_xt_effects"
+
+    # Procesadores de stock Live 12
+    if any(w in d_norm for w in ("drum buss", "drumbuss", "drum bus")):
+        return "drum_buss"
+    if "glue" in d_norm:
+        return "glue_compressor"
+    if "compressor" in d_norm and "glue" not in d_norm:
+        return "compressor"
+    if any(w in d_norm for w in ("chorus ensemble", "chorus", "ensemble")):
+        return "chorus_ensemble"
+    if "delay" in d_norm and not any(w in d_norm for w in ("supermassive", "surge")):
+        return "delay"
+    if "utility" in d_norm:
+        return "utility"
+    if "saturator" in d_norm:
+        return "saturator"
+    if any(w in d_norm for w in ("auto filter", "autofilter")):
+        return "auto_filter"
+    if "roar" in d_norm:
+        return "roar"
+    if "reverb" in d_norm and not any(w in d_norm for w in ("vintage", "valhalla")):
+        return "reverb"
+
+    return None
+
 
 class VerificationError(Exception):
     def __init__(self, message: str, diagnosis: Dict[str, Any]):
         super().__init__(message)
         self.diagnosis = diagnosis
+
 
 class DeviceExecutionVerifier:
     TOLERANCE = 0.04
@@ -36,73 +361,128 @@ class DeviceExecutionVerifier:
     ) -> str:
         """
         Resuelve alias de parámetros al nombre exacto expuesto por el Live Object Model (LOM).
-        E.g.: 'Band 1 On' -> '1 Filter On A' (EQ Eight), 'Makeup' -> 'Output' (Glue Compressor).
+        E.g.: 'Band 1 On' -> '1 Filter On A' (EQ Eight), 'Makeup' -> 'Output' (Glue Compressor),
+              'Drive'/'Base' -> 'Drive'/'Base' (Saturator), 'Gain' -> 'Gain' (Utility).
         """
         if not param_identifier:
             return param_identifier
 
         p_clean = param_identifier.strip().lower()
         d_clean = (device_name or "").strip().lower()
+        p_norm = _normalize_str(param_identifier)
+        p_symbol = _strip_symbols(param_identifier)
+        d_norm = _normalize_str(device_name)
 
-        # 1. Direct match in available params if provided
+        # 1. Coincidencia directa en available_params si fue provisto
         if available_params:
-            if p_clean in available_params:
-                return p_clean
+            if param_identifier in available_params:
+                return param_identifier
             for k in available_params.keys():
                 if p_clean == k.lower():
                     return k
+            if p_symbol:
+                for k in available_params.keys():
+                    if p_symbol == _strip_symbols(k):
+                        return k
 
-        # 2. Domain-specific mappings
-        # EQ Eight
-        if any(w in d_clean for w in ("eq eight", "eq8", "eq")):
-            m_on = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*(?:on|filter\s*on)", p_clean)
+        # 2. EQ Eight (mapeo estructurado por bandas 1 a 8)
+        if any(w in d_norm for w in ("eq eight", "eq8")) or d_norm == "eq" or "eq eight" in d_clean:
+            m_on = re.search(r"(?:band\s*|banda\s*)?([1-8])\s*(?:on|filter\s*on)", p_norm)
             if m_on:
-                return f"{m_on.group(1)} Filter On A"
-            m_type = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*(?:filter\s*type|type)", p_clean)
+                target = f"{m_on.group(1)} Filter On A"
+                found = _find_in_available([target], available_params)
+                return found or target
+            m_type = re.search(r"(?:band\s*|banda\s*)?([1-8])\s*(?:filter\s*type|type)", p_norm)
             if m_type:
-                return f"{m_type.group(1)} Filter Type A"
-            m_freq = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*(?:frequency|freq)", p_clean)
+                target = f"{m_type.group(1)} Filter Type A"
+                found = _find_in_available([target], available_params)
+                return found or target
+            m_freq = re.search(r"(?:band\s*|banda\s*)?([1-8])\s*(?:frequency|freq)", p_norm)
             if m_freq:
-                return f"{m_freq.group(1)} Frequency A"
-            m_gain = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*gain", p_clean)
+                target = f"{m_freq.group(1)} Frequency A"
+                found = _find_in_available([target], available_params)
+                return found or target
+            m_gain = re.search(r"(?:band\s*|banda\s*)?([1-8])\s*gain", p_norm)
             if m_gain:
-                return f"{m_gain.group(1)} Gain A"
-            m_q = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*q", p_clean)
+                target = f"{m_gain.group(1)} Gain A"
+                found = _find_in_available([target], available_params)
+                return found or target
+            m_q = re.search(r"(?:band\s*|banda\s*)?([1-8])\s*q", p_norm)
             if m_q:
-                return f"{m_q.group(1)} Q A"
+                target = f"{m_q.group(1)} Q A"
+                found = _find_in_available([target], available_params)
+                return found or target
 
-        # Glue Compressor
-        if "glue" in d_clean:
-            if p_clean in ("makeup", "makeup gain", "make up"):
-                return "Output"
+        # 3. Surge XT Effects (ranuras modulares y parámetros LOM)
+        if any(w in d_norm for w in ("surge", "surge xt")):
+            return _resolve_surge_xt_param(p_norm, p_symbol, param_identifier, available_params)
 
-        # Reverb
-        if "reverb" in d_clean:
-            if p_clean in ("decaytime", "decay_time"):
-                return "Decay Time"
+        # 4. Procesadores específicos por catálogo de LOM
+        dev_key = _detect_device_key(d_norm)
+        if dev_key:
+            # Manejo específico para Utility: Gain es nativo en Live 12 LOM (no Output)
+            if dev_key == "utility":
+                if p_norm in ("gain", "volume", "vol", "level", "output", "out"):
+                    if available_params:
+                        found = _find_in_available(["Gain", "Output"], available_params)
+                        if found:
+                            return found
+                    return "Gain"
+                if p_norm in ("stereo width", "width", "stereowidth", "pan width"):
+                    if available_params:
+                        found = _find_in_available(["Stereo Width", "Width"], available_params)
+                        if found:
+                            return found
+                    return "Width" if p_norm == "width" else "Stereo Width"
 
-        # Utility
-        if "utility" in d_clean:
-            if p_clean in ("width", "stereowidth", "stereo_width"):
-                return "Stereo Width"
-            if p_clean in ("gain", "volume"):
-                return "Output"
+            # Manejo específico para Drum Buss: Output vs Output Gain
+            if dev_key == "drum_buss":
+                if p_norm in ("output gain", "output", "gain", "volume", "out", "level"):
+                    if available_params:
+                        found = _find_in_available(["Output Gain", "Output"], available_params)
+                        if found:
+                            return found
+                    return "Output" if p_norm == "output" else "Output Gain"
 
-        # Saturator
-        if "saturator" in d_clean:
-            if p_clean in ("base", "drive_base"):
-                return "Drive"
+            # Manejo específico para Compressor: Output vs Output Gain
+            if dev_key == "compressor":
+                if p_norm in ("output gain", "output", "gain", "makeup", "makeup gain", "out"):
+                    if available_params:
+                        found = _find_in_available(["Output Gain", "Output"], available_params)
+                        if found:
+                            return found
+                    return "Output" if p_norm == "output" else "Output Gain"
 
-        # Surge XT Effects
-        if "surge" in d_clean:
-            if "mix" in p_clean or "dry" in p_clean:
-                return "Output Mix"
-            if "type" in p_clean:
-                return "FX Type"
-            if "drive" in p_clean or "depth" in p_clean:
-                return "Feedback/EQ Feedback"
+            # Manejo específico para Saturator: Bugfix Base vs Drive
+            if dev_key == "saturator":
+                if p_norm in ("base", "drive base", "base drive", "drive_base"):
+                    if available_params:
+                        found = _find_in_available(["Base", "drive_base"], available_params)
+                        if found:
+                            return found
+                    return "Base"
+                if p_norm in ("drive", "saturation", "drive gain"):
+                    if available_params:
+                        found = _find_in_available(["Drive"], available_params)
+                        if found:
+                            return found
+                    return "Drive"
 
-        # 3. Available params fuzzy fallback
+            # Búsqueda en mapeos estándar del dispositivo
+            mappings = DEVICE_LOM_MAPPINGS.get(dev_key, [])
+            for canonical, aliases, alt_canonicals in mappings:
+                all_norms = [_normalize_str(canonical)] + [_normalize_str(a) for a in aliases] + [_normalize_str(ac) for ac in alt_canonicals]
+                all_symbols = [_strip_symbols(canonical)] + [_strip_symbols(a) for a in aliases] + [_strip_symbols(ac) for ac in alt_canonicals]
+
+                if p_norm in all_norms or p_symbol in all_symbols:
+                    candidates = [canonical] + alt_canonicals
+                    if available_params:
+                        found = _find_in_available(candidates + aliases, available_params)
+                        if found:
+                            return found
+                    return canonical
+
+        # 5. Fuzzy match fallback en available_params
         if available_params:
             for k in available_params.keys():
                 k_clean = k.lower()

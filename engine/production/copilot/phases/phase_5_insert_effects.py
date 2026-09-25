@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from engine.production.copilot.phases.base import BasePhaseHandler
 from engine.production.copilot.nlp_parser import _normalize_text, parse_autotune_settings
-from engine.fx.role_fx_catalog import ROLE_INSERT_EFFECTS, ROLE_FREQUENCY_GUIDE
+from engine.fx.role_fx_catalog import ROLE_INSERT_EFFECTS, ROLE_FREQUENCY_GUIDE, UniversalGenreFamilyFXCatalog
 from engine.fx.aesthetic_profile_engine import AestheticProfileEngine
 from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
 from engine.session.transaction_guard import TransactionGuard
@@ -31,8 +31,12 @@ logger = logging.getLogger("Phase5InsertEffects")
 
 class Phase5InsertEffectsHandler(BasePhaseHandler):
     @classmethod
-    def _get_fx_list_for_role(cls, role: str) -> List[Dict[str, Any]]:
+    def _get_fx_list_for_role(cls, role: str, genre: Optional[str] = None) -> List[Dict[str, Any]]:
         r_clean = str(role or "KEYS").strip().upper()
+        if genre is not None:
+            chain = UniversalGenreFamilyFXCatalog.get_fx_chain_for_role(r_clean, genre)
+            if chain:
+                return chain
         if r_clean in ROLE_INSERT_EFFECTS:
             return ROLE_INSERT_EFFECTS[r_clean]
         native_chain = UltraAcousticCatalog.build_native_insert_chain(r_clean)
@@ -143,13 +147,63 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF y limpieza')}\n"
                 f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
                 f"📋 **Formato Esperado de Parámetros:**\n"
-                f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"`\n"
-                f"• Preset rápido: `\"Opción 1\"` (Recomendado: aplica el blueprint espectral exacto)\n\n"
-                f"*Especifica tus parámetros para EQ Eight o escribe 'Opción 1' para aplicar el blueprint.*"
+                f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"`\n\n"
+                f"*Especifica tus parámetros para EQ Eight.*"
             ),
             "instructions_for_ai": f"Define los parámetros obligatorios para EQ Eight en la pista {missing_trk.get('name')}.",
             "target_track": t_idx,
             "target_device": "EQ Eight",
+            "phase": "PHASE_5_INSERT_EFFECTS"
+        }
+
+    @classmethod
+    def _build_calibration_required_payload(
+        cls,
+        session: Any,
+        trk: Dict[str, Any],
+        eff: Dict[str, Any],
+        dev_ptr: int,
+        total_devices: int,
+        conn: Any = None,
+        user_input: str = ""
+    ) -> Dict[str, Any]:
+        t_name = trk.get("name", "Track")
+        t_idx = trk.get("index", session.data.get("current_fx_track_ptr", 0))
+        t_ptr = session.data.get("current_fx_track_ptr", 0)
+        role = trk.get("role", "KEYS")
+        eff_name = eff.get("name", "Efecto")
+        is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
+
+        params_info = []
+        for p in eff.get("params", []):
+            p_range = p.get("range", "0.0 a 1.0")
+            p_behavior = p.get("behavior", p.get("desc", ""))
+            params_info.append(f"  • **{p['name']}** (Rango: `{p_range}`): {p_behavior}")
+        params_text = "\n".join(params_info) if params_info else "  • Parámetros nativos del procesador"
+
+        p_samples = [f"{p['id']}: {p.get('default', 0.5)}" for p in eff.get("params", [])[:2]]
+        p_example = ", ".join(p_samples) or "Drive: 0.35, Output: 0.70"
+
+        bypass_instruction = "• O indica 'Bypass' si determinas acústicamente que este canal no requiere este proceso." if not is_eq else "• (Nota: El ecualizador es 100% obligatorio; no admite Bypass)."
+
+        return {
+            "status": "EFFECT_CALIBRATION_REQUIRED",
+            "current_step": f"PASO 5 DE 7: CALIBRACIÓN OBLIGATORIA EFECTO {dev_ptr + 1} DE {total_devices} (PISTA {t_ptr + 1}: '{t_name}')",
+            "action_taken": f"Compuerta estricta: Rechazada la entrada genérica para '{eff_name}'. El motor exige la definición deliberada de parámetros clave-valor.",
+            "question": (
+                f"⛔ **BLOQUEO DE COMPUERTA: CALIBRACIÓN INDIVIDUAL OBLIGATORIA**\n\n"
+                f"Procesador activo: `{eff_name}` en pista '{t_name}' (Rol: `{role}`).\n"
+                f"El motor prohíbe la aprobación en bloque, comandos genéricos como 'siguiente', 'ok' o avanzar sin calibrar.\n\n"
+                f"📋 **Parámetros disponibles:**\n{params_text}\n\n"
+                f"💡 **Ejemplo de calibración clave-valor requerida:**\n"
+                f"• `{p_example}`\n"
+                f"{bypass_instruction}"
+            ),
+            "instructions_for_ai": f"Define parámetros específicos clave-valor para {eff_name} en '{t_name}'" + (" o indica 'Bypass'." if not is_eq else "."),
+            "target_track": t_idx,
+            "target_device": eff_name,
+            "device_index_in_chain": dev_ptr + 1,
+            "total_devices_in_chain": total_devices,
             "phase": "PHASE_5_INSERT_EFFECTS"
         }
     
@@ -183,13 +237,16 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         t_name = trk["name"]
         role = trk["role"]
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-        fx_list = self._get_fx_list_for_role(role)
+        genre_val = session.data.get("genre")
+        fx_list = self._get_fx_list_for_role(role, genre_val)
     
         if dev_ptr >= len(fx_list):
             session.data["current_fx_track_ptr"] = t_ptr + 1
             session.data["current_fx_dev_ptr"] = 0
             session._save_state()
-            return session._prompt_current_fx_device()
+            if hasattr(session, "_prompt_current_fx_device"):
+                return session._prompt_current_fx_device()
+            return self._prompt_current_fx_device(session)
     
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
@@ -312,8 +369,6 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             f"• Clave-Valor: `\"Parámetro: Valor, Parámetro: Valor\"` (ej: `\"{p_examples}\"` o `\"Drive: 35%, Dry/Wet: 50%\"`)\n"
             f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
             f"• JSON: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
-            f"• Calibración recomendada: `\"Opción 1\"` (Aplica valores óptimos para este procesador)\n"
-            f"• Cadena personalizada: `\"Cadena: EQ Eight, Saturator, ValhallaVintageVerb\"` (El motor documentará la decisión para {inst_name})\n"
             f"• Decisión deliberada por procesador: Evalúa si {eff_name} aporta a la claridad, calidez o pegada de '{t_name}', define sus parámetros conscientemente o indica 'Bypass' si está de más.\n"
             f"• Bypass puntual: Solo si determinas acústicamente que este canal no requiere este proceso (máximo 35% de la sesión)."
         )
@@ -368,103 +423,48 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
         text = _normalize_text(user_input)
     
-        fx_list = self._get_fx_list_for_role(role)
+        genre = session.data.get("genre")
+        fx_list = self._get_fx_list_for_role(role, genre)
     
         if dev_ptr >= len(fx_list):
             session.data["current_fx_track_ptr"] = t_ptr + 1
             session.data["current_fx_dev_ptr"] = 0
             session._save_state()
-            return session._prompt_current_fx_device()
-
-        # Check for explicit custom chain definition (e.g. "Cadena: EQ Eight, Saturator, ValhallaVintageVerb")
-        if text.startswith("cadena:") or text.startswith("efectos:") or "personalizada" in text:
-            genre = session.data.get("genre", "trap")
-            inst_name = str(trk.get("instrument", trk["name"]))
-            aesthetic_engine = AestheticProfileEngine()
-            chosen_effs = aesthetic_engine.parse_track_fx_selection(user_input, genre, role, inst_name)
-            trk["chosen_insert_effects"] = chosen_effs
-            trk["insert_effects"] = [{"name": e, "parameters": {}} for e in chosen_effs]
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            session._save_state()
+            if hasattr(session, "_prompt_current_fx_device"):
+                return session._prompt_current_fx_device()
             return self._prompt_current_fx_device(session)
-    
-        # Check for Cadena Express / Lote configuration across the whole track
-        is_express_chain = any(w in text for w in ["cadena express", "express", "lote", "receta completa", "toda la pista", "cadena completa", "todos los efectos"])
-        if is_express_chain:
-            applied_express_devices = []
-            trk["insert_effects"] = []
-            for d_i, d_eff in enumerate(fx_list):
-                d_eff_name = d_eff["name"]
-                d_eff_uri = d_eff["uri"]
-                d_params = {}
-                if any(q in d_eff_name.lower() for q in ["eq", "equalizer", "pro-q"]):
-                    prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
-                    rec_eq = prof.get("recommended_eq", {})
-                    d_params["Band 1 On"] = 1.0
-                    d_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
-                    d_params["Band 2 On"] = 1.0
-                    d_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
-                    d_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
-                    d_params["Band 3 On"] = 1.0
-                    d_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
-                    d_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
-                    d_params["Band 4 On"] = 1.0
-                    d_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
-                    d_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
-                elif "auto-tune" in d_eff_name.lower() or "autotune" in d_eff_name.lower():
-                    d_params["Key"] = session.data.get("key", "F")
-                    d_params["Scale"] = session.data.get("scale", "Minor")
-                    d_params["Retune Speed"] = 0.0
-                else:
-                    for p in d_eff.get("params", []):
-                        d_params[p["id"]] = p["default"]
-
-                if conn is not None and hasattr(conn, "send_command"):
-                    try:
-                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": d_eff_uri})
-                    except Exception as ex_load:
-                        logger.warning(f"Error loading express device {d_eff_name} on track {t_idx}: {ex_load}")
-
-                trk["insert_effects"].append({
-                    "name": d_eff_name,
-                    "device_index": d_i + 1,
-                    "bypass": False,
-                    "bypassed": False,
-                    "parameters": d_params
-                })
-                applied_express_devices.append(d_eff_name)
-
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + len(fx_list)
-            session._save_state()
-
-            if session.data["current_fx_track_ptr"] < len(tracks):
-                next_prompt = session._prompt_current_fx_device()
-                next_prompt["status"] = "EXPRESS_CHAIN_CONFIGURED"
-                next_prompt["action_taken"] = f"Cadena express configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_express_devices)}."
-                return next_prompt
-            else:
-                missing_trk = self.find_track_missing_eq(session, conn)
-                if missing_trk is not None:
-                    return self.force_missing_eq_prompt(session, conn, missing_trk)
-                from engine.mix.bus_architecture import LiveBusArchitectureEngine
-                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
-                session.data["bus_architecture"] = {
-                    "deployed": True,
-                    "topology": bus_report.get("analysis", {}).get("buses", {}),
-                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
-                }
-                self.audit_phase_and_spectral_health(session, conn, tracks)
-                session.data["current_phase"] = "PHASE_6_COMPOSITION"
-                session.data["phase_index"] = 6
-                session._save_state()
-                return session._prompt_phase_6()
 
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
         eff_uri = eff["uri"]
+        is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
+
+        # Prohibit all bulk approval shortcuts and generic advancing tokens
+        is_bulk_shortcut = any(w in text for w in [
+            "cadena express", "lote", "receta completa", "toda la pista",
+            "cadena completa", "todos los efectos", "aprobar todo", "aprobar todos"
+        ])
+        is_generic_token = text in {
+            "siguiente", "next", "ok", "yes", "si", "sí", "aprobar", "todos",
+            "continuar", "listo", "proceder", "adelante", "avanzar", "skip"
+        } or not user_input.strip()
+
+        # Disallow whole-track bypass/skip via "cadena:" or "efectos:"
+        is_whole_track_skip = (text.startswith("cadena:") or text.startswith("efectos:")) and not any(
+            sep in text for sep in [":", "="] if len(text.split(sep, 1)) > 1 and any(c.isdigit() for c in text.split(sep, 1)[1])
+        )
+
+        if is_bulk_shortcut or is_generic_token or is_whole_track_skip:
+            TransactionGuard.rollback_transaction(conn, session)
+            return self._build_calibration_required_payload(
+                session=session,
+                trk=trk,
+                eff=eff,
+                dev_ptr=dev_ptr,
+                total_devices=len(fx_list),
+                conn=conn,
+                user_input=user_input
+            )
     
         # Capture pre-mutation snapshot for deterministic rollback
         track_state = [TransactionGuard.capture_live_track_state(conn, t_idx)]
@@ -489,7 +489,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento')}\n"
                     f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF')}\n"
                     f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
-                    f"*Por favor define los parámetros del ecualizador para continuar (o escribe 'Opción 1' para aplicar los valores recomendados).*"
+                    f"*Por favor define los parámetros del ecualizador para continuar.*"
                 ),
                 "instructions_for_ai": f"No puedes omitir el ecualizador {eff_name}. Envía los parámetros de configuración.",
                 "target_track": t_idx,
@@ -504,7 +504,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             tot_non_eq = 0
             for ot in all_tracks:
                 o_role = ot.get("role", "STRINGS")
-                o_fx = self._get_fx_list_for_role(o_role)
+                o_fx = self._get_fx_list_for_role(o_role, genre)
                 for fx_item in o_fx:
                     if not any(q in fx_item.get("name", "").lower() for q in ["eq", "equalizer", "pro-q"]):
                         tot_non_eq += 1
@@ -522,9 +522,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         f"⛔ **CUOTA MÁXIMA DE BYPASS EXCEDIDA ({current_bypassed}/{tot_non_eq} procesadores omitidos)**\n\n"
                         f"Una producción comercial de alto nivel exige control dinámico (compresión), calidez armónica (saturación) y espacialidad.\n"
                         f"No se permite omitir `{eff_name}` en la pista '{trk.get('name')}'.\n\n"
-                        f"Por favor define los parámetros específicos para `{eff_name}` (o responde 'Opción 1' para aplicar la calibración recomendada)."
+                        f"Por favor define los parámetros específicos para `{eff_name}`."
                     ),
-                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name} o escribe 'Opción 1'.",
+                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros específicos para {eff_name}.",
                     "target_track": t_idx,
                     "target_device": eff_name,
                     "device_index_in_chain": dev_ptr + 1,
@@ -532,57 +532,25 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     "phase": "PHASE_5_INSERT_EFFECTS"
                 }
             session.data["bypassed_non_eq_count"] = current_bypassed + 1
-    
+
         if not is_bypass:
-            # Validación Estricta para Auto-Tune: Key y Scale son estrictamente obligatorios
-            if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
-                det_key, det_scale, det_retune = parse_autotune_settings(user_input)
-                if not det_key and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
+            is_opcion_1 = (text.strip() == "1" or any(w in text for w in ["opcion 1", "opción 1", "opcion1"]))
+            resolved_intent = SemanticIntentResolver.resolve_intent(user_input, role)
+            arch_spec = UltraAcousticCatalog.get_role_archetype_spec(role, resolved_intent.archetype.value)
+
+            if is_opcion_1:
+                # Backwards-compatible single-device calibration with recommended parameters
+                if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
                     det_key = session.data.get("key", "F")
-                if not det_scale and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
                     det_scale = session.data.get("scale", "Minor")
-                if not det_key or not det_scale:
-                    missing = []
-                    if not det_key:
-                        missing.append("Key / Tono (ej: 'Key: B', 'Si', 'Key: F#')")
-                    if not det_scale:
-                        missing.append("Scale / Escala (ej: 'Scale: Minor', 'Menor', 'Scale: Major')")
-                    missing_str = " y ".join(missing)
-                    TransactionGuard.rollback_transaction(conn, session)
-                    return {
-                        "status": "VALIDATION_ERROR",
-                        "current_step": f"PASO 5 DE 7: CONFIGURACIÓN OBLIGATORIA DE AUTO-TUNE (PISTA {t_ptr + 1})",
-                        "action_taken": f"Auto-Tune exige definir obligatoriamente {missing_str}.",
-                        "question": (
-                            f"⛔ **ERROR DE VALIDACIÓN: PARÁMETROS OBLIGATORIOS REQUERIDOS**\n\n"
-                            f"Auto-Tune Artist en la Pista {t_idx} ('{trk.get('name')}') exige **obligatoriamente definir la Key y la Scale** para garantizar afinación armónica precisa con la canción.\n\n"
-                            f"Parámetros faltantes detectados:\n"
-                            + "\n".join([f"  • **{m}**" for m in missing]) + "\n\n"
-                            f"💡 **Especifica tu selección:**\n"
-                            f"• *Ejemplo*: `Key: B, Scale: Minor, Retune Speed: 0 ms` (o `Si menor snap`)\n"
-                            f"• *O indica*: `Bypass` si determinas que esta pista no llevará afinación vocal.\n\n"
-                            f"*Por favor define la Key y Scale obligatorias para continuar.*"
-                        ),
-                        "instructions_for_ai": "Especifica obligatoriamente Key y Scale para Auto-Tune Artist (ej: 'Key: B, Scale: Minor').",
-                        "target_track": t_idx,
-                        "target_device": eff_name,
-                        "device_index_in_chain": dev_ptr + 1,
-                        "total_devices_in_chain": len(fx_list),
-                        "phase": "PHASE_5_INSERT_EFFECTS"
-                    }
-    
-                # Si ambos fueron provistos, fijar en el estado general de la sesión
-                session.data["key"] = det_key
-                session.data["scale"] = det_scale
-                applied_params["Key"] = det_key
-                applied_params["Scale"] = det_scale
-                if det_retune is not None:
-                    applied_params["Retune Speed"] = det_retune
-    
-            if is_eq:
-                prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
-                rec_eq = prof.get("recommended_eq", {})
-                if any(w in text for w in ["opcion 1", "opción 1", "recomendad", "default", "blueprint"]) or text.strip() == "1":
+                    session.data["key"] = det_key
+                    session.data["scale"] = det_scale
+                    applied_params["Key"] = det_key
+                    applied_params["Scale"] = det_scale
+                    applied_params["Retune Speed"] = 0.0
+                elif is_eq:
+                    prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
+                    rec_eq = prof.get("recommended_eq", {})
                     applied_params["1 Filter On A"] = 1.0
                     applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
                     applied_params["2 Filter On A"] = 1.0
@@ -594,179 +562,261 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     applied_params["4 Filter On A"] = 1.0
                     applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
                     applied_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
+                    for p in eff.get("params", []):
+                        p_id = p["id"]
+                        if p_id not in applied_params:
+                            applied_params[p_id] = p.get("default", 1.0)
                 else:
-                    # Parse custom Band 1 HPF
+                    eff_lower = eff_name.lower()
+                    for p in eff.get("params", []):
+                        p_id = p["id"]
+                        val_found = None
+                        if "glue" in eff_lower and arch_spec.glue_params and p_id in arch_spec.glue_params:
+                            val_found = arch_spec.glue_params[p_id]
+                        elif "buss" in eff_lower and arch_spec.drum_buss_params and p_id in arch_spec.drum_buss_params:
+                            val_found = arch_spec.drum_buss_params[p_id]
+                        elif "saturator" in eff_lower and arch_spec.saturator_params and p_id in arch_spec.saturator_params:
+                            val_found = arch_spec.saturator_params[p_id]
+                        elif "utility" in eff_lower and arch_spec.utility_params and p_id in arch_spec.utility_params:
+                            val_found = arch_spec.utility_params[p_id]
+                        elif "reverb" in eff_lower and arch_spec.reverb_params and p_id in arch_spec.reverb_params:
+                            val_found = arch_spec.reverb_params[p_id]
+                        if val_found is not None:
+                            applied_params[p_id] = val_found
+                        elif p_id not in ("Mode", "ColorMode", "Color"):
+                            applied_params[p_id] = p.get("default", 0.5)
+            else:
+                # Deliberate parameter calibration: parse explicit parameters or JSON
+                params_calibrated_count = 0
+
+                # 1. Auto-Tune validation
+                if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
+                    det_key, det_scale, det_retune = parse_autotune_settings(user_input)
+                    if det_key or det_scale or det_retune is not None:
+                        params_calibrated_count += 1
+                    if not det_key or not det_scale:
+                        missing = []
+                        if not det_key:
+                            missing.append("Key / Tono (ej: 'Key: B', 'Si', 'Key: F#')")
+                        if not det_scale:
+                            missing.append("Scale / Escala (ej: 'Scale: Minor', 'Menor', 'Scale: Major')")
+                        missing_str = " y ".join(missing)
+                        TransactionGuard.rollback_transaction(conn, session)
+                        return {
+                            "status": "VALIDATION_ERROR",
+                            "current_step": f"PASO 5 DE 7: CONFIGURACIÓN OBLIGATORIA DE AUTO-TUNE (PISTA {t_ptr + 1})",
+                            "action_taken": f"Auto-Tune exige definir obligatoriamente {missing_str}.",
+                            "question": (
+                                f"⛔ **ERROR DE VALIDACIÓN: PARÁMETROS OBLIGATORIOS REQUERIDOS**\n\n"
+                                f"Auto-Tune Artist en la Pista {t_idx} ('{trk.get('name')}') exige **obligatoriamente definir la Key y la Scale** para garantizar afinación armónica precisa con la canción.\n\n"
+                                f"Parámetros faltantes detectados:\n"
+                                + "\n".join([f"  • **{m}**" for m in missing]) + "\n\n"
+                                f"💡 **Especifica tu selección:**\n"
+                                f"• *Ejemplo*: `Key: B, Scale: Minor, Retune Speed: 0 ms` (o `Si menor snap`)\n"
+                                f"• *O indica*: `Bypass` si determinas que esta pista no llevará afinación vocal.\n\n"
+                                f"*Por favor define la Key y Scale obligatorias para continuar.*"
+                            ),
+                            "instructions_for_ai": "Especifica obligatoriamente Key y Scale para Auto-Tune Artist (ej: 'Key: B, Scale: Minor').",
+                            "target_track": t_idx,
+                            "target_device": eff_name,
+                            "device_index_in_chain": dev_ptr + 1,
+                            "total_devices_in_chain": len(fx_list),
+                            "phase": "PHASE_5_INSERT_EFFECTS"
+                        }
+                    session.data["key"] = det_key
+                    session.data["scale"] = det_scale
+                    applied_params["Key"] = det_key
+                    applied_params["Scale"] = det_scale
+                    if det_retune is not None:
+                        applied_params["Retune Speed"] = det_retune
+
+                # 2. EQ Eight band extraction
+                if is_eq:
                     m_b1 = re.search(r"(?:hpf|banda?\s*1|low\s*cut|corte)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b1:
                         f1 = float(m_b1.group(1))
                         applied_params["1 Filter On A"] = 1.0
                         applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f1)
-                    # Parse custom Band 2 Mud Cut
+                        params_calibrated_count += 1
                     m_b2_f = re.search(r"(?:mud|barro|banda?\s*2)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b2_f:
                         f2 = float(m_b2_f.group(1))
                         applied_params["2 Filter On A"] = 1.0
                         applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f2)
+                        params_calibrated_count += 1
                     m_b2_g = re.search(r"(?:mud\s*gain|ganancia\s*barro|ganancia\s*banda\s*2|gain\s*2)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
                     if m_b2_g:
                         applied_params["2 Gain A"] = float(m_b2_g.group(1))
-                    # Parse custom Band 3 Presence
+                        params_calibrated_count += 1
                     m_b3_f = re.search(r"(?:presencia|presence|snap|banda?\s*3)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b3_f:
                         f3 = float(m_b3_f.group(1))
                         applied_params["3 Filter On A"] = 1.0
                         applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f3)
+                        params_calibrated_count += 1
                     m_b3_g = re.search(r"(?:presencia\s*gain|ganancia\s*presencia|gain\s*3)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
                     if m_b3_g:
                         applied_params["3 Gain A"] = float(m_b3_g.group(1))
-                    # Parse custom Band 4 Air
+                        params_calibrated_count += 1
                     m_b4_f = re.search(r"(?:aire|air|shelf|banda?\s*4)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b4_f:
                         f4 = float(m_b4_f.group(1))
                         applied_params["4 Filter On A"] = 1.0
                         applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f4)
+                        params_calibrated_count += 1
                     m_b4_g = re.search(r"(?:air\s*gain|ganancia\s*aire|gain\s*4)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
                     if m_b4_g:
                         applied_params["4 Gain A"] = float(m_b4_g.group(1))
+                        params_calibrated_count += 1
 
-            resolved_intent = SemanticIntentResolver.resolve_intent(user_input, role)
-            arch_spec = UltraAcousticCatalog.get_role_archetype_spec(role, resolved_intent.archetype.value)
+                # 3. JSON and text regex against device parameters
+                def _clean_key(k: str) -> str:
+                    return re.sub(r'[^a-z0-9]', '', _normalize_text(k))
 
-            def _clean_key(k: str) -> str:
-                return re.sub(r'[^a-z0-9]', '', _normalize_text(k))
-    
-            alias_map = {
-                "frecuencia": "frequency", "freq": "frequency", "corte": "frequency", "cutoff": "frequency",
-                "ganancia": "gain", "drive": "drive", "saturacion": "drive",
-                "mezcla": "drywet", "mix": "drywet", "drywet": "drywet", "dry_wet": "drywet", "dry/wet": "drywet",
-                "umbral": "threshold", "threshold": "threshold",
-                "ratio": "ratio", "proporcion": "ratio",
-                "ataque": "attack", "attack": "attack",
-                "release": "release", "liberacion": "release", "relajacion": "release",
-                "decay": "decay", "tiempo": "time", "feedback": "feedback",
-                "depth": "depth", "profundidad": "depth", "output": "output", "salida": "output"
-            }
-    
-            parsed_json = {}
-            if "{" in user_input and "}" in user_input:
-                try:
-                    j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
-                    parsed_json = json.loads(j_str)
-                except Exception:
-                    pass
-    
-            for p in eff["params"]:
-                p_id = p["id"]
-                if p_id in applied_params:
-                    continue
-                p_clean = _normalize_text(p_id)
-                p_alpha = _clean_key(p_id)
-                val_found = None
-    
-                # 1. Look in JSON block
-                for jk, jv in parsed_json.items():
-                    jk_clean = _normalize_text(str(jk))
-                    jk_alpha = _clean_key(str(jk))
-                    if (jk_clean == p_clean or jk_alpha == p_alpha or
-                        alias_map.get(jk_clean) == p_alpha or alias_map.get(jk_alpha) == p_alpha):
-                        try:
-                            val_found = float(jv)
-                            break
-                        except (ValueError, TypeError):
-                            val_found = jv
-                            break
-    
-                # 2. Text regex if not in JSON
-                if val_found is None:
-                    patterns = [
-                        rf"{re.escape(p_clean)}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?",
-                        rf"{re.escape(p_id.lower())}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?"
-                    ]
-                    for alias_key, target_key in alias_map.items():
-                        if target_key == p_alpha or target_key == p_clean:
-                            patterns.append(rf"{alias_key}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?")
-    
-                    for pat in patterns:
-                        match = re.search(pat, text)
-                        if match:
-                            num_str = match.group(1)
-                            unit_str = (match.group(2) or "").lower()
+                alias_map = {
+                    "frecuencia": "frequency", "freq": "frequency", "corte": "frequency", "cutoff": "frequency",
+                    "ganancia": "gain", "drive": "drive", "saturacion": "drive",
+                    "mezcla": "drywet", "mix": "drywet", "drywet": "drywet", "dry_wet": "drywet", "dry/wet": "drywet",
+                    "umbral": "threshold", "threshold": "threshold",
+                    "ratio": "ratio", "proporcion": "ratio",
+                    "ataque": "attack", "attack": "attack",
+                    "release": "release", "liberacion": "release", "relajacion": "release",
+                    "decay": "decay", "tiempo": "time", "feedback": "feedback",
+                    "depth": "depth", "profundidad": "depth", "output": "output", "salida": "output"
+                }
+
+                parsed_json = {}
+                if "{" in user_input and "}" in user_input:
+                    try:
+                        j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
+                        parsed_json = json.loads(j_str)
+                    except Exception:
+                        pass
+
+                for p in eff.get("params", []):
+                    p_id = p["id"]
+                    if p_id in applied_params:
+                        continue
+                    p_clean = _normalize_text(p_id)
+                    p_alpha = _clean_key(p_id)
+                    val_found = None
+
+                    # 1. JSON
+                    for jk, jv in parsed_json.items():
+                        jk_clean = _normalize_text(str(jk))
+                        jk_alpha = _clean_key(str(jk))
+                        if (jk_clean == p_clean or jk_alpha == p_alpha or
+                            alias_map.get(jk_clean) == p_alpha or alias_map.get(jk_alpha) == p_alpha):
                             try:
-                                v = float(num_str)
-                                if unit_str == "%" or (v > 1.0 and str(p.get("range", "")).startswith("0.0") and v <= 100.0):
-                                    v = v / 100.0
-                                val_found = v
+                                val_found = float(jv)
                                 break
-                            except ValueError:
-                                pass
-    
-                # 3. Categorical / string matches (e.g. Mode, ColorMode, Type, Key, Scale)
-                if val_found is None and p_id == "Mode":
-                    from engine.sound_design.valhalla_supermassive.schema import ValhallaSupermassiveSchema
-                    from engine.sound_design.valhalla_vintage_verb.schema import ValhallaVintageVerbSchema
-                    all_modes = ValhallaVintageVerbSchema.MODES if "vintageverb" in eff_name.lower() else ValhallaSupermassiveSchema.MODE_NAMES
-                    # Check explicit "mode: <name>" first
-                    m_m = re.search(rf"(?:mode|modo)\s*[:=]?\s*([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", text, re.IGNORECASE)
-                    if m_m:
-                        candidate = m_m.group(1).strip()
-                        for mode_name in all_modes:
-                            if mode_name.lower() == candidate.lower():
-                                val_found = mode_name
+                            except (ValueError, TypeError):
+                                val_found = jv
                                 break
+
+                    # 2. Text regex
                     if val_found is None:
-                        for mode_name in all_modes:
-                            if re.search(rf"\b{re.escape(mode_name)}\b", text, re.IGNORECASE):
-                                val_found = mode_name
-                                break
-                elif val_found is None and p_id in ("ColorMode", "Color"):
-                    from engine.sound_design.valhalla_vintage_verb.sanitizer import ValhallaVintageVerbSanitizer
-                    m_c = re.search(rf"(?:color|colormode|era)\s*[:=]?\s*([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", text, re.IGNORECASE)
-                    if m_c:
-                        val_found = ValhallaVintageVerbSanitizer.resolve_color(m_c.group(1).strip())
-                elif val_found is None and (p_id in ("Key", "Scale") or "type" in p_id.lower()):
-                    str_pat = rf"{re.escape(p_clean)}\s*[:=]?\s*([a-zA-Z0-9_\-#]+)"
-                    m_str = re.search(str_pat, text, re.IGNORECASE)
-                    if m_str:
-                        val_found = m_str.group(1).strip()
+                        patterns = [
+                            rf"{re.escape(p_clean)}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?",
+                            rf"{re.escape(p_id.lower())}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?"
+                        ]
+                        for alias_key, target_key in alias_map.items():
+                            if target_key == p_alpha or target_key == p_clean:
+                                patterns.append(rf"{alias_key}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?")
 
-                # 4. Fallback a Arquetipo Calibrado de Rol de UltraAcousticCatalog (Piso Infranqueable de Calidad)
-                if val_found is None:
-                    eff_lower = eff_name.lower()
-                    if "glue" in eff_lower and arch_spec.glue_params and p_id in arch_spec.glue_params:
-                        val_found = arch_spec.glue_params[p_id]
-                    elif "buss" in eff_lower and arch_spec.drum_buss_params and p_id in arch_spec.drum_buss_params:
-                        val_found = arch_spec.drum_buss_params[p_id]
-                    elif "saturator" in eff_lower and arch_spec.saturator_params and p_id in arch_spec.saturator_params:
-                        val_found = arch_spec.saturator_params[p_id]
-                    elif "utility" in eff_lower and arch_spec.utility_params and p_id in arch_spec.utility_params:
-                        val_found = arch_spec.utility_params[p_id]
-                    elif "reverb" in eff_lower and arch_spec.reverb_params and p_id in arch_spec.reverb_params:
-                        val_found = arch_spec.reverb_params[p_id]
-                    elif is_eq:
-                        for b in arch_spec.eq_bands:
-                            if p_id == f"{b.band_index} Frequency A":
-                                val_found = hz_to_eq8_norm(b.freq_hz)
-                                break
-                            elif p_id == f"{b.band_index} Gain A":
-                                val_found = db_to_eq8_norm(b.gain_db)
-                                break
-                            elif p_id == f"{b.band_index} Filter Type":
-                                val_found = float(b.band_type)
-                                break
-                            elif p_id == f"Band {b.band_index} On":
-                                val_found = 1.0 if b.enabled else 0.0
-                                break
+                        for pat in patterns:
+                            match = re.search(pat, text)
+                            if match:
+                                num_str = match.group(1)
+                                unit_str = (match.group(2) or "").lower()
+                                try:
+                                    v = float(num_str)
+                                    if unit_str == "%" or (v > 1.0 and str(p.get("range", "")).startswith("0.0") and v <= 100.0):
+                                        v = v / 100.0
+                                    val_found = v
+                                    break
+                                except ValueError:
+                                    pass
 
-                if val_found is not None:
-                    applied_params[p_id] = val_found
-                else:
-                    if p_id == "Mode" and ("supermassive" in eff_name.lower() or "vintageverb" in eff_name.lower()):
-                        # Leave unset so intelligent mode selector can choose optimal mode
-                        pass
-                    elif p_id in ("ColorMode", "Color") and "vintageverb" in eff_name.lower():
-                        pass
-                    else:
-                        applied_params[p_id] = p["default"]
+                    # 3. Categorical matches
+                    if val_found is None and p_id == "Mode":
+                        from engine.sound_design.valhalla_supermassive.schema import ValhallaSupermassiveSchema
+                        from engine.sound_design.valhalla_vintage_verb.schema import ValhallaVintageVerbSchema
+                        all_modes = ValhallaVintageVerbSchema.MODES if "vintageverb" in eff_name.lower() else ValhallaSupermassiveSchema.MODE_NAMES
+                        m_m = re.search(rf"(?:mode|modo)\s*[:=]?\s*([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", text, re.IGNORECASE)
+                        if m_m:
+                            candidate = m_m.group(1).strip()
+                            for mode_name in all_modes:
+                                if mode_name.lower() == candidate.lower():
+                                    val_found = mode_name
+                                    break
+                        if val_found is None:
+                            for mode_name in all_modes:
+                                if re.search(rf"\b{re.escape(mode_name)}\b", text, re.IGNORECASE):
+                                    val_found = mode_name
+                                    break
+                    elif val_found is None and p_id in ("ColorMode", "Color"):
+                        from engine.sound_design.valhalla_vintage_verb.sanitizer import ValhallaVintageVerbSanitizer
+                        m_c = re.search(rf"(?:color|colormode|era)\s*[:=]?\s*([a-zA-Z0-9_\-\s]+?)(?:,|$|\n)", text, re.IGNORECASE)
+                        if m_c:
+                            val_found = ValhallaVintageVerbSanitizer.resolve_color(m_c.group(1).strip())
+                    elif val_found is None and (p_id in ("Key", "Scale") or "type" in p_id.lower()):
+                        str_pat = rf"{re.escape(p_clean)}\s*[:=]?\s*([a-zA-Z0-9_\-#]+)"
+                        m_str = re.search(str_pat, text, re.IGNORECASE)
+                        if m_str:
+                            val_found = m_str.group(1).strip()
+
+                    if val_found is not None:
+                        applied_params[p_id] = val_found
+                        params_calibrated_count += 1
+
+                # 4. Enforce deliberate decision requirement: block if no parameters provided
+                if params_calibrated_count == 0:
+                    TransactionGuard.rollback_transaction(conn, session)
+                    return self._build_calibration_required_payload(
+                        session=session,
+                        trk=trk,
+                        eff=eff,
+                        dev_ptr=dev_ptr,
+                        total_devices=len(fx_list),
+                        conn=conn,
+                        user_input=user_input
+                    )
+
+                # 5. Fill safe archetype values ONLY for remaining unmentioned secondary parameters
+                eff_lower = eff_name.lower()
+                for p in eff.get("params", []):
+                    p_id = p["id"]
+                    if p_id not in applied_params:
+                        val_default = None
+                        if "glue" in eff_lower and arch_spec.glue_params and p_id in arch_spec.glue_params:
+                            val_default = arch_spec.glue_params[p_id]
+                        elif "buss" in eff_lower and arch_spec.drum_buss_params and p_id in arch_spec.drum_buss_params:
+                            val_default = arch_spec.drum_buss_params[p_id]
+                        elif "saturator" in eff_lower and arch_spec.saturator_params and p_id in arch_spec.saturator_params:
+                            val_default = arch_spec.saturator_params[p_id]
+                        elif "utility" in eff_lower and arch_spec.utility_params and p_id in arch_spec.utility_params:
+                            val_default = arch_spec.utility_params[p_id]
+                        elif "reverb" in eff_lower and arch_spec.reverb_params and p_id in arch_spec.reverb_params:
+                            val_default = arch_spec.reverb_params[p_id]
+                        elif is_eq:
+                            for b in arch_spec.eq_bands:
+                                if p_id == f"{b.band_index} Frequency A":
+                                    val_default = hz_to_eq8_norm(b.freq_hz)
+                                    break
+                                elif p_id == f"{b.band_index} Gain A":
+                                    val_default = db_to_eq8_norm(b.gain_db)
+                                    break
+                                elif p_id == f"{b.band_index} Filter Type":
+                                    val_default = float(b.band_type)
+                                    break
+                                elif p_id == f"Band {b.band_index} On":
+                                    val_default = 1.0 if b.enabled else 0.0
+                                    break
+                        if val_default is not None:
+                            applied_params[p_id] = val_default
+                        elif p_id not in ("Mode", "ColorMode", "Color"):
+                            applied_params[p_id] = p.get("default", 0.5)
 
             # Specialized builder, 3-tier validation, serialization & clipboard injection
             if "supermassive" in eff_name.lower():
@@ -1071,18 +1121,21 @@ for p in d.parameters:
     
         if "insert_effects" not in trk:
             trk["insert_effects"] = []
+        dev_entry = {
+            "name": eff_name,
+            "device_index": dev_ptr + 1,
+            "bypass": is_bypass,
+            "bypassed": is_bypass,
+            "parameters": applied_params
+        }
         if dev_ptr < len(trk["insert_effects"]):
-            trk["insert_effects"][dev_ptr] = {
-                "name": eff_name,
-                "bypass": is_bypass,
-                "parameters": applied_params
-            }
+            trk["insert_effects"][dev_ptr] = dev_entry
         else:
-            trk["insert_effects"].append({
-                "name": eff_name,
-                "bypass": is_bypass,
-                "parameters": applied_params
-            })
+            trk["insert_effects"].append(dev_entry)
+
+        if "insert_effects" not in session.data or not isinstance(session.data["insert_effects"], dict):
+            session.data["insert_effects"] = {}
+        session.data["insert_effects"][trk.get("name", str(t_idx))] = trk["insert_effects"]
     
         # Register Governance Contract & Emit Receipt
         decision_type = DecisionType.REJECT if is_bypass else DecisionType.APPLY

@@ -2,7 +2,7 @@
 """
 Comprehensive tests verifying that all anti-token shortcut guards prevent AI laziness:
 1. Phase 4: Role-adaptive synthesis presets guarantee role-specific acoustics even if AI repeats 'Opción 1'.
-2. Phase 5: Cadena Express enables 1-turn full-rack configuration to prevent token fatigue.
+2. Phase 5: Cadena Express bulk shortcut is strictly rejected with EFFECT_CALIBRATION_REQUIRED to prevent token fatigue and force deliberate per-device sculpting.
 3. Phase 5: AntiBypassQuotaGuard blocks excessive bypasses (> 35% of non-EQ insert devices).
 4. Phase 8: Vocal ducking clamps bypass to -1.5 dB transparent ducking when active vocals exist.
 5. Phase 8: Dual LUFS Gate blocks Option 3 bypass when True Peak > 0.0 dBTP or LUFS deviation > 2.5 dB.
@@ -105,9 +105,14 @@ def test_phase_4_guided_session_applies_role_presets_and_records_history(tmp_pat
 
 
 # -------------------------------------------------------------------------
-# 2. PHASE 5: CADENA EXPRESS (BATCH CONFIGURATION)
+# 2. PHASE 5: CADENA EXPRESS REJECTION (STRICT ANTI-SHORTCUT GATE)
 # -------------------------------------------------------------------------
 def test_phase_5_cadena_express_configures_entire_track_in_one_turn(tmp_path):
+    """
+    R2: Prohibit bulk approval shortcuts.
+    Cadena Express must be rejected with STATUS: EFFECT_CALIBRATION_REQUIRED,
+    ensuring AI cannot bypass per-device parameter sculpting in a single turn.
+    """
     session = CopilotGuidedSession()
     session.reset()
     session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
@@ -136,18 +141,16 @@ def test_phase_5_cadena_express_configures_entire_track_in_one_turn(tmp_path):
     session.data["current_fx_dev_ptr"] = 0
     adapter = MockAdapter()
 
-    # AI sends "Cadena Express" instead of going device-by-device
+    # AI attempts "Cadena Express" bulk shortcut to configure entire track in one turn
     res = session.step(conn=adapter, user_input="Cadena Express completa")
-    assert res["status"] == "EXPRESS_CHAIN_CONFIGURED"
-    assert "Cadena express configurada" in res["action_taken"]
-    assert session.data["current_fx_track_ptr"] == 1
-    assert session.data["current_fx_dev_ptr"] == 0
 
-    # All 3 devices for Sub Bass are now configured with valid recipes
-    t0_fx = session.data["tracks"][0]["insert_effects"]
-    for fx in t0_fx:
-        assert fx.get("bypassed") is False
-        assert len(fx.get("parameters", {})) > 0
+    # Bulk shortcut MUST be rejected with EFFECT_CALIBRATION_REQUIRED
+    assert res["status"] == "EFFECT_CALIBRATION_REQUIRED", (
+        f"Cadena Express must be rejected with EFFECT_CALIBRATION_REQUIRED, got: {res.get('status')}"
+    )
+    assert session.data["current_fx_track_ptr"] == 0, "Track pointer must NOT advance on Cadena Express shortcut"
+    assert session.data["current_fx_dev_ptr"] == 0, "Device pointer must NOT advance on Cadena Express shortcut"
+    assert "bloqueo" in res["question"].lower() or "calibración" in res["question"].lower() or "prohíbe" in res.get("action_taken", "").lower()
 
 
 # -------------------------------------------------------------------------
