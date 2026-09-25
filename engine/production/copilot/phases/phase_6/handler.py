@@ -1192,6 +1192,9 @@ for trk in song.tracks:
             ]
 
         composed_summary = []
+        for t in tracks:
+            t["deployment_failed"] = False
+            t["deployment_error"] = None
         for trk in tracks:
             total_notes_trk = self.deploy_single_track_composition(session, conn, trk, custom_notes_map, sections)
             composed_summary.append(f"{trk['name']} ({total_notes_trk} notas en {len(sections)} secciones)")

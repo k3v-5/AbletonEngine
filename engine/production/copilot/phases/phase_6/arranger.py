@@ -238,6 +238,8 @@ if len(arr_clips) == 0:
             return vocal_sections_count
 
         # --- MIDI TRACK HANDLING ---
+        trk["deployment_failed"] = False
+        trk["deployment_error"] = None
         for s_idx, sec in enumerate(sections):
             s_name = sec.get("name", f"Section {s_idx + 1}")
             s_bars = int(sec.get("bars", 8))

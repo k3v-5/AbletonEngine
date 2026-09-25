@@ -583,15 +583,15 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
                 rec_eq = prof.get("recommended_eq", {})
                 if any(w in text for w in ["opcion 1", "opción 1", "recomendad", "default", "blueprint"]) or text.strip() == "1":
-                    applied_params["Band 1 On"] = 1.0
+                    applied_params["1 Filter On A"] = 1.0
                     applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
-                    applied_params["Band 2 On"] = 1.0
+                    applied_params["2 Filter On A"] = 1.0
                     applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
                     applied_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
-                    applied_params["Band 3 On"] = 1.0
+                    applied_params["3 Filter On A"] = 1.0
                     applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
                     applied_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
-                    applied_params["Band 4 On"] = 1.0
+                    applied_params["4 Filter On A"] = 1.0
                     applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
                     applied_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
                 else:
@@ -599,13 +599,13 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     m_b1 = re.search(r"(?:hpf|banda?\s*1|low\s*cut|corte)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b1:
                         f1 = float(m_b1.group(1))
-                        applied_params["Band 1 On"] = 1.0
+                        applied_params["1 Filter On A"] = 1.0
                         applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f1)
                     # Parse custom Band 2 Mud Cut
                     m_b2_f = re.search(r"(?:mud|barro|banda?\s*2)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b2_f:
                         f2 = float(m_b2_f.group(1))
-                        applied_params["Band 2 On"] = 1.0
+                        applied_params["2 Filter On A"] = 1.0
                         applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f2)
                     m_b2_g = re.search(r"(?:mud\s*gain|ganancia\s*barro|ganancia\s*banda\s*2|gain\s*2)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
                     if m_b2_g:
@@ -614,7 +614,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     m_b3_f = re.search(r"(?:presencia|presence|snap|banda?\s*3)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b3_f:
                         f3 = float(m_b3_f.group(1))
-                        applied_params["Band 3 On"] = 1.0
+                        applied_params["3 Filter On A"] = 1.0
                         applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f3)
                     m_b3_g = re.search(r"(?:presencia\s*gain|ganancia\s*presencia|gain\s*3)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
                     if m_b3_g:
@@ -623,7 +623,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     m_b4_f = re.search(r"(?:aire|air|shelf|banda?\s*4)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
                     if m_b4_f:
                         f4 = float(m_b4_f.group(1))
-                        applied_params["Band 4 On"] = 1.0
+                        applied_params["4 Filter On A"] = 1.0
                         applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f4)
                     m_b4_g = re.search(r"(?:air\s*gain|ganancia\s*aire|gain\s*4)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
                     if m_b4_g:
@@ -901,6 +901,14 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         dev_idx = len(after_devs) - 1 if after_devs else dev_ptr + 1
     
                     is_test_env = DeviceExecutionVerifier.check_is_test_env(conn, session)
+                    
+                    # Normalize parameters before setting to match LOM names
+                    normalized_params = {}
+                    for p_key, p_val in applied_params.items():
+                        resolved_k = DeviceExecutionVerifier.resolve_lom_parameter_name(eff_name, p_key)
+                        normalized_params[resolved_k] = p_val
+                    applied_params = normalized_params
+
                     for p_key, p_val in applied_params.items():
                         try:
                             conn.send_command("set_device_parameter", {

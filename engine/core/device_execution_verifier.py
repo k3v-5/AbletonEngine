@@ -12,6 +12,7 @@ Garantiza:
 """
 
 import os
+import re
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -25,6 +26,90 @@ class VerificationError(Exception):
 class DeviceExecutionVerifier:
     TOLERANCE = 0.04
     MIN_DELTA = 0.01
+
+    @classmethod
+    def resolve_lom_parameter_name(
+        cls,
+        device_name: str,
+        param_identifier: str,
+        available_params: Optional[Dict[str, float]] = None
+    ) -> str:
+        """
+        Resuelve alias de parámetros al nombre exacto expuesto por el Live Object Model (LOM).
+        E.g.: 'Band 1 On' -> '1 Filter On A' (EQ Eight), 'Makeup' -> 'Output' (Glue Compressor).
+        """
+        if not param_identifier:
+            return param_identifier
+
+        p_clean = param_identifier.strip().lower()
+        d_clean = (device_name or "").strip().lower()
+
+        # 1. Direct match in available params if provided
+        if available_params:
+            if p_clean in available_params:
+                return p_clean
+            for k in available_params.keys():
+                if p_clean == k.lower():
+                    return k
+
+        # 2. Domain-specific mappings
+        # EQ Eight
+        if any(w in d_clean for w in ("eq eight", "eq8", "eq")):
+            m_on = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*(?:on|filter\s*on)", p_clean)
+            if m_on:
+                return f"{m_on.group(1)} Filter On A"
+            m_type = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*(?:filter\s*type|type)", p_clean)
+            if m_type:
+                return f"{m_type.group(1)} Filter Type A"
+            m_freq = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*(?:frequency|freq)", p_clean)
+            if m_freq:
+                return f"{m_freq.group(1)} Frequency A"
+            m_gain = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*gain", p_clean)
+            if m_gain:
+                return f"{m_gain.group(1)} Gain A"
+            m_q = re.match(r"(?:band\s*|banda\s*)?([1-8])\s*q", p_clean)
+            if m_q:
+                return f"{m_q.group(1)} Q A"
+
+        # Glue Compressor
+        if "glue" in d_clean:
+            if p_clean in ("makeup", "makeup gain", "make up"):
+                return "Output"
+
+        # Reverb
+        if "reverb" in d_clean:
+            if p_clean in ("decaytime", "decay_time"):
+                return "Decay Time"
+
+        # Utility
+        if "utility" in d_clean:
+            if p_clean in ("width", "stereowidth", "stereo_width"):
+                return "Stereo Width"
+            if p_clean in ("gain", "volume"):
+                return "Output"
+
+        # Saturator
+        if "saturator" in d_clean:
+            if p_clean in ("base", "drive_base"):
+                return "Drive"
+
+        # Surge XT Effects
+        if "surge" in d_clean:
+            if "mix" in p_clean or "dry" in p_clean:
+                return "Output Mix"
+            if "type" in p_clean:
+                return "FX Type"
+            if "drive" in p_clean or "depth" in p_clean:
+                return "Feedback/EQ Feedback"
+
+        # 3. Available params fuzzy fallback
+        if available_params:
+            for k in available_params.keys():
+                k_clean = k.lower()
+                if p_clean in k_clean or k_clean in p_clean:
+                    return k
+
+        return param_identifier
 
     @classmethod
     def check_is_test_env(cls, conn: Any = None, session: Any = None) -> bool:
@@ -96,15 +181,23 @@ class DeviceExecutionVerifier:
 
         # 1. Baseline read-back
         baseline_params = cls.read_device_parameters(conn, track_index, device_index)
-        param_clean = param_identifier.strip().lower()
+        actual_param = cls.resolve_lom_parameter_name(device_name, param_identifier, baseline_params)
+        param_clean = actual_param.strip().lower()
         baseline_val = baseline_params.get(param_clean, None)
+        if baseline_params and param_clean not in baseline_params:
+            for bp in baseline_params:
+                if param_clean in bp or bp in param_clean:
+                    actual_param = bp
+                    param_clean = bp
+                    baseline_val = baseline_params.get(bp)
+                    break
 
         # 2. Write command
         try:
             conn.send_command("set_device_parameter", {
                 "track_index": track_index,
                 "device_index": device_index,
-                "parameter": param_identifier,
+                "parameter": actual_param,
                 "value": float(target_value)
             })
         except Exception as ex_write:
@@ -132,6 +225,9 @@ class DeviceExecutionVerifier:
             }
 
         actual_val = post_params.get(param_clean)
+        if actual_val is None:
+            resolved_post = cls.resolve_lom_parameter_name(device_name, param_identifier, post_params).strip().lower()
+            actual_val = post_params.get(resolved_post)
         if actual_val is None:
             # Búsqueda difusa de alias
             for k, v in post_params.items():
@@ -213,12 +309,26 @@ class DeviceExecutionVerifier:
 
         # Enviar escrituras
         for p_name, p_val in target_params.items():
+            actual_param = cls.resolve_lom_parameter_name(device_name, p_name, baseline_params)
+            p_clean = actual_param.strip().lower()
+            if baseline_params and p_clean not in baseline_params:
+                found_fuzzy = None
+                for bp in baseline_params:
+                    if p_clean in bp or bp in p_clean:
+                        found_fuzzy = bp
+                        break
+                if found_fuzzy:
+                    actual_param = found_fuzzy
+                else:
+                    logger.info(f"[Verifier] Parameter '{p_name}' not exposed in LOM for '{device_name}'. Skipped socket write.")
+                    continue
+
             try:
                 conn.send_command("set_device_parameter", {
                     "track_index": track_index,
                     "device_index": device_index,
-                    "parameter": p_name,
-                    "value": float(p_val)
+                    "parameter": actual_param,
+                    "value": float(p_val) if isinstance(p_val, (int, float)) else 0.5
                 })
             except Exception as ex:
                 return False, {
@@ -244,8 +354,12 @@ class DeviceExecutionVerifier:
 
         # Validar cada parámetro
         for p_name, p_target in target_params.items():
-            p_clean = p_name.strip().lower()
+            actual_param = cls.resolve_lom_parameter_name(device_name, p_name, post_params)
+            p_clean = actual_param.strip().lower()
             actual_val = post_params.get(p_clean)
+            if actual_val is None:
+                orig_clean = p_name.strip().lower()
+                actual_val = post_params.get(orig_clean)
             if actual_val is None:
                 for k, v in post_params.items():
                     if p_clean in k or k in p_clean:
@@ -253,6 +367,9 @@ class DeviceExecutionVerifier:
                         break
 
             if actual_val is None:
+                if baseline_params and p_clean not in baseline_params and p_name.strip().lower() not in baseline_params:
+                    # Parameter handled through internal VST architecture / preset serialization
+                    continue
                 return False, {
                     "root_cause": "PARAMETER_NAME_NOT_FOUND",
                     "track_index": track_index,

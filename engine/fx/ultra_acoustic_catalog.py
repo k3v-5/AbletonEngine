@@ -109,7 +109,7 @@ ULTRA_ACOUSTIC_CATALOG["KICK"] = {
     AcousticArchetype.PUNCHY: _build_archetype(
         "KICK", AcousticArchetype.PUNCHY, "Bombo moderno con pegada en el pecho y clic de batidor afilado.",
         [(1, 1, 30.0, 0.0, 0.71), (2, 3, 65.0, 3.5, 1.8), (3, 3, 320.0, -4.0, 2.5), (4, 3, 3200.0, 2.5, 2.0)],
-        glue={"Attack": ms_to_glue_attack(30.0), "Release": sec_to_glue_release(0.1), "Ratio": 1.0, "Threshold": 0.65},
+        glue={"Attack": ms_to_glue_attack(30.0), "Release": sec_to_glue_release(0.1), "Ratio": 1.0, "Threshold": -14.0},
         drumbuss={"Drive": 0.18, "Transients": 0.68, "Boom": 0.20},
         util={"Bass Mono": 1.0, "Bass Freq": 130.0, "Width": 0.0}
     ),
