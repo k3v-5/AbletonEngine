@@ -1,4 +1,6 @@
 # tests/test_dedicated_plugin_configurator.py
+import json
+from pathlib import Path
 import pytest
 from unittest.mock import MagicMock
 from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
@@ -120,6 +122,34 @@ def test_configure_instrument_vital_with_ai_modeling_and_limits():
     assert trk.get("is_vital") is True
     # Engine limits: Bass stereo width must be strictly mono
     assert trk["timbre_dna"]["stereo_width"] <= 0.10
+
+
+def test_configure_instrument_vital_ai_decides_custom_sound_design():
+    session = DummySession([], bpm=160.0)
+    trk = {"name": "Hyper Lead", "role": "LEAD", "instrument": "Vital", "index": 2}
+
+    # The AI DECIDES how the sound will be heard (custom natural language design)
+    ai_design = (
+        "Quiero un lead vocal formante super brillante (0.90), con punch láser agresivo (0.95), "
+        "saturación analógica cálida (0.60) y apertura estéreo supersaw amplia para cortar en el drop"
+    )
+    res = DedicatedPluginConfigurator.configure_instrument(trk, session, ai_input=ai_design)
+    assert res["status"] == "CONFIGURED"
+    assert trk["sculpted"] is True
+
+    # The AI's decisions are materialized in the sound
+    assert trk["timbre_dna"]["brightness"] >= 0.85
+    assert trk["timbre_dna"]["transient_strength"] >= 0.90
+    assert trk["timbre_dna"]["stereo_width"] >= 0.80
+
+    # The compiled .vital preset physically exists on disk and has content
+    preset_p = Path(trk["vital_preset_path"])
+    assert preset_p.exists()
+    preset_data = json.loads(preset_p.read_text(encoding="utf-8"))
+    assert "settings" in preset_data
+    # Invariant checks: volume safe, filter cutoff safe
+    assert preset_data["settings"]["volume"] >= 0.65
+    assert preset_data["settings"]["filter_1_cutoff"] >= 18.0
 
 
 def test_configure_instrument_surge_xt_with_ai_modeling():

@@ -119,25 +119,32 @@ class DedicatedPluginConfigurator:
             def_archetype = "LEAD_SAW"
 
         question = (
-            f"🎛️ **Paso 4 de 7: Modelado de Síntesis en Vital (Pista {ptr + 1} de {total_tracks})**\n\n"
+            f"🎨 **Paso 4 de 7: Diseño y Modelado de Síntesis en Vital (Pista {ptr + 1} de {total_tracks})**\n\n"
             f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, BPM: {bpm})\n"
             f"Sintetizador: **Vital Audio Vital**\n"
-            f"Submódulo: `VitalSoundEngine & ArchetypeCatalog` (con Invariantes 1-8 Anti-Silencio y LFO Integrity).\n\n"
-            f"**Opciones de Modelado por Arquetipo:**\n"
+            f"Submódulo: `VitalSoundEngine & VitalSoundSculptor` (con compilador de tablas de onda y validación Invariantes 1-8).\n\n"
+            f"🧠 **Control Total del Diseño Sonoro por la IA:**\n"
+            f"La IA productora es quien decide la identidad, energía y color del sonido:\n"
+            f"• **Tablas de Onda / Generadores:** `BASIC_SHAPES`, `FM` (metálico/growl), `VOCAL` (formantes vocálicos), `ANALOG` (supersaw/moog).\n"
+            f"• **Envolvente & Pegada:** `punch` (transiente láser en Macro 1), `attack` (percusivo 0.005s vs swell atmosférico), `decay_sustain` (pluck corto vs sustain para sidechain).\n"
+            f"• **Carácter & Textura:** `brightness` (corte y aire analógico), `warmth_drive` (saturación cálida centrada en 830 Hz), `movement` (LFO rítmico).\n"
+            f"• **Espacio & Dimensión:** `space_dimension` (reverb dimensional), `stereo_width` (supersaw 7-voces JP-8000 o centrado mono).\n\n"
+            f"📋 **Puntos de Partida / Arquetipos de Referencia:**\n"
             f"• {opt1}\n"
             f"• {opt2}\n"
             f"• {opt3}\n\n"
-            f"🧠 **Modelado Requerido por la IA:**\n"
-            f"La IA debe modelar el sonido definiendo la intención acústica. El motor se encarga de aplicar los límites de seguridad "
-            f"(anti-silence, sub-bass mono 20-70Hz limpio, vectorización de LFO y rango pre-fader a -14 dBFS).\n\n"
-            f"*Responde con 'Opción 1', 'Opción 2' o 'Opción 3', o escribe tus directivas de diseño sonoro "
-            f"(ej: 'arquetipo: {def_archetype}, directivas: brightness 0.75, punch 0.85, warmth_drive 0.40').*"
+            f"🛡️ **Supervisión del Motor (Límites Acústicos):**\n"
+            f"El motor traduce tu diseño sonoro, compila físicamente las tablas de onda y aplica las salvaguardas obligatorias: "
+            f"subgrave mono 20-70Hz limpio, anti-silencio y calibración de nivel pre-fader a -14 dBFS.\n\n"
+            f"*Diseña libremente el sonido con tus especificaciones o directivas "
+            f"(ej: 'Quiero un lead supersaw brillante con tabla vocal, punch agresivo y apertura estéreo') "
+            f"o elige una opción de referencia (ej: 'Opción 1').*"
         )
         return {
-            "current_step": f"PASO 4 DE 7: MODELADO DE SÍNTESIS EN VITAL (PISTA {ptr + 1} DE {total_tracks})",
-            "action_taken": f"Vital cargado en Pista {t_idx} ('{t_name}'). Iniciando fase de modelado acústico mediante VitalSoundEngine.",
+            "current_step": f"PASO 4 DE 7: DISEÑO DE SÍNTESIS EN VITAL (PISTA {ptr + 1} DE {total_tracks})",
+            "action_taken": f"Vital cargado en Pista {t_idx} ('{t_name}'). Lienzo de diseño sonoro abierto para la IA.",
             "question": question,
-            "instructions_for_ai": f"Modela el sonido de Vital para {t_name} seleccionando una opción o enviando tus directivas tímbricas.",
+            "instructions_for_ai": f"Diseña cómo debe sonar Vital para {t_name} según la visión del tema y su rol {role}.",
             "target_track": t_idx,
             "role": role,
             "instrument": "Vital",
@@ -618,6 +625,152 @@ class DedicatedPluginConfigurator:
         }
 
     @classmethod
+    def _extract_vital_sound_design(cls, ai_text: str, role: str, trk_name: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        Translates AI creative sound design specifications (natural language, descriptive,
+        or JSON) into an archetype anchor and continuous timbral dimensions for VitalSoundSculptor.
+        """
+        is_bass = role == "BASS" or any(w in trk_name.lower() or w in ai_text for w in ["808", "sub", "bass"])
+
+        directives = {
+            "brightness": 0.65,
+            "warmth_drive": 0.35,
+            "punch": 0.65,
+            "decay_sustain": 0.60,
+            "space_dimension": 0.15 if is_bass else 0.45,
+            "stereo_width": 0.0 if is_bass else 0.70,
+            "movement": 0.30,
+            "is_bass": is_bass
+        }
+
+        # Quick options shorthand
+        if "opcion 1" in ai_text or "opción 1" in ai_text:
+            if is_bass:
+                return "BASS_808", {"brightness": 0.40, "punch": 0.90, "warmth_drive": 0.70, "is_bass": True}
+            elif role == "LEAD":
+                return "LEAD_SAW", {"brightness": 0.85, "punch": 0.80, "warmth_drive": 0.20}
+            elif role == "PAD":
+                return "PAD_LUSH", {"attack": 1.8, "space_dimension": 0.85, "stereo_width": 0.90, "brightness": 0.65}
+            elif role in ("KEYS", "CHORDS"):
+                return "CHORD_SUPERAW", {"brightness": 0.80, "stereo_width": 0.60, "movement": 0.40}
+            else:
+                return "LEAD_SAW", {"brightness": 0.70, "punch": 0.80}
+
+        elif "opcion 2" in ai_text or "opción 2" in ai_text:
+            if is_bass:
+                return "BASS_SUB", {"brightness": 0.25, "punch": 0.70, "warmth_drive": 0.15, "is_bass": True}
+            elif role == "LEAD":
+                return "LEAD_PLUCK", {"brightness": 0.75, "decay_sustain": 0.1, "punch": 0.85}
+            elif role == "PAD":
+                return "PAD_ORGANIC", {"attack": 1.0, "warmth_drive": 0.75, "brightness": 0.45}
+            elif role in ("KEYS", "CHORDS"):
+                return "KEYS_HYBRID", {"warmth_drive": 0.80, "decay_sustain": 0.4, "brightness": 0.55}
+            else:
+                return "LEAD_SAW", {"brightness": 0.80, "stereo_width": 0.75}
+
+        elif "opcion 3" in ai_text or "opción 3" in ai_text:
+            if is_bass:
+                return "BASS_PUNCH", {"warmth_drive": 0.50, "punch": 0.85, "movement": 0.60, "is_bass": True}
+            elif role == "LEAD":
+                return "LEAD_SAW", {"custom_wavetable": "VOCAL", "movement": 0.55, "brightness": 0.70}
+            elif role == "PAD":
+                return "PAD_LUSH", {"brightness": 0.40, "movement": 0.70, "space_dimension": 0.80}
+            elif role in ("KEYS", "CHORDS"):
+                return "CHORD_SUPERAW", {"brightness": 0.65, "punch": 0.80, "decay_sustain": 0.2}
+            else:
+                return "LEAD_SAW", {"punch": 0.85, "warmth_drive": 0.70}
+
+        # 1. Check for JSON payload inside response
+        json_match = re.search(r"\{[^{}]*\}", ai_text)
+        if json_match:
+            try:
+                parsed_json = json.loads(json_match.group(0))
+                for k, v in parsed_json.items():
+                    k_low = k.lower().replace("-", "_")
+                    if k_low in directives:
+                        directives[k_low] = float(v)
+                    elif k_low in ("wavetable", "custom_wavetable"):
+                        directives["custom_wavetable"] = str(v).upper()
+                    elif k_low in ("attack", "decay", "sustain", "release"):
+                        directives[k_low] = float(v)
+            except Exception:
+                pass
+
+        # 2. Extract Wavetable Preference
+        if any(w in ai_text for w in ["vocal", "formant", "vocalic", "voz", "formante"]):
+            directives["custom_wavetable"] = "VOCAL"
+        elif any(w in ai_text for w in ["fm", "metal", "metallic", "growl"]):
+            directives["custom_wavetable"] = "FM"
+        elif any(w in ai_text for w in ["analog", "moog", "supersaw", "square"]):
+            directives["custom_wavetable"] = "ANALOG"
+        elif any(w in ai_text for w in ["basic", "sine", "pure", "subliminal", "senoidal"]):
+            directives["custom_wavetable"] = "BASIC_SHAPES"
+
+        # 3. Extract Timbral Dimensions from natural language descriptors
+        if any(w in ai_text for w in ["brillante", "piercing", "aire", "agudo", "cristalino"]):
+            directives["brightness"] = max(directives["brightness"], 0.85)
+        elif any(w in ai_text for w in ["oscuro", "dark", "mellow", "profundo"]):
+            directives["brightness"] = min(directives["brightness"], 0.35)
+
+        if any(w in ai_text for w in ["saturado", "distorsión", "distorsion", "drive", "agresivo", "crunch"]):
+            directives["warmth_drive"] = max(directives["warmth_drive"], 0.75)
+        elif any(w in ai_text for w in ["cálido", "calido", "analógico", "tape", "redondo"]):
+            directives["warmth_drive"] = max(directives["warmth_drive"], 0.50)
+        elif any(w in ai_text for w in ["limpio", "clean", "puro"]):
+            directives["warmth_drive"] = min(directives["warmth_drive"], 0.15)
+
+        if any(w in ai_text for w in ["punch", "pegada", "click", "laser", "snappy", "percusivo"]):
+            directives["punch"] = max(directives["punch"], 0.90)
+            directives["attack"] = 0.005
+        elif any(w in ai_text for w in ["suave", "crescendo", "lento", "slow", "swell"]):
+            directives["punch"] = min(directives["punch"], 0.20)
+            directives["attack"] = 1.20
+
+        if any(w in ai_text for w in ["pluck", "corto", "staccato", "tight"]):
+            directives["decay_sustain"] = 0.15
+            directives["sustain"] = 0.0
+        elif any(w in ai_text for w in ["sostenido", "sustained", "largo", "sidechain", "pump"]):
+            directives["decay_sustain"] = 0.90
+            directives["sustain"] = 1.0
+
+        if any(w in ai_text for w in ["movimiento", "lfo", "modulado", "modulacion", "rítmico", "ritmico"]):
+            directives["movement"] = max(directives["movement"], 0.70)
+
+        if any(w in ai_text for w in ["espacial", "atmosférico", "atmosferico", "reverb", "lush"]) and not is_bass:
+            directives["space_dimension"] = max(directives["space_dimension"], 0.80)
+
+        if any(w in ai_text for w in ["ancho", "wide", "stereo", "supersaw"]) and not is_bass:
+            directives["stereo_width"] = max(directives["stereo_width"], 0.85)
+
+        # 4. Numeric regex scanning
+        for key in ["brightness", "warmth_drive", "punch", "decay_sustain", "space_dimension", "stereo_width", "movement", "attack", "decay"]:
+            m = re.search(rf"{key}\D*([0-9]+(?:\.[0-9]+)?)", ai_text)
+            if m:
+                directives[key] = float(m.group(1))
+
+        # 5. Determine base archetype
+        if is_bass:
+            if "808" in ai_text or directives.get("warmth_drive", 0) > 0.6 or "saturado" in ai_text:
+                archetype = "BASS_808"
+            elif "reese" in ai_text or "punch" in ai_text or directives.get("movement", 0) > 0.5:
+                archetype = "BASS_PUNCH"
+            else:
+                archetype = "BASS_SUB"
+        elif role in ("PAD", "STRINGS", "TEXTURE"):
+            archetype = "PAD_ORGANIC" if directives.get("warmth_drive", 0) > 0.4 else "PAD_LUSH"
+        elif role in ("KEYS", "CHORDS", "PIANO"):
+            archetype = "CHORD_SUPERAW" if directives.get("stereo_width", 0) > 0.5 else "KEYS_HYBRID"
+        elif role in ("LEAD", "COUNTER_LEAD"):
+            if directives.get("decay_sustain", 0) < 0.3 or directives.get("punch", 0) > 0.85:
+                archetype = "LEAD_PLUCK"
+            else:
+                archetype = "LEAD_SAW"
+        else:
+            archetype = "LEAD_SAW"
+
+        return archetype, directives
+
+    @classmethod
     def _configure_vital(
         cls,
         trk: Dict[str, Any],
@@ -637,77 +790,9 @@ class DedicatedPluginConfigurator:
         vital_engine = VitalSoundEngine()
         ai_text = str(ai_input or "").lower()
 
-        # Parse AI intent into archetype and timbral directives
-        is_bass = role == "BASS"
-        if "opcion 1" in ai_text or "opción 1" in ai_text:
-            if is_bass:
-                v_role = "BASS_808"
-                directives = {"brightness": 0.40, "punch": 0.90, "warmth_drive": 0.70, "is_bass": True}
-            elif role == "LEAD":
-                v_role = "LEAD_SAW"
-                directives = {"brightness": 0.85, "punch": 0.80, "warmth_drive": 0.20}
-            elif role == "PAD":
-                v_role = "PAD_LUSH"
-                directives = {"attack": 1.8, "space_dimension": 0.85, "stereo_width": 0.90, "brightness": 0.65}
-            elif role in ("KEYS", "CHORDS"):
-                v_role = "CHORD_SUPERAW"
-                directives = {"brightness": 0.80, "stereo_width": 0.60, "movement": 0.40}
-            else:
-                v_role = "LEAD_SAW"
-                directives = {"brightness": 0.70, "punch": 0.80}
-        elif "opcion 2" in ai_text or "opción 2" in ai_text:
-            if is_bass:
-                v_role = "BASS_SUB"
-                directives = {"brightness": 0.25, "punch": 0.70, "warmth_drive": 0.15, "is_bass": True}
-            elif role == "LEAD":
-                v_role = "LEAD_PLUCK"
-                directives = {"brightness": 0.75, "decay_sustain": 0.1, "punch": 0.85}
-            elif role == "PAD":
-                v_role = "PAD_ORGANIC"
-                directives = {"attack": 1.0, "warmth_drive": 0.75, "brightness": 0.45}
-            elif role in ("KEYS", "CHORDS"):
-                v_role = "KEYS_HYBRID"
-                directives = {"warmth_drive": 0.80, "decay_sustain": 0.4, "brightness": 0.55}
-            else:
-                v_role = "LEAD_SAW"
-                directives = {"brightness": 0.80, "stereo_width": 0.75}
-        elif "opcion 3" in ai_text or "opción 3" in ai_text:
-            if is_bass:
-                v_role = "BASS_PUNCH"
-                directives = {"warmth_drive": 0.50, "punch": 0.85, "movement": 0.60, "is_bass": True}
-            elif role == "LEAD":
-                v_role = "LEAD_SAW"
-                directives = {"custom_wavetable": "VOCAL", "movement": 0.55, "brightness": 0.70}
-            elif role == "PAD":
-                v_role = "PAD_LUSH"
-                directives = {"brightness": 0.40, "movement": 0.70, "space_dimension": 0.80}
-            elif role in ("KEYS", "CHORDS"):
-                v_role = "CHORD_SUPERAW"
-                directives = {"brightness": 0.65, "punch": 0.80, "decay_sustain": 0.2}
-            else:
-                v_role = "LEAD_SAW"
-                directives = {"punch": 0.85, "warmth_drive": 0.70}
-        else:
-            # Custom directives from natural language / JSON
-            vital_role_map = {
-                "BASS": "BASS_808" if "808" in str(trk.get("name", "")).lower() else "BASS_SUB",
-                "808_BASS": "BASS_808",
-                "LEAD": "LEAD_SAW",
-                "COUNTER_LEAD": "LEAD_PLUCK",
-                "PAD": "PAD_LUSH",
-                "STRINGS": "PAD_ORGANIC",
-                "KEYS": "CHORD_SUPERAW",
-            }
-            v_role = vital_role_map.get(role, "LEAD_SAW")
-            directives = {"brightness": 0.70, "punch": 0.80, "warmth_drive": 0.25}
-            if is_bass:
-                directives["is_bass"] = True
-
-            # Extract any numeric directives in input
-            for key in ["brightness", "punch", "warmth_drive", "movement", "space_dimension", "stereo_width", "attack", "decay"]:
-                m = re.search(rf"{key}\D*(\d+\.?\d*)", ai_text)
-                if m:
-                    directives[key] = float(m.group(1))
+        # Deep semantic extraction of the AI's sound design intent
+        v_role, directives = cls._extract_vital_sound_design(ai_text, role, trk.get("name", ""))
+        is_bass = directives.get("is_bass", False)
 
         patch_name = f"Vital_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
 
