@@ -230,9 +230,9 @@ htmlcov/
 state/snapshots/
 state/transactions/
 state/events/
-
 state/production/
 state/test/
+state/ledger/
 state/*.json
 exports/
 *.asd
@@ -240,3 +240,4 @@ cache/
 scratch/
 temp_*.json
 temp_slices/
+.agents/

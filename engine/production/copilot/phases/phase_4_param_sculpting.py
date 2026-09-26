@@ -237,6 +237,22 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
     def _prompt_current_track_params(self, session: Any) -> Dict[str, Any]:
         tracks = session.data.get("tracks", [])
         ptr = session.data.get("current_param_ptr", 0)
+        conn = getattr(session, "_conn", None)
+
+        from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
+
+        # Skip parameter questions for dedicated sound design instruments
+        while ptr < len(tracks):
+            cur_trk = tracks[ptr]
+            c_inst = str(cur_trk.get("instrument", ""))
+            if DedicatedPluginConfigurator.is_dedicated_instrument(c_inst):
+                res_c = DedicatedPluginConfigurator.configure_instrument(cur_trk, session, conn)
+                logger.info(f"Autonomous dedicated configuration for {c_inst} on track {ptr}: {res_c.get('action_taken')}")
+                ptr += 1
+                session.data["current_param_ptr"] = ptr
+                session._save_state()
+            else:
+                break
     
         if ptr >= len(tracks):
             session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
@@ -372,6 +388,16 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
         inst = trk.get("instrument", "")
         text = _normalize_text(user_input)
         is_audio = trk.get("is_audio", False) or role == "VOCALS"
+
+        from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
+        if DedicatedPluginConfigurator.is_dedicated_instrument(inst):
+            res_d = DedicatedPluginConfigurator.configure_instrument(trk, session, conn)
+            session.data["current_param_ptr"] = ptr + 1
+            session._save_state()
+            next_p = self._prompt_current_track_params(session)
+            if res_d.get("action_taken"):
+                next_p["action_taken"] = res_d.get("action_taken")
+            return next_p
     
         # Direct Gain Staging for Audio / Vocal tracks (bypass synth oscillator sculpting)
         if is_audio and not trk.get("chopping_mode"):

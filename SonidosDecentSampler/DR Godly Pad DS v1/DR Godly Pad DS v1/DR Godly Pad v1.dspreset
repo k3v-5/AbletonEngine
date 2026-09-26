@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DecentSampler minVersion="1.6.11">
+  <ui bgImage="Images/GodlyPadBK.jpg" width="812" height="375" layoutMode="relative"
+      bgMode="top_left">
+    <tab name="main">
+      <labeled-knob x="291" y="48" width="112" label="Pad Volume" type="float" minValue="0" maxValue="1" textColor="FFF9F9F9" trackForegroundColor="FF7CD2CE" trackBackgroundColor="668A8A8A" value="0.6">
+        <binding type="amp" level="group" position="0" parameter="AMP_VOLUME" translation="linear" translationOutputMin="0" translationOutputMax="1.0"  />
+      </labeled-knob>
+      <labeled-knob x="412" y="48" width="112" label="Celestial Volume" type="float" minValue="0" maxValue="1" textColor="FFF9F9F9" trackForegroundColor="FF7CD2CE" trackBackgroundColor="668A8A8A" value="0.35">
+        <binding type="amp" level="group" position="1" parameter="AMP_VOLUME" translation="linear" translationOutputMin="0" translationOutputMax="1.0"  />
+      </labeled-knob>
+      <labeled-knob x="116" y="22" width="80" textSize="16" textColor="FFF9F9F9" 
+                    trackForegroundColor="FF7CD2CE" trackBackgroundColor="668A8A8A" 
+                    label="Attack" type="float" minValue="0.0" maxValue="2.0" value="0.42" >
+        <binding type="amp" level="instrument" position="0" parameter="ENV_ATTACK" />
+      </labeled-knob>
+      <labeled-knob x="116" y="118" width="80" textSize="16" textColor="FFF9F9F9" 
+                    trackForegroundColor="FF7CD2CE" trackBackgroundColor="668A8A8A" 
+                    label="Release" type="float" minValue="0.0" maxValue="8.0" value="1.7" >
+        <binding type="amp" level="instrument" position="0" parameter="ENV_RELEASE" />
+      </labeled-knob>
+      <labeled-knob x="618" y="22" width="80" textSize="16" textColor="FFF9F9F9"
+                    trackForegroundColor="FF7CD2CE" trackBackgroundColor="668A8A8A"
+                    label="Lowpass" type="float" minValue="0" maxValue="1" value="1">
+        <binding type="effect" level="instrument" position="0" parameter="FX_FILTER_FREQUENCY"
+                 translation="table" 
+                 translationTable="0,33;0.3,150;0.4,450;0.5,1100;0.7,4100;0.9,11000;1.0001,22000"/>
+      </labeled-knob>
+      <labeled-knob x="618" y="118" width="80" textSize="16" textColor="FFF9F9F9" 
+                    trackForegroundColor="FF7CD2CE" trackBackgroundColor="668A8A8A" 
+                    label="Post Reverb" type="percent" minValue="0" maxValue="100" 
+                    textColor="FFD1D1D1" value="0">
+        <binding type="effect" level="instrument" position="1" 
+                 parameter="FX_REVERB_WET_LEVEL" translation="linear" 
+                 translationOutputMin="0" translationOutputMax="1" />
+      </labeled-knob>
+    </tab>
+    <keyboard>
+            <color loNote="36" hiNote="120" color="FF7CD2CE" />
+        </keyboard>
+  </ui>
+  <groups attack="0.420" decay="8000" sustain="1.0" release="1.7" volume="3
+    aadB">
+    <group name="DRY1" seqMode="always" seqPosition="1">
+      <sample loNote="36" hiNote="36" rootNote="36" path="Samples/GP C1.wav"
+              length="600000"/>
+      <sample loNote="37" hiNote="39" rootNote="39" path="Samples/GP D#1.wav"
+              length="600000"/>
+      <sample loNote="40" hiNote="42" rootNote="42" path="Samples/GP F#1.wav"
+              length="600000"/>
+      <sample loNote="43" hiNote="45" rootNote="45" path="Samples/GP A1.wav"
+              length="600000"/>
+      <sample loNote="46" hiNote="48" rootNote="48" path="Samples/GP C2.wav"
+              length="600000"/>
+      <sample loNote="49" hiNote="51" rootNote="51" path="Samples/GP D#2.wav"
+              length="600000"/>
+      <sample loNote="52" hiNote="54" rootNote="54" path="Samples/GP F#2.wav"
+              length="600000"/>
+      <sample loNote="55" hiNote="57" rootNote="57" path="Samples/GP A2.wav"
+              length="600000"/>
+      <sample loNote="58" hiNote="60" rootNote="60" path="Samples/GP C3.wav"
+              length="600000"/>
+      <sample loNote="61" hiNote="63" rootNote="63" path="Samples/GP D#3.wav"
+              length="600000"/>
+      <sample loNote="64" hiNote="66" rootNote="66" path="Samples/GP F#3.wav"
+              length="600000"/>
+      <sample loNote="67" hiNote="69" rootNote="69" path="Samples/GP A3.wav"
+              length="600000"/>
+      <sample loNote="70" hiNote="72" rootNote="72" path="Samples/GP C4.wav"
+              length="600000"/>
+      <sample loNote="73" hiNote="75" rootNote="75" path="Samples/GP D#4.wav"
+              length="600000"/>
+      <sample loNote="76" hiNote="78" rootNote="78" path="Samples/GP F#4.wav"
+              length="600000"/>
+      <sample loNote="79" hiNote="81" rootNote="81" path="Samples/GP A4.wav"
+              length="600000"/>
+      <sample loNote="82" hiNote="84" rootNote="84" path="Samples/GP C5.wav"
+              length="600000"/>
+      <sample loNote="85" hiNote="87" rootNote="87" path="Samples/GP D#5.wav"
+              length="600000"/>
+      <sample loNote="88" hiNote="90" rootNote="90" path="Samples/GP F#5.wav"
+              length="600000"/>
+      <sample loNote="91" hiNote="93" rootNote="93" path="Samples/GP A5.wav"
+              length="600000"/>
+      <sample loNote="94" hiNote="96" rootNote="96" path="Samples/GP C6.wav"
+              length="600000"/>
+      <sample loNote="97" hiNote="99" rootNote="99" path="Samples/GP D#6.wav"
+              length="600000"/>
+      <sample loNote="100" hiNote="102" rootNote="102" path="Samples/GP F#6.wav"
+              length="600000"/>
+      <sample loNote="103" hiNote="105" rootNote="105" path="Samples/GP A6.wav"
+              length="600000"/>
+      <sample loNote="106" hiNote="120" rootNote="108" path="Samples/GP C7.wav"
+              length="600000"/>
+    </group>
+    <group name="VERB1" seqMode="always" seqPosition="1">
+      <sample loNote="36" hiNote="36" rootNote="36" path="Samples/GPCV C1.wav"
+              length="600000"/>
+      <sample loNote="37" hiNote="39" rootNote="39" path="Samples/GPCV D#1.wav"
+              length="600000"/>
+      <sample loNote="40" hiNote="42" rootNote="42" path="Samples/GPCV F#1.wav"
+              length="600000"/>
+      <sample loNote="43" hiNote="45" rootNote="45" path="Samples/GPCV A1.wav"
+              length="600000"/>
+      <sample loNote="46" hiNote="48" rootNote="48" path="Samples/GPCV C2.wav"
+              length="600000"/>
+      <sample loNote="49" hiNote="51" rootNote="51" path="Samples/GPCV D#2.wav"
+              length="600000"/>
+      <sample loNote="52" hiNote="54" rootNote="54" path="Samples/GPCV F#2.wav"
+              length="600000"/>
+      <sample loNote="55" hiNote="57" rootNote="57" path="Samples/GPCV A2.wav"
+              length="600000"/>
+      <sample loNote="58" hiNote="60" rootNote="60" path="Samples/GPCV C3.wav"
+              length="600000"/>
+      <sample loNote="61" hiNote="63" rootNote="63" path="Samples/GPCV D#3.wav"
+              length="600000"/>
+      <sample loNote="64" hiNote="66" rootNote="66" path="Samples/GPCV F#3.wav"
+              length="600000"/>
+      <sample loNote="67" hiNote="69" rootNote="69" path="Samples/GPCV A3.wav"
+              length="600000"/>
+      <sample loNote="70" hiNote="72" rootNote="72" path="Samples/GPCV C4.wav"
+              length="600000"/>
+      <sample loNote="73" hiNote="75" rootNote="75" path="Samples/GPCV D#4.wav"
+              length="600000"/>
+      <sample loNote="76" hiNote="78" rootNote="78" path="Samples/GPCV F#4.wav"
+              length="600000"/>
+      <sample loNote="79" hiNote="81" rootNote="81" path="Samples/GPCV A4.wav"
+              length="600000"/>
+      <sample loNote="82" hiNote="84" rootNote="84" path="Samples/GPCV C5.wav"
+              length="600000"/>
+      <sample loNote="85" hiNote="87" rootNote="87" path="Samples/GPCV D#5.wav"
+              length="600000"/>
+      <sample loNote="88" hiNote="90" rootNote="90" path="Samples/GPCV F#5.wav"
+              length="600000"/>
+      <sample loNote="91" hiNote="93" rootNote="93" path="Samples/GPCV A5.wav"
+              length="600000"/>
+      <sample loNote="94" hiNote="96" rootNote="96" path="Samples/GPCV C6.wav"
+              length="600000"/>
+      <sample loNote="97" hiNote="99" rootNote="99" path="Samples/GPCV D#6.wav"
+              length="600000"/>
+      <sample loNote="100" hiNote="102" rootNote="102" path="Samples/GPCV F#6.wav"
+              length="600000"/>
+      <sample loNote="103" hiNote="105" rootNote="105" path="Samples/GPCV A6.wav"
+              length="600000"/>
+      <sample loNote="106" hiNote="120" rootNote="108" path="Samples/GPCV C7.wav"
+              length="600000"/>
+    </group>
+
+  </groups>
+  <tags>
+        
+    </tags>
+  <effects>
+    <effect type="lowpass" frequency="22000.0"/>
+    <effect type="reverb" wetLevel="0.00"/>
+  </effects>
+  <midi>
+    <!-- This causes MIDI CC 1 to control the 4th knob (cutoff) -->
+    <cc number="1">
+      <binding level="ui" type="control" parameter="VALUE" position="3" 
+               translation="linear" translationOutputMin="0" 
+               translationOutputMax="1" />
+    </cc>
+  </midi>
+</DecentSampler>

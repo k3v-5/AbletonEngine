@@ -272,6 +272,29 @@ class LiveBrowserCatalogEngine:
         if not verified:
             verified = [opt for opt in raw_sources if opt.category in (InstrumentSourceCategory.NATIVE_SYNTH, InstrumentSourceCategory.DRUM_KIT)]
 
+        # Dynamically discover and append certified Decent Sampler libraries from configured root
+        try:
+            from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+            ds_role_libs = DecentSamplerLibraryManager.get_libraries_for_role(norm_role)
+            for dslib in ds_role_libs[:2]:
+                verified.append(SoundSourceOption(
+                    id=f"decent_sampler_{norm_role.lower()}_{dslib.name.lower().replace(' ', '_')}",
+                    name=f"Decent Sampler ({dslib.name})",
+                    role=norm_role,
+                    category=InstrumentSourceCategory.VST3,
+                    uri="query:Plugins#VST3:Decent%20Samples:Decent%20Sampler",
+                    vendor="Decent Samples",
+                    description=f"Librería multisample auditada: {dslib.name} ({dslib.sample_count} muestras).",
+                    blueprint={
+                        "sculpt_type": "sampler",
+                        "library_name": dslib.name,
+                        "preset_path": str(dslib.preset_path) if dslib.preset_path else None,
+                        "parameters": {"Attack": 0.05, "Release": 0.45, "Cutoff": 0.80, "Reverb": 0.20}
+                    }
+                ))
+        except Exception as ex_ds:
+            logger.debug(f"Notice appending Decent Sampler libraries: {ex_ds}")
+
         # Segregate into third-party VSTs and native plugins (Strict Third-Party Priority)
         third_party = [opt for opt in verified if opt.category in (InstrumentSourceCategory.VST3, InstrumentSourceCategory.VST2)]
         native = [opt for opt in verified if opt not in third_party]
@@ -308,6 +331,88 @@ class LiveBrowserCatalogEngine:
         matched_racks = []
         is_analog_lab = "analog lab" in p_clean
         is_omnisphere = "omnisphere" in p_clean
+        is_decent_sampler = "decent sampler" in p_clean or p_clean == "decent"
+        is_surge_xt = "surge" in p_clean and "effects" not in p_clean
+
+        if is_surge_xt:
+            try:
+                from engine.sound_design.surge_xt_synth.patch_factory import SurgeSynthPatchFactory
+                res_opts = []
+                archetypes = [
+                    ("Reese Bass / Sub-Bass", SurgeSynthPatchFactory.build_bass_reese_patch("Surge_Reese_Bass")),
+                    ("808 Sub-Bass", SurgeSynthPatchFactory.build_808_sub_patch("Surge_808_Sub")),
+                    ("FM Pluck / Keys", SurgeSynthPatchFactory.build_pluck_fm_patch("Surge_FM_Pluck")),
+                    ("Supersaw Lead", SurgeSynthPatchFactory.build_lead_supersaw_patch("Surge_Supersaw_Lead")),
+                    ("Lush Ambient Pad", SurgeSynthPatchFactory.build_pad_lush_patch("Surge_Lush_Pad")),
+                ]
+                for name_label, p_model in archetypes:
+                    res_opts.append(SoundSourceOption(
+                        id=f"surge_xt_{norm_role.lower()}_{p_model.patch_name.lower().replace(' ', '_')}",
+                        name=f"Surge XT ({name_label})",
+                        role=norm_role,
+                        category=InstrumentSourceCategory.VST3,
+                        uri="query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+                        vendor="Surge Synth Team",
+                        description=f"Parche nativo sintetizado: {p_model.patch_name} [{p_model.category}]. Osc: {[o.osc_type for o in p_model.oscillators]}.",
+                        blueprint={
+                            "sculpt_type": "surge_synth",
+                            "patch_model": p_model,
+                            "parameters": {
+                                "FILTER_CUTOFF": p_model.filter1.cutoff,
+                                "FILTER_RESONANCE": p_model.filter1.resonance,
+                                "AMP_ATTACK": p_model.amp_envelope.attack,
+                                "AMP_RELEASE": p_model.amp_envelope.release
+                            }
+                        }
+                    ))
+                clean_surge = SoundSourceOption(
+                    id=f"surge_xt_clean_default_{norm_role.lower()}",
+                    name="Surge XT (Default / Plugin limpio)",
+                    role=norm_role,
+                    category=InstrumentSourceCategory.VST3,
+                    uri="query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT",
+                    vendor="Surge Synth Team",
+                    description="Carga Surge XT y el motor sintetizará el parche nativo según el rol.",
+                    blueprint={"sculpt_type": "surge_synth", "parameters": {}, "description": "Clean default Surge XT synth."}
+                )
+                return res_opts + [clean_surge]
+            except Exception as ex_surge_p:
+                logger.debug(f"Notice building Surge XT presets: {ex_surge_p}")
+
+        if is_decent_sampler:
+            try:
+                from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+                ds_libs = DecentSamplerLibraryManager.scan_libraries(require_valid=True)
+                res_opts = []
+                for lib in ds_libs:
+                    res_opts.append(SoundSourceOption(
+                        id=f"decent_sampler_{norm_role.lower()}_{lib.name.lower().replace(' ', '_')}",
+                        name=f"Decent Sampler ({lib.name})",
+                        role=norm_role,
+                        category=InstrumentSourceCategory.VST3,
+                        uri="query:Plugins#VST3:Decent%20Samples:Decent%20Sampler",
+                        vendor="Decent Samples",
+                        description=f"Librería certificada: {lib.name} [{lib.role_hint}] ({lib.sample_count} samples).",
+                        blueprint={
+                            "sculpt_type": "sampler",
+                            "library_name": lib.name,
+                            "preset_path": str(lib.preset_path) if lib.preset_path else None,
+                            "parameters": {"Attack": 0.05, "Release": 0.45, "Cutoff": 0.80, "Reverb": 0.20}
+                        }
+                    ))
+                clean_ds = SoundSourceOption(
+                    id=f"decent_sampler_clean_default_{norm_role.lower()}",
+                    name="Decent Sampler (Default / Plugin limpio)",
+                    role=norm_role,
+                    category=InstrumentSourceCategory.VST3,
+                    uri="query:Plugins#VST3:Decent%20Samples:Decent%20Sampler",
+                    vendor="Decent Samples",
+                    description="Carga Decent Sampler base para importar muestras o compilar nuevos instrumentos.",
+                    blueprint={"sculpt_type": "sampler", "parameters": {}, "description": "Clean Decent Sampler VST3."}
+                )
+                return res_opts + [clean_ds]
+            except Exception as ex_dslib:
+                logger.debug(f"Notice building Decent Sampler presets: {ex_dslib}")
 
         for r in all_racks:
             r_name = r.name.lower()

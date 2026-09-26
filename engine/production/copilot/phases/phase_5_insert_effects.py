@@ -142,20 +142,67 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             session._save_state()
             return session._prompt_phase_6()
     
+        conn = getattr(session, "_conn", None)
+        from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
+
+        while t_ptr < len(tracks):
+            trk = tracks[t_ptr]
+            role = trk["role"]
+            fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+            dev_ptr = session.data.get("current_fx_dev_ptr", 0)
+
+            if dev_ptr >= len(fx_list):
+                session.data["current_fx_track_ptr"] = t_ptr + 1
+                session.data["current_fx_dev_ptr"] = 0
+                t_ptr += 1
+                session._save_state()
+                continue
+
+            eff = fx_list[dev_ptr]
+            eff_name = eff.get("name", "")
+
+            if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
+                t_idx = session._resolve_live_track_index(conn, trk)
+                dev_idx = dev_ptr + 1
+                if conn is not None and hasattr(conn, "send_command"):
+                    try:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff.get("uri", "")})
+                        t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                        raw_devs = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
+                        if raw_devs:
+                            dev_idx = len(raw_devs) - 1
+                    except Exception:
+                        pass
+                res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_idx, session, conn)
+                if "insert_effects" not in trk:
+                    trk["insert_effects"] = []
+                trk["insert_effects"].append({
+                    "name": eff_name,
+                    "device_index": dev_ptr + 1,
+                    "bypass": False,
+                    "parameters": res_eff
+                })
+                session.data["current_fx_dev_ptr"] = dev_ptr + 1
+                session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
+                session._save_state()
+                continue
+            break
+
+        if t_ptr >= len(tracks):
+            missing_trk = self.find_track_missing_eq(session, None)
+            if missing_trk is not None:
+                return self.force_missing_eq_prompt(session, None, missing_trk)
+            session.data["current_phase"] = "PHASE_6_COMPOSITION"
+            session.data["phase_index"] = 6
+            session._save_state()
+            return session._prompt_phase_6()
+
         trk = tracks[t_ptr]
         t_idx = trk.get("index", t_ptr)
         t_name = trk["name"]
         role = trk["role"]
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-    
         fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
-    
-        if dev_ptr >= len(fx_list):
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            session._save_state()
-            return session._prompt_current_fx_device()
-    
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
         is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
@@ -305,6 +352,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     d_params["Key"] = session.data.get("key", "F")
                     d_params["Scale"] = session.data.get("scale", "Minor")
                     d_params["Retune Speed"] = 0.0
+                elif DedicatedPluginConfigurator.is_dedicated_effect(d_eff_name):
+                    d_params = DedicatedPluginConfigurator.configure_effect(trk, d_eff, d_i + 1, session, conn)
                 else:
                     for p in d_eff.get("params", []):
                         d_params[p["id"]] = p["default"]
@@ -354,7 +403,25 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
         eff_uri = eff["uri"]
-    
+
+        if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
+            res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_ptr + 1, session, conn)
+            if "insert_effects" not in trk:
+                trk["insert_effects"] = []
+            trk["insert_effects"].append({
+                "name": eff_name,
+                "device_index": dev_ptr + 1,
+                "bypass": False,
+                "parameters": res_eff
+            })
+            session.data["current_fx_dev_ptr"] = dev_ptr + 1
+            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
+            session._save_state()
+            next_p = self._prompt_current_fx_device(session)
+            if res_eff.get("action_taken"):
+                next_p["action_taken"] = res_eff.get("action_taken")
+            return next_p
+
         # Capture pre-mutation snapshot for deterministic rollback
         track_state = [TransactionGuard.capture_live_track_state(conn, t_idx)]
         TransactionGuard.begin_transaction(session.data, track_state)

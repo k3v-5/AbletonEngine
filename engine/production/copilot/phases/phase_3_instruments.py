@@ -612,13 +612,15 @@ for slot in t.clip_slots:
                         native_opts = [o for o in options if "native" in o.id.lower() or "native" in str(getattr(o, "category", "")).lower()]
                         selected_opt = native_opts[0] if native_opts else (options[0] if options else None)
     
-                # Check if user selected Analog Lab V or Omnisphere (Multi-preset parent plugin)
+                # Check if user selected Analog Lab V, Omnisphere, Decent Sampler or Surge XT (Multi-preset parent plugin)
                 opt_name_low = selected_opt.name.lower() if selected_opt else ""
                 is_analog_lab = "analog lab" in opt_name_low or "analog lab" in u_clean
                 is_omnisphere = "omnisphere" in opt_name_low or "omnisphere" in u_clean
+                is_decent_parent = ("decent sampler" in opt_name_low or "decent sampler" in u_clean or u_clean == "decent") and not ("(" in opt_name_low and ")" in opt_name_low)
+                is_surge_parent = ("surge" in opt_name_low or "surge" in u_clean) and "effects" not in opt_name_low and "effects" not in u_clean and not ("(" in opt_name_low and ")" in opt_name_low)
     
-                if is_analog_lab or is_omnisphere:
-                    plug_label = "Analog Lab V" if is_analog_lab else "Omnisphere"
+                if is_analog_lab or is_omnisphere or is_decent_parent or is_surge_parent:
+                    plug_label = "Analog Lab V" if is_analog_lab else ("Omnisphere" if is_omnisphere else ("Decent Sampler" if is_decent_parent else "Surge XT"))
                     clean_keywords = ["default", "limpio", "clean", "crudo", "vst base", "plugin limpio", "sin preset"]
                     if any(w in u_clean for w in clean_keywords):
                         # User explicitly asked for clean default directly in Level 1 prompt
@@ -630,7 +632,13 @@ for slot in t.clip_slots:
                             if clean_opt.blueprint:
                                 trk["blueprint"] = clean_opt.blueprint
                         else:
-                            target_uri = f"query:Plugins#VST3:{plug_label.replace(' ', '%20')}"
+                            clean_uris = {
+                                "Analog Lab V": "query:Plugins#VST3:Arturia:Analog%20Lab%20V",
+                                "Omnisphere": "query:Plugins#VST3:Spectrasonics:Omnisphere",
+                                "Decent Sampler": "query:Plugins#VST3:Decent%20Samples:Decent%20Sampler",
+                                "Surge XT": "query:Plugins#VST3:Surge%20Synth%20Team:Surge%20XT"
+                            }
+                            target_uri = clean_uris.get(plug_label, f"query:Plugins#VST3:{plug_label.replace(' ', '%20')}")
                             display_name = f"{plug_label} (Default)"
                     else:
                         # Switch to Level 2 Sub-selection and re-prompt
@@ -643,6 +651,8 @@ for slot in t.clip_slots:
                         "query:Drums#FileId_5422" if role == "DRUMS" else "query:Sounds#Piano%20&%20Keys:FileId_4867"
                     )
                     display_name = selected_opt.name if selected_opt else f"{role} Instrument"
+                    if selected_opt and getattr(selected_opt, "blueprint", None):
+                        trk["blueprint"] = selected_opt.blueprint
     
         is_verified = False
         load_error = None
@@ -839,6 +849,14 @@ for p in d.parameters:
     
         trk["instrument"] = display_name
         trk["item_uri"] = target_uri
+
+        from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
+        if DedicatedPluginConfigurator.is_dedicated_instrument(display_name):
+            try:
+                DedicatedPluginConfigurator.configure_instrument(trk, session, conn)
+            except Exception as ex_ded:
+                logger.warning(f"Notice configuring dedicated instrument {display_name}: {ex_ded}")
+
         session.data["current_track_ptr"] = ptr + 1
         session._save_state()
     
