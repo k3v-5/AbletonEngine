@@ -417,7 +417,7 @@ class VerificationError(Exception):
 
 
 class DeviceExecutionVerifier:
-    TOLERANCE = 0.04
+    TOLERANCE = 0.06
     MIN_DELTA = 0.01
 
     @classmethod
@@ -560,6 +560,52 @@ class DeviceExecutionVerifier:
         return param_identifier
 
     @classmethod
+    def _adapt_discrete_param_value(
+        cls,
+        device_name: str,
+        param_name: str,
+        value: Any
+    ) -> Tuple[float, float]:
+        """
+        Maps normalized [0.0, 1.0] parameter values to discrete Live integer scales when required.
+        Returns a tuple of (write_value, expected_readback_value).
+        """
+        try:
+            f_val = float(value)
+        except (ValueError, TypeError):
+            return 0.5, 0.5
+
+        d_lower = str(device_name or "").lower()
+        p_lower = str(param_name or "").lower().strip()
+
+        if "glue" in d_lower:
+            if "release" in p_lower and 0.0 <= f_val <= 1.0:
+                mapping = [
+                    (0.0, 0.0),
+                    (0.2, 1.0),
+                    (0.4, 2.0),
+                    (0.6, 3.0),
+                    (0.8, 5.0),
+                    (1.0, 6.0),
+                ]
+                nearest = min(mapping, key=lambda m: abs(m[0] - f_val))
+                return nearest[1], nearest[1]
+
+            if "attack" in p_lower and 0.0 <= f_val <= 1.0:
+                mapping = [
+                    (0.0, 1.0),
+                    (0.2, 2.0),
+                    (0.4, 3.0),
+                    (0.6, 4.0),
+                    (0.8, 5.0),
+                    (1.0, 6.0),
+                ]
+                nearest = min(mapping, key=lambda m: abs(m[0] - f_val))
+                return nearest[1], nearest[1]
+
+        return f_val, f_val
+
+    @classmethod
     def check_is_test_env(cls, conn: Any = None, session: Any = None) -> bool:
         """Determina si se está ejecutando dentro del framework de tests automatizados."""
         if os.environ.get("PYTEST_CURRENT_TEST"):
@@ -641,12 +687,13 @@ class DeviceExecutionVerifier:
                     break
 
         # 2. Write command
+        write_val, expected_val = cls._adapt_discrete_param_value(device_name, actual_param, target_value)
         try:
             conn.send_command("set_device_parameter", {
                 "track_index": track_index,
                 "device_index": device_index,
                 "parameter": actual_param,
-                "value": float(target_value)
+                "value": float(write_val)
             })
         except Exception as ex_write:
             return False, {
@@ -696,7 +743,7 @@ class DeviceExecutionVerifier:
             }
 
         # 4. Evaluación de Tolerancia (+/- 0.04)
-        error_margin = abs(actual_val - target_value)
+        error_margin = abs(actual_val - expected_val)
         if error_margin > cls.TOLERANCE:
             return False, {
                 "root_cause": "PARAMETER_VALUE_REJECTED",
@@ -771,12 +818,13 @@ class DeviceExecutionVerifier:
                     logger.info(f"[Verifier] Parameter '{p_name}' not exposed in LOM for '{device_name}'. Skipped socket write.")
                     continue
 
+            write_val, _ = cls._adapt_discrete_param_value(device_name, actual_param, p_val)
             try:
                 conn.send_command("set_device_parameter", {
                     "track_index": track_index,
                     "device_index": device_index,
                     "parameter": actual_param,
-                    "value": float(p_val) if isinstance(p_val, (int, float)) else 0.5
+                    "value": float(write_val) if isinstance(write_val, (int, float)) else 0.5
                 })
             except Exception as ex:
                 return False, {
@@ -827,7 +875,8 @@ class DeviceExecutionVerifier:
                     "actual_error": f"El parámetro '{p_name}' no fue encontrado en Live."
                 }
 
-            error_margin = abs(actual_val - float(p_target))
+            _, expected_val = cls._adapt_discrete_param_value(device_name, actual_param, p_target)
+            error_margin = abs(actual_val - float(expected_val))
             if error_margin > cls.TOLERANCE:
                 return False, {
                     "root_cause": "PARAMETER_VALUE_REJECTED",

@@ -27,6 +27,19 @@ class GenreDrumStyle(str, Enum):
     DRUM_AND_BASS = "drum_and_bass"
     POP = "pop"
     ROCK = "rock"
+    DUBSTEP = "dubstep"
+    DRILL = "drill"
+    LOFI = "lofi"
+    AMBIENT = "ambient"
+    DOWNTEMPO = "downtempo"
+    METAL = "metal"
+    JAZZ = "jazz"
+    FUNK = "funk"
+    MIDTEMPO = "midtempo"
+    TRANCE = "trance"
+    GLITCH_HOP = "glitch_hop"
+    INDIE = "indie"
+    UNIVERSAL = "universal"
 
 
 class GenreRhythmGrooveEngine:
@@ -72,11 +85,35 @@ class GenreRhythmGrooveEngine:
             try:
                 style = GenreDrumStyle(g_clean)
             except ValueError:
-                if "cumbia" in g_clean or "guira" in g_clean:
+                if any(w in g_clean for w in ["dubstep", "brostep", "riddim", "tearout"]):
+                    style = GenreDrumStyle.DUBSTEP
+                elif any(w in g_clean for w in ["drill", "uk_drill", "ny_drill"]):
+                    style = GenreDrumStyle.DRILL
+                elif any(w in g_clean for w in ["lofi", "lo_fi", "chillhop"]):
+                    style = GenreDrumStyle.LOFI
+                elif any(w in g_clean for w in ["ambient", "drone", "meditation"]):
+                    style = GenreDrumStyle.AMBIENT
+                elif any(w in g_clean for w in ["downtempo", "trip_hop", "chillout"]):
+                    style = GenreDrumStyle.DOWNTEMPO
+                elif any(w in g_clean for w in ["metal", "heavy_metal", "deathcore"]):
+                    style = GenreDrumStyle.METAL
+                elif any(w in g_clean for w in ["jazz", "swing", "bebop"]):
+                    style = GenreDrumStyle.JAZZ
+                elif any(w in g_clean for w in ["funk", "disco"]):
+                    style = GenreDrumStyle.FUNK
+                elif any(w in g_clean for w in ["midtempo", "cyberpunk"]):
+                    style = GenreDrumStyle.MIDTEMPO
+                elif any(w in g_clean for w in ["trance", "psytrance"]):
+                    style = GenreDrumStyle.TRANCE
+                elif any(w in g_clean for w in ["glitch", "glitch_hop"]):
+                    style = GenreDrumStyle.GLITCH_HOP
+                elif any(w in g_clean for w in ["indie", "alternative"]):
+                    style = GenreDrumStyle.INDIE
+                elif "cumbia" in g_clean or "guira" in g_clean:
                     style = GenreDrumStyle.CUMBIA
                 elif "trap" in g_clean or "hip_hop" in g_clean or "hiphop" in g_clean:
                     style = GenreDrumStyle.TRAP
-                elif "rock" in g_clean or "indie" in g_clean:
+                elif "rock" in g_clean or "punk" in g_clean:
                     style = GenreDrumStyle.ROCK
                 elif "afro" in g_clean or "dancehall" in g_clean:
                     style = GenreDrumStyle.AFROBEAT
@@ -99,7 +136,7 @@ class GenreRhythmGrooveEngine:
                 elif "pop" in g_clean:
                     style = GenreDrumStyle.POP
                 else:
-                    style = GenreDrumStyle.TRAP
+                    style = GenreDrumStyle.UNIVERSAL
 
         generator_map = {
             GenreDrumStyle.TRAP: cls._generate_trap,
@@ -115,9 +152,22 @@ class GenreRhythmGrooveEngine:
             GenreDrumStyle.DRUM_AND_BASS: cls._generate_drum_and_bass,
             GenreDrumStyle.POP: cls._generate_pop,
             GenreDrumStyle.ROCK: cls._generate_rock,
+            GenreDrumStyle.DUBSTEP: cls._generate_dubstep,
+            GenreDrumStyle.DRILL: cls._generate_drill,
+            GenreDrumStyle.LOFI: cls._generate_lofi,
+            GenreDrumStyle.AMBIENT: cls._generate_ambient,
+            GenreDrumStyle.DOWNTEMPO: cls._generate_downtempo,
+            GenreDrumStyle.METAL: cls._generate_metal,
+            GenreDrumStyle.JAZZ: cls._generate_jazz,
+            GenreDrumStyle.FUNK: cls._generate_funk,
+            GenreDrumStyle.MIDTEMPO: cls._generate_midtempo,
+            GenreDrumStyle.TRANCE: cls._generate_trance,
+            GenreDrumStyle.GLITCH_HOP: cls._generate_glitch_hop,
+            GenreDrumStyle.INDIE: cls._generate_indie,
+            GenreDrumStyle.UNIVERSAL: lambda bars: cls._generate_universal(bars, tempo=tempo),
         }
 
-        gen_fn = generator_map.get(style, cls._generate_trap)
+        gen_fn = generator_map.get(style, lambda bars: cls._generate_universal(bars, tempo=tempo))
         raw_notes = gen_fn(length_bars)
 
         # Apply swing if specified
@@ -544,6 +594,209 @@ class GenreRhythmGrooveEngine:
                 v = 90 if s % 2 == 0 else 70
                 notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.18, velocity=v))
 
+        return notes
+
+    @classmethod
+    def _generate_dubstep(cls, length_bars: int) -> List[NoteEvent]:
+        """
+        Foundational Dubstep / Brostep pattern:
+        - Heavy Kick on beat 1 (offset 0.0) of each bar
+        - Heavy Snare on beat 3 (offset 2.0) of each bar (half-time feel at 140 BPM)
+        - Clean steady 8th-note closed hi-hats
+        - Crash cymbal on downbeat of bar 1 and every 8 bars
+        - Clean, un-cluttered foundation without forced syncopated clutter.
+        """
+        notes = []
+        CRASH_PITCH = 49
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            if bar % 8 == 0:
+                notes.append(NoteEvent(pitch=CRASH_PITCH, start=bar_start + 0.0, duration=1.5, velocity=124))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.35, velocity=126))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 2.0, duration=0.45, velocity=127))
+            for step in range(8):
+                t = bar_start + step * 0.5
+                vel = 90 if step % 2 == 0 else 72
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=t, duration=0.18, velocity=vel))
+        return notes
+
+    @classmethod
+    def _generate_drill(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Drill pattern: Snare on 3 (2.0), syncopated kick, 8th hats."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.30, velocity=122))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 1.75, duration=0.25, velocity=110))
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 2.0, duration=0.25, velocity=118))
+            for step in range(8):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + step * 0.5, duration=0.15, velocity=85 if step % 2 == 0 else 70))
+        return notes
+
+    @classmethod
+    def _generate_lofi(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Lo-Fi / Chillhop pattern: relaxed kick and rim/snare."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.30, velocity=105))
+            if bar % 2 == 1:
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.5, duration=0.25, velocity=98))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.22, velocity=100))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.22, velocity=102))
+            for s in range(8):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.18, velocity=75 if s % 2 == 0 else 60))
+        return notes
+
+    @classmethod
+    def _generate_ambient(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Ambient / Downtempo: sparse, spacious accents."""
+        notes = []
+        for bar in range(0, length_bars, 2):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.6, velocity=90))
+            notes.append(NoteEvent(pitch=cls.PERC_PITCH, start=bar_start + 4.0 + 2.0, duration=0.4, velocity=75))
+        return notes
+
+    @classmethod
+    def _generate_downtempo(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Downtempo: deep kick on 1, snare on 3, gentle hats."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.4, velocity=108))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 2.0, duration=0.3, velocity=105))
+            for s in range(8):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.2, velocity=70 if s % 2 == 0 else 55))
+        return notes
+
+    @classmethod
+    def _generate_metal(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Metal: driving double-kick, heavy snare on 2 & 4."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            for b in range(4):
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0, duration=0.2, velocity=124))
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0 + 0.5, duration=0.2, velocity=120))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.25, velocity=127))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.25, velocity=127))
+            for s in range(8):
+                notes.append(NoteEvent(pitch=cls.OPEN_HAT_PITCH, start=bar_start + s * 0.5, duration=0.2, velocity=100))
+        return notes
+
+    @classmethod
+    def _generate_jazz(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Jazz: ride cymbal pattern, soft feathered kick and snare."""
+        notes = []
+        RIDE_PITCH = 51
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            for b in range(4):
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0, duration=0.2, velocity=65))
+                notes.append(NoteEvent(pitch=RIDE_PITCH, start=bar_start + b * 1.0, duration=0.3, velocity=85))
+            notes.append(NoteEvent(pitch=RIDE_PITCH, start=bar_start + 1.667, duration=0.2, velocity=75))
+            notes.append(NoteEvent(pitch=RIDE_PITCH, start=bar_start + 3.667, duration=0.2, velocity=75))
+            notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + 1.0, duration=0.15, velocity=80))
+            notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + 3.0, duration=0.15, velocity=80))
+        return notes
+
+    @classmethod
+    def _generate_funk(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Funk: crisp backbeat snare, tight kick, 16th hats."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.25, velocity=115))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.5, duration=0.25, velocity=110))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.22, velocity=120))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.22, velocity=122))
+            for s in range(16):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.25, duration=0.12, velocity=85 if s % 4 == 0 else 65))
+        return notes
+
+    @classmethod
+    def _generate_midtempo(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Midtempo / Cyberpunk: four-on-the-floor kick with heavy industrial snare."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            for b in range(4):
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0, duration=0.25, velocity=124))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.3, velocity=125))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.3, velocity=125))
+            for s in range(8):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.18, velocity=85 if s % 2 == 0 else 70))
+        return notes
+
+    @classmethod
+    def _generate_trance(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Trance: four-on-the-floor kick, offbeat open hat, clap on 2 & 4."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            for b in range(4):
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0, duration=0.25, velocity=122))
+                notes.append(NoteEvent(pitch=cls.OPEN_HAT_PITCH, start=bar_start + b * 1.0 + 0.5, duration=0.25, velocity=95))
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 1.0, duration=0.2, velocity=115))
+            notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 3.0, duration=0.2, velocity=115))
+        return notes
+
+    @classmethod
+    def _generate_glitch_hop(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Glitch-Hop: half-time punch at 100-115 BPM."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.3, velocity=120))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 2.0, duration=0.35, velocity=122))
+            for s in range(8):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.15, velocity=80 if s % 2 == 0 else 65))
+        return notes
+
+    @classmethod
+    def _generate_indie(cls, length_bars: int) -> List[NoteEvent]:
+        """Foundational Indie / Alt Rock: driving acoustic groove."""
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.25, velocity=118))
+            notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 2.0, duration=0.25, velocity=114))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 1.0, duration=0.25, velocity=116))
+            notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 3.0, duration=0.25, velocity=118))
+            for s in range(8):
+                notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + s * 0.5, duration=0.2, velocity=85 if s % 2 == 0 else 70))
+        return notes
+
+    @classmethod
+    def _generate_universal(cls, length_bars: int, tempo: float = 120.0) -> List[NoteEvent]:
+        """
+        Universal foundational drum pattern adaptable to any meter and tempo:
+        - If half-time tempo (135 - 165 BPM): Kick on 1, Snare on 3, steady hats.
+        - If four-on-the-floor tempo (115 - 134 BPM): Kick on 1, 2, 3, 4, Snare/Clap on 2 and 4.
+        - If slow tempo (< 115 BPM): Kick on 1, Snare on 3, 8th hats.
+        - Clean, transparent canvas without forced syncopated clutter.
+        """
+        notes = []
+        for bar in range(length_bars):
+            bar_start = bar * 4.0
+            if 135.0 <= tempo <= 165.0:
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.35, velocity=122))
+                notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 2.0, duration=0.4, velocity=124))
+                for step in range(8):
+                    notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + step * 0.5, duration=0.18, velocity=85 if step % 2 == 0 else 70))
+            elif 115.0 <= tempo < 135.0:
+                for b in range(4):
+                    notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + b * 1.0, duration=0.25, velocity=120))
+                notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 1.0, duration=0.2, velocity=112))
+                notes.append(NoteEvent(pitch=cls.CLAP_PITCH, start=bar_start + 3.0, duration=0.2, velocity=112))
+                for b in range(4):
+                    notes.append(NoteEvent(pitch=cls.OPEN_HAT_PITCH, start=bar_start + b * 1.0 + 0.5, duration=0.2, velocity=88))
+            else:
+                notes.append(NoteEvent(pitch=cls.KICK_PITCH, start=bar_start + 0.0, duration=0.35, velocity=118))
+                notes.append(NoteEvent(pitch=cls.SNARE_PITCH, start=bar_start + 2.0, duration=0.35, velocity=115))
+                for step in range(8):
+                    notes.append(NoteEvent(pitch=cls.CLOSED_HAT_PITCH, start=bar_start + step * 0.5, duration=0.2, velocity=80 if step % 2 == 0 else 65))
         return notes
 
     @staticmethod

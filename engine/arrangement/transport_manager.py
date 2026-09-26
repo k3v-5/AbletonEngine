@@ -54,10 +54,39 @@ class TransportManager:
         timeline = cls.get_timeline_map(sections)
         created_cues = []
 
+        # Ensure Live 12 arrangement length accommodates all cue points
         try:
-            # Delete existing cue points if supported
+            max_beat = float(timeline[-1]["end_beat"]) if timeline else 0.0
+            if max_beat > 0:
+                conn.send_command("execute_code", {"code": f"""
+if getattr(song, 'song_length', 0) < {max_beat}:
+    for t in song.tracks:
+        if not getattr(t, 'is_foldable', False) and hasattr(t, 'create_midi_clip'):
+            t.create_midi_clip(0.0, {max_beat})
+            break
+"""})
+        except Exception as e_len:
+            logger.debug(f"Notice extending arrangement length for cue points: {e_len}")
+
+
+        try:
             existing_cues = conn.send_command("get_cue_points", {})
             c_list = existing_cues.get("cue_points", existing_cues) if isinstance(existing_cues, dict) else []
+            if isinstance(c_list, list) and len(c_list) >= len(timeline):
+                all_matched = True
+                for item in timeline:
+                    b_time = item["start_beat"]
+                    matched = any(abs(float(cp.get("time", -999.0)) - b_time) < 2.0 for cp in c_list)
+                    if not matched:
+                        all_matched = False
+                        break
+                if all_matched:
+                    return {
+                        "status": "SUCCESS",
+                        "cue_points_created": 0,
+                        "cue_points": c_list,
+                        "message": "Cue points already synchronized."
+                    }
             if isinstance(c_list, list):
                 for cp in c_list:
                     cp_id = cp.get("id", cp.get("time"))
@@ -75,6 +104,7 @@ class TransportManager:
             try:
                 conn.send_command("create_cue_point", {
                     "time": b_time,
+                    "time_beats": b_time,
                     "name": c_name
                 })
                 created_cues.append({"name": c_name, "time": b_time})

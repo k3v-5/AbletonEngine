@@ -335,5 +335,118 @@
     },
     "instrument_decisions": {},
     "aesthetic_notes": "Rumbling industrial sub-reverb, dark analog warmth, repetitive hypnotic filtering, distortion harmonics."
+  },
+  "dubstep": {
+    "genre": "dubstep",
+    "display_name": "Dubstep",
+    "roles": {
+      "DRUMS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Drum Buss",
+          "Glue Compressor"
+        ],
+        "optional_effects": [
+          "Saturator"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "BASS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Utility"
+        ],
+        "optional_effects": [
+          "Saturator",
+          "Roar"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "LEAD": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Roar",
+          "OTT"
+        ],
+        "optional_effects": [
+          "Delay",
+          "Reverb"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "KEYS": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Chorus-Ensemble",
+          "Reverb"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "PAD": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Echo",
+          "Reverb"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "VOCALS": {
+        "mandatory_effects": [
+          "EQ Eight",
+          "Glue Compressor"
+        ],
+        "optional_effects": [
+          "Reverb"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      },
+      "FX": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [
+          "Echo",
+          "Reverb"
+        ],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      }
+    },
+    "instrument_decisions": {},
+    "aesthetic_notes": "Perfil estético aprendido para dubstep."
+  },
+  "pop": {
+    "genre": "pop",
+    "display_name": "Pop",
+    "roles": {
+      "COMPOSITION": {
+        "mandatory_effects": [
+          "EQ Eight"
+        ],
+        "optional_effects": [],
+        "descriptions": {},
+        "default_parameters": {},
+        "role_notes": ""
+      }
+    },
+    "instrument_decisions": {},
+    "aesthetic_notes": "Perfil estético aprendido para pop."
   }
 }

@@ -309,7 +309,7 @@ class Phase1TracksHandler(BasePhaseHandler):
                 trk["top_recommendations"] = ["Ableton Native Preset"]
     
         session.data["tracks"] = created_tracks
-        for g_candidate in ["trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
+        for g_candidate in ["dubstep", "trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
             if g_candidate in text:
                 session.data["genre"] = g_candidate.replace(" ", "_").replace("hip_hop", "trap").replace("lofi", "boom_bap").replace("dnb", "drum_and_bass")
                 break
@@ -325,10 +325,11 @@ class Phase1TracksHandler(BasePhaseHandler):
             elif "STRINGS" in roles_set or "BRASS" in roles_set or "CHOIR" in roles_set:
                 session.data["genre"] = "cinematic"
             else:
-                session.data["genre"] = "pop"
+                session.data["genre"] = "dubstep" if "growl" in text or "dubstep" in text else "pop"
 
         # Pre-calibrate genre-tailored standard BPM (eliminates blind 120.0 fallback)
         genre_bpm_map = {
+            "dubstep": 140.0,
             "trap": 140.0,
             "reggaeton": 94.0,
             "boom_bap": 90.0,
@@ -340,8 +341,9 @@ class Phase1TracksHandler(BasePhaseHandler):
             "cinematic": 90.0,
             "pop": 115.0
         }
-        if "bpm" not in session.data:
-            session.data["bpm"] = genre_bpm_map.get(session.data.get("genre", "pop"), 120.0)
+        if "bpm" not in session.data or session.data.get("bpm") == 120.0:
+            session.data["bpm"] = session.data.get("target_tempo") or genre_bpm_map.get(session.data.get("genre", "pop"), 140.0 if session.data.get("genre") == "dubstep" else 120.0)
+
 
         # Apply Suite 2.0 Autonomous Foundation: Colors, Headroom Faders & Submix Buses
         try:

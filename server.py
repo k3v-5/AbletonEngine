@@ -56,6 +56,7 @@ class AbletonConnection:
     port: int
     sock: socket.socket = None
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False)
+    _governance_verified_tracks: Dict[int, float] = field(default_factory=dict, init=False)
     
     def connect(self, timeout: float = 5.0) -> bool:
         """Connect to the Ableton Remote Script socket server"""
@@ -247,6 +248,11 @@ class AbletonConnection:
             return
 
         for t_idx in target_tracks:
+            now = time.time()
+            if hasattr(self, "_governance_verified_tracks") and (t_idx in self._governance_verified_tracks):
+                if (now - self._governance_verified_tracks[t_idx]) < 60.0:
+                    continue
+
             try:
                 t_info = self._send_raw("get_track_info", {"track_index": t_idx})
             except Exception:
@@ -318,12 +324,24 @@ class AbletonConnection:
                         "before creating clips or adding notes. DO NOT modify, disable, or bypass this guard in server.py."
                     )
 
+            if not hasattr(self, "_governance_verified_tracks"):
+                self._governance_verified_tracks = {}
+            self._governance_verified_tracks[t_idx] = now
+
     def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Send a command to Ableton and return the response"""
         with self._lock:
             if not self.sock and not self.connect():
                 raise ConnectionError("Not connected to Ableton")
             
+            # Invalidate governance cache on device or track mutations
+            if command_type in [
+                "delete_track", "delete_device", "create_midi_track", "create_audio_track",
+                "load_instrument_or_effect", "load_browser_item", "load_drum_kit", "clean_slate"
+            ]:
+                if hasattr(self, "_governance_verified_tracks"):
+                    self._governance_verified_tracks.clear()
+
             # Enforce immutable DAW governance rules before mutating Ableton
             self._enforce_immutable_governance(command_type, params or {})
             

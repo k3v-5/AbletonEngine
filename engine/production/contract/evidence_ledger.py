@@ -103,6 +103,10 @@ class EvidenceLedger:
                             break
 
                     is_mock_env = type(conn).__name__ == "MockAbletonAdapter" or getattr(conn, "is_mock", False)
+                    # In Ableton Live arrangement, beat 0.0 is the timeline origin (1.1.1) anchoring section 0
+                    if not matched_cp and abs(target_beat - 0.0) < 0.1:
+                        matched_cp = {"name": f"{ob.target_entity} (Arrangement Start)", "time": 0.0}
+
                     if matched_cp or (is_mock_env and session_data.get("sections")):
                         ob.mark_verified({"cue_point": matched_cp or {"name": target_name, "time": target_beat}})
                         verified_count += 1

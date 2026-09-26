@@ -138,61 +138,146 @@ class BatchComposer:
                         clamped_notes.append(n_c)
                     matched_notes = clamped_notes
 
-                # Inject into Live via connection
-                if conn is not None and hasattr(conn, "send_command"):
-                    try:
-                        # 1. Reset/Delete existing session clip
-                        conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": s_idx})
+                formatted_notes = [
+                    {
+                        "pitch": int(d["pitch"]),
+                        "start_time": round(float(d.get("start_time", d.get("start", 0.0))), 3),
+                        "duration": round(float(d.get("duration", 1.0)), 3),
+                        "velocity": int(d.get("velocity", 100)),
+                        "mute": bool(d.get("mute", False))
+                    }
+                    for d in matched_notes
+                ] if matched_notes else []
 
-                        if matched_notes:
-                            # 2. Create Session clip
-                            conn.send_command("create_clip", {
-                                "track_index": t_idx,
-                                "clip_index": s_idx,
-                                "length": s_beats
-                            })
-                            conn.send_command("set_clip_name", {
-                                "track_index": t_idx,
-                                "clip_index": s_idx,
-                                "name": f"{sec.get('name', f'Sec_{s_idx}')}"
-                            })
-                            conn.send_command("add_notes_to_clip", {
-                                "track_index": t_idx,
-                                "clip_index": s_idx,
-                                "notes": [
-                                    {
-                                        "pitch": int(d["pitch"]),
-                                        "start_time": round(float(d.get("start_time", d.get("start", 0.0))), 3),
-                                        "duration": round(float(d.get("duration", 1.0)), 3),
-                                        "velocity": int(d.get("velocity", 100)),
-                                        "mute": bool(d.get("mute", False))
-                                    }
-                                    for d in matched_notes
-                                ]
-                            })
-                            clips_created += 1
-                            notes_injected += len(matched_notes)
-                            tracks_touched.add(t_idx)
-
-                            # 3. Duplicate to Arrangement timeline at exact current_beat
-                            if duplicate_to_arrangement:
-                                try:
-                                    conn.send_command("duplicate_to_arrangement", {
-                                        "track_index": t_idx,
-                                        "clip_index": s_idx,
-                                        "destination_time": current_beat
-                                    })
-                                except Exception as d_ex:
-                                    logger.debug(f"Arrangement duplication notice: {d_ex}")
-                    except Exception as e:
-                        logger.warning(f"Batch compose error on track {t_idx} section {s_idx}: {e}")
-
+                batch_items.append({
+                    "track_index": t_idx,
+                    "clip_index": s_idx,
+                    "name": f"{sec.get('name', f'Sec_{s_idx}')}",
+                    "length": s_beats,
+                    "destination_time": current_beat,
+                    "notes": formatted_notes
+                })
                 current_beat += s_beats
+
+        # Fast Atomic Compound Execution in Live 12 Main Thread
+        if conn is not None and hasattr(conn, "send_command") and batch_items:
+            import json
+            payload_json = json.dumps(batch_items)
+            code_compound = f"""
+import json
+results = {{"clips_created": 0, "notes_injected": 0, "tracks_touched": [], "errors": []}}
+items = json.loads({json.dumps(payload_json)})
+dup = {str(duplicate_to_arrangement)}
+
+for item in items:
+    t_idx = item["track_index"]
+    s_idx = item["clip_index"]
+    s_beats = float(item["length"])
+    dest_t = float(item["destination_time"])
+    c_name = item.get("name", "")
+    notes = item.get("notes", [])
+
+    if t_idx < 0 or t_idx >= len(song.tracks):
+        results["errors"].append("Invalid track index " + str(t_idx))
+        continue
+    t = song.tracks[t_idx]
+    if s_idx < 0 or s_idx >= len(t.clip_slots):
+        results["errors"].append("Invalid clip slot " + str(s_idx) + " on track " + str(t_idx))
+        continue
+    slot = t.clip_slots[s_idx]
+    if slot.has_clip:
+        slot.delete_clip()
+
+    if notes:
+        slot.create_clip(s_beats)
+        c = slot.clip
+        c.name = c_name
+        live_notes = []
+        for n in notes:
+            live_notes.append((
+                int(n["pitch"]),
+                float(n["start_time"]),
+                float(n["duration"]),
+                int(n["velocity"]),
+                bool(n.get("mute", False))
+            ))
+        c.set_notes(tuple(live_notes))
+        results["clips_created"] += 1
+        results["notes_injected"] += len(live_notes)
+        if t_idx not in results["tracks_touched"]:
+            results["tracks_touched"].append(t_idx)
+        if dup:
+            t.duplicate_clip_to_arrangement(c, dest_t)
+"""
+            try:
+                res = conn.send_command("execute_code", {"code": code_compound})
+                results_data = res.get("results", {}) if isinstance(res, dict) else {}
+                if isinstance(results_data, dict) and "clips_created" in results_data:
+                    clips_created = results_data.get("clips_created", 0)
+                    notes_injected = results_data.get("notes_injected", 0)
+                    tracks_touched = set(results_data.get("tracks_touched", []))
+                    if results_data.get("errors"):
+                        logger.warning(f"Batch compose atomic notices: {results_data.get('errors')}")
+                    return {
+                        "status": "SUCCESS",
+                        "clips_created": clips_created,
+                        "notes_injected": notes_injected,
+                        "tracks_touched": sorted(list(tracks_touched)),
+                        "sections_count": len(sections),
+                        "mode": "atomic_compound"
+                    }
+            except Exception as ex_atomic:
+                logger.warning(f"Atomic compound execution fallback to sequential: {ex_atomic}")
+
+        # Sequential Fallback if atomic compound is unavailable or errored
+        if conn is not None and hasattr(conn, "send_command"):
+            for item in batch_items:
+                t_idx = item["track_index"]
+                s_idx = item["clip_index"]
+                s_beats = item["length"]
+                current_beat = item["destination_time"]
+                matched_notes = item["notes"]
+                sec_name = item["name"]
+
+                try:
+                    conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": s_idx})
+                    if matched_notes:
+                        conn.send_command("create_clip", {
+                            "track_index": t_idx,
+                            "clip_index": s_idx,
+                            "length": s_beats
+                        })
+                        conn.send_command("set_clip_name", {
+                            "track_index": t_idx,
+                            "clip_index": s_idx,
+                            "name": sec_name
+                        })
+                        conn.send_command("add_notes_to_clip", {
+                            "track_index": t_idx,
+                            "clip_index": s_idx,
+                            "notes": matched_notes
+                        })
+                        clips_created += 1
+                        notes_injected += len(matched_notes)
+                        tracks_touched.add(t_idx)
+
+                        if duplicate_to_arrangement:
+                            try:
+                                conn.send_command("duplicate_to_arrangement", {
+                                    "track_index": t_idx,
+                                    "clip_index": s_idx,
+                                    "destination_time": current_beat
+                                })
+                            except Exception as d_ex:
+                                logger.debug(f"Arrangement duplication notice: {d_ex}")
+                except Exception as e:
+                    logger.warning(f"Batch compose error on track {t_idx} section {s_idx}: {e}")
 
         return {
             "status": "SUCCESS",
             "clips_created": clips_created,
             "notes_injected": notes_injected,
             "tracks_touched": sorted(list(tracks_touched)),
-            "sections_count": len(sections)
+            "sections_count": len(sections),
+            "mode": "sequential_fallback"
         }

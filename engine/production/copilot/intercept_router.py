@@ -416,7 +416,7 @@ class ActiveSubStateInterceptHandler:
         if sdata.get("awaiting_pre_vocal_panning", False):
             return True
         # LUFS Calibration Gatekeeper active sub-state
-        if sdata.get("lufs_gate_active", False):
+        if phase in ("PHASE_8_VOCAL_DUCKING", "PHASE_9_MIX_MASTER", "PHASE_10_COMPLETED") and sdata.get("lufs_gate_active", False):
             return True
         # Vocal workflow choice active sub-state
         if sdata.get("awaiting_vocal_workflow_choice", False):
@@ -476,7 +476,7 @@ class ActiveSubStateInterceptHandler:
             return session._handle_pre_vocal_panning(conn, user_input)
 
         # Active state for LUFS Calibration Gatekeeper
-        if sdata.get("lufs_gate_active", False):
+        if phase in ("PHASE_8_VOCAL_DUCKING", "PHASE_9_MIX_MASTER", "PHASE_10_COMPLETED") and sdata.get("lufs_gate_active", False):
             return session._handle_dual_lufs_validation(conn, user_input)
 
         # Active state for Awaiting Vocal Workflow Choice (2 Partes)

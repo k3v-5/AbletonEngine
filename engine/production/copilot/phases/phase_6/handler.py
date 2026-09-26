@@ -570,8 +570,17 @@ for trk in song.tracks:
 
         ai_meta, custom_notes_map, has_notes = self.parse_ai_composition(session, user_input)
 
+        clean_path = str(user_input).strip().strip('"').strip("'")
+        if not (os.path.exists(clean_path) and clean_path.endswith(".json")):
+            path_m = re.search(r'([A-Za-z]:\\[^"\'\r\n]+\.json|/[^"\'\r\n]+\.json)', user_input)
+            if path_m and os.path.exists(path_m.group(1)):
+                clean_path = path_m.group(1)
+        is_score_file = bool(os.path.exists(clean_path) and clean_path.endswith(".json"))
+        distinct_track_keys = {k[0] for k in custom_notes_map.keys() if k[0] not in ("current", None)}
+        is_multi_track_score = len(distinct_track_keys) > 1 or is_score_file
+
         is_explicit_key_directive = bool(re.search(r'\bKEY\s+[A-G][#b]?\b', user_input, re.IGNORECASE))
-        if is_explicit_key_directive or any(w in text_norm for w in ["key ", "tonalidad", "dorian", "bpm", "natural_minor", "phrygian"]):
+        if is_multi_track_score or is_explicit_key_directive or any(w in text_norm for w in ["key ", "tonalidad", "dorian", "bpm", "natural_minor", "phrygian"]):
             session.data["composition_session"] = {"active": False}
             return self._handle_phase_6(session, conn, user_input)
 
@@ -689,6 +698,13 @@ for trk in song.tracks:
                 if trk_idx < len(tracks):
                     return self.prompt_by_track_step(session, trk_idx)
                 else:
+                    blk_unpop = Phase6Gatekeepers.check_unpopulated_midi_tracks(
+                        session=session,
+                        tracks=tracks,
+                        is_explicit_key_directive=False
+                    )
+                    if blk_unpop:
+                        return blk_unpop
                     self.enforce_pre_drop_vacuum(session, conn)
                     if hasattr(session, "_get_creative_controller"):
                         try:
@@ -746,6 +762,13 @@ for trk in song.tracks:
                     )
                     if blk_silent:
                         return blk_silent
+                    blk_unpop = Phase6Gatekeepers.check_unpopulated_midi_tracks(
+                        session=session,
+                        tracks=tracks,
+                        is_explicit_key_directive=False
+                    )
+                    if blk_unpop:
+                        return blk_unpop
                     if hasattr(session, "validate_phase_readiness"):
                         omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                         if omission_blk:
@@ -802,6 +825,13 @@ for trk in song.tracks:
             trk_idx = session_state.get("track_index", 0)
             sec_idx = session_state.get("section_index", 0)
             if trk_idx >= len(tracks):
+                blk_unpop = Phase6Gatekeepers.check_unpopulated_midi_tracks(
+                    session=session,
+                    tracks=tracks,
+                    is_explicit_key_directive=False
+                )
+                if blk_unpop:
+                    return blk_unpop
                 if hasattr(session, "validate_phase_readiness"):
                     omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                     if omission_blk:
@@ -826,6 +856,13 @@ for trk in song.tracks:
                 if trk_idx < len(tracks):
                     return self.prompt_by_clip_step(session, trk_idx, sec_idx)
                 else:
+                    blk_unpop = Phase6Gatekeepers.check_unpopulated_midi_tracks(
+                        session=session,
+                        tracks=tracks,
+                        is_explicit_key_directive=False
+                    )
+                    if blk_unpop:
+                        return blk_unpop
                     self.enforce_pre_drop_vacuum(session, conn)
                     if hasattr(session, "validate_phase_readiness"):
                         omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
@@ -843,10 +880,21 @@ for trk in song.tracks:
 
             clip_notes = []
             if not is_silence:
-                for k, v in custom_notes_map.items():
-                    if v:
-                        clip_notes = list(v)
-                        break
+                found = self.find_custom_notes_for_track_section(
+                    session=session,
+                    custom_map=custom_notes_map,
+                    trk=cur_trk,
+                    s_idx=sec_idx,
+                    s_name=cur_sec.get("name", ""),
+                    s_beats=s_beats
+                )
+                if found:
+                    clip_notes = list(found)
+                else:
+                    for k, v in custom_notes_map.items():
+                        if v:
+                            clip_notes = list(v)
+                            break
                 if not clip_notes and not has_notes and not is_silence:
                     return {
                         "status": "AWAITING_CLIP_NOTES",
@@ -950,7 +998,15 @@ for trk in song.tracks:
             if trk_idx < len(tracks):
                 return self.prompt_by_clip_step(session, trk_idx, sec_idx)
 
+            blk_unpop = Phase6Gatekeepers.check_unpopulated_midi_tracks(
+                session=session,
+                tracks=tracks,
+                is_explicit_key_directive=False
+            )
+            if blk_unpop:
+                return blk_unpop
             self.enforce_pre_drop_vacuum(session, conn)
+            self.apply_commercial_arrangement_enrichments(session, conn)
             session.data["composition_session"] = {"active": False}
             session.data["current_phase"] = "PHASE_7_AUTOMATION"
             session.data["phase_index"] = 7
@@ -1299,6 +1355,13 @@ for trk in song.tracks:
         if blk_silent:
             return blk_silent
 
+        # Re-sync arrangement cue points now that clips are placed and timeline has full length (Issue 1)
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                TransportManager.sync_section_cue_points(conn, sections)
+            except Exception as ex_cue:
+                logger.debug(f"Phase 6 cue point re-sync notice: {ex_cue}")
+
         # Gatekeeper 5: Omission Audit Gatekeeper (SongContract Physical Evidence)
         if hasattr(session, "validate_phase_readiness"):
             omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
@@ -1306,13 +1369,6 @@ for trk in song.tracks:
                 return omission_blk
 
         self.apply_commercial_arrangement_enrichments(session, conn)
-
-        # Re-sync arrangement cue points now that clips are placed and timeline has full length (Issue 1)
-        if conn is not None and hasattr(conn, "send_command"):
-            try:
-                TransportManager.sync_section_cue_points(conn, sections)
-            except Exception as ex_cue:
-                logger.debug(f"Phase 6 cue point re-sync notice: {ex_cue}")
 
         session.data["current_phase"] = "PHASE_7_AUTOMATION"
         session.data["phase_index"] = 7

@@ -240,6 +240,7 @@ if len(arr_clips) == 0:
         # --- MIDI TRACK HANDLING ---
         trk["deployment_failed"] = False
         trk["deployment_error"] = None
+        track_batch_items = []
         for s_idx, sec in enumerate(sections):
             s_name = sec.get("name", f"Section {s_idx + 1}")
             s_bars = int(sec.get("bars", 8))
@@ -535,30 +536,118 @@ if len(arr_clips) == 0:
                     )
 
 
-            if conn is not None and hasattr(conn, "send_command"):
-                try:
-                    cls.deploy_clip_with_governance_retry(
-                        session_or_conn=session,
-                        conn=conn,
-                        t_idx=t_idx,
-                        s_idx=s_idx,
-                        s_beats=s_beats,
-                        s_notes_dicts=s_notes_dicts,
-                        current_beat=current_beat,
-                        trk=trk
-                    )
-                    total_notes_trk += len(s_notes_dicts)
-                except Exception as ex:
-                    trk["deployment_failed"] = True
-                    trk["deployment_error"] = str(ex)
-                    logger.error(
-                        f"Deployment failed permanently on track {t_idx} ('{trk.get('name')}') section {s_idx}: {ex}. "
-                        "Note count NOT incremented."
-                    )
-            else:
-                total_notes_trk += len(s_notes_dicts)
-
+            track_batch_items.append({
+                "t_idx": t_idx,
+                "s_idx": s_idx,
+                "s_beats": s_beats,
+                "s_notes_dicts": s_notes_dicts,
+                "current_beat": current_beat,
+                "s_name": s_name
+            })
             current_beat += s_beats
+
+        # Fast Atomic Compound Deployment for Track in Live 12 Main Thread
+        deployed_atomically = False
+        if conn is not None and hasattr(conn, "send_command") and track_batch_items:
+            import json
+            atomic_payload = []
+            for item in track_batch_items:
+                atomic_payload.append({
+                    "track_index": item["t_idx"],
+                    "clip_index": item["s_idx"],
+                    "name": str(item["s_name"]),
+                    "length": float(item["s_beats"]),
+                    "destination_time": float(item["current_beat"]),
+                    "notes": [
+                        {
+                            "pitch": int(d["pitch"]),
+                            "start_time": round(float(d.get("start_time", d.get("start", d.get("time", 0.0)))), 3),
+                            "duration": round(float(d.get("duration", 1.0)), 3),
+                            "velocity": min(127, max(1, int(d.get("velocity", 100)))),
+                            "mute": bool(d.get("mute", False))
+                        }
+                        for d in item["s_notes_dicts"]
+                    ]
+                })
+
+            payload_json = json.dumps(atomic_payload)
+            code_compound = f"""
+import json
+results = {{"clips_created": 0, "notes_injected": 0, "errors": []}}
+items = json.loads({json.dumps(payload_json)})
+
+for item in items:
+    t_idx = item["track_index"]
+    s_idx = item["clip_index"]
+    s_beats = float(item["length"])
+    dest_t = float(item["destination_time"])
+    c_name = item.get("name", "")
+    notes = item.get("notes", [])
+
+    if t_idx < 0 or t_idx >= len(song.tracks):
+        results["errors"].append("Invalid track index " + str(t_idx))
+        continue
+    t = song.tracks[t_idx]
+    if s_idx < 0 or s_idx >= len(t.clip_slots):
+        results["errors"].append("Invalid clip slot " + str(s_idx) + " on track " + str(t_idx))
+        continue
+    slot = t.clip_slots[s_idx]
+    if slot.has_clip:
+        slot.delete_clip()
+
+    if notes:
+        slot.create_clip(s_beats)
+        c = slot.clip
+        c.name = c_name
+        live_notes = []
+        for n in notes:
+            live_notes.append((
+                int(n["pitch"]),
+                float(n["start_time"]),
+                float(n["duration"]),
+                int(n["velocity"]),
+                bool(n.get("mute", False))
+            ))
+        c.set_notes(tuple(live_notes))
+        results["clips_created"] += 1
+        results["notes_injected"] += len(live_notes)
+        t.duplicate_clip_to_arrangement(c, dest_t)
+    elif s_idx == 0:
+        slot.create_clip(s_beats)
+        results["clips_created"] += 1
+"""
+            try:
+                res = conn.send_command("execute_code", {"code": code_compound})
+                results_data = res.get("results", {}) if isinstance(res, dict) else {}
+                if isinstance(results_data, dict) and "clips_created" in results_data and not results_data.get("errors"):
+                    total_notes_trk = results_data.get("notes_injected", sum(len(it["s_notes_dicts"]) for it in track_batch_items))
+                    deployed_atomically = True
+            except Exception as ex_atomic:
+                logger.warning(f"Track atomic deployment fallback to sequential: {ex_atomic}")
+
+        if not deployed_atomically:
+            # Sequential Fallback with governance retry
+            for item in track_batch_items:
+                s_notes = item["s_notes_dicts"]
+                if conn is not None and hasattr(conn, "send_command"):
+                    try:
+                        cls.deploy_clip_with_governance_retry(
+                            session_or_conn=session,
+                            conn=conn,
+                            t_idx=item["t_idx"],
+                            s_idx=item["s_idx"],
+                            s_beats=item["s_beats"],
+                            s_notes_dicts=s_notes,
+                            current_beat=item["current_beat"],
+                            trk=trk
+                        )
+                        total_notes_trk += len(s_notes)
+                    except Exception as ex:
+                        trk["deployment_failed"] = True
+                        trk["deployment_error"] = str(ex)
+                        logger.error(f"Deployment failed permanently on track {item['t_idx']} section {item['s_idx']}: {ex}")
+                else:
+                    total_notes_trk += len(s_notes)
 
         trk["notes_count"] = total_notes_trk
         return total_notes_trk

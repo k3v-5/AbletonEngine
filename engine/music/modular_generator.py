@@ -30,10 +30,32 @@ def resolve_genre_style(genre_input: Optional[str], bpm: float = 120.0) -> Genre
             for style in GenreDrumStyle:
                 if style.value in g_clean or g_clean in style.value:
                     return style
-            if "hip_hop" in g_clean or "hiphop" in g_clean or "drill" in g_clean:
+            if any(w in g_clean for w in ["dubstep", "brostep", "riddim", "tearout"]):
+                return GenreDrumStyle.DUBSTEP
+            elif any(w in g_clean for w in ["drill", "uk_drill", "ny_drill"]):
+                return GenreDrumStyle.DRILL
+            elif any(w in g_clean for w in ["lofi", "lo_fi", "chillhop"]):
+                return GenreDrumStyle.LOFI
+            elif any(w in g_clean for w in ["ambient", "drone", "meditation"]):
+                return GenreDrumStyle.AMBIENT
+            elif any(w in g_clean for w in ["downtempo", "trip_hop", "chillout"]):
+                return GenreDrumStyle.DOWNTEMPO
+            elif any(w in g_clean for w in ["metal", "heavy_metal", "deathcore"]):
+                return GenreDrumStyle.METAL
+            elif any(w in g_clean for w in ["jazz", "swing", "bebop"]):
+                return GenreDrumStyle.JAZZ
+            elif any(w in g_clean for w in ["funk", "disco"]):
+                return GenreDrumStyle.FUNK
+            elif any(w in g_clean for w in ["midtempo", "cyberpunk"]):
+                return GenreDrumStyle.MIDTEMPO
+            elif any(w in g_clean for w in ["trance", "psytrance"]):
+                return GenreDrumStyle.TRANCE
+            elif any(w in g_clean for w in ["glitch", "glitch_hop"]):
+                return GenreDrumStyle.GLITCH_HOP
+            elif any(w in g_clean for w in ["indie", "alternative"]):
+                return GenreDrumStyle.INDIE
+            elif "hip_hop" in g_clean or "hiphop" in g_clean:
                 return GenreDrumStyle.TRAP
-            elif "lofi" in g_clean or "lo_fi" in g_clean:
-                return GenreDrumStyle.BOOM_BAP
             elif "rnb" in g_clean or "soul" in g_clean:
                 return GenreDrumStyle.NEO_SOUL
             elif "dembow" in g_clean or "latin" in g_clean:
@@ -46,10 +68,12 @@ def resolve_genre_style(genre_input: Optional[str], bpm: float = 120.0) -> Genre
         return GenreDrumStyle.BOOM_BAP
     elif bpm <= 115.0:
         return GenreDrumStyle.REGGAETON
-    elif bpm <= 130.0:
+    elif bpm <= 134.0:
         return GenreDrumStyle.HOUSE
     elif bpm <= 165.0:
-        return GenreDrumStyle.TRAP
+        if 138.0 <= bpm <= 152.0 and "dubstep" in str(genre_input or "").lower():
+            return GenreDrumStyle.DUBSTEP
+        return GenreDrumStyle.UNIVERSAL
     else:
         return GenreDrumStyle.DRUM_AND_BASS
 
@@ -177,17 +201,7 @@ def generate_modular_section_notes(
                     for n in raw_groove:
                         if n.pitch in (36, 38, 39) and n.velocity == max_v:
                             n.velocity = 127
-            # Density guard for 16-bar drop (require >= 200 notes per production standard)
-            if is_drop and section_bars >= 16 and len(raw_groove) < 200:
-                raw_groove = DrumGhostNoteInjector.inject_ghost_notes(raw_groove, total_bars=section_bars)
-                if len(raw_groove) < 200:
-                    for bar in range(section_bars):
-                        b = bar * 4.0
-                        for h in range(4):
-                            raw_groove.append(NoteEvent(pitch=46, start=b + h + 0.5, duration=0.2, velocity=105))
-            # Inject bar 8 fill if 8+ bars
-            if section_bars >= 8 and raw_groove:
-                raw_groove = DrumPatternEvolver.inject_bar_8_fill(raw_groove, loop_bars=float(section_bars))
+            # Clean, foundational drum groove without forced density clutter or forced fills by default
             notes = raw_groove
 
     # 1.1 KICK (Isolated Kick Drum)
@@ -247,24 +261,12 @@ def generate_modular_section_notes(
             notes.append(NoteEvent(pitch=bass_pitches[0], start=0.0, duration=16.0, velocity=85))
         else:
             is_heavy = ("drop" in s_lower or "climax" in s_lower or section_index in (3, 5))
-            vel = 126 if is_heavy else 105
-            for bar in range(0, section_bars, 2):
+            vel = 120 if is_heavy else 105
+            # Clean, solid foundational root bass notes on downbeats (tools provide syncopation if requested)
+            for bar in range(section_bars):
                 b = bar * 4.0
-                p = bass_pitches[(bar // 2) % len(bass_pitches)]
-                p_next = bass_pitches[((bar // 2) + 1) % len(bass_pitches)]
-                # Hit 1: Downbeat bar 1
-                notes.append(NoteEvent(pitch=p, start=b + 0.0, duration=1.4, velocity=vel))
-                # Hit 2: Syncopated bounce on beat 2.5
-                notes.append(NoteEvent(pitch=p, start=b + 1.5, duration=2.0, velocity=vel - 6))
-                # Hit 3: Downbeat bar 2
-                notes.append(NoteEvent(pitch=p_next, start=b + 4.0, duration=1.5, velocity=vel - 4))
-                # Hit 4: Turnaround octave leap on beat 6.5
-                if is_heavy and (bar % 4 == 2):
-                    notes.append(NoteEvent(pitch=p_next + 12, start=b + 6.5, duration=0.75, velocity=vel - 10))
-                # Hit 5: Chromatic approach leading tone
-                if p_next != p:
-                    leading_tone = p_next - 1 if p_next > 24 else p_next + 1
-                    notes.append(NoteEvent(pitch=leading_tone, start=b + 7.5, duration=0.45, velocity=vel - 12))
+                p = bass_pitches[bar % len(bass_pitches)]
+                notes.append(NoteEvent(pitch=p, start=b + 0.0, duration=3.8, velocity=vel))
 
     # 3. KEYS
     elif "KEY" in r:
@@ -308,28 +310,74 @@ def generate_modular_section_notes(
                 notes.append(NoteEvent(pitch=fifth_pitch - 1, start=16.0, duration=min(15.8, total_beats - 16.2), velocity=95))
                 notes.append(NoteEvent(pitch=oct_pitch, start=16.0, duration=min(15.8, total_beats - 16.2), velocity=110))
         else:
-            is_climax = ("climax" in s_lower or "drop 2" in s_lower or section_index == 5)
-            oct_shift = 12 if is_climax else 0
-            key_semi_offset = (KEY_OFFSETS.get(key.upper().strip(), 5) - 5) % 12
-            phrase_seed = (section_index + 1) * 101
-            for bar in range(0, section_bars, 8):
+            # Clean, foundational lead motif: root & fifth anchors, leaving sonic space for producer composition
+            root_lead = root + 48
+            fifth_lead = root_lead + 7
+            for bar in range(0, section_bars, 2):
                 b = bar * 4.0
-                phrase_notes = TopLineMelodyEngine.generate_8bar_phrase(
-                    start_beat=b,
-                    key_root=key,
-                    scale=scale,
-                    energy_level=0.95 if is_climax else 0.80,
-                    phrase_seed=phrase_seed + bar
-                )
-                for pn in phrase_notes:
-                    notes.append(NoteEvent(
-                        pitch=pn.pitch + key_semi_offset + oct_shift,
-                        start=pn.start,
-                        duration=pn.duration,
-                        velocity=min(127, pn.velocity + (10 if is_climax else 0))
-                    ))
+                notes.append(NoteEvent(pitch=root_lead, start=b + 0.0, duration=1.8, velocity=115))
+                notes.append(NoteEvent(pitch=fifth_lead, start=b + 2.0, duration=1.8, velocity=108))
 
     return notes
+
+
+class CompositionToolbox:
+    """
+    On-demand tools for producers and AI to apply expressive embellishments,
+    rhythmic syncopations, and sound variations WHEN NEEDED, without forcing them by default.
+    """
+
+    @staticmethod
+    def apply_drum_ghost_notes(notes: List[NoteEvent], total_bars: int = 4) -> List[NoteEvent]:
+        from engine.music.drums.ghost_notes import DrumGhostNoteInjector
+        return DrumGhostNoteInjector.inject_ghost_notes(notes, total_bars=total_bars)
+
+    @staticmethod
+    def apply_bar_8_fill(notes: List[NoteEvent], total_bars: float = 8.0) -> List[NoteEvent]:
+        from engine.music.drums.evolver import DrumPatternEvolver
+        return DrumPatternEvolver.inject_bar_8_fill(notes, loop_bars=total_bars)
+
+    @staticmethod
+    def apply_syncopated_bass_bounce(
+        notes: List[NoteEvent],
+        bass_pitches: List[int],
+        total_bars: int,
+        is_heavy: bool = True
+    ) -> List[NoteEvent]:
+        """Tool to generate a syncopated bass with offbeat bounces, octave leaps, and chromatic approach on demand."""
+        syncopated = []
+        vel = 126 if is_heavy else 105
+        for bar in range(0, total_bars, 2):
+            b = bar * 4.0
+            p = bass_pitches[(bar // 2) % len(bass_pitches)]
+            p_next = bass_pitches[((bar // 2) + 1) % len(bass_pitches)]
+            syncopated.append(NoteEvent(pitch=p, start=b + 0.0, duration=1.4, velocity=vel))
+            syncopated.append(NoteEvent(pitch=p, start=b + 1.5, duration=2.0, velocity=vel - 6))
+            syncopated.append(NoteEvent(pitch=p_next, start=b + 4.0, duration=1.5, velocity=vel - 4))
+            if is_heavy and (bar % 4 == 2):
+                syncopated.append(NoteEvent(pitch=p_next + 12, start=b + 6.5, duration=0.75, velocity=vel - 10))
+            if p_next != p:
+                leading_tone = p_next - 1 if p_next > 24 else p_next + 1
+                syncopated.append(NoteEvent(pitch=leading_tone, start=b + 7.5, duration=0.45, velocity=vel - 12))
+        return syncopated
+
+    @staticmethod
+    def generate_expressive_topline(
+        start_beat: float,
+        key: str,
+        scale: str,
+        energy_level: float = 0.85,
+        phrase_seed: int = 101
+    ) -> List[NoteEvent]:
+        """Tool to generate an expressive melodic topline across 8 bars on demand."""
+        from engine.music.melody.topline import TopLineMelodyEngine
+        return TopLineMelodyEngine.generate_8bar_phrase(
+            start_beat=start_beat,
+            key_root=key,
+            scale=scale,
+            energy_level=energy_level,
+            phrase_seed=phrase_seed
+        )
 
 
 

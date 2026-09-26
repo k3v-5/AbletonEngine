@@ -239,7 +239,7 @@ class Phase6Prompts:
         try:
             from engine.memory.user_learning import get_user_preferences
             prefs = get_user_preferences()
-            pref_mode = prefs.get("composition", {}).get("mode", "by_clip")
+            pref_mode = prefs.get("composition", {}).get("mode", "monolithic")
         except Exception:
             pass
 

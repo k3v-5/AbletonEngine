@@ -622,8 +622,37 @@ for slot in t.clip_slots:
                                 selected_opt = u_opt
                                 break
                     if not selected_opt:
+                        # Direct match for Native Live 12 instruments requested by user
+                        if any(w in u_clean for w in ["operator", "opertor"]):
+                            target_uri = "query:Synths#Operator"
+                            display_name = "Ableton Operator"
+                        elif any(w in u_clean for w in ["wavetable", "growl"]):
+                            target_uri = "query:Synths#Wavetable"
+                            display_name = "Ableton Wavetable"
+                        elif "drift" in u_clean:
+                            target_uri = "query:Synths#Drift"
+                            display_name = "Ableton Drift"
+                        elif "simpler" in u_clean:
+                            target_uri = "query:Synths#Simpler"
+                            display_name = "Ableton Simpler"
+                        elif "drum rack" in u_clean or (role == "DRUMS" and any(w in u_clean for w in ["rack", "kit", "drum"])):
+                            if "909" in u_clean:
+                                target_uri = "query:Drums#FileId_5423"
+                                display_name = "909 Core Kit (.adg)"
+                            elif "707" in u_clean:
+                                target_uri = "query:Drums#FileId_5421"
+                                display_name = "707 Core Kit (.adg)"
+                            elif "techno" in u_clean:
+                                target_uri = "query:Drums#FileId_5367"
+                                display_name = "AG Techno Kit (.adg)"
+                            else:
+                                target_uri = "query:Drums#FileId_5422"
+                                display_name = "808 Core Kit (.adg)"
+
+                    if not selected_opt and not locals().get("target_uri"):
                         native_opts = [o for o in options if "native" in o.id.lower() or "native" in str(getattr(o, "category", "")).lower()]
                         selected_opt = native_opts[0] if native_opts else (options[0] if options else None)
+
     
                 # Check if user selected Analog Lab V, Omnisphere, or Decent Sampler (Multi-preset parent plugin)
                 opt_name_low = selected_opt.name.lower() if selected_opt else ""
@@ -860,6 +889,24 @@ for p in d.parameters:
     
         trk["instrument"] = display_name
         trk["item_uri"] = target_uri
+        if "operator" in display_name.lower() and "blueprint" not in trk:
+            trk["blueprint"] = {
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.30, "DRIVE": 0.15, "AMP_ATTACK": 0.01, "AMP_RELEASE": 0.35, "SUB_LEVEL": 0.95},
+                "description": "Operator pure sine sub-bass tuned to F1 (~43.65 Hz)"
+            }
+        elif "wavetable" in display_name.lower() and "blueprint" not in trk:
+            trk["blueprint"] = {
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.75, "DRIVE": 0.50, "WAVETABLE_POS": 0.65, "AMP_ATTACK": 0.02, "AMP_RELEASE": 0.30},
+                "description": "Wavetable aggressive metallic growl lead"
+            }
+        elif "drift" in display_name.lower() and "blueprint" not in trk:
+            trk["blueprint"] = {
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.80, "DRIVE": 0.30, "AMP_ATTACK": 0.01, "AMP_RELEASE": 0.25},
+                "description": "Drift sharp metallic stabs for call & response"
+            }
         if "decent sampler" in display_name.lower():
             trk["is_decent_sampler"] = True
             bp = trk.get("blueprint", {})

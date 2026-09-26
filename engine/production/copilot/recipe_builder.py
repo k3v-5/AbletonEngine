@@ -43,12 +43,22 @@ class CopilotRecipeBuilder:
             ))
             current_bar += s_bars
 
+        genre_ref = data.get("genre", "Modern Production")
+        user_chords = data.get("chord_progression")
+        if not user_chords:
+            genre_lower = str(genre_ref).lower()
+            is_minor = "minor" in scale.lower()
+            if any(w in genre_lower for w in ["dubstep", "riddim", "brostep", "metal", "dnb", "drum_and_bass", "techno", "ambient"]):
+                user_chords = [f"{key}m"] if is_minor else [f"{key}"]
+            else:
+                user_chords = [f"{key}m"] if is_minor else [f"{key}"]
+
         return ProductionRecipe(
-            title="Copilot Guided Production",
-            genre_reference="Modern Production",
+            title=data.get("title", "Copilot Guided Production"),
+            genre_reference=genre_ref,
             key=key,
             scale=scale,
-            chord_progression=["Fm", "Db", "Ab", "Eb"],
+            chord_progression=user_chords,
             bpm=bpm,
             tracks=recipe_tracks,
             sections=recipe_sections

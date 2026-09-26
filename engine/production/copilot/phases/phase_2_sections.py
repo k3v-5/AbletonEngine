@@ -193,8 +193,33 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 elif isinstance(js, list):
                     parsed_custom = js
             except Exception:
+                m_json = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', user_input)
+                if m_json:
+                    try:
+                        js = json.loads(m_json.group(1))
+                        if isinstance(js, dict) and "sections" in js:
+                            parsed_custom = js["sections"]
+                        elif isinstance(js, list):
+                            parsed_custom = js
+                    except Exception:
+                        pass
+
+        # Extract genre dynamically from structured JSON or text input
+        if isinstance(user_input, dict) and "genre" in user_input:
+            session.data["genre"] = str(user_input["genre"]).lower().strip()
+        elif isinstance(user_input, str):
+            try:
+                js_g = json.loads(user_input)
+                if isinstance(js_g, dict) and "genre" in js_g:
+                    session.data["genre"] = str(js_g["genre"]).lower().strip()
+            except Exception:
                 pass
-    
+            if not session.data.get("genre"):
+                for g_cand in ["dubstep", "trap", "edm", "house", "techno", "rock", "pop", "drill", "reggaeton", "boom_bap", "dnb", "drum_and_bass", "ambient", "metal", "jazz", "funk"]:
+                    if g_cand in text:
+                        session.data["genre"] = g_cand
+                        break
+
         genre = session.data.get("genre", "trap")
         genre_default_bpm = {
             "trap": 140.0,
