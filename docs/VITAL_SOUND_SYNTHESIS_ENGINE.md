@@ -86,6 +86,9 @@ Aplica las 7 leyes de producción comercial descubiertas por ingeniería inversa
 - Define umbrales de corte seguros adaptados al modo de filtro:
   - Low-Pass: no permite corte $< 18.0$ ($\sim 23\text{ Hz}$).
   - High-Pass: no permite corte $> 118.0$ ($\sim 7\text{ kHz}$) para evitar eliminar todo el espectro musical.
+- **Invariante 6 (Alineación Vectorial de LFO):** Vital en C++ exige estrictamente que $\text{len}(powers) = num\_points$ y $\text{len}(points) = 2 \times num\_points$. Cualquier discrepancia generaba el error *"Preset file is corrupted"* al cargarlo en el sintetizador; el invariante 6 valida y alinea automáticamente todos los vectores de los 8 LFOs.
+- **Invariante 7 (Integridad de Tablas de Onda y Versión):** Vital 1.0.x rechaza tablas de onda con números de versión futura o claves `audio_file` vacías. El invariante 7 normaliza `version = "1.0.7"` y valida los componentes de origen `Wave Source`.
+- **Invariante 8 (Metadatos Seguros del Sampler):** Valida que el nombre de los búferes PCM del sampler interno utilice descriptores aceptados nativamente (`"White Noise"`, `"Key Click"`, `"Air"`), evitando fallos en el motor de streaming de muestras.
 
 ### 2.7 [`vital_archetype_catalog.py`](file:///d:/Proyectos/TEST/AbletonEngine-main/AbletonEngine-main/engine/sound_design/vital_archetype_catalog.py) — Catálogo de Arquetipos
 Indexa automáticamente presets disponibles en el sistema y los clasifica en 10 categorías acústicas.
