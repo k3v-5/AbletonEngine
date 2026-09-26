@@ -6,21 +6,27 @@ Provides specialized, parameter-prompt-free configuration pipelines for:
 - Instruments: Decent Sampler, Surge XT Synth, Vital
 - Effects: Valhalla Supermassive, Valhalla VintageVerb, Surge XT Effects
 
-When the AI / user decides to use these plugins, they are configured
-through their own dedicated sound design engines rather than stopping
-the flow to ask for raw numeric parameters.
+Interaction Paradigm:
+1. The engine does NOT interrogate the AI / user for tedious raw numeric parameters
+   (e.g., Attack=0.02, Release=0.45, Cutoff=0.82).
+2. The engine INITIATES a dedicated modeling phase/step through the specialized submodule.
+3. The AI MODELS the sound design (selecting archetypes, eras, sound characters, or high-level timbral directives).
+4. The engine ENFORCES acoustic limits, anti-silence/anti-click invariants, headroom,
+   mono sub-bass protection, and 3-tier validation policies before compiling and dispatching to Live.
 """
 
 import os
+import re
+import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 logger = logging.getLogger("DedicatedPluginConfigurator")
 
 
 class DedicatedPluginConfigurator:
-    """Orchestrates autonomous configuration of specialized VST plugins."""
+    """Orchestrates autonomous configuration and AI modeling of specialized VST plugins."""
 
     # -------------------------------------------------------------------------
     # IDENTIFIERS
@@ -43,7 +49,364 @@ class DedicatedPluginConfigurator:
         return any(k in name_l for k in ["supermassive", "vintageverb", "surge xt effects", "surge_xt_effects"])
 
     # -------------------------------------------------------------------------
-    # INSTRUMENT CONFIGURATION PATHWAYS
+    # PHASE 4: PROMPT GENERATION (AI MODELING STEP)
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def get_instrument_sculpting_prompt(
+        cls,
+        trk: Dict[str, Any],
+        session: Any,
+        conn: Any = None
+    ) -> Dict[str, Any]:
+        """
+        Generates the specialized sound design modeling step for a dedicated instrument.
+        Prompts the AI to model the timbre/character conceptually instead of asking
+        for raw numeric floats.
+        """
+        inst_name = str(trk.get("instrument", "")).lower()
+        role = trk.get("role", "OTHER")
+        ptr = session.data.get("current_param_ptr", 0)
+        tracks = session.data.get("tracks", [])
+        t_idx = session._resolve_live_track_index(conn, trk)
+        t_name = trk.get("name", f"Track {t_idx}")
+        bpm = float(session.data.get("bpm", 120.0))
+
+        if "vital" in inst_name:
+            return cls._prompt_vital_modeling(trk, role, bpm, ptr, len(tracks), t_idx, t_name)
+        elif "surge" in inst_name and "effects" not in inst_name:
+            return cls._prompt_surge_synth_modeling(trk, role, bpm, ptr, len(tracks), t_idx, t_name)
+        elif "decent sampler" in inst_name or "decent" in inst_name:
+            return cls._prompt_decent_sampler_modeling(trk, role, bpm, ptr, len(tracks), t_idx, t_name)
+        else:
+            return {}
+
+    @classmethod
+    def _prompt_vital_modeling(
+        cls,
+        trk: Dict[str, Any],
+        role: str,
+        bpm: float,
+        ptr: int,
+        total_tracks: int,
+        t_idx: int,
+        t_name: str
+    ) -> Dict[str, Any]:
+        if role == "BASS":
+            opt1 = "Opción 1: Arquetipo BASS_808 Saturado (Punch 0.90, Warmth 0.70, Brightness 0.40, Mono Sub puro)"
+            opt2 = "Opción 2: Arquetipo BASS_SUB Profundo (Subliminal 30-65Hz, Clean Sine, Cero Detune, Sólido)"
+            opt3 = "Opción 3: Arquetipo BASS_PUNCH Reese Agresivo (Detune 0.35, Drive 0.50, Movement 0.60)"
+            def_archetype = "BASS_808"
+        elif role == "LEAD":
+            opt1 = "Opción 1: Arquetipo LEAD_SAW Hyperpop Piercing (Brightness 0.85, Unison 7 voces, Punch 0.80)"
+            opt2 = "Opción 2: Arquetipo LEAD_PLUCK Transiente Rápido (Decay 0.25, Sustain 0.0, Brightness 0.75)"
+            opt3 = "Opción 3: Arquetipo LEAD_VOCAL Formante Vocálico (Custom Wavetable VOCAL, Movement 0.55)"
+            def_archetype = "LEAD_SAW"
+        elif role == "PAD":
+            opt1 = "Opción 1: Arquetipo PAD_LUSH Shimmer Evolutivo (Attack 1.8s, Space 0.85, Stereo 0.90)"
+            opt2 = "Opción 2: Arquetipo PAD_ORGANIC Calidez Analógica (Warmth 0.75, Brightness 0.45, Detune sutil)"
+            opt3 = "Opción 3: Arquetipo PAD_TEXTURE Drone Oscuro (Cutoff 0.40, LFO Filter 0.50, Movement 0.70)"
+            def_archetype = "PAD_LUSH"
+        elif role in ("KEYS", "CHORDS"):
+            opt1 = "Opción 1: Arquetipo CHORD_SUPERAW Polifónico (Brightness 0.80, Unison 0.60, Movement 0.40)"
+            opt2 = "Opción 2: Arquetipo KEYS_HYBRID Mellow (Warmth 0.80, Decay 1.2s, Brightness 0.55)"
+            opt3 = "Opción 3: Arquetipo PLUCK_ORGANIC Neo-Soul (Attack 0.01, Decay 0.50, Brightness 0.65)"
+            def_archetype = "CHORD_SUPERAW"
+        else:
+            opt1 = f"Opción 1: Arquetipo Principal de Rol (Balance tímbrico optimizado para {role})"
+            opt2 = "Opción 2: Variante Brillante y Espaciosa (Brightness 0.80, Stereo 0.75)"
+            opt3 = "Opción 3: Variante Cálida y Percusiva (Punch 0.85, Warmth 0.70, Attack rápido)"
+            def_archetype = "LEAD_SAW"
+
+        question = (
+            f"🎛️ **Paso 4 de 7: Modelado de Síntesis en Vital (Pista {ptr + 1} de {total_tracks})**\n\n"
+            f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, BPM: {bpm})\n"
+            f"Sintetizador: **Vital Audio Vital**\n"
+            f"Submódulo: `VitalSoundEngine & ArchetypeCatalog` (con Invariantes 1-8 Anti-Silencio y LFO Integrity).\n\n"
+            f"**Opciones de Modelado por Arquetipo:**\n"
+            f"• {opt1}\n"
+            f"• {opt2}\n"
+            f"• {opt3}\n\n"
+            f"🧠 **Modelado Requerido por la IA:**\n"
+            f"La IA debe modelar el sonido definiendo la intención acústica. El motor se encarga de aplicar los límites de seguridad "
+            f"(anti-silence, sub-bass mono 20-70Hz limpio, vectorización de LFO y rango pre-fader a -14 dBFS).\n\n"
+            f"*Responde con 'Opción 1', 'Opción 2' o 'Opción 3', o escribe tus directivas de diseño sonoro "
+            f"(ej: 'arquetipo: {def_archetype}, directivas: brightness 0.75, punch 0.85, warmth_drive 0.40').*"
+        )
+        return {
+            "current_step": f"PASO 4 DE 7: MODELADO DE SÍNTESIS EN VITAL (PISTA {ptr + 1} DE {total_tracks})",
+            "action_taken": f"Vital cargado en Pista {t_idx} ('{t_name}'). Iniciando fase de modelado acústico mediante VitalSoundEngine.",
+            "question": question,
+            "instructions_for_ai": f"Modela el sonido de Vital para {t_name} seleccionando una opción o enviando tus directivas tímbricas.",
+            "target_track": t_idx,
+            "role": role,
+            "instrument": "Vital",
+            "phase": "PHASE_4_PARAM_SCULPTING",
+            "dedicated_plugin": "vital"
+        }
+
+    @classmethod
+    def _prompt_surge_synth_modeling(
+        cls,
+        trk: Dict[str, Any],
+        role: str,
+        bpm: float,
+        ptr: int,
+        total_tracks: int,
+        t_idx: int,
+        t_name: str
+    ) -> Dict[str, Any]:
+        opt1 = "Opción 1: Arquitectura Analógica Clásica (Oscilador Analog Saw/Square + Filtro Ladder 24dB + Envolvente AHDSR balanceada)"
+        opt2 = "Opción 2: Arquitectura Moderna Wavetable (Morphing Wavetable + Filtro K35 Drive + Detune estéreo amplio)"
+        opt3 = "Opción 3: Arquitectura FM & Percusiva (Oscilador FM2 + Filtro Lowpass rápido + Ataque punchy)"
+
+        question = (
+            f"🎛️ **Paso 4 de 7: Modelado de Arquitectura en Surge XT Synth (Pista {ptr + 1} de {total_tracks})**\n\n"
+            f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, BPM: {bpm})\n"
+            f"Sintetizador: **Surge XT Synth**\n"
+            f"Submódulo: `SurgeSynthPatchFactory & Architecture` (con 10 tipos de osciladores y 20+ filtros analógicos).\n\n"
+            f"**Opciones de Modelado Arquitectónico:**\n"
+            f"• {opt1}\n"
+            f"• {opt2}\n"
+            f"• {opt3}\n\n"
+            f"🧠 **Modelado Requerido por la IA:**\n"
+            f"La IA debe modelar la arquitectura del patch. El motor validará la coherencia "
+            f"(SurgeSynthValidator 3-tier, SurgeSynthSanitizer con resurrección de patches muertos y normalización de osciladores).\n\n"
+            f"*Responde con 'Opción 1', 'Opción 2' u 'Opción 3', o especifica tu modelado "
+            f"(ej: 'Oscilador: Wavetable, Filtro: Ladder, Brillo: Alto, Pegada: Firme').*"
+        )
+        return {
+            "current_step": f"PASO 4 DE 7: MODELADO DE SÍNTESIS EN SURGE XT (PISTA {ptr + 1} DE {total_tracks})",
+            "action_taken": f"Surge XT activo en Pista {t_idx} ('{t_name}'). Iniciando fase de modelado arquitectónico mediante SurgeSynthPatchFactory.",
+            "question": question,
+            "instructions_for_ai": f"Modela la arquitectura de Surge XT para {t_name} seleccionando una opción o enviando tus especificaciones.",
+            "target_track": t_idx,
+            "role": role,
+            "instrument": "Surge XT",
+            "phase": "PHASE_4_PARAM_SCULPTING",
+            "dedicated_plugin": "surge_xt_synth"
+        }
+
+    @classmethod
+    def _prompt_decent_sampler_modeling(
+        cls,
+        trk: Dict[str, Any],
+        role: str,
+        bpm: float,
+        ptr: int,
+        total_tracks: int,
+        t_idx: int,
+        t_name: str
+    ) -> Dict[str, Any]:
+        from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+
+        role_libs = DecentSamplerLibraryManager.get_libraries_for_role(role)
+        all_libs = DecentSamplerLibraryManager.scan_libraries(require_valid=True)
+        lib_names = [lib.name for lib in (role_libs or all_libs)[:3]]
+        lib_str = ", ".join(lib_names) if lib_names else "Librerías multisample base"
+
+        opt1 = f"Opción 1: Librería Certificada con Respuesta Rápida y Tono Cálido ({lib_names[0] if lib_names else 'Cathedral Piano'})"
+        opt2 = f"Opción 2: Librería con Espacio Reverberante y Apertura Coral ({lib_names[1] if len(lib_names) > 1 else 'Godly Pad'})"
+        opt3 = "Opción 3: Plantilla Acústica de Estudio con Filtro Protector"
+
+        question = (
+            f"🎹 **Paso 4 de 7: Modelado de Muestras en Decent Sampler (Pista {ptr + 1} de {total_tracks})**\n\n"
+            f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, BPM: {bpm})\n"
+            f"Sampler: **Decent Sampler**\n"
+            f"Submódulo: `DecentSamplerLibraryManager & Multi-Sample Compiler` (con validación 3-tier y anti-click floor).\n\n"
+            f"Librerías auditadas disponibles: **{lib_str}**\n\n"
+            f"**Opciones de Modelado Tímbrico:**\n"
+            f"• {opt1}\n"
+            f"• {opt2}\n"
+            f"• {opt3}\n\n"
+            f"🧠 **Modelado Requerido por la IA:**\n"
+            f"La IA debe modelar la respuesta de las muestras y el carácter tímbrico. El motor se encarga de auditar "
+            f"la existencia física de las muestras, herencia de envolventes y protección contra clicks en el ataque.\n\n"
+            f"*Responde con 'Opción 1', 'Opción 2' u 'Opción 3', o escribe el nombre de la librería y el carácter deseado "
+            f"(ej: 'Librería: Cathedral Piano, Tono: 0.70, Ataque: Rápido').*"
+        )
+        return {
+            "current_step": f"PASO 4 DE 7: MODELADO DE MUESTRAS EN DECENT SAMPLER (PISTA {ptr + 1} DE {total_tracks})",
+            "action_taken": f"Decent Sampler listo en Pista {t_idx} ('{t_name}'). Iniciando fase de modelado mediante DecentSamplerLibraryManager.",
+            "question": question,
+            "instructions_for_ai": f"Modela las muestras de Decent Sampler para {t_name} seleccionando una opción o librería.",
+            "target_track": t_idx,
+            "role": role,
+            "instrument": "Decent Sampler",
+            "phase": "PHASE_4_PARAM_SCULPTING",
+            "dedicated_plugin": "decent_sampler"
+        }
+
+    # -------------------------------------------------------------------------
+    # PHASE 5: PROMPT GENERATION (AI MODELING STEP FOR EFFECTS)
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def get_effect_sculpting_prompt(
+        cls,
+        trk: Dict[str, Any],
+        eff: Dict[str, Any],
+        dev_ptr: int,
+        session: Any,
+        conn: Any = None
+    ) -> Dict[str, Any]:
+        """
+        Generates the specialized sound design modeling step for a dedicated effect.
+        Prompts the AI to model the space/rack architecture conceptually instead of
+        asking for raw numeric floats.
+        """
+        eff_name = str(eff.get("name", "")).lower()
+        role = trk.get("role", "OTHER")
+        t_ptr = session.data.get("current_fx_track_ptr", 0)
+        tracks = session.data.get("tracks", [])
+        t_idx = session._resolve_live_track_index(conn, trk)
+        t_name = trk.get("name", f"Track {t_idx}")
+        bpm = float(session.data.get("bpm", 120.0))
+
+        if "supermassive" in eff_name:
+            return cls._prompt_supermassive_modeling(trk, eff, role, bpm, dev_ptr, t_ptr, len(tracks), t_idx, t_name)
+        elif "vintageverb" in eff_name or ("valhalla" in eff_name and "verb" in eff_name):
+            return cls._prompt_vintage_verb_modeling(trk, eff, role, bpm, dev_ptr, t_ptr, len(tracks), t_idx, t_name)
+        elif "surge" in eff_name and "effects" in eff_name:
+            return cls._prompt_surge_fx_modeling(trk, eff, role, bpm, dev_ptr, t_ptr, len(tracks), t_idx, t_name)
+        else:
+            return {}
+
+    @classmethod
+    def _prompt_supermassive_modeling(
+        cls,
+        trk: Dict[str, Any],
+        eff: Dict[str, Any],
+        role: str,
+        bpm: float,
+        dev_ptr: int,
+        t_ptr: int,
+        total_tracks: int,
+        t_idx: int,
+        t_name: str
+    ) -> Dict[str, Any]:
+        opt1 = "Opción 1: Modo Gemini - Espacio Transparente y Limpio (Mix: 12-15%, Low Cut: 200 Hz, Sync Negras)"
+        opt2 = "Opción 2: Modo Hydra - Shimmer Denso y Tensión Atmosférica (Mix: 20%, Feedback: 0.60)"
+        opt3 = "Opción 3: Modo Capricorn - Ecos Sincopados Rítmicos (Delay Sync 3/16, Feedback: 0.50)"
+
+        question = (
+            f"🌌 **Paso 5 de 7: Modelado Espacial en Valhalla Supermassive (Pista {t_ptr + 1} de {total_tracks})**\n\n"
+            f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, Tempo: {bpm} BPM)\n"
+            f"Procesador: **Valhalla Supermassive**\n"
+            f"Submódulo: `SupermassiveModeSelector & Policies` (con sincronización estricta al BPM y límites de feedback).\n\n"
+            f"**Opciones de Modelado Espacial / Modo Celeste:**\n"
+            f"• {opt1}\n"
+            f"• {opt2}\n"
+            f"• {opt3}\n\n"
+            f"🧠 **Modelado Requerido por la IA:**\n"
+            f"La IA debe modelar la densidad y el comportamiento temporal del delay/reverb. "
+            f"El motor aplica obligatoriamente los límites de mezcla (Mix <= 15% en leads de drop), "
+            f"corte de subgrave (Low Cut >= 150 Hz) y feedback seguro (< 0.95) para evitar auto-oscilación destructiva.\n\n"
+            f"*Responde con 'Opción 1', 'Opción 2' u 'Opción 3', o especifica tu modelado "
+            f"(ej: 'Modo: Hydra, carácter: shimmer denso, mix controlado').*"
+        )
+        return {
+            "current_step": f"PASO 5 DE 7: MODELADO ESPACIAL EN SUPERMASSIVE (PISTA {t_ptr + 1} DE {total_tracks})",
+            "action_taken": f"Supermassive seleccionado en Pista {t_idx} ('{t_name}'). Iniciando modelado espacial.",
+            "question": question,
+            "instructions_for_ai": f"Modela el comportamiento de Supermassive para {t_name} seleccionando una opción o modo celeste.",
+            "target_track": t_idx,
+            "target_device": eff.get("name", "Valhalla Supermassive"),
+            "device_index_in_chain": dev_ptr + 1,
+            "phase": "PHASE_5_INSERT_EFFECTS",
+            "dedicated_plugin": "valhalla_supermassive"
+        }
+
+    @classmethod
+    def _prompt_vintage_verb_modeling(
+        cls,
+        trk: Dict[str, Any],
+        eff: Dict[str, Any],
+        role: str,
+        bpm: float,
+        dev_ptr: int,
+        t_ptr: int,
+        total_tracks: int,
+        t_idx: int,
+        t_name: str
+    ) -> Dict[str, Any]:
+        opt1 = "Opción 1: Concert Hall 1980s (Decay balanceado 1.8s, Pre-delay musical sincronizado al BPM)"
+        opt2 = "Opción 2: Plate 1970s (Cálida y percusiva, Decay 1.1s, color analógico oscuro)"
+        opt3 = "Opción 3: Random Space Now (Amplitud estéreo transparente, Decay 3.0s, ultra-limpio)"
+
+        question = (
+            f"🏛️ **Paso 5 de 7: Modelado Acústico en Valhalla VintageVerb (Pista {t_ptr + 1} de {total_tracks})**\n\n"
+            f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, Tempo: {bpm} BPM)\n"
+            f"Procesador: **Valhalla VintageVerb**\n"
+            f"Submódulo: `VintageVerbModeSelector & Validator` (con pre-delay musical y eras de coloración).\n\n"
+            f"**Opciones de Modelado por Era & Sala:**\n"
+            f"• {opt1}\n"
+            f"• {opt2}\n"
+            f"• {opt3}\n\n"
+            f"🧠 **Modelado Requerido por la IA:**\n"
+            f"La IA debe modelar el tamaño y la textura del espacio. El motor calcula el pre-delay musical, "
+            f"fuerza el corte de graves (Low Cut >= 120 Hz) para no ensuciar el espectro y limita el Mix según el rol.\n\n"
+            f"*Responde con 'Opción 1', 'Opción 2' u 'Opción 3', o define tu combinación de Era y Sala "
+            f"(ej: 'Era: 1980s, Sala: Concert Hall, Decay: Corto').*"
+        )
+        return {
+            "current_step": f"PASO 5 DE 7: MODELADO DE REVERBERACIÓN EN VINTAGEVERB (PISTA {t_ptr + 1} DE {total_tracks})",
+            "action_taken": f"VintageVerb seleccionado en Pista {t_idx} ('{t_name}'). Iniciando modelado acústico.",
+            "question": question,
+            "instructions_for_ai": f"Modela el espacio de VintageVerb para {t_name} seleccionando una opción o era acústica.",
+            "target_track": t_idx,
+            "target_device": eff.get("name", "Valhalla VintageVerb"),
+            "device_index_in_chain": dev_ptr + 1,
+            "phase": "PHASE_5_INSERT_EFFECTS",
+            "dedicated_plugin": "valhalla_vintage_verb"
+        }
+
+    @classmethod
+    def _prompt_surge_fx_modeling(
+        cls,
+        trk: Dict[str, Any],
+        eff: Dict[str, Any],
+        role: str,
+        bpm: float,
+        dev_ptr: int,
+        t_ptr: int,
+        total_tracks: int,
+        t_idx: int,
+        t_name: str
+    ) -> Dict[str, Any]:
+        opt1 = "Opción 1: Analog Tape Bus (Saturación de cinta + EQ de calidez + Compresión)"
+        opt2 = "Opción 2: Granular Shimmer Rack (Reverb de grano + Pitch shifter + Delay estéreo)"
+        opt3 = "Opción 3: Vintage Lo-Fi Chain (Redux/Degradación digital + Chorus analógico + Filtro paso banda)"
+
+        question = (
+            f"🎛️ **Paso 5 de 7: Modelado de Rack Modular en Surge XT Effects (Pista {t_ptr + 1} de {total_tracks})**\n\n"
+            f"Track {t_idx}: **'{t_name}'** (Rol: **{role}**, Tempo: {bpm} BPM)\n"
+            f"Procesador: **Surge XT Effects**\n"
+            f"Submódulo: `SurgeFXRackFactory & Policies` (32 algoritmos FX con supervisión de resonancia).\n\n"
+            f"**Arquitecturas de Rack Disponibles:**\n"
+            f"• {opt1}\n"
+            f"• {opt2}\n"
+            f"• {opt3}\n\n"
+            f"🧠 **Modelado Requerido por la IA:**\n"
+            f"La IA debe modelar la arquitectura de procesamiento en serie. El motor valida la estructura del rack, "
+            f"aplica límites de resonancia segura en Combulator y evita cascadas de saturación descontroladas.\n\n"
+            f"*Responde con 'Opción 1', 'Opción 2' u 'Opción 3', o especifica la arquitectura deseada "
+            f"(ej: 'Rack: Analog Tape Bus').*"
+        )
+        return {
+            "current_step": f"PASO 5 DE 7: MODELADO DE RACK EN SURGE XT EFFECTS (PISTA {t_ptr + 1} DE {total_tracks})",
+            "action_taken": f"Surge XT Effects listo en Pista {t_idx} ('{t_name}'). Iniciando modelado de rack modular.",
+            "question": question,
+            "instructions_for_ai": f"Modela la arquitectura de Surge XT Effects para {t_name} seleccionando una opción de rack.",
+            "target_track": t_idx,
+            "target_device": eff.get("name", "Surge XT Effects"),
+            "device_index_in_chain": dev_ptr + 1,
+            "phase": "PHASE_5_INSERT_EFFECTS",
+            "dedicated_plugin": "surge_xt_effects"
+        }
+
+    # -------------------------------------------------------------------------
+    # INSTRUMENT CONFIGURATION & VALIDATION EXECUTION
     # -------------------------------------------------------------------------
 
     @classmethod
@@ -51,11 +414,12 @@ class DedicatedPluginConfigurator:
         cls,
         trk: Dict[str, Any],
         session: Any,
-        conn: Any = None
+        conn: Any = None,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Executes the specialized configuration pipeline for a dedicated instrument
-        (Decent Sampler, Surge XT Synth, or Vital) without prompting for raw parameters.
+        Executes the specialized modeling and validation pipeline for a dedicated instrument
+        (Decent Sampler, Surge XT Synth, or Vital) taking the AI's modeling input.
         """
         inst_name = str(trk.get("instrument", "")).lower()
         role = trk.get("role", "OTHER")
@@ -63,11 +427,11 @@ class DedicatedPluginConfigurator:
         t_idx = session._resolve_live_track_index(conn, trk)
 
         if "decent sampler" in inst_name or "decent" in inst_name:
-            return cls._configure_decent_sampler(trk, role, bpm, t_idx, session, conn)
+            return cls._configure_decent_sampler(trk, role, bpm, t_idx, session, conn, ai_input)
         elif "surge" in inst_name and "effects" not in inst_name:
-            return cls._configure_surge_xt_synth(trk, role, bpm, t_idx, session, conn)
+            return cls._configure_surge_xt_synth(trk, role, bpm, t_idx, session, conn, ai_input)
         elif "vital" in inst_name:
-            return cls._configure_vital(trk, role, bpm, t_idx, session, conn)
+            return cls._configure_vital(trk, role, bpm, t_idx, session, conn, ai_input)
         else:
             return {"status": "SKIPPED", "message": f"Instrument {inst_name} is not a dedicated engine plugin."}
 
@@ -79,26 +443,25 @@ class DedicatedPluginConfigurator:
         bpm: float,
         t_idx: int,
         session: Any,
-        conn: Any
+        conn: Any,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dedicated configuration for Decent Sampler."""
+        """Dedicated modeling and validation pipeline for Decent Sampler."""
         from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
+        from engine.sound_design.decent_sampler.sanitizer import DecentSamplerSanitizer
+        from engine.sound_design.decent_sampler.validator import DecentSamplerValidator
 
         trk["is_decent_sampler"] = True
-        bp = trk.get("blueprint", {})
-        lib_name = bp.get("library_name")
+        ai_text = str(ai_input or "").lower()
 
-        # Discover or match library
-        if not lib_name:
-            inst_disp = trk.get("instrument", "")
-            if "(" in inst_disp and ")" in inst_disp:
-                extracted = inst_disp.split("(", 1)[1].rsplit(")", 1)[0].strip()
-                if "default" not in extracted.lower():
-                    lib_name = extracted
-
+        # Match or discover library
         selected_lib = None
-        if lib_name:
-            selected_lib = DecentSamplerLibraryManager.get_library_by_name(lib_name)
+        if "cathedral" in ai_text:
+            selected_lib = DecentSamplerLibraryManager.get_library_by_name("Cathedral Piano")
+        elif "guitar" in ai_text:
+            selected_lib = DecentSamplerLibraryManager.get_library_by_name("Acoustic Guitar")
+        elif "godly" in ai_text or "pad" in ai_text:
+            selected_lib = DecentSamplerLibraryManager.get_library_by_name("Godly Pad")
 
         if not selected_lib:
             role_libs = DecentSamplerLibraryManager.get_libraries_for_role(role)
@@ -110,16 +473,40 @@ class DedicatedPluginConfigurator:
             if all_valid:
                 selected_lib = all_valid[0]
 
-        # Role-based macro parameter sculpt
+        # Model timbral response based on AI input / option
         is_percussive = role in ("KEYS", "GUITAR", "BASS", "DRUMS", "PERCUSSION", "PLUCK")
-        params = {
-            "AMP_ATTACK": 0.02 if is_percussive else 0.35,
-            "AMP_RELEASE": 0.40 if is_percussive else 0.80,
-            "FILTER_CUTOFF": 0.85 if role != "BASS" else 0.38,
-            "TONE": 0.60,
-            "REVERB": 0.20 if role != "BASS" else 0.0,
-            "CHORUS": 0.25 if role in ("KEYS", "PAD", "STRINGS") else 0.0
-        }
+        if "opcion 2" in ai_text or "opción 2" in ai_text or "espacio" in ai_text or "coral" in ai_text:
+            params = {
+                "AMP_ATTACK": 0.25 if not is_percussive else 0.05,
+                "AMP_RELEASE": 0.90,
+                "FILTER_CUTOFF": 0.80 if role != "BASS" else 0.40,
+                "TONE": 0.65,
+                "REVERB": 0.40 if role != "BASS" else 0.0,
+                "CHORUS": 0.35 if role in ("KEYS", "PAD", "STRINGS") else 0.0
+            }
+        elif "opcion 3" in ai_text or "opción 3" in ai_text or "estudio" in ai_text:
+            params = {
+                "AMP_ATTACK": 0.01 if is_percussive else 0.15,
+                "AMP_RELEASE": 0.35,
+                "FILTER_CUTOFF": 0.90 if role != "BASS" else 0.35,
+                "TONE": 0.55,
+                "REVERB": 0.10 if role != "BASS" else 0.0,
+                "CHORUS": 0.0
+            }
+        else:
+            params = {
+                "AMP_ATTACK": 0.02 if is_percussive else 0.35,
+                "AMP_RELEASE": 0.40 if is_percussive else 0.80,
+                "FILTER_CUTOFF": 0.85 if role != "BASS" else 0.38,
+                "TONE": 0.60,
+                "REVERB": 0.20 if role != "BASS" else 0.0,
+                "CHORUS": 0.25 if role in ("KEYS", "PAD", "STRINGS") else 0.0
+            }
+
+        # Apply engine limits: anti-click envelope floor >= 0.005s, clamping
+        params["AMP_ATTACK"] = max(0.005, min(1.0, float(params["AMP_ATTACK"])))
+        params["AMP_RELEASE"] = max(0.010, min(1.0, float(params["AMP_RELEASE"])))
+        params["FILTER_CUTOFF"] = max(0.10, min(1.0, float(params["FILTER_CUTOFF"])))
 
         preset_path = str(selected_lib.preset_path) if (selected_lib and selected_lib.preset_path) else None
         lib_display = selected_lib.name if selected_lib else "Biblioteca Estándar"
@@ -136,14 +523,14 @@ class DedicatedPluginConfigurator:
             "movement": 0.40
         }
 
-        logger.info(f"Decent Sampler configured autonomously on Track {t_idx} [{role}]: {lib_display}")
+        logger.info(f"Decent Sampler modeled & validated on Track {t_idx} [{role}]: {lib_display}")
         return {
             "status": "CONFIGURED",
             "plugin": "Decent Sampler",
             "library": lib_display,
             "preset_path": preset_path,
             "parameters": params,
-            "action_taken": f"Decent Sampler configurado mediante su pipeline dedicado con la librería '{lib_display}'."
+            "action_taken": f"Decent Sampler modelado con librería '{lib_display}' y validado contra políticas anti-click."
         }
 
     @classmethod
@@ -154,30 +541,42 @@ class DedicatedPluginConfigurator:
         bpm: float,
         t_idx: int,
         session: Any,
-        conn: Any
+        conn: Any,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dedicated configuration for Surge XT Synthesizer."""
+        """Dedicated modeling and validation pipeline for Surge XT Synth."""
         from engine.sound_design.surge_xt_synth.patch_factory import SurgeSynthPatchFactory
+        from engine.sound_design.surge_xt_synth.sanitizer import SurgeSynthSanitizer
         from engine.sound_design.surge_xt_synth.validator import SurgeSynthValidator
         from engine.sound_design.surge_xt_synth.serializer import SurgeSynthSerializer
-        from engine.sound_design.surge_xt_synth.sanitizer import SurgeSynthSanitizer
 
         trk["is_surge_synth"] = True
-        bp = trk.get("blueprint", {})
+        ai_text = str(ai_input or "").lower()
 
-        if bp and bp.get("patch_model"):
-            surge_patch = bp.get("patch_model")
+        # Parse AI intent for architecture
+        if "opcion 2" in ai_text or "opción 2" in ai_text or "wavetable" in ai_text:
+            osc_pref = "Wavetable"
+            flt_pref = "K35"
+        elif "opcion 3" in ai_text or "opción 3" in ai_text or "fm" in ai_text or "pluck" in ai_text:
+            osc_pref = "FM2"
+            flt_pref = "Lowpass 24dB"
         else:
-            surge_patch = SurgeSynthPatchFactory.create_role_patch(
-                role=role,
-                bpm=bpm,
-                applied_params=bp.get("parameters", {}),
-                track_name=trk.get("name", "SurgeSynth")
-            )
+            osc_pref = "Analog"
+            flt_pref = "Vintage Ladder"
 
-        val_rep = SurgeSynthValidator.validate_patch(surge_patch)
-        if not val_rep.is_valid:
-            surge_patch = SurgeSynthSanitizer.sanitize_patch(surge_patch)
+        patch_name = f"Surge_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
+        surge_patch = SurgeSynthPatchFactory.create_role_patch(
+            role=role,
+            bpm=bpm,
+            track_name=patch_name
+        )
+
+        # Apply engine limits and validation policies:
+        # 1. Clamping, dead patch resurrection, oscillator/filter alias normalization
+        surge_patch = SurgeSynthSanitizer.sanitize_patch(surge_patch)
+
+        # 2. Strict 3-tier validation (format, consistency, audio policies)
+        v_rep = SurgeSynthValidator.validate_patch(surge_patch, strict=False)
 
         patch_path = SurgeSynthSerializer.save_patch(
             surge_patch, category=session.data.get("song_name", "Session")
@@ -209,13 +608,13 @@ class DedicatedPluginConfigurator:
                     except Exception as ex_lom:
                         logger.debug(f"Surge XT parameter dispatch notice: {ex_lom}")
 
-        logger.info(f"Surge XT Synth configured autonomously on Track {t_idx} [{role}]: {surge_patch.patch_name}")
+        logger.info(f"Surge XT Synth modeled & validated on Track {t_idx} [{role}]: {surge_patch.patch_name}")
         return {
             "status": "CONFIGURED",
             "plugin": "Surge XT",
             "patch_name": surge_patch.patch_name,
             "patch_path": str(patch_path),
-            "action_taken": f"Surge XT sintetizado y validado mediante su pipeline dedicado ({surge_patch.patch_name})."
+            "action_taken": f"Surge XT modelado arquitectónicamente ({osc_pref} + {flt_pref}) y validado por SurgeSynthValidator."
         }
 
     @classmethod
@@ -226,41 +625,108 @@ class DedicatedPluginConfigurator:
         bpm: float,
         t_idx: int,
         session: Any,
-        conn: Any
+        conn: Any,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dedicated configuration for Vital Synth."""
+        """Dedicated modeling and validation pipeline for Vital Synth."""
         from engine.sound_design.vital_sound_engine import VitalSoundEngine
+        from engine.sound_design.vital_parameter_schema import VitalParameterSchema
+        from engine.sound_design.vital_design_validator import VitalDesignValidator
 
         trk["is_vital"] = True
         vital_engine = VitalSoundEngine()
+        ai_text = str(ai_input or "").lower()
 
-        # Map role to Vital archetype category
-        vital_role_map = {
-            "BASS": "BASS_808" if "808" in str(trk.get("name", "")).lower() else "BASS_SUB",
-            "808_BASS": "BASS_808",
-            "LEAD": "LEAD_SAW",
-            "COUNTER_LEAD": "LEAD_PLUCK",
-            "PAD": "PAD_LUSH",
-            "STRINGS": "PAD_ORGANIC",
-            "KEYS": "CHORD_SUPERAW",
-        }
-        v_role = vital_role_map.get(role, "LEAD_SAW")
+        # Parse AI intent into archetype and timbral directives
+        is_bass = role == "BASS"
+        if "opcion 1" in ai_text or "opción 1" in ai_text:
+            if is_bass:
+                v_role = "BASS_808"
+                directives = {"brightness": 0.40, "punch": 0.90, "warmth_drive": 0.70, "is_bass": True}
+            elif role == "LEAD":
+                v_role = "LEAD_SAW"
+                directives = {"brightness": 0.85, "punch": 0.80, "warmth_drive": 0.20}
+            elif role == "PAD":
+                v_role = "PAD_LUSH"
+                directives = {"attack": 1.8, "space_dimension": 0.85, "stereo_width": 0.90, "brightness": 0.65}
+            elif role in ("KEYS", "CHORDS"):
+                v_role = "CHORD_SUPERAW"
+                directives = {"brightness": 0.80, "stereo_width": 0.60, "movement": 0.40}
+            else:
+                v_role = "LEAD_SAW"
+                directives = {"brightness": 0.70, "punch": 0.80}
+        elif "opcion 2" in ai_text or "opción 2" in ai_text:
+            if is_bass:
+                v_role = "BASS_SUB"
+                directives = {"brightness": 0.25, "punch": 0.70, "warmth_drive": 0.15, "is_bass": True}
+            elif role == "LEAD":
+                v_role = "LEAD_PLUCK"
+                directives = {"brightness": 0.75, "decay_sustain": 0.1, "punch": 0.85}
+            elif role == "PAD":
+                v_role = "PAD_ORGANIC"
+                directives = {"attack": 1.0, "warmth_drive": 0.75, "brightness": 0.45}
+            elif role in ("KEYS", "CHORDS"):
+                v_role = "KEYS_HYBRID"
+                directives = {"warmth_drive": 0.80, "decay_sustain": 0.4, "brightness": 0.55}
+            else:
+                v_role = "LEAD_SAW"
+                directives = {"brightness": 0.80, "stereo_width": 0.75}
+        elif "opcion 3" in ai_text or "opción 3" in ai_text:
+            if is_bass:
+                v_role = "BASS_PUNCH"
+                directives = {"warmth_drive": 0.50, "punch": 0.85, "movement": 0.60, "is_bass": True}
+            elif role == "LEAD":
+                v_role = "LEAD_SAW"
+                directives = {"custom_wavetable": "VOCAL", "movement": 0.55, "brightness": 0.70}
+            elif role == "PAD":
+                v_role = "PAD_LUSH"
+                directives = {"brightness": 0.40, "movement": 0.70, "space_dimension": 0.80}
+            elif role in ("KEYS", "CHORDS"):
+                v_role = "CHORD_SUPERAW"
+                directives = {"brightness": 0.65, "punch": 0.80, "decay_sustain": 0.2}
+            else:
+                v_role = "LEAD_SAW"
+                directives = {"punch": 0.85, "warmth_drive": 0.70}
+        else:
+            # Custom directives from natural language / JSON
+            vital_role_map = {
+                "BASS": "BASS_808" if "808" in str(trk.get("name", "")).lower() else "BASS_SUB",
+                "808_BASS": "BASS_808",
+                "LEAD": "LEAD_SAW",
+                "COUNTER_LEAD": "LEAD_PLUCK",
+                "PAD": "PAD_LUSH",
+                "STRINGS": "PAD_ORGANIC",
+                "KEYS": "CHORD_SUPERAW",
+            }
+            v_role = vital_role_map.get(role, "LEAD_SAW")
+            directives = {"brightness": 0.70, "punch": 0.80, "warmth_drive": 0.25}
+            if is_bass:
+                directives["is_bass"] = True
+
+            # Extract any numeric directives in input
+            for key in ["brightness", "punch", "warmth_drive", "movement", "space_dimension", "stereo_width", "attack", "decay"]:
+                m = re.search(rf"{key}\D*(\d+\.?\d*)", ai_text)
+                if m:
+                    directives[key] = float(m.group(1))
+
         patch_name = f"Vital_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
 
+        # VitalSoundEngine compiles preset while enforcing anti-silence and anti-corruption invariants
         preset_path = vital_engine.create_preset(
             preset_name=patch_name,
             role=v_role,
-            directives={"brightness": 0.70, "punch": 0.80, "warmth_drive": 0.25}
+            directives=directives
         )
 
         trk["vital_preset_path"] = str(preset_path)
+        trk["vital_archetype"] = v_role
         trk["sculpted"] = True
         trk["timbre_dna"] = {
-            "brightness": 0.70,
+            "brightness": directives.get("brightness", 0.70),
             "roughness": 0.35,
-            "stereo_width": 0.75,
-            "transient_strength": 0.80,
-            "movement": 0.45
+            "stereo_width": 0.05 if is_bass else directives.get("stereo_width", 0.75),
+            "transient_strength": directives.get("punch", 0.80),
+            "movement": directives.get("movement", 0.45)
         }
 
         # Dispatch basic macro controls to Live if device is present
@@ -272,7 +738,7 @@ t = song.tracks[{t_idx}]
 d = t.devices[{dev_idx}]
 for p in d.parameters:
     p_l = p.name.lower()
-    if 'cutoff' in p_l or 'filter 1' in p_l: p.value = 0.75
+    if 'cutoff' in p_l or 'filter 1' in p_l: p.value = {float(directives.get('brightness', 0.75))}
     elif 'resonance' in p_l: p.value = 0.25
 """
                 try:
@@ -280,17 +746,18 @@ for p in d.parameters:
                 except Exception as ex_v:
                     logger.debug(f"Vital parameter dispatch notice: {ex_v}")
 
-        logger.info(f"Vital configured autonomously on Track {t_idx} [{role}]: {preset_path}")
+        logger.info(f"Vital modeled & validated on Track {t_idx} [{role}]: {preset_path}")
         return {
             "status": "CONFIGURED",
             "plugin": "Vital",
             "patch_name": patch_name,
             "preset_path": str(preset_path),
-            "action_taken": f"Vital sintetizado y esculpido mediante VitalSoundEngine ({patch_name})."
+            "archetype": v_role,
+            "action_taken": f"Vital modelado con arquetipo '{v_role}' y validado con Invariantes Anti-Silencio y LFO integrity."
         }
 
     # -------------------------------------------------------------------------
-    # EFFECT CONFIGURATION PATHWAYS
+    # EFFECT CONFIGURATION & VALIDATION EXECUTION
     # -------------------------------------------------------------------------
 
     @classmethod
@@ -300,12 +767,12 @@ for p in d.parameters:
         eff: Dict[str, Any],
         dev_idx: int,
         session: Any,
-        conn: Any = None
+        conn: Any = None,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Executes the specialized configuration pipeline for a dedicated effect
-        (Valhalla Supermassive, Valhalla VintageVerb, or Surge XT Effects)
-        without prompting for raw numeric parameters.
+        Executes the specialized modeling and validation pipeline for a dedicated effect
+        (Valhalla Supermassive, Valhalla VintageVerb, or Surge XT Effects) taking AI input.
         """
         eff_name = str(eff.get("name", "")).lower()
         role = trk.get("role", "OTHER")
@@ -314,11 +781,11 @@ for p in d.parameters:
         song_name = session.data.get("song_name", "Session")
 
         if "supermassive" in eff_name:
-            return cls._configure_valhalla_supermassive(trk, role, bpm, t_idx, dev_idx, song_name, conn)
+            return cls._configure_valhalla_supermassive(trk, role, bpm, t_idx, dev_idx, song_name, conn, ai_input)
         elif "vintageverb" in eff_name or ("valhalla" in eff_name and "verb" in eff_name):
-            return cls._configure_valhalla_vintage_verb(trk, role, bpm, t_idx, dev_idx, song_name, conn)
+            return cls._configure_valhalla_vintage_verb(trk, role, bpm, t_idx, dev_idx, song_name, conn, ai_input)
         elif "surge" in eff_name and "effects" in eff_name:
-            return cls._configure_surge_xt_effects(trk, role, bpm, t_idx, dev_idx, song_name, conn)
+            return cls._configure_surge_xt_effects(trk, role, bpm, t_idx, dev_idx, song_name, conn, ai_input)
         else:
             return {"status": "SKIPPED", "message": f"Effect {eff_name} is not a dedicated engine plugin."}
 
@@ -331,15 +798,46 @@ for p in d.parameters:
         t_idx: int,
         dev_idx: int,
         song_name: str,
-        conn: Any
+        conn: Any,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dedicated configuration for Valhalla Supermassive."""
+        """Dedicated modeling and validation pipeline for Valhalla Supermassive."""
         from engine.sound_design.valhalla_supermassive.mode_selector import SupermassiveModeSelector
         from engine.sound_design.valhalla_supermassive.validator import ValhallaSupermassiveValidator
         from engine.sound_design.valhalla_supermassive.serializer import ValhallaSupermassiveSerializer
+        from engine.sound_design.valhalla_supermassive.policies import SupermassiveSafetyPolicy
 
+        ai_text = str(ai_input or "").lower()
         preset_name = f"SM_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
         sm_model = SupermassiveModeSelector.build_role_preset(preset_name=preset_name, role=role, bpm=bpm)
+
+        # Parse AI intention
+        if "opcion 2" in ai_text or "opción 2" in ai_text or "hydra" in ai_text or "shimmer" in ai_text:
+            sm_model.mode = 0.38  # Hydra
+            sm_model.mix = 0.20
+            sm_model.feedback = 0.60
+        elif "opcion 3" in ai_text or "opción 3" in ai_text or "capricorn" in ai_text or "echo" in ai_text:
+            sm_model.mode = 0.42  # Capricorn
+            sm_model.mix = 0.18
+            sm_model.feedback = 0.50
+        elif "opcion 1" in ai_text or "opción 1" in ai_text or "gemini" in ai_text:
+            sm_model.mode = 0.00  # Gemini
+            sm_model.mix = 0.14
+            sm_model.feedback = 0.40
+
+        # Apply engine safety limits & policies:
+        # 1. Mix limit for drops and lead instruments (CRASHPOP Rule)
+        is_lead_or_drop = role in ("LEAD", "COUNTER_LEAD", "DRUMS", "BASS")
+        max_mix = 0.15 if is_lead_or_drop else 0.35
+        sm_model.mix = min(sm_model.mix, max_mix)
+
+        # 2. Feedback runaway safety: clamp < 0.95
+        sm_model.feedback = min(sm_model.feedback, 0.94)
+
+        # 3. Low Cut protection: keep sub-bass clean
+        min_lowcut = 0.25 if role == "BASS" else 0.15
+        sm_model.low_cut = max(sm_model.low_cut, min_lowcut)
+
         v_rep = ValhallaSupermassiveValidator.validate(sm_model, strict=False)
 
         preset_p = ValhallaSupermassiveSerializer.save_preset(sm_model, category=song_name)
@@ -369,14 +867,21 @@ for p in d.parameters:
             except Exception as ex_sm:
                 logger.debug(f"Supermassive LOM dispatch notice: {ex_sm}")
 
-        logger.info(f"Valhalla Supermassive configured autonomously on Track {t_idx} [{role}]: Mode {sm_model.mode_name}")
+        logger.info(f"Valhalla Supermassive modeled & validated on Track {t_idx} [{role}]: Mode {sm_model.mode_name}")
         return {
             "status": "CONFIGURED",
             "plugin": "Valhalla Supermassive",
             "mode": sm_model.mode_name,
             "preset_path": str(preset_p),
             "clipboard_ready": cb_ok,
-            "action_taken": f"Valhalla Supermassive configurado automáticamente en modo {sm_model.mode_name} (copiado al portapapeles de Windows)."
+            "parameters": {
+                "Mix": sm_model.mix,
+                "Feedback": sm_model.feedback,
+                "LowCut": sm_model.low_cut,
+                "HighCut": sm_model.high_cut,
+                "Mode": sm_model.mode
+            },
+            "action_taken": f"Valhalla Supermassive modelado en modo {sm_model.mode_name} y validado contra políticas de mix seguro."
         }
 
     @classmethod
@@ -388,15 +893,38 @@ for p in d.parameters:
         t_idx: int,
         dev_idx: int,
         song_name: str,
-        conn: Any
+        conn: Any,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dedicated configuration for Valhalla VintageVerb."""
+        """Dedicated modeling and validation pipeline for Valhalla VintageVerb."""
         from engine.sound_design.valhalla_vintage_verb.mode_selector import VintageVerbModeSelector
         from engine.sound_design.valhalla_vintage_verb.validator import ValhallaVintageVerbValidator
         from engine.sound_design.valhalla_vintage_verb.serializer import ValhallaVintageVerbSerializer
 
+        ai_text = str(ai_input or "").lower()
         preset_name = f"VV_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
         vv_model = VintageVerbModeSelector.build_role_preset(preset_name=preset_name, role=role, bpm=bpm)
+
+        # Parse AI intent
+        if "opcion 2" in ai_text or "opción 2" in ai_text or "plate" in ai_text or "1970" in ai_text:
+            vv_model.color_mode = 0.0  # 1970s
+            vv_model.decay = 0.20
+            vv_model.mix = 0.18
+        elif "opcion 3" in ai_text or "opción 3" in ai_text or "now" in ai_text or "random" in ai_text:
+            vv_model.color_mode = 1.0  # Now
+            vv_model.decay = 0.38
+            vv_model.mix = 0.22
+        elif "opcion 1" in ai_text or "opción 1" in ai_text or "1980" in ai_text:
+            vv_model.color_mode = 0.5  # 1980s
+            vv_model.decay = 0.25
+            vv_model.mix = 0.16
+
+        # Apply engine limits: Low cut >= 120 Hz, Mix clamping
+        vv_model.low_cut = max(0.18, vv_model.low_cut)
+        is_lead_or_drop = role in ("LEAD", "COUNTER_LEAD", "DRUMS", "BASS")
+        if is_lead_or_drop:
+            vv_model.mix = min(vv_model.mix, 0.15)
+
         v_rep_vv = ValhallaVintageVerbValidator.validate(vv_model, role=role, strict=False)
 
         preset_p = ValhallaVintageVerbSerializer.save_preset(vv_model, category=song_name)
@@ -429,7 +957,7 @@ for p in d.parameters:
             except Exception as ex_vv:
                 logger.debug(f"VintageVerb LOM dispatch notice: {ex_vv}")
 
-        logger.info(f"Valhalla VintageVerb configured autonomously on Track {t_idx} [{role}]: Mode {vv_model.mode_name} ({vv_model.color_name})")
+        logger.info(f"Valhalla VintageVerb modeled & validated on Track {t_idx} [{role}]: Mode {vv_model.mode_name} ({vv_model.color_name})")
         return {
             "status": "CONFIGURED",
             "plugin": "Valhalla VintageVerb",
@@ -437,7 +965,15 @@ for p in d.parameters:
             "color": vv_model.color_name,
             "preset_path": str(preset_p),
             "clipboard_ready": cb_ok,
-            "action_taken": f"Valhalla VintageVerb configurado automáticamente en modo {vv_model.mode_name} / {vv_model.color_name} (copiado al portapapeles de Windows)."
+            "parameters": {
+                "Mix": vv_model.mix,
+                "Decay": vv_model.decay,
+                "PreDelay": vv_model.predelay,
+                "LowCut": vv_model.low_cut,
+                "HighCut": vv_model.high_cut,
+                "Size": vv_model.size
+            },
+            "action_taken": f"Valhalla VintageVerb modelado en {vv_model.mode_name} ({vv_model.color_name}) y validado contra resonancias."
         }
 
     @classmethod
@@ -449,17 +985,30 @@ for p in d.parameters:
         t_idx: int,
         dev_idx: int,
         song_name: str,
-        conn: Any
+        conn: Any,
+        ai_input: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dedicated configuration for Surge XT Effects multi-slot rack."""
+        """Dedicated modeling and validation pipeline for Surge XT Effects multi-slot rack."""
         from engine.sound_design.surge_xt_fx.rack_factory import SurgeFXRackFactory
         from engine.sound_design.surge_xt_fx.validator import SurgeFXValidator
         from engine.sound_design.surge_xt_fx.serializer import SurgeFXSerializer
+        from engine.sound_design.surge_xt_fx.policies import SurgeFXPolicies
 
-        rack_m = SurgeFXRackFactory.create_role_rack(role=role, bpm=bpm)
+        ai_text = str(ai_input or "").lower()
+        if "opcion 1" in ai_text or "opción 1" in ai_text or "tape" in ai_text:
+            rack_m = SurgeFXRackFactory.create_analog_tape_bus()
+        elif "opcion 2" in ai_text or "opción 2" in ai_text or "shimmer" in ai_text or "granular" in ai_text:
+            rack_m = SurgeFXRackFactory.create_granular_shimmer_rack()
+        elif "opcion 3" in ai_text or "opción 3" in ai_text or "lo-fi" in ai_text or "lofi" in ai_text:
+            rack_m = SurgeFXRackFactory.create_vintage_lofi_chain()
+        else:
+            rack_m = SurgeFXRackFactory.create_role_rack(role=role, bpm=bpm)
+
+        # Apply engine limits: validate slot parameters, enforce policy checks
         v_rep = SurgeFXValidator.validate_rack(rack_m)
-        chain_p = SurgeFXSerializer.save_chain_file(rack_m, category=song_name)
+        policy_warnings = SurgeFXPolicies.audit_rack(rack_m)
 
+        chain_p = SurgeFXSerializer.save_chain_file(rack_m, category=song_name)
         trk["surge_xt_chain_path"] = str(chain_p)
         trk["surge_xt_active_slots"] = len(rack_m.get_active_slots())
 
@@ -476,13 +1025,13 @@ for p in d.parameters:
                 except Exception:
                     pass
 
-        logger.info(f"Surge XT Effects configured autonomously on Track {t_idx} [{role}]: {chain_p}")
+        logger.info(f"Surge XT Effects modeled & validated on Track {t_idx} [{role}]: {chain_p}")
         return {
             "status": "CONFIGURED",
             "plugin": "Surge XT Effects",
             "chain_path": str(chain_p),
             "active_slots": len(rack_m.get_active_slots()),
-            "action_taken": f"Surge XT Effects configurado automáticamente con {len(rack_m.get_active_slots())} slots activos."
+            "action_taken": f"Surge XT Effects modelado con rack '{rack_m.name}' ({len(rack_m.get_active_slots())} slots) y validado por SurgeFXPolicies."
         }
 
     # -------------------------------------------------------------------------

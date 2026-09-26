@@ -16,6 +16,7 @@ from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_pre
 from engine.vocal.vocal_chain_processor import VocalChainProcessor
 from engine.mix.ascii_spectrum import AsciiSpectrumVisualizer
 from engine.mix.frequency_slotting import FrequencySlottingEngine
+from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
 
 logger = logging.getLogger("Phase5InsertEffects")
 
@@ -167,25 +168,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
                         conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff.get("uri", "")})
-                        t_info = conn.send_command("get_track_info", {"track_index": t_idx})
-                        raw_devs = t_info.get("result", {}).get("devices", []) if isinstance(t_info, dict) else []
-                        if raw_devs:
-                            dev_idx = len(raw_devs) - 1
                     except Exception:
                         pass
-                res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_idx, session, conn)
-                if "insert_effects" not in trk:
-                    trk["insert_effects"] = []
-                trk["insert_effects"].append({
-                    "name": eff_name,
-                    "device_index": dev_ptr + 1,
-                    "bypass": False,
-                    "parameters": res_eff
-                })
-                session.data["current_fx_dev_ptr"] = dev_ptr + 1
-                session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
-                session._save_state()
-                continue
+                return DedicatedPluginConfigurator.get_effect_sculpting_prompt(trk, eff, dev_ptr, session, conn)
             break
 
         if t_ptr >= len(tracks):
@@ -405,14 +390,16 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         eff_uri = eff["uri"]
 
         if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
-            res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_ptr + 1, session, conn)
+            res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_ptr + 1, session, conn, ai_input=user_input)
             if "insert_effects" not in trk:
                 trk["insert_effects"] = []
             trk["insert_effects"].append({
                 "name": eff_name,
                 "device_index": dev_ptr + 1,
                 "bypass": False,
-                "parameters": res_eff
+                "parameters": res_eff.get("parameters", {}),
+                "mode": res_eff.get("mode", ""),
+                "action_taken": res_eff.get("action_taken", "")
             })
             session.data["current_fx_dev_ptr"] = dev_ptr + 1
             session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1

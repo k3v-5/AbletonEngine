@@ -11,6 +11,7 @@ from engine.production.copilot.nlp_parser import _normalize_text
 from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
 from engine.mix.gain_staging.auto_stager import AutoGainStagingEngine
 from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
 
 logger = logging.getLogger("Phase4ParamSculpting")
 
@@ -241,19 +242,6 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
 
         from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
 
-        # Skip parameter questions for dedicated sound design instruments
-        while ptr < len(tracks):
-            cur_trk = tracks[ptr]
-            c_inst = str(cur_trk.get("instrument", ""))
-            if DedicatedPluginConfigurator.is_dedicated_instrument(c_inst):
-                res_c = DedicatedPluginConfigurator.configure_instrument(cur_trk, session, conn)
-                logger.info(f"Autonomous dedicated configuration for {c_inst} on track {ptr}: {res_c.get('action_taken')}")
-                ptr += 1
-                session.data["current_param_ptr"] = ptr
-                session._save_state()
-            else:
-                break
-    
         if ptr >= len(tracks):
             session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
             session.data["phase_index"] = 5
@@ -262,13 +250,17 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             session.data["current_fx_ptr"] = 0
             session._save_state()
             return session._prompt_current_fx_device()
-    
+
         trk = tracks[ptr]
         t_idx = trk.get("index", ptr)
         t_name = trk["name"]
         role = trk["role"]
         inst = trk.get("instrument", f"{role} Synth")
         is_audio = trk.get("is_audio", False) or role == "VOCALS"
+
+        # Check for dedicated sound design instruments (Vital, Surge XT, Decent Sampler)
+        if DedicatedPluginConfigurator.is_dedicated_instrument(inst):
+            return DedicatedPluginConfigurator.get_instrument_sculpting_prompt(trk, session, conn)
     
         role_class = AutoGainStagingEngine.classify_role(t_name)
         target_db = AutoGainStagingEngine.HIERARCHY_TARGETS.get(role_class, -14.0)
@@ -391,7 +383,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
 
         from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
         if DedicatedPluginConfigurator.is_dedicated_instrument(inst):
-            res_d = DedicatedPluginConfigurator.configure_instrument(trk, session, conn)
+            res_d = DedicatedPluginConfigurator.configure_instrument(trk, session, conn, ai_input=user_input)
             session.data["current_param_ptr"] = ptr + 1
             session._save_state()
             next_p = self._prompt_current_track_params(session)
