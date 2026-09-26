@@ -599,6 +599,11 @@ class InstalledPluginScanner:
 
     _global_cache: Dict[str, Any] = {}
 
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clears class-level scanned plugins cache."""
+        cls._global_cache.clear()
+
     def _ensure_test_vocal_plugins(self):
         if os.environ.get("PYTEST_CURRENT_TEST"):
             test_plugs = [
@@ -667,10 +672,18 @@ class InstalledPluginScanner:
 
             try:
                 for root, dirs, files in os.walk(directory):
-                    for d in dirs:
-                        if d.lower().endswith(".vst3"):
-                            full_path = os.path.join(root, d)
-                            self._process_plugin_file(d, full_path, PluginCategory.VST3)
+                    vst3_dirs = [d for d in dirs if d.lower().endswith(".vst3")]
+                    for d in vst3_dirs:
+                        full_path = os.path.join(root, d)
+                        self._process_plugin_file(d, full_path, PluginCategory.VST3)
+
+                    # Prune .vst3 bundle directories and metadata folders from further recursion
+                    dirs[:] = [
+                        d for d in dirs
+                        if not d.lower().endswith(".vst3")
+                        and not d.startswith(".")
+                        and d.lower() not in ("__pycache__", "__macosx")
+                    ]
 
                     for f in files:
                         lower_f = f.lower()

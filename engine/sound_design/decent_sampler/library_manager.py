@@ -62,6 +62,18 @@ class DecentSamplerLibraryManager:
     AUDIO_EXTENSIONS = {".wav", ".flac", ".aif", ".aiff", ".mp3", ".ogg"}
     IGNORED_DIRS = {"__macosx", ".git", ".svn", ".idea", ".vscode", "__pycache__"}
 
+    # In-memory and mtime-invalidated caches
+    _folder_audit_cache: Dict[str, Any] = {}
+    _scan_cache: Dict[Any, List[DecentSamplerLibraryInfo]] = {}
+    _role_cache: Dict[Any, List[DecentSamplerLibraryInfo]] = {}
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clears all in-memory audit, scan, and role caches."""
+        cls._folder_audit_cache.clear()
+        cls._scan_cache.clear()
+        cls._role_cache.clear()
+
     @classmethod
     def get_library_root(cls) -> Path:
         """
@@ -101,7 +113,7 @@ class DecentSamplerLibraryManager:
     def set_library_root(cls, path: Union[str, Path]) -> Path:
         """
         Sets and persists the primary library root folder as decided by the user.
-        Validates that the path physically exists.
+        Validates that the path physically exists and invalidates cached scans.
         """
         resolved = Path(path).resolve()
         if not resolved.exists() or not resolved.is_dir():
@@ -118,6 +130,15 @@ class DecentSamplerLibraryManager:
         settings["decent_sampler_library_root"] = str(resolved)
         cls.SETTINGS_FILE.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
         logger.info(f"Decent Sampler primary library root updated to: {resolved}")
+
+        # Invalidate in-memory caches upon root change
+        cls.clear_cache()
+        try:
+            from engine.instruments.browser_catalog import LiveBrowserCatalogEngine
+            LiveBrowserCatalogEngine.clear_cache()
+        except Exception:
+            pass
+
         return resolved
 
     @classmethod
@@ -128,39 +149,59 @@ class DecentSamplerLibraryManager:
         - Absence of corruption or zero samples
         - Valid .dspreset file and working sample references
         - Or valid uncompiled raw samples suitable for auto-mapping
+        Uses mtime-based in-memory caching and single-pass filesystem scanning.
         """
+        folder_path = Path(folder_path).resolve()
         folder_name = folder_path.name
         info = DecentSamplerLibraryInfo(name=folder_name, path=folder_path)
 
-        # Check ignored directories
+        # Fast path: Check ignored metadata directories
         if folder_name.lower() in cls.IGNORED_DIRS or folder_name.startswith("."):
             info.is_valid = False
             info.validation_errors.append("Ignored metadata directory.")
             return info
 
-        # Search for .dspreset files (directly or nested up to 2 levels)
-        dspresets: List[Path] = []
+        if not folder_path.exists() or not folder_path.is_dir():
+            info.is_valid = False
+            info.validation_errors.append(f"Folder does not exist or is not a directory: {folder_path}")
+            return info
+
         try:
-            for item in folder_path.rglob("*.dspreset"):
-                # Ignore items in __MACOSX
-                if any(part.lower() in cls.IGNORED_DIRS for part in item.parts):
-                    continue
-                dspresets.append(item)
+            mtime = folder_path.stat().st_mtime
+        except Exception:
+            mtime = 0.0
+
+        cache_key = str(folder_path)
+        if cache_key in cls._folder_audit_cache:
+            cached_mtime, cached_info = cls._folder_audit_cache[cache_key]
+            if cached_mtime == mtime:
+                return cached_info
+
+        # Single-pass scan for both .dspreset files and audio samples
+        dspresets: List[Path] = []
+        sample_files: List[Path] = []
+        try:
+            for root_dir, dirs, files in os.walk(folder_path):
+                # Prune ignored and hidden directories from descent
+                dirs[:] = [
+                    d for d in dirs
+                    if d.lower() not in cls.IGNORED_DIRS and not d.startswith(".")
+                ]
+                for f in files:
+                    lower_f = f.lower()
+                    if lower_f.endswith(".dspreset"):
+                        dspresets.append(Path(root_dir) / f)
+                    else:
+                        ext = os.path.splitext(lower_f)[1]
+                        if ext in cls.AUDIO_EXTENSIONS:
+                            sample_files.append(Path(root_dir) / f)
         except Exception as e:
             info.is_valid = False
             info.validation_errors.append(f"Filesystem read error: {e}")
+            cls._folder_audit_cache[cache_key] = (mtime, info)
             return info
 
-        # Search for audio samples
-        sample_files: List[Path] = []
-        try:
-            for item in folder_path.rglob("*"):
-                if item.is_file() and item.suffix.lower() in cls.AUDIO_EXTENSIONS:
-                    if not any(part.lower() in cls.IGNORED_DIRS for part in item.parts):
-                        sample_files.append(item)
-        except Exception:
-            pass
-
+        dspresets.sort()
         info.sample_count = len(sample_files)
         if sample_files:
             info.sample_dir = sample_files[0].parent
@@ -178,37 +219,41 @@ class DecentSamplerLibraryManager:
                 if not val_report.is_valid:
                     info.is_valid = False
                     info.validation_errors.extend(val_report.all_errors)
+                    cls._folder_audit_cache[cache_key] = (mtime, info)
                     return info
 
                 # Clean XML attributes and audit sample references
                 clean_content, _ = DSPresetSerializer.clean_xml_content(content)
                 root = ET.fromstring(clean_content)
-                missing_samples = 0
 
-                total_refs = 0
                 preset_dir = preset_file.parent
+                samples = root.findall(".//sample")
+                sample_paths = [s.attrib.get("path") for s in samples if s.attrib.get("path")]
+                total_refs = len(sample_paths)
 
-                for s_elem in root.findall(".//sample"):
-                    p_attr = s_elem.attrib.get("path")
-                    if p_attr:
-                        total_refs += 1
-                        # Resolve path
+                # Short-circuit check: only invalid when ALL referenced samples are missing
+                if total_refs > 0:
+                    at_least_one_exists = False
+                    for p_attr in sample_paths:
                         target = (preset_dir / p_attr).resolve()
-                        if not target.exists():
-                            missing_samples += 1
+                        if target.exists():
+                            at_least_one_exists = True
+                            break
 
-                if total_refs > 0 and missing_samples == total_refs:
-                    info.is_valid = False
-                    info.validation_errors.append(
-                        f"All {total_refs} audio sample references are broken or missing on disk."
-                    )
-                    return info
+                    if not at_least_one_exists:
+                        info.is_valid = False
+                        info.validation_errors.append(
+                            f"All {total_refs} audio sample references are broken or missing on disk."
+                        )
+                        cls._folder_audit_cache[cache_key] = (mtime, info)
+                        return info
 
                 info.is_valid = True
 
             except Exception as e:
                 info.is_valid = False
                 info.validation_errors.append(f"Failed to parse preset XML: {e}")
+                cls._folder_audit_cache[cache_key] = (mtime, info)
                 return info
 
         # Case 2: Uncompiled folder with raw samples
@@ -216,6 +261,7 @@ class DecentSamplerLibraryManager:
             if len(sample_files) < 1:
                 info.is_valid = False
                 info.validation_errors.append("Folder contains no usable audio samples.")
+                cls._folder_audit_cache[cache_key] = (mtime, info)
                 return info
 
             # Check if samples are recognizable by SampleAsset
@@ -225,13 +271,13 @@ class DecentSamplerLibraryManager:
                 if asset.root_note is not None:
                     valid_pitches += 1
 
-
             info.is_valid = True
             info.tags.append("uncompiled_samples")
 
         else:
             info.is_valid = False
             info.validation_errors.append("No .dspreset and no audio files found in directory.")
+            cls._folder_audit_cache[cache_key] = (mtime, info)
             return info
 
         # Infer acoustic role hint based on folder name
@@ -249,6 +295,7 @@ class DecentSamplerLibraryManager:
         elif any(w in name_lower for w in ["lead", "pluck", "synth", "solo", "flute"]):
             info.role_hint = "LEAD"
 
+        cls._folder_audit_cache[cache_key] = (mtime, info)
         return info
 
     @classmethod
@@ -256,31 +303,66 @@ class DecentSamplerLibraryManager:
         """
         Scans the user's primary library root, auditing all direct subdirectories.
         Returns only valid libraries by default.
+        Uses mtime-based in-memory caching to eliminate redundant scans.
         """
         root = cls.get_library_root()
         if not root.exists() or not root.is_dir():
             logger.warning(f"Library root does not exist: {root}")
             return []
 
+        try:
+            root_mtime = root.stat().st_mtime
+        except Exception:
+            root_mtime = 0.0
+
+        cache_key = (str(root), root_mtime, require_valid)
+        if cache_key in cls._scan_cache:
+            return list(cls._scan_cache[cache_key])
+
+        unfiltered_key = (str(root), root_mtime, False)
+        if unfiltered_key in cls._scan_cache:
+            all_entries = cls._scan_cache[unfiltered_key]
+            res = [lib for lib in all_entries if lib.is_valid] if require_valid else all_entries
+            cls._scan_cache[cache_key] = res
+            return list(res)
+
         results: List[DecentSamplerLibraryInfo] = []
         try:
             for entry in sorted(root.iterdir()):
                 if entry.is_dir():
                     info = cls.audit_library_folder(entry)
-                    if not require_valid or info.is_valid:
-                        results.append(info)
+                    results.append(info)
         except Exception as e:
             logger.error(f"Error scanning library root '{root}': {e}")
 
-        return results
+        cls._scan_cache[unfiltered_key] = results
+        res = [lib for lib in results if lib.is_valid] if require_valid else results
+        cls._scan_cache[cache_key] = res
+        return list(res)
 
     @classmethod
     def get_libraries_for_role(cls, role: str) -> List[DecentSamplerLibraryInfo]:
-        """Returns certified valid libraries matching the track role or general instruments."""
+        """
+        Returns certified valid libraries matching the track role or general instruments.
+        Derives sample presence directly from audited library metadata instead of global recursive walk.
+        """
         role_up = str(role or "").upper()
         root = cls.get_library_root()
-        has_samples = any(root.rglob("*.wav")) if root.exists() else False
-        all_valid = cls.scan_libraries(require_valid=has_samples)
+        if not root.exists() or not root.is_dir():
+            return []
+
+        try:
+            root_mtime = root.stat().st_mtime
+        except Exception:
+            root_mtime = 0.0
+
+        cache_key = (str(root), root_mtime, role_up)
+        if cache_key in cls._role_cache:
+            return list(cls._role_cache[cache_key])
+
+        all_libs = cls.scan_libraries(require_valid=False)
+        has_samples = any(lib.sample_count > 0 for lib in all_libs)
+        all_valid = [lib for lib in all_libs if lib.is_valid] if has_samples else all_libs
         matching = []
 
         for lib in all_valid:
@@ -291,16 +373,22 @@ class DecentSamplerLibraryManager:
 
         # If no specific matches, return all valid libraries for melodic/harmonic roles, but never for drum roles
         if not matching and role_up not in ("DRUMS", "KICK", "PERCUSSION", "CLAP", "SNARE", "808_BASS"):
-            return all_valid
-        return matching
+            matching = all_valid
+
+        cls._role_cache[cache_key] = matching
+        return list(matching)
 
     @classmethod
     def get_library_by_name(cls, name_query: str) -> Optional[DecentSamplerLibraryInfo]:
         """Finds a specific certified valid library by name query."""
         cleaned = name_query.strip().lower()
         root = cls.get_library_root()
-        has_samples = any(root.rglob("*.wav")) if root.exists() else False
-        all_valid = cls.scan_libraries(require_valid=has_samples)
+        if not root.exists() or not root.is_dir():
+            return None
+
+        all_libs = cls.scan_libraries(require_valid=False)
+        has_samples = any(lib.sample_count > 0 for lib in all_libs)
+        all_valid = [lib for lib in all_libs if lib.is_valid] if has_samples else all_libs
 
         for lib in all_valid:
             if lib.name.lower() == cleaned:

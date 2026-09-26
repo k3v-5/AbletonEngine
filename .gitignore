@@ -241,3 +241,6 @@ cache/
 scratch/
 temp_*.json
 temp_slices/
+.agents/
+import_times.txt
+

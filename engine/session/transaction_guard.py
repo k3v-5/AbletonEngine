@@ -12,12 +12,32 @@ import logging
 logger = logging.getLogger("TransactionGuard")
 
 
+def _fast_clone(obj: Any) -> Any:
+    """
+    Optimized deep cloner for JSON-compatible session dicts, lists, and primitives.
+    Avoids Python's general copy.deepcopy overhead (memo dicts, reflection hooks).
+    Falls back to copy.deepcopy for complex objects.
+    """
+    if isinstance(obj, dict):
+        return {k: _fast_clone(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_fast_clone(elem) for elem in obj]
+    elif isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    elif isinstance(obj, tuple):
+        return tuple(_fast_clone(elem) for elem in obj)
+    elif isinstance(obj, set):
+        return {_fast_clone(elem) for elem in obj}
+    else:
+        return copy.deepcopy(obj)
+
+
 class TransactionSnapshot:
     """Holds an immutable snapshot of track states, device indices, and session pointers."""
 
     def __init__(self, session_data: Dict[str, Any], live_tracks_state: Optional[List[Dict[str, Any]]] = None):
-        self.session_data = copy.deepcopy(session_data)
-        self.live_tracks_state = copy.deepcopy(live_tracks_state or [])
+        self.session_data = _fast_clone(session_data)
+        self.live_tracks_state = _fast_clone(live_tracks_state or [])
         self.phase = session_data.get("current_phase", "PHASE_1_TRACKS")
         self.phase_index = session_data.get("phase_index", 1)
         self.track_ptr = session_data.get("current_fx_track_ptr", 0)
@@ -58,7 +78,7 @@ class TransactionGuard:
         snap = cls._ACTIVE_SNAPSHOT
         logger.info(f"Rolling back transaction to phase {snap.phase} (step {snap.phase_index})")
 
-        session.data = copy.deepcopy(snap.session_data)
+        session.data = _fast_clone(snap.session_data)
         session._save_state()
 
         compensations_applied = []

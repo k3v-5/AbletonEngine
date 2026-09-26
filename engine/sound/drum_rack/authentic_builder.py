@@ -63,22 +63,60 @@ class AuthenticSampleDrumRackEngine:
     ]
 
     DEFAULT_LIBRARY_ROOTS = [
-        r"D:\Documentos\Librerias FL Studio\ASAN ESSENTIALS VOL. 1",
-        r"D:\Documentos\Librerias FL Studio\Cymatics",
-        r"D:\Documentos\Librerias FL Studio\Drums",
-        r"D:\Documentos\Librerias FL Studio\CALLE Reborn Reggaeton and Trap",
         r"D:\Documentos\Librerias FL Studio",
     ]
 
+    _global_sample_index: Dict[str, List[str]] = {}
+    _global_samples_meta: List[tuple] = []
+    _global_indexed: bool = False
+    _global_roots_key: Optional[str] = None
+
+    @classmethod
+    def clear_index_cache(cls) -> None:
+        """Clears class-level sample index cache."""
+        cls._global_sample_index.clear()
+        cls._global_samples_meta.clear()
+        cls._global_indexed = False
+        cls._global_roots_key = None
+
+    @classmethod
+    def deduplicate_roots(cls, roots: List[str]) -> List[str]:
+        """Filters out duplicate roots and subpaths whose parents are already present."""
+        if not roots:
+            return []
+        resolved = []
+        for r in roots:
+            try:
+                p = Path(r).resolve()
+                resolved.append(p)
+            except Exception:
+                resolved.append(Path(r))
+
+        unique_paths = list(dict.fromkeys(resolved))
+        pruned = [
+            str(p) for p in unique_paths
+            if not any(other != p and other in p.parents for other in unique_paths)
+        ]
+        return pruned
+
     def __init__(self, library_roots: Optional[List[str]] = None, adapter: Any = None):
-        self.library_roots = library_roots or self.DEFAULT_LIBRARY_ROOTS
+        raw_roots = library_roots or self.DEFAULT_LIBRARY_ROOTS
+        self.library_roots = self.deduplicate_roots(raw_roots)
         self.adapter = adapter
         self._sample_index: Dict[str, List[str]] = {}
+        self._samples_meta: List[tuple] = []
         self._indexed = False
 
     def build_sample_index(self, max_files_per_root: int = 5000):
         """Indexes available audio files in the user's sample libraries."""
         if self._indexed and self._sample_index:
+            return
+
+        roots_key = f"{tuple(sorted(self.library_roots))}_{max_files_per_root}"
+        if AuthenticSampleDrumRackEngine._global_indexed and AuthenticSampleDrumRackEngine._global_roots_key == roots_key:
+            self._sample_index = dict(AuthenticSampleDrumRackEngine._global_sample_index)
+            self._samples_meta = list(AuthenticSampleDrumRackEngine._global_samples_meta)
+            self._indexed = True
             return
 
         self._sample_index = {"all": []}
@@ -88,7 +126,9 @@ class AuthenticSampleDrumRackEngine:
                 continue
             
             count = 0
-            for dirpath, _, filenames in os.walk(root_path):
+            for dirpath, dirs, filenames in os.walk(root_path):
+                # Prune hidden and metadata directories
+                dirs[:] = [d for d in dirs if not d.startswith(".") and d.lower() not in ("__pycache__", "__macosx")]
                 for f in filenames:
                     low_f = f.lower()
                     if low_f.endswith((".wav", ".aif", ".aiff", ".flac")):
@@ -136,34 +176,48 @@ class AuthenticSampleDrumRackEngine:
             except Exception as ex_gen:
                 pass
 
+        all_samples = self._sample_index.get("all", [])
+        self._samples_meta = [(s, os.path.basename(s).lower()) for s in all_samples]
+
+        AuthenticSampleDrumRackEngine._global_sample_index = dict(self._sample_index)
+        AuthenticSampleDrumRackEngine._global_samples_meta = list(self._samples_meta)
+        AuthenticSampleDrumRackEngine._global_indexed = True
+        AuthenticSampleDrumRackEngine._global_roots_key = roots_key
         self._indexed = True
 
     def find_best_sample(self, role: str, preference_keywords: List[str]) -> Optional[str]:
         """Finds the optimal audio file matching the requested keywords."""
         self.build_sample_index()
-        all_samples = self._sample_index.get("all", [])
+        samples_meta = getattr(self, "_samples_meta", None)
+        if not samples_meta:
+            all_samples = self._sample_index.get("all", [])
+            samples_meta = [(s, os.path.basename(s).lower()) for s in all_samples]
+            self._samples_meta = samples_meta
+
+        if not samples_meta:
+            return None
 
         # Priority 1: Exact filename match in preference keywords
-        for kw in preference_keywords:
-            for s in all_samples:
-                if os.path.basename(s).lower() == kw.lower():
-                    return s
+        lower_kws = [kw.lower() for kw in preference_keywords]
+        for kw_low in lower_kws:
+            for full_p, base_low in samples_meta:
+                if base_low == kw_low:
+                    return full_p
 
         # Priority 2: Substring match of highest-priority keyword
-        for kw in preference_keywords:
-            low_kw = kw.lower()
-            for s in all_samples:
-                if low_kw in os.path.basename(s).lower():
-                    return s
+        for kw_low in lower_kws:
+            for full_p, base_low in samples_meta:
+                if kw_low in base_low:
+                    return full_p
 
         # Priority 3: Role substring match
         role_low = role.lower().split("_")[0]
-        for s in all_samples:
-            if role_low in os.path.basename(s).lower():
-                return s
+        for full_p, base_low in samples_meta:
+            if role_low in base_low:
+                return full_p
 
         # Fallback to first valid sample if available
-        return all_samples[0] if all_samples else None
+        return samples_meta[0][0]
 
     def build_kit_spec(self, kit_name: str = "Authentic_Urban_Kit", genre: str = "neo_soul_trap") -> AuthenticDrumKitSpec:
         """Constructs a complete 8-pad authentic drum kit specification."""

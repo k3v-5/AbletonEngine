@@ -108,6 +108,12 @@ class LiveMasterChainEngine:
         ]
 
         import time
+        import os
+
+        is_test_or_mock = bool(
+            os.environ.get("PYTEST_CURRENT_TEST")
+            or (conn is not None and getattr(conn, "__class__", None).__name__ == "MockAbletonAdapter")
+        )
 
         def locate_devices():
             t_info = conn.send_command("get_track_info", {"track_index": track_index})
@@ -148,7 +154,8 @@ class LiveMasterChainEngine:
                     "track_index": track_index,
                     "uri": uri
                 })
-                time.sleep(0.3)
+                if not is_test_or_mock:
+                    time.sleep(0.3)
                 results["devices_installed"].append(d_title)
             else:
                 results["devices_installed"].append(f"{d_title} (Existing)")
@@ -158,7 +165,8 @@ class LiveMasterChainEngine:
             eq_idx, glue_idx, sat_idx, util_idx, lim_idx = locate_devices()
             if all(x is not None for x in [eq_idx, glue_idx, sat_idx, util_idx, lim_idx]):
                 break
-            time.sleep(0.25)
+            if not is_test_or_mock:
+                time.sleep(0.25)
 
         # Collect all parameter assignments across all 5 mastering devices
         all_param_ops = []

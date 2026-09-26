@@ -1,121 +1,25 @@
 {
-  "version": 4,
+  "version": 2,
   "project_state": {
-    "tempo": 128.0,
+    "tempo": 120.0,
     "time_signature": "4/4",
     "current_scene": null,
     "current_song_time": 0.0,
     "is_playing": false,
-    "track_count": 3,
-    "version": 4,
-    "sync_status": "SYNCHRONIZED"
+    "track_count": 1,
+    "version": 2,
+    "sync_status": "OFFLINE"
   },
   "tracks": {
-    "track_e0b48f72": {
-      "id": "track_e0b48f72",
+    "track_master": {
+      "id": "track_master",
       "ableton_index": 0,
-      "name": "Kick",
-      "type": "midi",
+      "name": "Master",
+      "type": "master",
       "parent_id": null,
       "children_ids": [],
       "metadata": {
         "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.9,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {
-        "clip_8f70cec6": {
-          "id": "clip_8f70cec6",
-          "track_id": "track_e0b48f72",
-          "ableton_track_index": 0,
-          "ableton_slot_index": 0,
-          "name": "Kick 4x4",
-          "length": 4.0,
-          "is_playing": false,
-          "is_recording": false,
-          "notes_count": 0
-        }
-      },
-      "devices": {
-        "device_a43584d2": {
-          "id": "device_a43584d2",
-          "track_id": "track_e0b48f72",
-          "ableton_track_index": 0,
-          "ableton_device_index": 0,
-          "name": "Drum Buss",
-          "class_name": "DrumBuss",
-          "type": "audio_effect",
-          "parameters_cache": {}
-        }
-      }
-    },
-    "track_b17e9284": {
-      "id": "track_b17e9284",
-      "ableton_index": 1,
-      "name": "Bass",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": null,
-        "tags": [],
-        "priority": 0.5,
-        "locked": false,
-        "lock_reason": null,
-        "generated_by_engine": false
-      },
-      "is_foldable": false,
-      "is_grouped": false,
-      "volume": 0.75,
-      "panning": 0.0,
-      "mute": false,
-      "solo": false,
-      "arm": false,
-      "clips": {
-        "clip_b54b79ec": {
-          "id": "clip_b54b79ec",
-          "track_id": "track_b17e9284",
-          "ableton_track_index": 1,
-          "ableton_slot_index": 0,
-          "name": "Rolling Sub",
-          "length": 8.0,
-          "is_playing": false,
-          "is_recording": false,
-          "notes_count": 0
-        }
-      },
-      "devices": {
-        "device_ded36031": {
-          "id": "device_ded36031",
-          "track_id": "track_b17e9284",
-          "ableton_track_index": 1,
-          "ableton_device_index": 0,
-          "name": "Drift",
-          "class_name": "Drift",
-          "type": "instrument",
-          "parameters_cache": {}
-        }
-      }
-    },
-    "track_2541a90a": {
-      "id": "track_2541a90a",
-      "ableton_index": 2,
-      "name": "HiHat Closed",
-      "type": "midi",
-      "parent_id": null,
-      "children_ids": [],
-      "metadata": {
-        "role": "HIHAT",
         "tags": [],
         "priority": 0.5,
         "locked": false,

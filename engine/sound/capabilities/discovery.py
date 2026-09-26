@@ -14,6 +14,13 @@ class CapabilityDiscovery:
         if not adapter:
             return reg
 
+        if hasattr(adapter, "is_connected"):
+            try:
+                if not adapter.is_connected():
+                    return reg
+            except Exception:
+                return reg
+
         try:
             # Query session info
             if hasattr(adapter, "get_session_info"):

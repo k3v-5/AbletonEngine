@@ -6,6 +6,24 @@ Provides strict separation between acoustic measurement and profile compliance.
 from typing import Tuple, Dict, Any, Optional
 import numpy as np
 
+try:
+    from scipy.signal import lfilter as _scipy_lfilter, upfirdn as _scipy_upfirdn
+    _SCIPY_AVAILABLE = True
+except ImportError:
+    _scipy_lfilter = None
+    _scipy_upfirdn = None
+    _SCIPY_AVAILABLE = False
+
+# Module-level cached 129-tap Hann-windowed sinc interpolation filter for 4x oversampling
+_DEFAULT_OVERSAMPLE = 4
+_HALF_LEN = 16
+_K_DEFAULT = np.arange(-_HALF_LEN * _DEFAULT_OVERSAMPLE, _HALF_LEN * _DEFAULT_OVERSAMPLE + 1)
+_SINC_DEFAULT = np.sinc(_K_DEFAULT / _DEFAULT_OVERSAMPLE)
+_WIN_DEFAULT = np.hanning(len(_K_DEFAULT))
+_H_RAW = _SINC_DEFAULT * _WIN_DEFAULT
+_H_4X_CACHE = _H_RAW * _DEFAULT_OVERSAMPLE / np.sum(_H_RAW)
+_H_4X_SHIFT = (len(_H_4X_CACHE) - 1) // 2
+
 from .models import HeadroomClassification, DynamicClassification
 from .loudness_standards import (
     LoudnessMeasurement,
@@ -68,7 +86,13 @@ class LoudnessAnalyzer:
         b_hp = np.array([b0_hp, b1_hp, b2_hp]) / a0_hp
         a_hp = np.array([a0_hp, a1_hp, a2_hp]) / a0_hp
 
-        # Run 2-stage IIR difference equation per channel
+        if _scipy_lfilter is not None:
+            # Vectorized 2-stage IIR difference equation per ITU-R BS.1770-5
+            y1 = _scipy_lfilter(b_hs, a_hs, filtered, axis=-1)
+            filtered = _scipy_lfilter(b_hp, a_hp, y1, axis=-1)
+            return filtered
+
+        # Pure-Python sample loop fallback if scipy is not available
         for ch in range(filtered.shape[0]):
             x = filtered[ch]
             # Stage 1
@@ -213,22 +237,31 @@ class LoudnessAnalyzer:
         if audio.size == 0:
             return -100.0
 
-        # Design 4x sinc interpolation filter with Hann window
-        half_len = 16
-        k = np.arange(-half_len * oversample_factor, half_len * oversample_factor + 1)
-        sinc = np.sinc(k / oversample_factor)
-        win = np.hanning(len(k))
-        h = sinc * win
-        h = h * oversample_factor / np.sum(h)
+        if oversample_factor == 4:
+            h = _H_4X_CACHE
+            shift = _H_4X_SHIFT
+        else:
+            half_len = 16
+            k = np.arange(-half_len * oversample_factor, half_len * oversample_factor + 1)
+            sinc = np.sinc(k / oversample_factor)
+            win = np.hanning(len(k))
+            h_raw = sinc * win
+            h = h_raw * oversample_factor / np.sum(h_raw)
+            shift = (len(h) - 1) // 2
 
         max_tp = -100.0
-        for ch in range(audio.shape[0]):
-            x = audio[ch].astype(np.float64)
-            # 4x zero-stuffed upsampling
-            x_up = np.zeros(len(x) * oversample_factor, dtype=np.float64)
-            x_up[::oversample_factor] = x
-            # Convolve with reconstruction filter
-            interpolated = np.convolve(x_up, h, mode="same")
+        audio_2d = audio if audio.ndim >= 2 else audio.reshape(1, -1)
+        for ch in range(audio_2d.shape[0]):
+            x = audio_2d[ch].astype(np.float64)
+            if _scipy_upfirdn is not None:
+                u = _scipy_upfirdn(h, x, up=oversample_factor)
+                interpolated = u[shift : shift + len(x) * oversample_factor]
+            else:
+                # 4x zero-stuffed upsampling fallback
+                x_up = np.zeros(len(x) * oversample_factor, dtype=np.float64)
+                x_up[::oversample_factor] = x
+                # Convolve with reconstruction filter
+                interpolated = np.convolve(x_up, h, mode="same")
             peak_val = float(np.max(np.abs(interpolated))) + 1e-12
             tp_db = float(20.0 * np.log10(peak_val))
             if tp_db > max_tp:

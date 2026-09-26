@@ -24,16 +24,26 @@ class SoundEngine:
     def __init__(self, parent_engine=None):
         self.engine = parent_engine
         self.adapter = parent_engine.adapter if parent_engine else None
-        self.capabilities = CapabilityDiscovery.discover_capabilities(self.adapter)
+        self._capabilities = None
         self.chain_builder = ChainBuilder(self.adapter)
         self.drum_rack_engine = DrumRackEngine(self.adapter)
         self.macro_system = MacroSystem(self.adapter)
         self.snapshot_manager = SoundSnapshotManager()
         self.advisor = AdaptiveAdvisor()
 
+    @property
+    def capabilities(self) -> CapabilityRegistry:
+        if self._capabilities is None:
+            self._capabilities = CapabilityDiscovery.discover_capabilities(self.adapter)
+        return self._capabilities
+
+    @capabilities.setter
+    def capabilities(self, value):
+        self._capabilities = value
+
     def set_adapter(self, adapter):
         self.adapter = adapter
-        self.capabilities = CapabilityDiscovery.discover_capabilities(self.adapter)
+        self._capabilities = None
         self.chain_builder.adapter = adapter
         self.drum_rack_engine.adapter = adapter
         self.macro_system.adapter = adapter

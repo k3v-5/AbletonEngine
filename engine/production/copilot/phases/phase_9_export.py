@@ -326,19 +326,26 @@ class Phase9ExportHandler(BasePhaseHandler):
 
         # Source 3: If no WAV found, attempt live socket capture on port 9878
         if real_audio is None:
-            try:
-                from engine.audio.live_listener import live_audio_listener
-                if conn is not None and hasattr(conn, "send_command"):
-                    try:
-                        conn.send_command("start_playback", {})
-                    except Exception:
-                        pass
-                stream_audio = live_audio_listener.capture_socket_stream(duration_seconds=2.0, port=9878, timeout=0.5)
-                if stream_audio is not None and stream_audio.size > 1000:
-                    real_audio = stream_audio
-                    audio_source_type = "Stream UDP en vivo (Puerto 9878)"
-            except Exception as ex:
-                logger.debug(f"UDP capture notice: {ex}")
+            is_offline_or_test = bool(
+                os.environ.get("PYTEST_CURRENT_TEST")
+                or conn is None
+                or getattr(conn, "__class__", None).__name__ == "MockAbletonAdapter"
+                or not getattr(conn, "is_connected", lambda: False)()
+            )
+            if not is_offline_or_test:
+                try:
+                    from engine.audio.live_listener import live_audio_listener
+                    if conn is not None and hasattr(conn, "send_command"):
+                        try:
+                            conn.send_command("start_playback", {})
+                        except Exception:
+                            pass
+                    stream_audio = live_audio_listener.capture_socket_stream(duration_seconds=2.0, port=9878, timeout=0.5)
+                    if stream_audio is not None and stream_audio.size > 1000:
+                        real_audio = stream_audio
+                        audio_source_type = "Stream UDP en vivo (Puerto 9878)"
+                except Exception as ex:
+                    logger.debug(f"UDP capture notice: {ex}")
 
         # 4. STRICT GATEKEEPER DECISION: BLOCK ADVANCEMENT IF NO REAL AUDIO
         if real_audio is None:

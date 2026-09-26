@@ -8,7 +8,7 @@ Live Browser Catalog & VST3 / Native Preset Discovery Engine.
 
 from enum import Enum
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("BrowserCatalog")
@@ -54,6 +54,18 @@ class LiveBrowserCatalogEngine:
     """
     Catalog inspection and dynamic instrument loader with hierarchical acoustic classification.
     """
+
+    _sources_role_cache: Dict[Tuple[str, bool], List[SoundSourceOption]] = {}
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clears memoized role catalog sources."""
+        cls._sources_role_cache.clear()
+
+    @classmethod
+    def _get_user_instrument_racks(cls, role: str) -> List[SoundSourceOption]:
+        """Convenience alias for scan_user_custom_racks_for_role."""
+        return cls.scan_user_custom_racks_for_role(role)
 
     ROLE_FAMILY_MAPPING: Dict[str, str] = {
         "COUNTER_LEAD": "LEAD",
@@ -201,7 +213,11 @@ class LiveBrowserCatalogEngine:
         role_key = str(role or "").upper().strip()
         from engine.production.copilot.role_orchestrator import RoleTrackOrchestrator
         norm_role = RoleTrackOrchestrator.normalize_role(role_key)
-        
+
+        cache_key = (norm_role, filter_installed)
+        if cache_key in cls._sources_role_cache:
+            return list(cls._sources_role_cache[cache_key])
+
         # Tier 1: Direct match in CURATED_SOURCES
         raw_sources = list(CURATED_SOURCES.get(norm_role, CURATED_SOURCES.get(role_key, [])))
         if not raw_sources:
@@ -306,7 +322,9 @@ class LiveBrowserCatalogEngine:
             third_party = sublab_opts + other_third
 
         verified = third_party + native
-        return verified or raw_sources
+        result = verified or raw_sources
+        cls._sources_role_cache[cache_key] = result
+        return list(result)
 
     @classmethod
     def get_plugin_presets_for_role(
@@ -382,9 +400,9 @@ class LiveBrowserCatalogEngine:
         if is_decent_sampler:
             try:
                 from engine.sound_design.decent_sampler.library_manager import DecentSamplerLibraryManager
-                root = DecentSamplerLibraryManager.get_library_root()
-                has_samples = any(root.rglob("*.wav")) if root.exists() else False
-                ds_libs = DecentSamplerLibraryManager.scan_libraries(require_valid=has_samples)
+                all_ds = DecentSamplerLibraryManager.scan_libraries(require_valid=False)
+                has_samples = any(lib.sample_count > 0 for lib in all_ds)
+                ds_libs = [lib for lib in all_ds if lib.is_valid] if has_samples else all_ds
                 res_opts = []
                 for lib in ds_libs:
                     res_opts.append(SoundSourceOption(

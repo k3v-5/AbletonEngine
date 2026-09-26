@@ -32,31 +32,15 @@ except (ImportError, ValueError):
     class GovernanceViolationError(RuntimeError):
         pass
 
-from engine.server.mcp_routes import (
-    handle_copilot_get_status,
-    handle_copilot_review_decisions,
-    handle_copilot_execute_decision,
-    handle_copilot_preflight_check,
-    handle_copilot_auto_produce,
-    handle_copilot_guided_session,
-    handle_copilot_session_doctor,
-    handle_setup_full_mastering_chain,
-    handle_apply_adaptive_deesser,
-    handle_mix_apply_frequency_slotting,
-    handle_mix_audit_phase_and_mono_compatibility,
-    handle_mix_apply_vocal_lead_fader_riding,
-    handle_mix_apply_multitrack_sidechain_ducking,
-    handle_mix_audit_psychoacoustic_masking,
-    handle_get_producer_info,
-    handle_get_serum_patch,
-    handle_get_fabfilter_preset,
-    handle_get_vocal_chain_guide,
-    handle_audio_semantic_sample_match,
-    handle_audio_deconstruct_reference,
-    handle_audio_transcribe_to_midi,
-    handle_get_reprocessing_catalog,
-    handle_execute_reprocessing,
-)
+# Lazy loader for mcp_routes to avoid eager import of GuidedSession & heavy DSP on server import
+def __getattr__(name: str):
+    if name.startswith("handle_"):
+        import engine.server.mcp_routes as _routes
+        if hasattr(_routes, name):
+            val = getattr(_routes, name)
+            globals()[name] = val
+            return val
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
 ABLETON_PORT = int(os.environ.get("ABLETON_PORT", "9877"))
@@ -73,14 +57,14 @@ class AbletonConnection:
     sock: socket.socket = None
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False)
     
-    def connect(self) -> bool:
+    def connect(self, timeout: float = 5.0) -> bool:
         """Connect to the Ableton Remote Script socket server"""
         if self.sock:
             return True
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.settimeout(5.0)
+            self.sock.settimeout(timeout)
             self.sock.connect((self.host, self.port))
             self.sock.settimeout(None)
             logger.info(f"Connected to Ableton at {self.host}:{self.port}")
@@ -477,13 +461,31 @@ mcp = FastMCP(
 # Global connection for resources
 _ableton_connection = None
 
-def get_ableton_connection():
+def is_ableton_online(host: str = ABLETON_HOST, port: int = ABLETON_PORT, timeout: float = 0.02) -> bool:
+    """Fast non-blocking probe to verify if Ableton socket server is reachable."""
+    target_host = "127.0.0.1" if host == "localhost" else host
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((target_host, port))
+        sock.close()
+        return True
+    except Exception:
+        return False
+
+
+def get_ableton_connection(timeout: float = 5.0, probe_timeout: float = 0.02):
     """Get or create a persistent Ableton connection"""
     global _ableton_connection
 
     if _ableton_connection is not None and _ableton_connection.sock is not None:
         return _ableton_connection
     
+    # Fast non-blocking probe: if Live Remote Script is not listening, do not block in retry loops
+    if not is_ableton_online(ABLETON_HOST, ABLETON_PORT, timeout=probe_timeout):
+        _ableton_connection = None
+        raise Exception(f"Could not connect to Ableton at {ABLETON_HOST}:{ABLETON_PORT}. Make sure the Remote Script is running.")
+
     # Connection doesn't exist or is invalid, create a new one
     if _ableton_connection is None:
         max_attempts = 3
@@ -491,7 +493,7 @@ def get_ableton_connection():
             try:
                 logger.info(f"Connecting to Ableton at {ABLETON_HOST}:{ABLETON_PORT} (attempt {attempt}/{max_attempts})...")
                 _ableton_connection = AbletonConnection(host=ABLETON_HOST, port=ABLETON_PORT)
-                if _ableton_connection.connect():
+                if _ableton_connection.connect(timeout=timeout):
                     logger.info("Created new persistent connection to Ableton")
                     return _ableton_connection
                 else:
@@ -2953,6 +2955,11 @@ engine.set_adapter(LiveAbletonAdapter(get_ableton_connection))
 # and never trips the client MCP handshake timeout (which killed the process with 0xffffffff on 18-track sessions).
 def _async_bootstrap_engine():
     try:
+        if not is_ableton_online(ABLETON_HOST, ABLETON_PORT, timeout=0.02):
+            logger.info("Ableton Live offline (fast probe): skipping background bootstrap reconciliation")
+            if hasattr(engine, "graph") and hasattr(engine.graph, "project_state"):
+                engine.graph.project_state.sync_status = "offline"
+            return
         engine.initialize()
         logger.info("Engine bootstrap completed in background")
     except Exception as _pie_init_err:
@@ -6237,277 +6244,8 @@ def master_project(
         return json.dumps({"error": str(e)}, indent=2)
 
 
-# ==============================================================================
-# HITO 1 — GOVERNANCE, CAUSAL MEMORY & PRODUCTION PLANNING MCP TOOLS (9 TOOLS)
-# ==============================================================================
-
-@mcp.tool()
-@rich_telemetry_tool("production_status")
-def production_status(
-    ctx: Context,
-    user_prompt: str = ""
-) -> str:
-    """
-    Returns the operational status of the Production Intelligence Engine (PIE):
-    Graph version, node counts, decision memory stats, BS.1770-5 loudness profile,
-    current session fingerprint, and active policies.
-    """
-    try:
-        fp = engine.production_context.compute_session_fingerprint()
-        status_data = {
-            "status": "ONLINE",
-            "project_id": engine.production_graph.project_id,
-            "graph_version": engine.production_graph.graph_version,
-            "total_graph_nodes": len(engine.production_graph.nodes),
-            "memory_records_count": len(engine.production_memory._records),
-            "loudness_standard": "ITU-R BS.1770-5",
-            "active_loudness_profile": engine.production_context.loudness_profile.name,
-            "session_fingerprint": fp,
-            "active_policies": [p.to_dict() if hasattr(p, "to_dict") else p for p in engine.production_policy_engine.list_policies()]
-        }
-        return json.dumps(status_data, indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_status: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_plan")
-def production_plan(
-    ctx: Context,
-    intent: str,
-    target: str = "Master",
-    target_lufs: Optional[float] = None,
-    diagnosis: Optional[str] = None,
-    genre: str = "generic",
-    user_prompt: str = ""
-) -> str:
-    """
-    Formulates a causal ProductionPlan for a musical intent (e.g. 'Quiero que el master tenga más volumen').
-    Generates multi-candidate interventions, records policy rejections in the graph,
-    and returns a minimal-intervention plan bound by session fingerprint.
-    """
-    try:
-        context_data = {"genre": genre}
-        if target_lufs is not None:
-            context_data["target_lufs"] = float(target_lufs)
-        if diagnosis:
-            context_data["diagnosis"] = diagnosis
-
-        plan = engine.production_planner.plan(
-            intent_description=intent,
-            context=engine.production_context,
-            graph=engine.production_graph,
-            target_override=target,
-            context_data=context_data
-        )
-        engine.production_storage.save_plan(plan)
-        engine.production_storage.save_graph(engine.production_graph)
-        return json.dumps(plan.to_dict(), indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_plan: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_validate")
-def production_validate(
-    ctx: Context,
-    plan_id: Optional[str] = None,
-    candidate_json: Optional[str] = None,
-    context_json: Optional[str] = None,
-    user_prompt: str = ""
-) -> str:
-    """
-    Validates a proposed plan or raw action candidate against the ProductionPolicyEngine.
-    Enforces that CRITICAL policies (Master Limiter GR <= 2.5 dB, True Peak <= -0.3 dBTP, Master EQ max 2 bands)
-    cannot be bypassed.
-    """
-    try:
-        candidate_data = {}
-        if plan_id:
-            plan = engine.production_storage.load_plan(plan_id)
-            if not plan:
-                return json.dumps({"error": f"Plan '{plan_id}' not found."}, indent=2)
-            candidate_data = plan.selected_candidate or plan.to_dict()
-        elif candidate_json:
-            candidate_data = json.loads(candidate_json)
-
-        ctx_data = json.loads(context_json) if context_json else {}
-        if "dry_run" not in ctx_data:
-            ctx_data["dry_run"] = True
-        result = engine.production_policy_engine.evaluate(candidate_data, context=ctx_data)
-        return json.dumps(result.to_dict(), indent=2)
-
-    except Exception as e:
-        logger.error(f"Error in production_validate: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_execute")
-def production_execute(
-    ctx: Context,
-    plan_id: str,
-    simulated: bool = False,
-    user_prompt: str = ""
-) -> str:
-    """
-    Executes a previously formulated ProductionPlan through atomic transactions.
-    Validates plan freshness (fingerprint), runs post-execution acoustic verification,
-    and automatically triggers atomic rollback if acoustic regressions are detected.
-    """
-    try:
-        plan = engine.production_storage.load_plan(plan_id)
-        if not plan:
-            return json.dumps({"error": f"Plan '{plan_id}' not found."}, indent=2)
-
-        result = engine.production_executor.execute(
-            plan=plan,
-            context=engine.production_context,
-            graph=engine.production_graph
-        )
-        engine.production_storage.save_graph(engine.production_graph)
-        engine.production_storage.save_memory(engine.production_memory)
-        res_dict = result.to_dict() if hasattr(result, "to_dict") else result
-        return json.dumps(res_dict, indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_execute: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_explain")
-def production_explain(
-    ctx: Context,
-    decision_id: str,
-    user_prompt: str = ""
-) -> str:
-    """
-    Reconstructs the full causal explanation for a production decision.
-    Strictly categorizes data into:
-    FACTS, MEASUREMENTS, INFERENCES, DECISION, ACTIONS, RESULTS, and REJECTED ALTERNATIVES.
-    """
-    try:
-        explanation = engine.production_graph.explain_decision(decision_id)
-        return json.dumps(explanation, indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_explain: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_history")
-def production_history(
-    ctx: Context,
-    limit: int = 10,
-    domain: Optional[str] = None,
-    user_prompt: str = ""
-) -> str:
-    """
-    Retrieves recent production decisions, actions, and verification outcomes from the causal graph.
-    """
-    try:
-        from engine.production.models import NodeType
-        decisions = []
-        for node in engine.production_graph.nodes.values():
-            if node.node_type in [NodeType.DECISION, NodeType.RESULT, NodeType.ROLLBACK]:
-                if domain and node.payload.get("domain", "").lower() != domain.lower():
-                    continue
-                decisions.append(node.to_dict())
-
-        decisions.sort(key=lambda d: d.get("created_at", ""), reverse=True)
-        return json.dumps({
-            "count": len(decisions[:limit]),
-            "decisions": decisions[:limit]
-        }, indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_history: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_graph")
-def production_graph(
-    ctx: Context,
-    subgraph_node_id: Optional[str] = None,
-    format: str = "json",
-    user_prompt: str = ""
-) -> str:
-    """
-    Exports the Production Causal DAG in deterministic JSON or Mermaid format.
-    Guarantees byte-for-byte serialization for audit and hashing.
-    """
-    try:
-        if format.lower() == "mermaid":
-            lines = ["graph TD"]
-            for node in engine.production_graph.nodes.values():
-                nt = node.node_type.value if hasattr(node.node_type, "value") else str(node.node_type)
-                lines.append(f'  {node.node_id}["{nt}: {node.node_id}"]')
-            for edge in engine.production_graph._edges:
-                lines.append(f'  {edge["source_id"]} -->|{edge["edge_type"]}| {edge["target_id"]}')
-            return "\n".join(lines)
-
-        return engine.production_graph.serialize_deterministic()
-    except Exception as e:
-        logger.error(f"Error in production_graph: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_rollback")
-def production_rollback(
-    ctx: Context,
-    decision_id: str,
-    user_prompt: str = ""
-) -> str:
-    """
-    Executes an atomic rollback of a previously committed production decision.
-    Reverts session state and registers an explicit ROLLBACK node in the causal graph.
-    """
-    try:
-        res = engine.production_executor.rollback_decision(
-            decision_id=decision_id,
-            context=engine.production_context,
-            graph=engine.production_graph
-        )
-        engine.production_storage.save_graph(engine.production_graph)
-        return json.dumps(res, indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_rollback: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
-
-
-@mcp.tool()
-@rich_telemetry_tool("production_memory_search")
-def production_memory_search(
-    ctx: Context,
-    query: str = "",
-    genre: str = "",
-    target: str = "",
-    domain: Optional[str] = None,
-    min_confidence: float = 0.5,
-    user_prompt: str = ""
-) -> str:
-    """
-    Searches DecisionMemory for historically verified decisions matching the scenario.
-    Fundamental Invariant: All returned matches are strictly CANDIDATE-ONLY and NEVER auto-executable.
-    """
-    try:
-        query_ctx = {"genre": genre, "target": target, "query": query}
-        matches = engine.production_memory.search(
-            query_context=query_ctx,
-            domain=domain,
-            min_confidence=min_confidence
-        )
-        return json.dumps({
-            "query_context": query_ctx,
-            "match_count": len(matches),
-            "candidates": matches
-        }, indent=2)
-    except Exception as e:
-        logger.error(f"Error in production_memory_search: {e}")
-        return json.dumps({"error": str(e)}, indent=2)
+# Production Intelligence Engine (PIE) Governance tools are canonically
+# defined below under Document 13 using the Production API Boundary.
 
 
 # ==============================================================================
@@ -6706,9 +6444,12 @@ from engine.production.boundary import get_production_boundary
 
 
 @mcp.tool()
-def production_status() -> dict:
+def production_status(user_prompt: str = "") -> dict:
     """
-    Devuelve el estado actual de la infraestructura de Production Governance.
+    Devuelve el estado actual de la infraestructura de Production Governance (PIE).
+    Returns the operational status of the Production Intelligence Engine:
+    Graph version, node counts, decision memory stats, BS.1770-5 loudness profile,
+    current session fingerprint, and active policies.
     No muta estado, no crea nodos, no ejecuta DSP ni modifica Ableton Live.
     """
     return get_production_boundary().production_status()
@@ -6717,12 +6458,18 @@ def production_status() -> dict:
 @mcp.tool()
 def production_plan(
     intent: str,
-    domain: str,
+    domain: str = "PRODUCTION",
     target: Optional[str] = None,
-    profile: Optional[str] = None
+    profile: Optional[str] = None,
+    target_lufs: Optional[float] = None,
+    diagnosis: Optional[str] = None,
+    genre: str = "generic",
+    user_prompt: str = ""
 ) -> dict:
     """
     Transforma una intención musical en un plan candidato determinista y seguro.
+    Formulates a causal ProductionPlan for a musical intent (e.g. 'Quiero que el master tenga más volumen').
+    Generates multi-candidate interventions bound by session fingerprint.
     No ejecuta cambios en Ableton Live. Requiere validación previa a su ejecución.
     """
     return get_production_boundary().production_plan(
@@ -6735,10 +6482,14 @@ def production_plan(
 
 @mcp.tool()
 def production_validate(
-    plan_id: str
+    plan_id: str = "",
+    candidate_json: Optional[str] = None,
+    context_json: Optional[str] = None,
+    user_prompt: str = ""
 ) -> dict:
     """
     Realiza la validación completa de un plan antes de su ejecución.
+    Validates a proposed plan against the ProductionPolicyEngine.
     Verifica frescura de fingerprint, políticas, locks de objetos y transacciones.
     """
     return get_production_boundary().production_validate(plan_id=plan_id)
@@ -6747,10 +6498,13 @@ def production_validate(
 @mcp.tool()
 def production_execute(
     plan_id: str,
-    auto_rollback: bool = True
+    auto_rollback: bool = True,
+    simulated: bool = False,
+    user_prompt: str = ""
 ) -> dict:
     """
     Ejecuta un plan previamente validado dentro de una transacción atómica segura.
+    Executes a previously formulated ProductionPlan through atomic transactions.
     Incluye verificación acústica multivariable y auto-rollback en caso de regresión.
     """
     return get_production_boundary().production_execute(
@@ -6761,10 +6515,12 @@ def production_execute(
 
 @mcp.tool()
 def production_explain(
-    decision_id: str
+    decision_id: str,
+    user_prompt: str = ""
 ) -> dict:
     """
     Reconstruye la causalidad completa de una decisión de producción.
+    Reconstructs the full causal explanation for a production decision.
     Distingue rigurosamente: FACT, MEASUREMENT, INFERENCE, DECISION, ACTION, RESULT.
     """
     return get_production_boundary().production_explain(decision_id=decision_id)
@@ -6773,10 +6529,12 @@ def production_explain(
 @mcp.tool()
 def production_history(
     limit: int = 20,
-    domain: Optional[str] = None
+    domain: Optional[str] = None,
+    user_prompt: str = ""
 ) -> dict:
     """
     Consulta el historial determinista de decisiones de producción.
+    Retrieves recent production decisions, actions, and verification outcomes from the causal graph.
     Ordenado estrictamente por timestamp DESC y decision_id ASC.
     """
     return get_production_boundary().production_history(
@@ -6787,10 +6545,13 @@ def production_history(
 
 @mcp.tool()
 def production_graph(
-    format: str = "summary"
+    format: str = "summary",
+    subgraph_node_id: Optional[str] = None,
+    user_prompt: str = ""
 ) -> dict:
     """
     Consulta la estructura o estadísticas del Production Graph en modo solo lectura.
+    Exports the Production Causal DAG in summary or exportable format.
     Formatos soportados: 'summary' (estadísticas compactas) o 'dag' (estructura exportable).
     """
     return get_production_boundary().production_graph(format=format)
@@ -6798,29 +6559,44 @@ def production_graph(
 
 @mcp.tool()
 def production_rollback(
-    decision_id_or_transaction: str
+    decision_id_or_transaction: str = "",
+    decision_id: Optional[str] = None,
+    user_prompt: str = ""
 ) -> dict:
     """
     Revierte de forma atómica y no destructiva una decisión o transacción de producción.
+    Executes an atomic rollback of a previously committed production decision.
     Preserva el historial original y genera nuevos nodos causales de rollback.
     """
+    target_id = decision_id_or_transaction or decision_id or ""
     return get_production_boundary().production_rollback(
-        decision_id_or_transaction=decision_id_or_transaction
+        decision_id_or_transaction=target_id
     )
 
 
 @mcp.tool()
 def production_memory_search(
-    query: str,
-    context: dict
+    query: str = "",
+    context: Optional[dict] = None,
+    genre: str = "",
+    target: str = "",
+    domain: Optional[str] = None,
+    min_confidence: float = 0.5,
+    user_prompt: str = ""
 ) -> dict:
     """
     Busca precedentes históricos en la memoria de producción para evidencia contextual.
+    Searches DecisionMemory for historically verified decisions matching the scenario.
     Los resultados son evidencia consultiva; nunca se ejecutan automáticamente.
     """
+    ctx = context if isinstance(context, dict) else {}
+    if genre and "genre" not in ctx:
+        ctx["genre"] = genre
+    if target and "target" not in ctx:
+        ctx["target"] = target
     return get_production_boundary().production_memory_search(
         query=query,
-        context=context
+        context=ctx
     )
 
 
@@ -6830,32 +6606,45 @@ from engine.instruments.plugins import (
     PluginRegistry
 )
 from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
-from engine.instruments.library.crawler import LibraryCrawler
-from engine.vocal import (
-    VocalStyle,
-    VocalProductionEngine
-)
-from engine.audio.stem_bouncer import (
-    StemBouncer
-)
-from engine.sound.vital.builder import VitalPatchBuilder
-from engine.sound.vital.file_manager import VitalPresetManager
-from engine.audio.deconstruction.separator import AudioStemSeparator
-from engine.audio.deconstruction.transcriber import ReferenceTranscriber
-from engine.audio.deconstruction.reconstructor import ReferenceReconstructor
-from engine.presets.catalog import PresetCatalog
-from engine.midi.program_change import MIDIProgramChangeDispatcher
+
+class _LazyProxy:
+    """Lazy proxy that defers importing and instantiating engine services until first attribute access."""
+    def __init__(self, module_name: str, class_name: str, factory=None):
+        self._module_name = module_name
+        self._class_name = class_name
+        self._factory = factory
+        self._instance = None
+
+    def _get_instance(self):
+        if self._instance is None:
+            if self._factory:
+                self._instance = self._factory()
+            else:
+                mod = __import__(self._module_name, fromlist=[self._class_name])
+                cls = getattr(mod, self._class_name)
+                self._instance = cls()
+        return self._instance
+
+    def __getattr__(self, name):
+        return getattr(self._get_instance(), name)
+
 
 _vst_normalizer = VSTParameterNormalizer()
-_library_crawler = LibraryCrawler()
-_vocal_engine = VocalProductionEngine()
-_stem_bouncer = StemBouncer()
-_vital_manager = VitalPresetManager()
-_audio_separator = AudioStemSeparator()
-_ref_transcriber = ReferenceTranscriber(separator=_audio_separator)
-_ref_reconstructor = ReferenceReconstructor()
-_preset_catalog = PresetCatalog()
-_midi_pc_dispatcher = MIDIProgramChangeDispatcher()
+_library_crawler = _LazyProxy("engine.instruments.library.crawler", "LibraryCrawler")
+_vocal_engine = _LazyProxy("engine.vocal", "VocalProductionEngine")
+_stem_bouncer = _LazyProxy("engine.audio.stem_bouncer", "StemBouncer")
+_vital_manager = _LazyProxy("engine.sound.vital.file_manager", "VitalPresetManager")
+_audio_separator = _LazyProxy("engine.audio.deconstruction.separator", "AudioStemSeparator")
+_ref_transcriber = _LazyProxy(
+    "engine.audio.deconstruction.transcriber",
+    "ReferenceTranscriber",
+    factory=lambda: __import__("engine.audio.deconstruction.transcriber", fromlist=["ReferenceTranscriber"]).ReferenceTranscriber(
+        separator=_audio_separator._get_instance()
+    )
+)
+_ref_reconstructor = _LazyProxy("engine.audio.deconstruction.reconstructor", "ReferenceReconstructor")
+_preset_catalog = _LazyProxy("engine.presets.catalog", "PresetCatalog")
+_midi_pc_dispatcher = _LazyProxy("engine.midi.program_change", "MIDIProgramChangeDispatcher")
 
 
 @mcp.tool()
@@ -7225,6 +7014,7 @@ def vital_create_preset(
     filtros analógicos, envolventes, LFOs, efectos y 4 macros asignados.
     Guarda automáticamente en la librería local de Vital del usuario y en el motor.
     """
+    from engine.sound.vital.builder import VitalPatchBuilder
     pt = preset_type.lower()
     if "808" in pt or "sub" in pt:
         spec = VitalPatchBuilder.build_hard_808(distortion_drive=drive * 2.0, name=name)
@@ -8223,28 +8013,34 @@ def macro_finalize_song(
 @mcp.tool()
 def export_and_audit_stems(
     export_dir: Optional[str] = None,
+    bpm: float = 120.0,
     start_bar: float = 1.0,
     end_bar: float = 65.0,
     sample_rate: int = 48000,
-    bit_depth: int = 24
+    bit_depth: int = 24,
+    check_phase_correlation: bool = True
 ) -> dict:
     """
     All-in-one multitrack stem export coordinator & audio forensics phase auditor.
-    1. Analyzes session tracks into canonical stem groups (Drums, Bass, Keys, Leads, Vocals, FX, Master).
+    1. Analyzes session tracks and partitions into canonical commercial stem groups (Drums, Bass, Keys, Leads, Vocals, FX, Master).
     2. Generates stem export plan and metadata manifest.
-    3. Performs sub-bass phase cross-correlation audit (Kick vs Bass) and True Peak headroom check (<= -1.0 dBTP).
-    4. Writes stem_phase_audit_manifest.json with distribution readiness verdict.
+    3. Performs sub-bass phase cross-correlation audit (Kick vs Bass, 20-150 Hz) to detect destructive phase cancellation (rho < -0.30).
+    4. Audits True Peak headroom (<= -1.0 dBTP), Integrated LUFS, and Crest Factor compliance.
+    5. Writes stem_phase_audit_manifest.json with distribution readiness verdict.
     """
     try:
         from engine.audio.stem_audit import StemAuditor
         conn = get_ableton_connection()
+        dir_val = export_dir if export_dir else None
         return StemAuditor.apply_stem_audit_adapter(
             conn=conn,
-            export_dir=export_dir,
+            export_dir=dir_val,
+            bpm=bpm,
             start_bar=start_bar,
             end_bar=end_bar,
             sample_rate=sample_rate,
-            bit_depth=bit_depth
+            bit_depth=bit_depth,
+            check_phase_correlation=check_phase_correlation
         )
     except Exception as e:
         logger.error(f"Error in export_and_audit_stems: {e}")
@@ -8528,34 +8324,6 @@ def generate_impact_and_downlifters(
         logger.error(f"Error in generate_impact_and_downlifters: {e}")
         return {"status": "error", "message": str(e)}
 
-
-@mcp.tool()
-def export_and_audit_stems(
-    export_dir: str = "",
-    bpm: float = 120.0,
-    start_bar: float = 1.0,
-    end_bar: float = 65.0,
-    check_phase_correlation: bool = True
-) -> dict:
-    """
-    Multi-stem export coordinator and deep forensic phase auditor:
-    - Partitions session into standard commercial stems (Drums, Bass, Keys, Leads, Vocals, FX, Master).
-    - Calculates Pearson cross-correlation in sub-bass (20-150 Hz) between Kick and Bass to detect destructive phase cancellation (rho < -0.30).
-    - Audits Integrated LUFS, True Peak (dBTP), and Crest Factor headroom compliance (<= -1.0 dBTP).
-    """
-    try:
-        from engine.audio.stem_audit import StemAuditor
-        conn = get_ableton_connection()
-        dir_val = export_dir if export_dir else None
-        return StemAuditor.apply_stem_audit_adapter(
-            conn=conn,
-            export_dir=dir_val,
-            start_bar=start_bar,
-            end_bar=end_bar,
-        )
-    except Exception as e:
-        logger.error(f"Error in export_and_audit_stems: {e}")
-        return {"status": "error", "message": str(e)}
 
 
 @mcp.tool()

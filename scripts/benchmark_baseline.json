@@ -1,0 +1,289 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-09-25T17:19:49.877069+00:00",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python_version": "3.13.1",
+    "processor": "Intel64 Family 6 Model 167 Stepping 1, GenuineIntel",
+    "cwd": "D:\\Proyectos\\TEST\\AbletonEngine-main"
+  },
+  "summary": {
+    "total_wall_clock_seconds": 136.0315,
+    "categories_evaluated": [
+      "doctor",
+      "dsp",
+      "imports",
+      "pytest",
+      "scanners",
+      "session"
+    ]
+  },
+  "metrics": {
+    "imports": {
+      "import_server": {
+        "name": "Import server",
+        "label": "Server Entrypoint & Adapter Setup",
+        "seconds": 9.282642,
+        "milliseconds": 9282.64,
+        "success": true,
+        "error": null
+      },
+      "import_sound_engine": {
+        "name": "Import engine.sound.engine",
+        "label": "SoundEngine Core Interface",
+        "seconds": 0.414921,
+        "milliseconds": 414.92,
+        "success": true,
+        "error": null
+      },
+      "import_guided_session": {
+        "name": "Import engine.production.copilot.guided_session",
+        "label": "CopilotGuidedSession Wizard",
+        "seconds": 0.558012,
+        "milliseconds": 558.01,
+        "success": true,
+        "error": null
+      },
+      "import_session_doctor": {
+        "name": "Import engine.production.doctor.session_doctor",
+        "label": "CopilotSessionDoctor Diagnostic",
+        "seconds": 0.434033,
+        "milliseconds": 434.03,
+        "success": true,
+        "error": null
+      },
+      "import_loudness_analyzer": {
+        "name": "Import engine.mix.loudness_analyzer",
+        "label": "LoudnessAnalyzer Audio DSP",
+        "seconds": 0.402771,
+        "milliseconds": 402.77,
+        "success": true,
+        "error": null
+      },
+      "total_cold_imports": {
+        "name": "Total Cold Imports",
+        "label": "Sum of cold imports",
+        "seconds": 11.092379,
+        "milliseconds": 11092.38,
+        "success": true
+      }
+    },
+    "scanners": {
+      "vst_scanner_scan": {
+        "name": "InstalledPluginScanner.scan",
+        "label": "VST/VST3 Directory Scan & Signature Matching",
+        "seconds": 0.000177,
+        "milliseconds": 0.18,
+        "items_count": 9,
+        "success": true
+      },
+      "decent_sampler_scan_libraries": {
+        "name": "DecentSamplerLibraryManager.scan_libraries",
+        "label": "Decent Sampler Directory Audit & Preset Validation",
+        "seconds": 0.035158,
+        "milliseconds": 35.16,
+        "items_count": 3,
+        "success": true
+      },
+      "decent_sampler_roles_lookup": {
+        "name": "DecentSamplerLibraryManager.get_libraries_for_role (6 roles)",
+        "label": "Decent Sampler Multi-Role Filter Sweeps",
+        "seconds": 0.194781,
+        "milliseconds": 194.78,
+        "roles_evaluated": 6,
+        "avg_per_role_ms": 32.46,
+        "success": true
+      },
+      "drum_rack_build_sample_index": {
+        "name": "AuthenticSampleDrumRackEngine.build_sample_index",
+        "label": "Drum Rack Sample Library Indexing & Fallback Generation",
+        "seconds": 0.000768,
+        "milliseconds": 0.77,
+        "samples_count": 8,
+        "success": true
+      },
+      "total_scanner_operations": {
+        "name": "Total Scanner Operations",
+        "label": "Cumulative scanning and library traversal time",
+        "seconds": 0.230884,
+        "milliseconds": 230.88,
+        "success": true
+      }
+    },
+    "session": {
+      "phase_1_scaffolding": {
+        "name": "Phase 1: Scaffolding",
+        "label": "Track topology initialization and template anchoring",
+        "seconds": 0.155123,
+        "milliseconds": 155.12,
+        "success": true
+      },
+      "phase_2_sections": {
+        "name": "Phase 2: Sections",
+        "label": "Arrangement timeline structuring and section markers",
+        "seconds": 0.034571,
+        "milliseconds": 34.57,
+        "success": true
+      },
+      "phase_3_instruments": {
+        "name": "Phase 3: Instruments (5 tracks)",
+        "label": "Sound source resolution, loading and device configuration",
+        "seconds": 0.289192,
+        "milliseconds": 289.19,
+        "tracks_count": 5,
+        "success": true
+      },
+      "phase_4_param_sculpting": {
+        "name": "Phase 4: Synthesis Sculpting (5 tracks)",
+        "label": "Timbre shaping, macro binding, and parameter optimization",
+        "seconds": 0.032398,
+        "milliseconds": 32.4,
+        "tracks_count": 5,
+        "success": true
+      },
+      "phase_5_insert_effects": {
+        "name": "Phase 5: Insert Effects Chains",
+        "label": "Surgical EQ, dynamics, and space processor insertion",
+        "seconds": 0.882674,
+        "milliseconds": 882.67,
+        "success": true
+      },
+      "phase_6_composition": {
+        "name": "Phase 6: Composition MIDI Generation",
+        "label": "Algorithmic motif and drum pattern generation",
+        "seconds": 0.017789,
+        "milliseconds": 17.79,
+        "success": true
+      },
+      "phase_7_automation": {
+        "name": "Phase 7: Dynamic Automation Injection",
+        "label": "Envelope curve synthesis and lane assignment",
+        "seconds": 0.010341,
+        "milliseconds": 10.34,
+        "success": true
+      },
+      "phase_8_vocal_ducking": {
+        "name": "Phase 8: Vocal Ducking Calibration",
+        "label": "Sidechain routing, threshold and release calibration",
+        "seconds": 0.009562,
+        "milliseconds": 9.56,
+        "success": true
+      },
+      "phase_9_mix_master": {
+        "name": "Phase 9: Mix, Master & LUFS Gatekeeper",
+        "label": "Live mastering chain deployment and LUFS audio certification",
+        "seconds": 3.637512,
+        "milliseconds": 3637.51,
+        "status": "COMPLIANT_CERTIFIED",
+        "success": true
+      },
+      "total_guided_session_walkthrough": {
+        "name": "Total Guided Session Walkthrough",
+        "label": "Cumulative 9-phase Guided Session runtime",
+        "seconds": 5.069162,
+        "milliseconds": 5069.16,
+        "success": true
+      }
+    },
+    "doctor": {
+      "doctor_diagnostic_scan": {
+        "name": "CopilotSessionDoctor Diagnostic Scan",
+        "label": "Full Session Health & Invariant Audit",
+        "seconds": 0.001642,
+        "milliseconds": 1.64,
+        "issues_detected": 12,
+        "success": true
+      },
+      "doctor_triage_step": {
+        "name": "CopilotSessionDoctor Triage Step",
+        "label": "Interactive Issue Triage & Corrective Action",
+        "seconds": 0.000812,
+        "milliseconds": 0.81,
+        "success": true
+      },
+      "total_doctor_operations": {
+        "name": "Total Doctor Operations",
+        "label": "Cumulative session diagnostic and triage runtime",
+        "seconds": 0.002454,
+        "milliseconds": 2.45,
+        "success": true
+      }
+    },
+    "dsp": {
+      "dsp_k_weighting_5s": {
+        "name": "LoudnessAnalyzer._apply_k_weighting (5s audio)",
+        "label": "ITU-R BS.1770-5 K-weighting Biquad Filtering (220.5k samples)",
+        "seconds": 0.726121,
+        "milliseconds": 726.12,
+        "min_seconds": 0.7218,
+        "repeats": 3,
+        "success": true
+      },
+      "dsp_true_peak_5s": {
+        "name": "LoudnessAnalyzer.calculate_true_peak (4x oversample)",
+        "label": "Annex 2 4x Sinc Oversampling True Peak Detection",
+        "seconds": 0.035189,
+        "milliseconds": 35.19,
+        "min_seconds": 0.0336,
+        "repeats": 3,
+        "success": true
+      },
+      "dsp_calculate_lufs_with_blocks_5s": {
+        "name": "LoudnessAnalyzer.calculate_lufs_with_blocks",
+        "label": "BS.1770-5 Gated Loudness & Short-Term LUFS Integration",
+        "seconds": 0.730664,
+        "milliseconds": 730.66,
+        "min_seconds": 0.7248,
+        "repeats": 3,
+        "success": true
+      },
+      "total_audio_dsp": {
+        "name": "Total Audio DSP Pipeline (5s audio)",
+        "label": "Combined filtering, peak detection, and loudness integration",
+        "seconds": 1.491974,
+        "milliseconds": 1491.97,
+        "success": true
+      }
+    },
+    "pytest": {
+      "pytest_lufs_validation_gate": {
+        "name": "pytest tests/test_lufs_validation_gate.py",
+        "label": "LUFS Validation Gate Tests (7 tests)",
+        "seconds": 13.087812,
+        "milliseconds": 13087.81,
+        "success": true,
+        "exit_code": 0
+      },
+      "pytest_session_doctor": {
+        "name": "pytest tests/test_session_doctor.py",
+        "label": "Session Doctor Diagnostics Tests (15 tests)",
+        "seconds": 10.550421,
+        "milliseconds": 10550.42,
+        "success": true,
+        "exit_code": 0
+      },
+      "pytest_governance": {
+        "name": "pytest tests/governance/",
+        "label": "Governance & Cryptographic Ledger Tests (67 tests)",
+        "seconds": 14.038834,
+        "milliseconds": 14038.83,
+        "success": true,
+        "exit_code": 0
+      },
+      "pytest_guided_session": {
+        "name": "pytest tests/test_guided_session.py",
+        "label": "Guided Session Core Workflow Tests (32 tests)",
+        "seconds": 76.419433,
+        "milliseconds": 76419.43,
+        "success": true,
+        "exit_code": 0
+      },
+      "total_pytest_runtime": {
+        "name": "Total Pytest Runtime",
+        "label": "Cumulative execution time across all 4 key suites",
+        "seconds": 114.0965,
+        "milliseconds": 114096.5,
+        "success": true
+      }
+    }
+  }
+}

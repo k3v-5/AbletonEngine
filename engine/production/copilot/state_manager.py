@@ -102,12 +102,15 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
         """Atomically persists session state to disk with write-ahead journal logging."""
         try:
             target = Path(state_file) if state_file else cls.STATE_FILE
-            target.parent.mkdir(parents=True, exist_ok=True)
-            cls.CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+            target_parent = target.parent
+            if not target_parent.exists():
+                target_parent.mkdir(parents=True, exist_ok=True)
+            if not cls.CHECKPOINTS_DIR.exists():
+                cls.CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
 
             tmp_path = target.with_suffix(".tmp")
             with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+                json.dump(data, f, separators=(',', ':'))
 
             replaced = False
             for _ in range(6):
@@ -121,7 +124,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             if not replaced:
                 try:
                     with open(target, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=2)
+                        json.dump(data, f, separators=(',', ':'))
                 except Exception:
                     pass
 
@@ -136,7 +139,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
                     "scale": data.get("scale")
                 }
                 with open(cls.JOURNAL_FILE, "a", encoding="utf-8") as jf:
-                    jf.write(json.dumps(entry) + "\n")
+                    jf.write(json.dumps(entry, separators=(',', ':')) + "\n")
         except Exception as e:
             logger.warning(f"Could not persist guided session state: {e}")
 
@@ -144,7 +147,8 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
     def create_checkpoint(cls, data: Dict[str, Any], tag: str = "", live_track_map: Optional[Dict[str, int]] = None) -> str:
         """Creates an immutable, atomic on-disk snapshot for deterministic non-destructive rollback."""
         try:
-            cls.CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+            if not cls.CHECKPOINTS_DIR.exists():
+                cls.CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
             ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             phase = data.get("current_phase", "UNKNOWN")
             clean_tag = re.sub(r'[^a-zA-Z0-9_-]', '_', tag) if tag else phase
@@ -163,7 +167,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
 
             tmp_ckpt = ckpt_path.with_suffix(".tmp")
             with open(tmp_ckpt, "w", encoding="utf-8") as f:
-                json.dump(ckpt_payload, f, indent=2)
+                json.dump(ckpt_payload, f, separators=(',', ':'))
 
             replaced_ckpt = False
             for _ in range(6):
@@ -177,7 +181,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             if not replaced_ckpt:
                 try:
                     with open(ckpt_path, "w", encoding="utf-8") as f:
-                        json.dump(ckpt_payload, f, indent=2)
+                        json.dump(ckpt_payload, f, separators=(',', ':'))
                 except Exception:
                     pass
 
