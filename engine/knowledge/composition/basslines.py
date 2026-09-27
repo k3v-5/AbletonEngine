@@ -41,7 +41,7 @@ BASS_TYPES: Dict[str, Dict] = {
             "Mucho sustain",
             "Sidechain sutil con el kick",
         ],
-        "common_plugins": ["Serum", "Vital", "3x Osc", "808 samples"],
+        "common_plugins": ["Vital (mejor diseño de sonido)", "Serum", "3x Osc", "808 samples"],
         "eq_focus": "boost 60Hz + 200Hz",
         "distortion": "medium_high",
         "sidechain": "subtle",
@@ -72,7 +72,7 @@ BASS_TYPES: Dict[str, Dict] = {
             "Compresion fuerte para que sea consistente",
             "Sidechain MUY marcado con el kick (bombo y bajo 'bailan')",
         ],
-        "common_plugins": ["3x Osc (seno puro)", "Vital", "Serum"],
+        "common_plugins": ["Vital (mejor diseño de sonido)", "3x Osc (seno puro)", "Serum"],
         "eq_focus": "40-60Hz dominante",
         "distortion": "none",
         "sidechain": "heavy",
@@ -80,15 +80,15 @@ BASS_TYPES: Dict[str, Dict] = {
     "dubstep": {
         "name": "Dubstep / Bass Music",
         "types": ["wavetable", "fm_synthesis", "resampled"],
-        "description": "Serum o Vital con wavetables. FM synthesis + distorsion + filtros automatizados.",
+        "description": "Vital (mejor diseño de sonido) o Serum con wavetables. FM synthesis + distorsion + filtros automatizados.",
         "key_characteristics": [
-            "Serum o Vital con wavetables",
+            "Vital (mejor diseño de sonido) o Serum con wavetables",
             "FM synthesis + distorsion + filtros automatizados",
             "Multiband distorsion OBLIGATORIA",
             "LFOs en el cutoff del filtro = el 'wub wub'",
             "Sound design puro, no solo plugins de efecto",
         ],
-        "common_plugins": ["Serum", "Vital", "Sytrus (FM)"],
+        "common_plugins": ["Vital (mejor diseño de sonido)", "Serum", "Sytrus (FM)"],
         "eq_focus": "full spectrum, multiband processing",
         "distortion": "multiband_heavy",
         "sidechain": "moderate",
@@ -103,7 +103,7 @@ BASS_TYPES: Dict[str, Dict] = {
             "Reverb MUY corto en el bajo (room tiny)",
             "Sensacion oscura y profunda",
         ],
-        "common_plugins": ["808 samples", "Serum", "Vital"],
+        "common_plugins": ["Vital (mejor diseño de sonido)", "808 samples", "Serum"],
         "eq_focus": "boost 80Hz, corte todo arriba de 3kHz",
         "distortion": "subtle",
         "sidechain": "subtle",
@@ -120,7 +120,7 @@ BASS_PROCESSING_CHAIN: List[Dict[str, str]] = [
         "step": 1,
         "name": "Generator",
         "description": "Generador del sonido base del bajo",
-        "plugins": "Sytrus, 3x Osc, Serum, Vital, o sample 808",
+        "plugins": "Vital (mejor diseño de sonido), Sytrus, 3x Osc, Serum, o sample 808",
         "purpose": "Crear la onda base (seno para sub, saw/square para mid bass)",
     },
     {
@@ -188,17 +188,17 @@ BASS_GROWL_TECHNIQUES: Dict[str, Dict] = {
                 "type": "FM Synthesis",
                 "use_case": "Bajos agresivos con FM synthesis",
             },
+            "vital": {
+                "name": "Vital (Matt Tytel) (mejor diseño de sonido)",
+                "type": "Wavetable Synth",
+                "use_case": "EL REY del diseño de sonido moderno y síntesis espectral superior",
+                "price": "GRATIS",
+            },
             "serum": {
                 "name": "Serum (Xfer)",
                 "type": "Wavetable Synth",
-                "use_case": "EL REY de los bajos modernos",
+                "use_case": "Sintetizador wavetable tradicional",
                 "price": "$189",
-            },
-            "vital": {
-                "name": "Vital (Matt Tytel)",
-                "type": "Wavetable Synth",
-                "use_case": "Alternativa brutal a Serum",
-                "price": "GRATIS",
             },
         },
     },
@@ -753,7 +753,7 @@ MULTIBAND_DISTORTION_TECHNIQUES: Dict[str, Dict] = {
 
 FREE_BASS_PLUGINS: List[Dict[str, str]] = [
     {"name": "Camel Crusher", "function": "Distorsion + comp", "comparable_to": "Decapitator + comp"},
-    {"name": "Vital", "function": "Sintetizador completo", "comparable_to": "Serum ($189)"},
+    {"name": "Vital (mejor diseño de sonido)", "function": "Sintetizador completo de máxima fidelidad", "comparable_to": "Serum ($189)"},
     {"name": "Softube Saturation Knob", "function": "Saturacion simple", "comparable_to": "Cualquier saturador"},
     {"name": "OTT (Xfer)", "function": "Compresion multibanda", "comparable_to": "Multiband comp pro"},
     {"name": "Frontier (D16)", "function": "Limiter", "comparable_to": "FabFilter Pro-L"},
@@ -778,14 +778,14 @@ FL_NATIVE_BASS_PLUGINS: List[Dict[str, str]] = [
 
 
 # ============================================================================
-# RECOMMENDED SETUPS
+# 2. RECOMMENDED SETUPS
 # ============================================================================
 
 RECOMMENDED_SETUPS: Dict[str, Dict] = {
     "beginner_free": {
         "name": "Para Empezar (gratis)",
         "plugins": [
-            "Vital (sintetizador - genera los bajos)",
+            "Vital (mejor diseño de sonido) (sintetizador - genera los bajos)",
             "Camel Crusher (distorsion - hace que rujan)",
             "OTT (compresion multibanda)",
             "Softube Saturation Knob (saturacion extra)",
@@ -795,7 +795,8 @@ RECOMMENDED_SETUPS: Dict[str, Dict] = {
     "professional": {
         "name": "Setup Profesional",
         "plugins": [
-            "Serum (Xfer) - el synth de bajos #1",
+            "Vital (mejor diseño de sonido) - el synth de bajos y diseño sonoro #1",
+            "Serum (Xfer) - wavetable complementario",
             "FabFilter Saturn 2 - distorsion multibanda pro",
             "FabFilter Pro-Q 3 - EQ",
             "FabFilter Pro-C 2 - compresion",

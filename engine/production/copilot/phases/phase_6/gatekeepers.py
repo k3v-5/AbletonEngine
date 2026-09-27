@@ -28,8 +28,13 @@ for t in song.tracks:
         if getattr(c, 'is_midi_clip', False):
             for cp in getattr(song, 'cue_points', []):
                 cp_nm = str(getattr(cp, 'name', '')).lower()
-                cp_t = float(getattr(cp, 'time', 0.0))
-                if any(w in cp_nm for w in ['drop', 'switch', 'climax', 'caida', 'caída', 'corte']):
+                cp_t = getattr(cp, 'time', 0.0)
+                is_drop = False
+                for w in ['drop', 'switch', 'climax', 'caida', 'caída', 'corte']:
+                    if w in cp_nm:
+                        is_drop = True
+                        break
+                if is_drop:
                     v_start = max(0.0, cp_t - 2.0)
                     if c.start_time < cp_t and c.end_time > v_start:
                         c.remove_notes_extended(from_time=max(0.0, v_start - c.start_time), from_pitch=0, time_span=max(0.1, cp_t - max(v_start, c.start_time)), pitch_span=128)

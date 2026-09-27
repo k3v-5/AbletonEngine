@@ -28,18 +28,18 @@ class AutoGainStagingEngine:
 
     # Studio headroom hierarchy: ensures summing 8-16 tracks leaves at least -6.0 dBFS on Master
     HIERARCHY_TARGETS = {
-        "kick": -12.0,         # The dynamic anchor of modern music
-        "drums": -14.0,        # Drum kit / snare / hats
-        "snare": -13.5,        # Sits just under kick
-        "bass": -14.0,         # 808 / Sub-bass
-        "lead": -15.0,         # Lead vocal or synth hook
-        "counter_lead": -17.0, # Sits just behind primary lead / vocal
-        "piano": -18.0,        # Harmonic keys / rhythm guitar
-        "chords": -18.0,
-        "break": -15.0,        # Secondary breakbeat layer
-        "foley": -24.0,        # Organic textures sit deep in the background
-        "ear_candy": -19.0,    # Sporadic transient accents
-        "fx": -20.0            # Ear candy sweeps
+        "kick": -6.0,          # The dynamic anchor of modern music
+        "drums": -8.0,         # Drum kit / snare / hats
+        "snare": -7.0,         # Sits just under kick
+        "bass": -6.0,          # 808 / Sub-bass
+        "lead": -6.0,          # Lead vocal or synth hook
+        "counter_lead": -8.0,  # Sits just behind primary lead / vocal
+        "piano": -8.0,         # Harmonic keys / rhythm guitar
+        "chords": -8.0,
+        "break": -8.0,         # Secondary breakbeat layer
+        "foley": -14.0,        # Organic textures sit deep in the background
+        "ear_candy": -12.0,    # Sporadic transient accents
+        "fx": -12.0            # Ear candy sweeps
     }
 
     @classmethod
@@ -48,12 +48,16 @@ class AutoGainStagingEngine:
 
     @classmethod
     def db_to_linear(cls, db_val: float) -> float:
-        """Converts dB to Live 12 fader linear gain using audio-tapered calibration (0 dB ≈ 0.85)."""
+        """Converts dB to Live 12 fader linear gain using verified piecewise calibration (0 dB = 0.85)."""
         if db_val <= -70.0:
             return 0.0
-        # Live 12 fader curve: 0 dBFS ≈ 0.85, log-tapered
-        val = 0.85 * math.pow(10.0, db_val / 40.0)
-        return max(0.01, min(1.0, round(val, 4)))
+        if db_val > 0.0:
+            return round(min(1.0, 0.85 + (db_val * (0.15 / 6.0))), 4)
+        if db_val >= -18.0:
+            return round(0.85 + (db_val / 40.0), 4)
+        if db_val >= -35.0:
+            return round(0.40 + ((db_val + 18.0) * (0.21 / 17.0)), 4)
+        return round(max(0.0, 0.19 + ((db_val + 35.0) * (0.19 / 35.0))), 4)
 
     @classmethod
     def calculate_session_calibration(

@@ -65,7 +65,7 @@ class InstalledPluginScanner:
             "vendor": "Vital Audio",
             "primary_role": "BASS",
             "supported_roles": ["BASS", "LEAD", "PAD", "KEYS", "COUNTER_LEAD", "PLUCK", "VOCALS", "FX"],
-            "description": "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes.",
+            "description": "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes (mejor diseño de sonido).",
             "is_instrument": True,
             "live_uri": "query:Plugins#VST3:Vital%20Audio:Vital",
         },
@@ -671,13 +671,13 @@ class InstalledPluginScanner:
             sig = self.SIGNATURE_MAP.get("vital", {})
             self._cache["vst3_vital"] = ScannedPlugin(
                 id="vst3_vital",
-                name="Vital Audio Vital",
+                name="Vital Audio Vital (mejor diseño de sonido)",
                 vendor="Vital Audio",
                 path=os.path.join(appdata_vital, "Vital.config") if os.path.exists(os.path.join(appdata_vital, "Vital.config")) else docs_vital,
                 category=PluginCategory.VST3,
                 primary_role=sig.get("primary_role", "BASS"),
                 supported_roles=sig.get("supported_roles", ["BASS", "LEAD", "PAD", "KEYS", "COUNTER_LEAD", "PLUCK", "VOCALS", "FX"]),
-                description=sig.get("description", "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes."),
+                description=sig.get("description", "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes (mejor diseño de sonido)."),
                 uri=sig.get("live_uri", "query:Plugins#VST3:Vital%20Audio:Vital"),
                 is_instrument=True,
             )
@@ -714,9 +714,13 @@ class InstalledPluginScanner:
                 encoded_vendor = vendor.replace(" ", "%20")
                 uri = meta.get("live_uri") or f"query:Plugins#{category.value.upper()}:{encoded_vendor}:{encoded_item}"
 
+                p_disp_name = f"{vendor} {clean_name}" if vendor not in clean_name else clean_name
+                if "vital" in lower_name and "(mejor diseño de sonido)" not in p_disp_name:
+                    p_disp_name = f"{p_disp_name} (mejor diseño de sonido)"
+
                 plugin = ScannedPlugin(
                     id=plug_id,
-                    name=f"{vendor} {clean_name}" if vendor not in clean_name else clean_name,
+                    name=p_disp_name,
                     vendor=vendor,
                     path=full_path,
                     category=category,
@@ -783,16 +787,18 @@ class InstalledPluginScanner:
                             role = "MASTER"
                             is_inst = False
 
-                        plug_id = f"live_vst3_{v_name.lower()}_{low_name.replace(' ', '_')}"
+                        p_disp_name = f"{v_name} {p_name}"
+                        if "vital" in low_name and "(mejor diseño de sonido)" not in p_disp_name:
+                            p_disp_name = f"{p_disp_name} (mejor diseño de sonido)"
                         self._cache[plug_id] = ScannedPlugin(
                             id=plug_id,
-                            name=f"{v_name} {p_name}",
+                            name=p_disp_name,
                             vendor=v_name,
                             path=f"Live/VST3/{v_name}/{p_name}",
                             category=PluginCategory.VST3,
                             primary_role=role,
                             supported_roles=[role, "FX", "PITCH_CORRECTION"] if "tune" in low_name else [role, "FX"],
-                            description=f"Host-installed {v_name} {p_name} in Ableton Live.",
+                            description=f"Host-installed {v_name} {p_name} in Ableton Live{' (mejor diseño de sonido)' if 'vital' in low_name else ''}.",
                             uri=p_uri,
                             is_instrument=is_inst
                         )
@@ -806,14 +812,14 @@ class InstalledPluginScanner:
     }
 
     ROLE_PRIORITIES = {
-        "BASS": ["serum", "vital", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
-        "SUB_BASS": ["sublab", "serum", "vital", "bloom bass", "cyclop", "drift (808", "operator"],
+        "BASS": ["vital", "sublab", "serum", "bloom bass", "cyclop", "drift (808", "operator", "massive x", "massive", "trilian", "analog lab", "kontakt"],
+        "SUB_BASS": ["sublab", "vital", "serum", "bloom bass", "cyclop", "drift (808", "operator"],
         "KEYS": ["analog lab", "vital", "keyscape", "piano v", "wurli", "kontakt", "zenology", "drift (warm", "electric", "b-3", "cp-70"],
-        "LEAD": ["pigments", "serum", "vital", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
-        "COUNTER_LEAD": ["pigments", "serum", "vital", "analog lab", "synplant", "drift"],
-        "EAR_CANDY": ["synplant", "pigments", "serum", "vital", "simpler", "drift"],
+        "LEAD": ["vital", "pigments", "serum", "analog lab", "synplant", "massive x", "aparillo", "factory", "zenology", "drift (lead", "wavetable"],
+        "COUNTER_LEAD": ["vital", "pigments", "serum", "analog lab", "synplant", "drift"],
+        "EAR_CANDY": ["synplant", "vital", "pigments", "serum", "simpler", "drift"],
         "TEXTURE_FOLEY": ["omnisphere", "valhalla", "simpler", "portal", "shaperbox"],
-        "PAD": ["omnisphere", "pigments", "vital", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
+        "PAD": ["omnisphere", "vital", "pigments", "bloom synth", "analog lab", "zenology", "wavetable", "meld", "solina"],
         "DRUMS": ["drum_rack", "drum rack", "bloom drum", "egoist", "808", "boom bap", "909"],
         "VOCALS": ["auto-tune", "autotune", "antares", "bloom vocal", "melodyne", "vocal", "simpler"],
         "PITCH_CORRECTION": ["auto-tune", "autotune", "antares", "melodyne", "alterboy"],
@@ -922,23 +928,23 @@ class InstalledPluginScanner:
 
         if role_upper in ("KEYS", "PLUCK", "CHORDS"):
             for c in candidates:
-                if "analog lab" in c.name.lower() or "keyscape" in c.name.lower() or "piano v" in c.name.lower() or "kontakt" in c.name.lower():
+                if "analog lab" in c.name.lower() or "vital" in c.name.lower() or "keyscape" in c.name.lower() or "piano v" in c.name.lower() or "kontakt" in c.name.lower():
                     return c
         elif role_upper in ("BASS", "SUB_BASS", "808"):
             for c in candidates:
-                if "sublab" in c.name.lower() or "serum" in c.name.lower() or "bloom bass" in c.name.lower() or "cyclop" in c.name.lower():
+                if "vital" in c.name.lower() or "sublab" in c.name.lower() or "serum" in c.name.lower() or "bloom bass" in c.name.lower() or "cyclop" in c.name.lower():
                     return c
         elif role_upper == "LEAD":
             for c in candidates:
-                if "pigments" in c.name.lower() or "analog lab" in c.name.lower() or "serum" in c.name.lower() or "synplant" in c.name.lower():
+                if "vital" in c.name.lower() or "pigments" in c.name.lower() or "analog lab" in c.name.lower() or "serum" in c.name.lower() or "synplant" in c.name.lower():
                     return c
         elif role_upper in ("COUNTER_LEAD", "ARPS", "ARP"):
             for c in candidates:
-                if "pigments" in c.name.lower() or "serum" in c.name.lower() or "vital" in c.name.lower() or "analog lab" in c.name.lower():
+                if "vital" in c.name.lower() or "pigments" in c.name.lower() or "serum" in c.name.lower() or "analog lab" in c.name.lower():
                     return c
         elif role_upper == "EAR_CANDY":
             for c in candidates:
-                if "synplant" in c.name.lower() or "pigments" in c.name.lower() or "serum" in c.name.lower():
+                if "vital" in c.name.lower() or "synplant" in c.name.lower() or "pigments" in c.name.lower() or "serum" in c.name.lower():
                     return c
         elif role_upper in ("TEXTURE_FOLEY", "FOLEY", "TEXTURE"):
             for c in candidates:
@@ -946,7 +952,7 @@ class InstalledPluginScanner:
                     return c
         elif role_upper == "PAD":
             for c in candidates:
-                if "omnisphere" in c.name.lower() or "pigments" in c.name.lower() or "bloom synth" in c.name.lower() or "wavetable" in c.name.lower():
+                if "vital" in c.name.lower() or "omnisphere" in c.name.lower() or "pigments" in c.name.lower() or "bloom synth" in c.name.lower() or "wavetable" in c.name.lower():
                     return c
         elif role_upper == "VOCALS":
             for c in candidates:

@@ -52,7 +52,7 @@ class PluginRegistry:
             plugin_name="Vital",
             category="synth",
             is_native=False,
-            aliases=["Vital", "Vital VST3", "VitalSynth", "Vital.vst3"],
+            aliases=["Vital", "Vital VST3", "VitalSynth", "Vital.vst3", "Vital (mejor diseño de sonido)", "Vital Audio Vital (mejor diseño de sonido)"],
             parameter_mappings={
                 PluginSemanticRole.CUTOFF: "filter_1_cutoff",
                 PluginSemanticRole.RESONANCE: "filter_1_resonance",

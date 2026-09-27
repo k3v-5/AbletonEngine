@@ -55,19 +55,46 @@ class TransportManager:
         created_cues = []
 
         try:
-            # Delete existing cue points if supported
             existing_cues = conn.send_command("get_cue_points", {})
             c_list = existing_cues.get("cue_points", existing_cues) if isinstance(existing_cues, dict) else []
-            if isinstance(c_list, list):
+            if isinstance(c_list, list) and c_list and timeline:
+                # If existing cues already cover all timeline sections, retain them
+                all_present = True
+                for item in timeline:
+                    b_time = item["start_beat"]
+                    c_name = item["name"].lower()
+                    if not any(abs(float(cp.get("time", -999.0)) - b_time) < 2.0 or c_name in str(cp.get("name", "")).lower() for cp in c_list):
+                        all_present = False
+                        break
+                if all_present:
+                    return {
+                        "status": "SUCCESS",
+                        "cue_points_created": len(c_list),
+                        "cue_points": c_list,
+                        "total_bars": timeline[-1]["end_bar"] if timeline else 0.0
+                    }
+
+                # Delete existing cue points if replacing
                 for cp in c_list:
-                    cp_id = cp.get("id", cp.get("time"))
-                    if cp_id is not None:
+                    cp_time = cp.get("time")
+                    if cp_time is not None:
                         try:
-                            conn.send_command("delete_cue_point", {"cue_point_id": cp_id})
+                            conn.send_command("delete_cue_point", {"time_or_index": cp_time, "cue_point_id": cp.get("id")})
                         except Exception:
                             pass
         except Exception as e:
             logger.debug(f"Cue cleanup notice: {e}")
+
+        if timeline:
+            try:
+                total_end_beat = timeline[-1]["end_beat"]
+                conn.send_command("set_loop_region", {
+                    "start_time": 0.0,
+                    "length": max(total_end_beat + 16.0, 128.0),
+                    "enabled": False
+                })
+            except Exception:
+                pass
 
         for item in timeline:
             b_time = item["start_beat"]

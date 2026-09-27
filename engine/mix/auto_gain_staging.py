@@ -15,42 +15,51 @@ logger = logging.getLogger("AutoGainStaging")
 class AutoGainStaging:
     """Calculates and applies calibrated headroom faders across all session tracks."""
 
-    # Reference dB targets relative to 0 dBFS
+    # Calibrated nominal dB targets relative to 0 dBFS (avoids cascading over-attenuation)
     ROLE_HEADROOM_TARGETS_DB: Dict[str, float] = {
-        "DRUMS": -10.0,
-        "PERCUSSION": -12.0,
-        "BASS": -11.0,
-        "LEAD": -14.0,
-        "KEYS": -15.0,
-        "GUITAR": -15.0,
-        "PAD": -18.0,
-        "STRINGS": -17.0,
-        "VOCALS": -13.0,
-        "FX": -16.0
+        "DRUMS": -6.0,
+        "PERCUSSION": -8.0,
+        "BASS": -6.0,
+        "LEAD": -6.0,
+        "KEYS": -8.0,
+        "GUITAR": -8.0,
+        "PAD": -10.0,
+        "STRINGS": -10.0,
+        "VOCALS": -5.0,
+        "FX": -12.0
     }
 
     @classmethod
     def db_to_live_volume(cls, db: float) -> float:
         """
-        Converts decibels to Ableton Live's non-linear fader scale [0.0, 1.0].
-        0 dB = 0.85
-        -6 dB = 0.77
-        -10 dB = 0.72
-        -12 dB = 0.68
-        -18 dB = 0.58
-        -inf dB = 0.0
+        Converts decibels to Ableton Live 12 non-linear fader scale [0.0..1.0].
+        Measured Live 12 response:
+          0 dB = 0.85
+         -6 dB = 0.70
+        -12 dB = 0.55
+        -18 dB = 0.40
+        -24 dB = 0.30
+        -34 dB = 0.20
+        -41 dB = 0.15
         """
         if db <= -70.0:
             return 0.0
-        # Accurate cubic spline approximation for Ableton Live fader response
-        vol = 0.85 * (10.0 ** (db / 40.0))
-        return round(max(0.0, min(1.0, vol)), 3)
+        if db > 0.0:
+            return round(min(1.0, 0.85 + (db * (0.15 / 6.0))), 4)
+        if db >= -18.0:
+            # Linear in dB with slope 1/40 (0.025 per dB)
+            return round(0.85 + (db / 40.0), 4)
+        if db >= -35.0:
+            # Gentle taper between -18 dB (0.40) and -35 dB (0.19)
+            return round(0.40 + ((db + 18.0) * (0.21 / 17.0)), 4)
+        # Deep attenuation down to -70 dB (0.0)
+        return round(max(0.0, 0.19 + ((db + 35.0) * (0.19 / 35.0))), 4)
 
     @classmethod
     def get_role_target_volume(cls, role: str) -> float:
         """Returns the recommended Live fader volume for an acoustic role."""
         role_upper = str(role).upper()
-        target_db = cls.ROLE_HEADROOM_TARGETS_DB.get(role_upper, -12.0)
+        target_db = cls.ROLE_HEADROOM_TARGETS_DB.get(role_upper, -8.0)
         return cls.db_to_live_volume(target_db)
 
     @classmethod

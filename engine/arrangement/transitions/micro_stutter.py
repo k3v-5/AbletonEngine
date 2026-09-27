@@ -143,8 +143,8 @@ class MicroStutterEngine:
         if conn is not None and hasattr(conn, "send_command"):
             try:
                 # Deploy volume envelope via Utility device
-                conn.send_command("add_automation_points", {
-                    "track": target_track_index,
+                conn.send_command("create_arrangement_automation_envelope", {
+                    "track_index": target_track_index,
                     "parameter": "Volume",
                     "points": tape_stop_recipe.get("volume_envelope", [])
                 })

@@ -82,11 +82,11 @@ class ProductionRecipeEngine:
                     "options_available": list(VERIFIED_PLUGIN_URIS.keys()),
                     "example": {
                         "keys": "Analog Lab V",
-                        "bass": "Vital",
+                        "bass": "Vital (mejor diseño de sonido)",
                         "reese": "Massive",
                         "arp": "Massive X",
                         "pad": "Pigments",
-                        "lead": "Serum 2",
+                        "lead": "Vital (mejor diseño de sonido)",
                         "drums": "Drum Rack"
                     }
                 },
@@ -1539,7 +1539,7 @@ class ProductionRecipeEngine:
         Executes the entire 0-to-100 Zomboy Heavy Brostep beat through the authoritative engine.
         Guarantees:
         1. All tracks physically present and verified in Arrangement View.
-        2. Real VST3 instruments (Serum 2, Vital, Analog Lab V) physically loaded on tracks.
+        2. Real VST3 instruments (Vital (mejor diseño de sonido), Serum 2, Analog Lab V) physically loaded on tracks.
         3. Populated 16-pad Drum Rack with authentic samples on Track 2.
         4. Physical sidechain Kick -> Bass.
         5. 5-stage native mastering chain on Premaster Bus (Track 17).

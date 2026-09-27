@@ -373,16 +373,16 @@ class ExecutiveCopilotEngine:
                     title=f"Load Elite Sub-Bass Instrument for Track {effective_bass}",
                     description=(
                         "Opciones sugeridas para BASS (Top 5):\n"
-                        "1. [VST3] Xfer Records Serum 2 Sub (`vst3_serum2`) - 808 sub con saturación directa y glide\n"
-                        "2. [VST3] Bloom Bass Impulse (`vst3_bloom_bass_impulse`) - Sub-bass moderno y saturación analógica\n"
-                        "3. [VST3] Sugar Bytes Cyclop (`vst3_cyclop`) - Monophonic bass monster con modulación pesada\n"
-                        "4. [VST3] Native Instruments Massive X (`vst3_massive_x`) - Subtractive wavetable punch\n"
+                        "1. [VST3] Vital Audio 808 Sub (mejor diseño de sonido) (`vst3_vital_808`) - Spectral warp sub con saturación directa y glide\n"
+                        "2. [VST3] Xfer Records Serum 2 Sub (`vst3_serum2`) - 808 sub con saturación directa y glide\n"
+                        "3. [VST3] Bloom Bass Impulse (`vst3_bloom_bass_impulse`) - Sub-bass moderno y saturación analógica\n"
+                        "4. [VST3] Sugar Bytes Cyclop (`vst3_cyclop`) - Monophonic bass monster con modulación pesada\n"
                         "5. [Native] Ableton Drift 808 Sub (`native_drift_sub`) - Sub analógico monoaural puro\n"
                         "(Nota: Hay más opciones disponibles. Consulta con get_available_vst_and_presets(role='bass'))"
                     ),
-                    recommendation="YES para cargar opción #1 (Serum 2), o CUSTOM con custom_args={'instrument_id': '<id>'} para escoger entre las opciones 2 a 5.",
+                    recommendation="YES para cargar opción #1 (Vital (mejor diseño de sonido)), o CUSTOM con custom_args={'instrument_id': '<id>'} para escoger entre las opciones 2 a 5.",
                     action_tool="sound_load_role_instrument",
-                    action_args={"track_index": effective_bass, "role": "BASS", "instrument_id": "vst3_serum2"},
+                    action_args={"track_index": effective_bass, "role": "BASS", "instrument_id": "vst3_vital_808"},
                     target_track=effective_bass
                 ))
 
@@ -391,7 +391,7 @@ class ExecutiveCopilotEngine:
                 self._register_pending(ProductionDecision(
                     id=dec_bass_param,
                     phase=ProductionPhase.PHASE_3_SOUND_DESIGN,
-                    title=f"Sculpt Sub-Bass Synthesis Parameters for Track {effective_bass} (Serum 2 / Drift)",
+                    title=f"Sculpt Sub-Bass Synthesis Parameters for Track {effective_bass} (Vital (mejor diseño de sonido) / Drift)",
                     description="Esculpe SUB_LEVEL (0.90), DRIVE (0.35) y GLIDE_TIME (85ms) para pegada profunda y articulación limpia.",
                     recommendation="YES para esculpir parámetros recomendados de Sub-Bass.",
                     action_tool="plugin_set_semantic_parameter",
@@ -554,16 +554,16 @@ class ExecutiveCopilotEngine:
                     title=f"Load Melodic Lead Synthesizer for Track {l_idx}",
                     description=(
                         "Opciones sugeridas para LEAD (Top 5):\n"
-                        "1. [VST3] Arturia Pigments (`vst3_pigments`) - Polychrome synth para leads cortantes y texturas\n"
-                        "2. [VST3] Xfer Records Serum 2 Lead (`vst3_serum2`) - Unison wavetable con filtro y portamento\n"
-                        "3. [VST3] Arturia Analog Lab Lead (`vst3_analog_lab`) - Analog brass y lead vintage\n"
-                        "4. [VST3] Sonic Charge Synplant (`vst3_synplant`) - Síntesis genética para leads orgánicos\n"
-                        "5. [VST3] Native Instruments Massive X (`vst3_massive_x`) - Dual wavetable solo lead\n"
+                        "1. [VST3] Vital Spectral Lead (mejor diseño de sonido) (`vst3_vital_lead`) - Hyper-modern soaring lead con stereo spread\n"
+                        "2. [VST3] Arturia Pigments (`vst3_pigments`) - Polychrome synth para leads cortantes y texturas\n"
+                        "3. [VST3] Xfer Records Serum 2 Lead (`vst3_serum2`) - Unison wavetable con filtro y portamento\n"
+                        "4. [VST3] Arturia Analog Lab Lead (`vst3_analog_lab`) - Analog brass y lead vintage\n"
+                        "5. [VST3] Sonic Charge Synplant (`vst3_synplant`) - Síntesis genética para leads orgánicos\n"
                         "(Nota: Hay más opciones disponibles. Consulta con get_available_vst_and_presets(role='lead'))"
                     ),
-                    recommendation="YES para cargar opción #1 (Pigments), o CUSTOM con custom_args={'instrument_id': '<id>'} para escoger entre las opciones 2 a 5.",
+                    recommendation="YES para cargar opción #1 (Vital (mejor diseño de sonido)), o CUSTOM con custom_args={'instrument_id': '<id>'} para escoger entre las opciones 2 a 5.",
                     action_tool="sound_load_role_instrument",
-                    action_args={"track_index": l_idx, "role": "LEAD", "instrument_id": "vst3_pigments"},
+                    action_args={"track_index": l_idx, "role": "LEAD", "instrument_id": "vst3_vital_lead"},
                     target_track=l_idx
                 ))
 
@@ -575,16 +575,16 @@ class ExecutiveCopilotEngine:
                     title=f"Select Specific Preset / Patch for Lead Track {l_idx}",
                     description=(
                         "Opciones sugeridas de PRESETS para LEAD (Top 5):\n"
-                        "1. [Arturia Pigments] 'Neo-Soul Sine Lead' - Solo lead sedoso con portamento\n"
-                        "2. [Arturia Analog Lab] 'Mini V Detuned Solo' - Saw lead clásico Moog\n"
-                        "3. [Xfer Serum 2] 'Plucked Vocal Synth' - Lead agresivo híbrido wavetable\n"
-                        "4. [Arturia Analog Lab] 'Brass Horns Solo' - Lead analógico con filtro envelope\n"
+                        "1. [Vital (mejor diseño de sonido)] 'Spectral Vocal Lead' - Soaring spectral lead con formantes y portamento\n"
+                        "2. [Arturia Pigments] 'Neo-Soul Sine Lead' - Solo lead sedoso con portamento\n"
+                        "3. [Arturia Analog Lab] 'Mini V Detuned Solo' - Saw lead clásico Moog\n"
+                        "4. [Xfer Serum 2] 'Plucked Vocal Synth' - Lead agresivo híbrido wavetable\n"
                         "5. [Arturia Pigments] 'Granular Harp Textures' - Lead híbrido acústico-digital\n"
                         "(Nota: Hay miles de opciones disponibles. Consulta más con preset_search(query='...'))"
                     ),
-                    recommendation="YES para cargar opción #1 ('Neo-Soul Sine Lead'), o CUSTOM con custom_args={'preset_name': '...'}.",
+                    recommendation="YES para cargar opción #1 ('Spectral Vocal Lead'), o CUSTOM con custom_args={'preset_name': '...'}.",
                     action_tool="preset_select_for_track",
-                    action_args={"track_index": l_idx, "preset_name": "Neo-Soul Sine Lead", "plugin": "Pigments"},
+                    action_args={"track_index": l_idx, "preset_name": "Spectral Vocal Lead", "plugin": "Vital"},
                     target_track=l_idx
                 ))
 

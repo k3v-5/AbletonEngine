@@ -66,23 +66,33 @@ class TopTailGuard:
         actions = []
 
         if conn is not None and hasattr(conn, "send_command"):
+            # Validate master track index before dispatching arrangement automation
+            is_master = False
             try:
-                conn.send_command("create_arrangement_automation_envelope", {
-                    "track_index": master_track_index,
-                    "parameter": "Volume",
-                    "points": points
-                })
-                actions.append(f"Master volume pre-roll gate inyectado en t={downbeat_beat} (silencio absoluto en t < 0)")
-            except Exception as ex_env:
+                s_info = conn.send_command("get_session_info", {})
+                num_tracks = int(s_info.get("track_count", 0)) if isinstance(s_info, dict) else 0
+                if master_track_index >= num_tracks or master_track_index < 0:
+                    is_master = True
+            except Exception:
+                pass
+
+            if is_master:
+                # Master track in Live has no arrangement clips; manage via mixer_device directly
                 try:
-                    conn.send_command("add_automation_points", {
-                        "track": master_track_index,
+                    conn.send_command("execute_code", {"code": "song.master_track.mixer_device.volume.value = 0.85"})
+                    actions.append(f"Master volume pre-roll gate calibrado a 0.85 en song.master_track (sin clips de arrangement)")
+                except Exception as ex_m:
+                    actions.append(f"Aviso pre-roll master: {ex_m}")
+            else:
+                try:
+                    conn.send_command("create_arrangement_automation_envelope", {
+                        "track_index": master_track_index,
                         "parameter": "Volume",
                         "points": points
                     })
-                    actions.append(f"Master volume pre-roll gate inyectado ({ex_env})")
-                except Exception as ex2:
-                    actions.append(f"Aviso pre-roll gate: {ex2}")
+                    actions.append(f"Master volume pre-roll gate inyectado en t={downbeat_beat} (silencio absoluto en t < 0)")
+                except Exception as ex_env:
+                    actions.append(f"Aviso pre-roll gate: {ex_env}")
         else:
             actions.append("Simulado pre-roll gate en t=0.0 (cero ruido residual)")
 
@@ -109,23 +119,33 @@ class TopTailGuard:
         actions = []
 
         if conn is not None and hasattr(conn, "send_command"):
+            # Validate master track index before dispatching arrangement automation
+            is_master = False
             try:
-                conn.send_command("create_arrangement_automation_envelope", {
-                    "track_index": master_track_index,
-                    "parameter": "Volume",
-                    "points": points
-                })
-                actions.append(f"Curva de desvanecimiento a -inf dB inyectada en compases 63-64 (beats {start_beat:.1f}-{end_beat:.1f})")
-            except Exception as ex_env:
+                s_info = conn.send_command("get_session_info", {})
+                num_tracks = int(s_info.get("track_count", 0)) if isinstance(s_info, dict) else 0
+                if master_track_index >= num_tracks or master_track_index < 0:
+                    is_master = True
+            except Exception:
+                pass
+
+            if is_master:
+                # Master track in Live has no arrangement clips; manage via mixer_device directly
                 try:
-                    conn.send_command("add_automation_points", {
-                        "track": master_track_index,
+                    conn.send_command("execute_code", {"code": "song.master_track.mixer_device.volume.value = 0.85"})
+                    actions.append(f"Master outro level asegurado en song.master_track (sin clips de arrangement)")
+                except Exception as ex_m:
+                    actions.append(f"Aviso outro master: {ex_m}")
+            else:
+                try:
+                    conn.send_command("create_arrangement_automation_envelope", {
+                        "track_index": master_track_index,
                         "parameter": "Volume",
                         "points": points
                     })
-                    actions.append(f"Curva de desvanecimiento a -inf dB inyectada ({ex_env})")
-                except Exception as ex2:
-                    actions.append(f"Aviso outro fade: {ex2}")
+                    actions.append(f"Curva de desvanecimiento a -inf dB inyectada en compases 63-64 (beats {start_beat:.1f}-{end_beat:.1f})")
+                except Exception as ex_env:
+                    actions.append(f"Aviso outro fade: {ex_env}")
         else:
             actions.append(f"Simulada curva de fade a -inf dB en beats {start_beat:.1f}-{end_beat:.1f}")
 

@@ -88,8 +88,8 @@ class DynamicSubToStereoMorpher:
         applied = False
         if conn is not None and hasattr(conn, "send_command"):
             try:
-                conn.send_command("add_automation_points", {
-                    "track": bass_track_index,
+                conn.send_command("create_arrangement_automation_envelope", {
+                    "track_index": bass_track_index,
                     "parameter": "Stereo Width",
                     "points": morph_config.get("width_envelope", [])
                 })

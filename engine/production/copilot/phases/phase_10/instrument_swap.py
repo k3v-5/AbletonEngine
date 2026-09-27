@@ -76,9 +76,9 @@ def prompt_instrument_swap_preset(session: Any, trk: Dict[str, Any]) -> Dict[str
     options = []
     if role == "BASS":
         options = [
-            "• **Opción 1: Sub Boom 808** (Vital / Stock Operator — Graves profundos saturados con armónicos impares)",
+            "• **Opción 1: Sub Boom 808** (Vital (mejor diseño de sonido) / Stock Operator — Graves profundos saturados con armónicos impares)",
             "• **Opción 2: Moog Saw Vintage Bass** (Mini V3 / Stock Drift — Pegada analógica densa para groove)",
-            "• **Opción 3: Reese Moving Stereo Bass** (Vital — Subgrave envolvente con modulación estéreo)"
+            "• **Opción 3: Reese Moving Stereo Bass** (Vital (mejor diseño de sonido) — Subgrave envolvente con modulación estéreo)"
         ]
     elif role == "DRUMS":
         options = [
@@ -94,15 +94,15 @@ def prompt_instrument_swap_preset(session: Any, trk: Dict[str, Any]) -> Dict[str
         ]
     elif role == "PAD":
         options = [
-            "• **Opción 1: Warm Analog Drift Pad** (Jun-6 V / Vital — Cuerdas analógicas ricas en coros)",
-            "• **Opción 2: Ethereal Shimmer Ambient Pad** (Vital — Resonancias brillantes con reverb infinita)",
+            "• **Opción 1: Warm Analog Drift Pad** (Jun-6 V / Vital (mejor diseño de sonido) — Cuerdas analógicas ricas en coros)",
+            "• **Opción 2: Ethereal Shimmer Ambient Pad** (Vital (mejor diseño de sonido) — Resonancias brillantes con reverb infinita)",
             "• **Opción 3: Solina Vintage Strings** (Solina V / Analog Lab V — Calidez analógica y chorus ensemble)"
         ]
     else:
         options = [
-            "• **Opción 1: Hyperpop Cyber Saw Lead** (Vital — Dientes de sierra supersaturados y brillantes)",
+            "• **Opción 1: Hyperpop Cyber Saw Lead** (Vital (mejor diseño de sonido) — Dientes de sierra supersaturados y brillantes)",
             "• **Opción 2: Vintage Analogue Pluck** (Analog Lab V / CZ V — Ataque percusivo y caída rápida)",
-            "• **Opción 3: Smooth Glide Solo Lead** (Vital — Portamento suave y vibrato expresivo)"
+            "• **Opción 3: Smooth Glide Solo Lead** (Vital (mejor diseño de sonido) — Portamento suave y vibrato expresivo)"
         ]
 
     return {

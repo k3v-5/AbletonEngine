@@ -113,13 +113,13 @@ class UnderwaterRadioSweepGenerator:
         applied = False
         if conn is not None and hasattr(conn, "send_command"):
             try:
-                conn.send_command("add_automation_points", {
-                    "track": target_track_index,
+                conn.send_command("create_arrangement_automation_envelope", {
+                    "track_index": target_track_index,
                     "parameter": "Filter Frequency",
                     "points": sweep_recipe.get("filter_cutoff_envelope", [])
                 })
-                conn.send_command("add_automation_points", {
-                    "track": target_track_index,
+                conn.send_command("create_arrangement_automation_envelope", {
+                    "track_index": target_track_index,
                     "parameter": "Reverb Wet",
                     "points": sweep_recipe.get("reverb_wet_envelope", [])
                 })

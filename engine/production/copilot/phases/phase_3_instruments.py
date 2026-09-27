@@ -165,11 +165,11 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
             kb_notes.append("  💡 **Emulaciones Hardware:** SP-1200 (12-bit punch), MPC 3000 (pocket swing), TR-808/909.")
             kb_notes.append("  💡 **Sample Indexer en Parquet:** Búsqueda activa disponible en tu librería local.")
         elif role in ["BASS", "SUB"]:
-            kb_notes.append("  💡 **Prioridad de Bajos:** SubLab XL (#1), Serum 2, Massive X, Massive, Cyclop.")
+            kb_notes.append("  💡 **Prioridad de Bajos:** Vital (mejor diseño de sonido) (#1 Synth), SubLab XL, Serum 2, Massive X, Massive, Cyclop.")
         elif role in ["LEAD", "SYNTH"]:
-            kb_notes.append("  💡 **Receta Quirúrgica Serum 2:** `hyperpop_lead` (Sync wavetable, Portamento 35ms) o `supersaw_lead` (7 unisons).")
+            kb_notes.append("  💡 **Receta Quirúrgica Vital (mejor diseño de sonido):** `vital_spectral_lead` (Spectral warping, Formant LFO) o Serum 2 `hyperpop_lead`.")
         elif role in ["PAD", "STRINGS"]:
-            kb_notes.append("  💡 **Receta Quirúrgica Serum 2:** `analog_warm_pad` (PWM, LFO en cutoff, Reverb hall estéreo).")
+            kb_notes.append("  💡 **Receta Quirúrgica Vital (mejor diseño de sonido):** `vital_lush_pad` (Stereo spread, Dual wavetable) o Serum 2 `analog_warm_pad`.")
         
         if kb_notes:
             opts_text.append("\n**Recetas de la Base de Conocimiento:**\n" + "\n".join(kb_notes))
@@ -190,7 +190,7 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 f"¿Qué generador sonoro o kit deseas cargar en esta pista?\n\n"
                 f"*Instrumentos y plugins verificados (prioridad a sintetizadores de terceros, nativos al final):*\n"
                 f"{options_block}\n\n"
-                f"• *Responde con el número de opción o nombre de plugin (ej: 'Opción 1', 'SubLab XL', 'Serum 2').*\n"
+                f"• *Responde con el número de opción o nombre de plugin (ej: 'Opción 1', 'Vital (mejor diseño de sonido)', 'SubLab XL', 'Serum 2').*\n"
                 f"• *Si eliges Analog Lab V u Omnisphere, el asistente abrirá el sub-menú de presets por carpeta y la opción de plugin limpio default.*\n"
                 f"• *O selecciona el Modo Chopping Autónomo escribiendo 'Opción {chop_idx}' o 'Modo Chopping' (sintetiza una fuente armónica única, la procesa y rebanará en Simpler sin usar librerías externas).*"
             ),

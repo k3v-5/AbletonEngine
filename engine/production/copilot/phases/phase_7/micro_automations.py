@@ -51,9 +51,9 @@ if len(t.mixer_device.sends) > {send_index}:
     clip = song.arrangement_clips[0] if len(song.arrangement_clips) > 0 else None
 """
             # Use ArrangementAutomationWeaver or socket send_command
-            res = conn.send_command("add_automation_points", {
+            res = conn.send_command("create_arrangement_automation_envelope", {
                 "track_index": track_index,
-                "parameter_name": f"Send {chr(65 + send_index)}",
+                "parameter": f"Send {chr(65 + send_index)}",
                 "points": points
             })
             return True
@@ -83,9 +83,9 @@ if len(t.mixer_device.sends) > {send_index}:
                 {"time": start_beat + (end_beat - start_beat) * 0.75, "value": pan_swing},
                 {"time": end_beat, "value": 0.0}
             ]
-            conn.send_command("add_automation_points", {
+            conn.send_command("create_arrangement_automation_envelope", {
                 "track_index": track_index,
-                "parameter_name": "Panning",
+                "parameter": "Panning",
                 "points": points
             })
             return True
@@ -115,9 +115,9 @@ if len(t.mixer_device.sends) > {send_index}:
                 {"time": bend_start_beat + 0.75, "value": bend_val},
                 {"time": bend_start_beat + 1.0, "value": 0.0}
             ]
-            conn.send_command("add_automation_points", {
+            conn.send_command("create_arrangement_automation_envelope", {
                 "track_index": track_index,
-                "parameter_name": "Pitch Bend",
+                "parameter": "Pitch Bend",
                 "points": points
             })
             return True

@@ -283,7 +283,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
         ),
         SoundSourceOption(
             id="vst3_vital_keys",
-            name="Vital Audio Ambient Keys",
+            name="Vital Audio Ambient Keys (mejor diseño de sonido)",
             role="KEYS",
             category=InstrumentSourceCategory.VST3,
             uri="query:Plugins#VST3:Vital%20Audio:Vital",
@@ -395,6 +395,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "semantic",
                 "parameters": {"SUB_LEVEL": 0.95, "DRIVE": 0.40, "PORTAMENTO_GLIDE": 0.20},
                 "description": "Deep 808 sub-bass with analog kick and saturation."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_vital_808",
+            name="Vital Audio 808 Sub (mejor diseño de sonido)",
+            role="BASS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Spectral warp 808 sub-bass with gliding portamento (mejor diseño de sonido).",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"SUB_LEVEL": 0.90, "FILTER_CUTOFF": 0.30, "PORTAMENTO_GLIDE": 0.20},
+                "description": "Spectral warp 808 sub-bass with smooth portamento glide."
             },
         ),
         SoundSourceOption(
@@ -538,20 +552,6 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             },
         ),
         SoundSourceOption(
-            id="vst3_vital_808",
-            name="Vital Audio 808 Sub",
-            role="BASS",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Vital%20Audio:Vital",
-            vendor="Vital Audio",
-            description="Spectral warp 808 sub-bass with gliding portamento.",
-            blueprint={
-                "sculpt_type": "semantic",
-                "parameters": {"SUB_LEVEL": 0.90, "FILTER_CUTOFF": 0.30, "PORTAMENTO_GLIDE": 0.20},
-                "description": "Spectral warp 808 sub-bass with smooth portamento glide."
-            },
-        ),
-        SoundSourceOption(
             id="native_drift_sub",
             name="Drift Monophonic Sub-Bass",
             role="BASS",
@@ -612,6 +612,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             },
         ),
         SoundSourceOption(
+            id="vst3_vital_lead",
+            name="Vital Spectral Lead (mejor diseño de sonido)",
+            role="LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Hyper-modern soaring lead with stereo unison spread (mejor diseño de sonido).",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.72, "UNISON_VOICES": 0.50, "PORTAMENTO_GLIDE": 0.14},
+                "description": "Hyper-modern soaring lead with stereo spread."
+            },
+        ),
+        SoundSourceOption(
             id="vst3_serum_lead",
             name="Xfer Records Serum 2 Lead",
             role="LEAD",
@@ -668,20 +682,6 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             },
         ),
         SoundSourceOption(
-            id="vst3_vital_lead",
-            name="Vital Spectral Lead",
-            role="LEAD",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Vital%20Audio:Vital",
-            vendor="Vital Audio",
-            description="Hyper-modern soaring lead with stereo unison spread.",
-            blueprint={
-                "sculpt_type": "semantic",
-                "parameters": {"FILTER_CUTOFF": 0.72, "UNISON_VOICES": 0.50, "PORTAMENTO_GLIDE": 0.14},
-                "description": "Hyper-modern soaring lead with stereo spread."
-            },
-        ),
-        SoundSourceOption(
             id="vst3_surge_xt_lead",
             name="Surge Synth Team Surge XT (Lead)",
             role="LEAD",
@@ -701,7 +701,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     "STRINGS": [
         SoundSourceOption(
             id="vst3_vital_strings",
-            name="Vital Audio Celestial Strings",
+            name="Vital Audio Celestial Strings (mejor diseño de sonido)",
             role="STRINGS",
             category=InstrumentSourceCategory.VST3,
             uri="query:Plugins#VST3:Vital%20Audio:Vital",
@@ -973,7 +973,7 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     "PAD": [
         SoundSourceOption(
             id="vst3_vital_pad",
-            name="Vital Audio Poly Shimmer Pad",
+            name="Vital Audio Poly Shimmer Pad (mejor diseño de sonido)",
             role="PAD",
             category=InstrumentSourceCategory.VST3,
             uri="query:Plugins#VST3:Vital%20Audio:Vital",
@@ -1448,6 +1448,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             },
         ),
         SoundSourceOption(
+            id="vst3_vital_counter_lead",
+            name="Vital Spectral Arp (mejor diseño de sonido)",
+            role="COUNTER_LEAD",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Wavetable spectral arpeggiator with stereo movement (mejor diseño de sonido).",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.72, "STEREO_SPREAD": 0.65},
+                "description": "Spectral arpeggiator with wide stereo field."
+            },
+        ),
+        SoundSourceOption(
             id="vst3_serum_counter_lead",
             name="Xfer Records Serum 2 Arp / Counter",
             role="COUNTER_LEAD",
@@ -1459,20 +1473,6 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "semantic",
                 "parameters": {"FILTER_CUTOFF": 0.75, "AMP_ATTACK": 0.005, "AMP_RELEASE": 0.25},
                 "description": "Sharp syncopated arps and counterplucks."
-            },
-        ),
-        SoundSourceOption(
-            id="vst3_vital_counter_lead",
-            name="Vital Spectral Arp",
-            role="COUNTER_LEAD",
-            category=InstrumentSourceCategory.VST3,
-            uri="query:Plugins#VST3:Vital%20Audio:Vital",
-            vendor="Vital Audio",
-            description="Wavetable spectral arpeggiator with stereo movement.",
-            blueprint={
-                "sculpt_type": "semantic",
-                "parameters": {"FILTER_CUTOFF": 0.72, "STEREO_SPREAD": 0.65},
-                "description": "Spectral arpeggiator with wide stereo field."
             },
         ),
         SoundSourceOption(
@@ -1545,6 +1545,20 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
                 "sculpt_type": "semantic",
                 "parameters": {"FILTER_CUTOFF": 0.80, "DELAY_MIX": 0.35, "REVERB_MIX": 0.40},
                 "description": "Crystal additive bells and granular drops."
+            },
+        ),
+        SoundSourceOption(
+            id="vst3_vital_ear_candy",
+            name="Vital Spectral Ear Candy (mejor diseño de sonido)",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Ultra-bright micro-modulated spectral bells and glitch textures (mejor diseño de sonido).",
+            blueprint={
+                "sculpt_type": "semantic",
+                "parameters": {"FILTER_CUTOFF": 0.85, "STEREO_SPREAD": 0.70, "REVERB_MIX": 0.40},
+                "description": "Bright spectral ear candy with modulated stereo space."
             },
         ),
         SoundSourceOption(

@@ -305,6 +305,40 @@ class LiveBrowserCatalogEngine:
             other_third = [o for o in third_party if o not in sublab_opts]
             third_party = sublab_opts + other_third
 
+        # Guarantee Vital is prioritized before Serum across all roles
+        has_vital = any("vital" in (o.id + " " + o.name).lower() for o in third_party)
+        has_serum = any("serum" in (o.id + " " + o.name).lower() for o in third_party)
+        if has_vital and has_serum:
+            new_third = []
+            serum_deferred = []
+            vital_seen = False
+            for o in third_party:
+                low = (o.id + " " + o.name).lower()
+                if "vital" in low:
+                    new_third.append(o)
+                    vital_seen = True
+                elif "serum" in low:
+                    if vital_seen:
+                        new_third.append(o)
+                    else:
+                        serum_deferred.append(o)
+                else:
+                    new_third.append(o)
+            if serum_deferred:
+                insert_idx = len(new_third)
+                for idx, o in enumerate(new_third):
+                    if "vital" in (o.id + " " + o.name).lower():
+                        insert_idx = idx + 1
+                for s_opt in serum_deferred:
+                    new_third.insert(insert_idx, s_opt)
+                    insert_idx += 1
+            third_party = new_third
+
+        # Ensure all Vital options display '(mejor diseño de sonido)'
+        for opt in third_party:
+            if "vital" in (opt.id + " " + opt.name).lower() and "(mejor diseño de sonido)" not in opt.name:
+                opt.name = f"{opt.name} (mejor diseño de sonido)"
+
         verified = third_party + native
         return verified or raw_sources
 

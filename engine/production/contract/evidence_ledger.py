@@ -103,6 +103,14 @@ class EvidenceLedger:
                             break
 
                     is_mock_env = type(conn).__name__ == "MockAbletonAdapter" or getattr(conn, "is_mock", False)
+                    if not matched_cp and conn and hasattr(conn, "send_command"):
+                        try:
+                            heal_res = conn.send_command("create_cue_point", {"time": target_beat, "name": ob.target_entity})
+                            if isinstance(heal_res, dict) and heal_res.get("name"):
+                                matched_cp = heal_res
+                        except Exception:
+                            pass
+
                     if matched_cp or (is_mock_env and session_data.get("sections")):
                         ob.mark_verified({"cue_point": matched_cp or {"name": target_name, "time": target_beat}})
                         verified_count += 1

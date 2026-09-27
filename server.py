@@ -62,9 +62,14 @@ ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
 ABLETON_PORT = int(os.environ.get("ABLETON_PORT", "9877"))
 
 # Configure logging
+import time
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("AbletonMCPServer")
+
+class AbletonAPIError(Exception):
+    """Exception raised when Ableton Live Remote Script returns a JSON error response."""
+    pass
 
 @dataclass
 class AbletonConnection:
@@ -72,6 +77,23 @@ class AbletonConnection:
     port: int
     sock: socket.socket = None
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False)
+    _cached_track_count: Optional[int] = field(default=None, init=False)
+    _cached_track_count_time: float = field(default=0.0, init=False)
+
+    def get_track_count(self) -> int:
+        """Cached track count resolver to validate track boundaries without LOM latency."""
+        now = time.time()
+        if self._cached_track_count is not None and (now - self._cached_track_count_time < 15.0):
+            return self._cached_track_count
+        try:
+            res = self._send_raw("get_session_info", {})
+            if isinstance(res, dict) and "track_count" in res:
+                self._cached_track_count = int(res["track_count"])
+                self._cached_track_count_time = now
+                return self._cached_track_count
+        except Exception:
+            pass
+        return self._cached_track_count or 18
     
     def connect(self) -> bool:
         """Connect to the Ableton Remote Script socket server"""
@@ -340,12 +362,116 @@ class AbletonConnection:
             if not self.sock and not self.connect():
                 raise ConnectionError("Not connected to Ableton")
             
+            params = dict(params or {})
+
+            # -------------------------------------------------------------
+            # PRE-FLIGHT VALIDATION & TRANSLATION ENGINE
+            # -------------------------------------------------------------
+            # 1. Translate obsolete / unsupported commands
+            if command_type == "add_automation_points":
+                logger.info("Pre-flight: Translating obsolete 'add_automation_points' command to 'create_arrangement_automation_envelope'")
+                command_type = "create_arrangement_automation_envelope"
+                if "track" in params and "track_index" not in params:
+                    params["track_index"] = params.pop("track")
+                if "device" in params and "device_index" not in params:
+                    params["device_index"] = params.pop("device")
+
+            # 2. Track bounds and Master Track Interceptor for Arrangement Automation Envelopes
+            if command_type == "create_arrangement_automation_envelope":
+                raw_t = params.get("track_index", 0)
+                is_master = False
+                if str(raw_t).lower().strip() in ("master", "main"):
+                    is_master = True
+                else:
+                    try:
+                        idx = int(raw_t)
+                        num_tracks = self.get_track_count()
+                        if idx < 0 or idx >= num_tracks:
+                            is_master = True
+                    except (ValueError, TypeError):
+                        pass
+
+                if is_master:
+                    param_name = str(params.get("parameter", "")).lower().strip()
+                    logger.warning(
+                        f"Pre-flight intercept: 'create_arrangement_automation_envelope' directed to Master track "
+                        f"(track_index: {raw_t}). Bypassing clip envelope injection because Master track in Live has no arrangement clips."
+                    )
+                    # If this is master volume automation, apply directly to master mixer
+                    pts = params.get("points", [])
+                    if pts and any(k in param_name for k in ["vol", "gain"]):
+                        try:
+                            target_val = max(0.0, min(1.0, float(pts[-1].get("value", 0.85))))
+                            self._send_raw("execute_code", {
+                                "code": f"song.master_track.mixer_device.volume.value = {target_val}"
+                            })
+                            logger.info(f"Pre-flight: Successfully updated song.master_track volume to {target_val:.3f}")
+                        except Exception as m_vol_err:
+                            logger.debug(f"Pre-flight: Master volume direct adjustment notice: {m_vol_err}")
+
+                    return {
+                        "status": "SKIPPED",
+                        "track_index": raw_t,
+                        "track_name": "Main",
+                        "envelope_injected": False,
+                        "reason": "Master track has no arrangement clips in Ableton Live."
+                    }
+
+            # 3. Intercept clip-specific commands targeting Master track
+            clip_only_commands = {
+                "create_clip", "create_audio_clip", "add_notes_to_clip",
+                "set_clip_name", "set_clip_color", "set_clip_envelope",
+                "duplicate_clip_to_arrangement", "duplicate_session_clip_to_arrangement"
+            }
+            if command_type in clip_only_commands:
+                raw_t = params.get("track_index", 0)
+                is_master = False
+                if str(raw_t).lower().strip() in ("master", "main"):
+                    is_master = True
+                else:
+                    try:
+                        idx = int(raw_t)
+                        num_tracks = self.get_track_count()
+                        if idx < 0 or idx >= num_tracks:
+                            is_master = True
+                    except (ValueError, TypeError):
+                        pass
+
+                if is_master:
+                    logger.warning(
+                        f"Pre-flight intercept: Blocked '{command_type}' targeting Master track "
+                        f"(track_index: {raw_t}). Master track does not hold clips."
+                    )
+                    return {
+                        "status": "SKIPPED",
+                        "track_index": raw_t,
+                        "reason": f"Master track cannot hold clips for '{command_type}'"
+                    }
+
+            # 4. General track bounds validation
+            if "track_index" in params:
+                try:
+                    idx = int(params["track_index"])
+                    num_tracks = self.get_track_count()
+                    master_capable = {
+                        "get_track_info", "set_track_volume", "set_track_panning",
+                        "set_device_parameter", "get_device_parameters", "get_device_parameter",
+                        "setup_full_mastering_chain", "master_apply",
+                        "load_browser_item", "load_instrument_or_effect"
+                    }
+                    max_allowed = num_tracks if command_type in master_capable else (num_tracks - 1)
+                    if idx > max_allowed:
+                        raise ValueError(f"Track index {idx} out of range (total tracks: {num_tracks}, max allowed: {max_allowed})")
+                except (ValueError, TypeError) as t_err:
+                    if "out of range" in str(t_err):
+                        raise
+
             # Enforce immutable DAW governance rules before mutating Ableton
-            self._enforce_immutable_governance(command_type, params or {})
+            self._enforce_immutable_governance(command_type, params)
             
             command = {
                 "type": command_type,
-                "params": params or {}
+                "params": params
             }
             
             # Check if this is a state-modifying command
@@ -361,8 +487,6 @@ class AbletonConnection:
                 "create_arrangement_automation_envelope"
             ]
     
-            # Commands whose work on Live's main thread can take noticeably longer
-            # than the default modifying-command budget (e.g. importing/decoding a
             # Commands whose work on Live's main thread can take noticeably longer
             # than the default modifying-command budget (e.g. importing/decoding a
             # large audio file or loading heavy VST3 plugins like Serum, Vital, Massive X,
@@ -418,9 +542,20 @@ class AbletonConnection:
     
                 if response.get("status") == "error":
                     logger.error(f"Ableton error: {response.get('message')}")
-                    raise Exception(response.get("message", "Unknown error from Ableton"))
+                    raise AbletonAPIError(response.get("message", "Unknown error from Ableton"))
                 
+                # Update cached track_count if get_session_info returned it
+                if command_type == "get_session_info" and isinstance(response.get("result"), dict):
+                    t_cnt = response["result"].get("track_count")
+                    if t_cnt is not None:
+                        self._cached_track_count = int(t_cnt)
+                        self._cached_track_count_time = time.time()
+
                 return response.get("result", {})
+            except AbletonAPIError as e:
+                # Ableton LOM application error (socket is completely intact and healthy)
+                logger.warning(f"Ableton LOM application error (preserving socket): {str(e)}")
+                raise
             except socket.timeout:
                 logger.error("Socket timeout while waiting for response from Ableton")
                 self.sock = None

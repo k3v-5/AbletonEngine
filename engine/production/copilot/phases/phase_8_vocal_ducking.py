@@ -441,18 +441,46 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
                             for t_idx in target_indices:
                                 u_res = SidechainManager.ensure_utility_device(conn, t_idx)
                                 u_idx = u_res.get("device_index", 0)
+                                # Resolve parameter name on Utility: Live 12 uses 'Output', older versions use 'Gain'
+                                param_name = "Output"
                                 try:
-                                    conn.send_command("add_automation_points", {
-                                        "track": t_idx,
+                                    dev_p = conn.send_command("get_device_parameters", {"track_index": t_idx, "device_index": u_idx})
+                                    p_names = [p.get("name", "").lower() for p in dev_p.get("parameters", [])]
+                                    if "output" in p_names:
+                                        param_name = "Output"
+                                    elif "gain" in p_names:
+                                        param_name = "Gain"
+                                except Exception:
+                                    pass
+
+                                try:
+                                    conn.send_command("create_arrangement_automation_envelope", {
+                                        "track_index": t_idx,
                                         "device_index": u_idx,
-                                        "parameter": "Output",
-                                        "points": util_points,
-                                        "mode": "replace"
+                                        "parameter": param_name,
+                                        "points": util_points
                                     })
                                 except Exception:
                                     pass
+
+                            # Invariant: verify that no active track's volume fader was corrupted or zeroed
+                            from engine.mix.auto_gain_staging import AutoGainStaging
+                            for trk_item in session.data.get("tracks", []):
+                                trk_idx = trk_item.get("index")
+                                if trk_idx is not None and conn and hasattr(conn, "send_command"):
+                                    try:
+                                        ti = conn.send_command("get_track_info", {"track_index": trk_idx})
+                                        cur_v = float(ti.get("volume", 0.85))
+                                        if cur_v <= 0.05:
+                                            role = trk_item.get("role", "OTHER")
+                                            target_v = AutoGainStaging.get_role_target_volume(role)
+                                            conn.send_command("set_track_volume", {"track_index": trk_idx, "volume": target_v})
+                                            logger.info(f"Safeguard restored track {trk_idx} ({trk_item.get('name')}) volume from {cur_v} to {target_v}")
+                                    except Exception:
+                                        pass
+
                             ducking_report["automation_applied"] = True
-                            ducking_report["ducking_target"] = "Utility.Output"
+                            ducking_report["ducking_target"] = f"Utility.{param_name}"
                             ducking_report["faders_unlocked"] = True
                             ducking_report["ducking_points_count"] = len(points)
                     except Exception as ex_auto:

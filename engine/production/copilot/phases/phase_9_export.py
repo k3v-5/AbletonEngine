@@ -486,6 +486,23 @@ class Phase9ExportHandler(BasePhaseHandler):
             except Exception:
                 pass
 
+        # Safeguard: Ensure no active track is muted or set to volume <= 0.05
+        if conn is not None and hasattr(conn, "send_command"):
+            from engine.mix.auto_gain_staging import AutoGainStaging
+            for trk_item in tracks:
+                t_i = trk_item.get("index")
+                if t_i is not None:
+                    try:
+                        ti = conn.send_command("get_track_info", {"track_index": t_i})
+                        cur_v = float(ti.get("volume", 0.85))
+                        if cur_v <= 0.05:
+                            role = trk_item.get("role", "OTHER")
+                            target_v = AutoGainStaging.get_role_target_volume(role)
+                            conn.send_command("set_track_volume", {"track_index": t_i, "volume": target_v})
+                            logger.info(f"Phase 9 Safeguard restored track {t_i} ({trk_item.get('name')}) volume from {cur_v} to {target_v}")
+                    except Exception:
+                        pass
+
         preflight = executive_copilot.preflight_check()
 
         active_phase = session.data.get("current_phase", "PHASE_9_MIX_MASTER")

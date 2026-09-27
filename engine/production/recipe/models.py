@@ -56,7 +56,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["C Minor", "F Minor", "G Minor", "D# Minor"],
         typical_roles=["bass", "drums", "lead", "keys", "pad"],
-        recommended_instruments={"bass": "Vital", "drums": "808 Core Kit", "keys": "Analog Lab V", "lead": "Serum 2", "pad": "Pigments"}
+        recommended_instruments={"bass": "Vital (mejor diseño de sonido)", "drums": "808 Core Kit", "keys": "Analog Lab V", "lead": "Vital (mejor diseño de sonido)", "pad": "Pigments"}
     ),
     "zomboy_brostep": GenreProductionProfile(
         genre_id="zomboy_brostep",
@@ -67,7 +67,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.3,
         typical_scales=["F Minor", "D Minor", "E Minor"],
         typical_roles=["drums", "bass", "growl_call", "screech_response", "pad", "fx", "vocal_chant", "master"],
-        recommended_instruments={"drums": "808 Core Kit", "growl_call": "Serum 2", "screech_response": "Vital", "bass": "Vital", "pad": "Analog Lab V", "fx": "ShaperBox 3"}
+        recommended_instruments={"drums": "808 Core Kit", "growl_call": "Vital (mejor diseño de sonido)", "screech_response": "Vital (mejor diseño de sonido)", "bass": "Vital (mejor diseño de sonido)", "pad": "Analog Lab V", "fx": "ShaperBox 3"}
     ),
     "pop_commercial": GenreProductionProfile(
         genre_id="pop_commercial",
@@ -78,7 +78,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["C Major", "G Major", "A Minor", "D Major"],
         typical_roles=["keys", "bass", "drums", "lead", "pad", "arp"],
-        recommended_instruments={"keys": "Analog Lab V", "bass": "Massive X", "drums": "Drum Rack", "lead": "Serum 2", "pad": "Pigments"}
+        recommended_instruments={"keys": "Analog Lab V", "bass": "Vital (mejor diseño de sonido)", "drums": "Drum Rack", "lead": "Vital (mejor diseño de sonido)", "pad": "Pigments"}
     ),
     "neo_soul_ballad": GenreProductionProfile(
         genre_id="neo_soul_ballad",
@@ -89,7 +89,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["Eb Major", "Ab Major", "Db Major", "Bb Minor"],
         typical_roles=["keys", "bass", "drums", "lead", "pad", "reese", "arp"],
-        recommended_instruments={"keys": "Analog Lab V", "bass": "Vital", "reese": "Massive", "drums": "808 Core Kit", "lead": "Serum 2", "pad": "Pigments", "arp": "Massive X"}
+        recommended_instruments={"keys": "Analog Lab V", "bass": "Vital (mejor diseño de sonido)", "reese": "Massive", "drums": "808 Core Kit", "lead": "Vital (mejor diseño de sonido)", "pad": "Pigments", "arp": "Massive X"}
     ),
     "house_club": GenreProductionProfile(
         genre_id="house_club",
@@ -100,7 +100,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.3,
         typical_scales=["A Minor", "F Minor", "D Minor", "G Minor"],
         typical_roles=["drums", "bass", "lead", "pad", "fx"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Serum 2", "lead": "Massive X", "pad": "Pigments"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "lead": "Massive X", "pad": "Pigments"}
     ),
     "synthwave_retro": GenreProductionProfile(
         genre_id="synthwave_retro",
@@ -111,7 +111,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["D Minor", "A Minor", "E Minor"],
         typical_roles=["bass", "arp", "lead", "pad", "drums"],
-        recommended_instruments={"bass": "Massive", "arp": "Massive X", "lead": "Serum 2", "pad": "Analog Lab V", "drums": "808 Core Kit"}
+        recommended_instruments={"bass": "Massive", "arp": "Massive X", "lead": "Vital (mejor diseño de sonido)", "pad": "Analog Lab V", "drums": "808 Core Kit"}
     ),
     "rnb_contemporary": GenreProductionProfile(
         genre_id="rnb_contemporary",
@@ -122,7 +122,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["F Minor", "Bb Minor", "Eb Major", "C Minor"],
         typical_roles=["keys", "bass", "drums", "pad", "lead"],
-        recommended_instruments={"keys": "Analog Lab V", "bass": "Vital", "drums": "Drum Rack", "pad": "Pigments", "lead": "Serum 2"}
+        recommended_instruments={"keys": "Analog Lab V", "bass": "Vital (mejor diseño de sonido)", "drums": "Drum Rack", "pad": "Pigments", "lead": "Vital (mejor diseño de sonido)"}
     ),
     "reggaeton_latin": GenreProductionProfile(
         genre_id="reggaeton_latin",
@@ -133,7 +133,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["G Minor", "D Minor", "A Minor", "C Minor"],
         typical_roles=["drums", "bass", "keys", "lead", "pad"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "keys": "Analog Lab V", "lead": "Vital (mejor diseño de sonido)"}
     ),
     "ambient_cinematic": GenreProductionProfile(
         genre_id="ambient_cinematic",
@@ -155,7 +155,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["A Minor", "D Minor", "E Minor", "C Major"],
         typical_roles=["drums", "bass", "keys", "lead", "percussion"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2", "percussion": "Drum Rack"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "keys": "Analog Lab V", "lead": "Vital (mejor diseño de sonido)", "percussion": "Drum Rack"}
     ),
     "boom_bap_rap": GenreProductionProfile(
         genre_id="boom_bap_rap",
@@ -166,7 +166,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["C Minor", "F Minor", "G Minor", "Eb Major"],
         typical_roles=["drums", "bass", "keys", "lead", "horns"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Massive X"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "keys": "Analog Lab V", "lead": "Massive X"}
     ),
     "edm_festival": GenreProductionProfile(
         genre_id="edm_festival",
@@ -177,7 +177,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.3,
         typical_scales=["F Minor", "G Minor", "A Minor", "D# Minor"],
         typical_roles=["drums", "bass", "lead", "pad", "arp", "fx"],
-        recommended_instruments={"drums": "Drum Rack", "lead": "Serum 2", "bass": "Vital", "pad": "Pigments", "arp": "Massive X"}
+        recommended_instruments={"drums": "Drum Rack", "lead": "Vital (mejor diseño de sonido)", "bass": "Vital (mejor diseño de sonido)", "pad": "Pigments", "arp": "Massive X"}
     ),
     "drum_and_bass": GenreProductionProfile(
         genre_id="drum_and_bass",
@@ -188,7 +188,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.3,
         typical_scales=["F Minor", "D Minor", "C Minor"],
         typical_roles=["drums", "bass", "pad", "arp", "lead"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "pad": "Pigments", "lead": "Serum 2"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "pad": "Pigments", "lead": "Vital (mejor diseño de sonido)"}
     ),
     "afrobeat_urban": GenreProductionProfile(
         genre_id="afrobeat_urban",
@@ -199,7 +199,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["F Major", "C Major", "G Minor", "D Minor"],
         typical_roles=["drums", "bass", "keys", "lead", "percussion"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "keys": "Analog Lab V", "lead": "Vital (mejor diseño de sonido)"}
     ),
     "rock_modern": GenreProductionProfile(
         genre_id="rock_modern",
@@ -210,7 +210,7 @@ GENRE_PRODUCTION_CATALOG: Dict[str, GenreProductionProfile] = {
         true_peak_ceiling=-0.5,
         typical_scales=["E Minor", "A Minor", "D Major", "G Major"],
         typical_roles=["drums", "bass", "guitar", "lead", "keys"],
-        recommended_instruments={"drums": "Drum Rack", "bass": "Vital", "keys": "Analog Lab V", "lead": "Serum 2"}
+        recommended_instruments={"drums": "Drum Rack", "bass": "Vital (mejor diseño de sonido)", "keys": "Analog Lab V", "lead": "Vital (mejor diseño de sonido)"}
     )
 }
 
@@ -220,6 +220,7 @@ VERIFIED_PLUGIN_URIS = {
     "Analog Lab V": "query:Plugins#VST3:Arturia:Analog%20Lab%20V",
     "Solina V2": "query:Plugins#VST3:Arturia:Solina%20V2",
     "Stage-73 V2": "query:Plugins#VST3:Arturia:Stage-73%20V2",
+    "Vital (mejor diseño de sonido)": "query:Plugins#VST3:Vital%20Audio:Vital",
     "Vital": "query:Plugins#VST3:Vital%20Audio:Vital",
     "Serum 2": "query:Plugins#VST3:Xfer%20Records:Serum%202",
     "Serum 2 FX": "query:Plugins#VST3:Xfer%20Records:Serum%202%20FX",
