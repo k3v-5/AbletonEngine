@@ -750,16 +750,36 @@ class DedicatedPluginConfigurator:
 
         # 5. Determine base archetype
         if is_bass:
-            if "808" in ai_text or directives.get("warmth_drive", 0) > 0.6 or "saturado" in ai_text:
+            if any(w in ai_text for w in ["acid", "303", "rave", "twiddle"]):
+                archetype = "BASS_ACID"
+            elif any(w in ai_text for w in ["growl", "neuro", "wobble", "wooble", "color_bass", "skrillex"]):
+                archetype = "BASS_GROWL"
+            elif any(w in ai_text for w in ["organ", "donk", "slap"]):
+                archetype = "HOUSE_ORGAN_DONK"
+            elif "808" in ai_text or directives.get("warmth_drive", 0) > 0.6 or "saturado" in ai_text:
                 archetype = "BASS_808"
             elif "reese" in ai_text or "punch" in ai_text or directives.get("movement", 0) > 0.5:
                 archetype = "BASS_PUNCH"
             else:
                 archetype = "BASS_SUB"
+        elif any(w in ai_text for w in ["guitar", "guitarra", "acústic", "acoustic", "cuerda", "string"]):
+            archetype = "ACOUSTIC_STRINGS"
+        elif any(w in ai_text for w in ["chiptune", "8bit", "8-bit", "arcade", "gameboy", "glitch"]):
+            archetype = "CHIPTUNE_GLITCH"
+        elif any(w in ai_text for w in ["vocal", "voz", "vocoder", "choir", "coro"]):
+            archetype = "VOCAL_SYNTH"
+        elif any(w in ai_text for w in ["organ", "órgano", "m1"]):
+            archetype = "HOUSE_ORGAN_DONK"
+        elif any(w in ai_text for w in ["bell", "campana", "mallet", "marimba", "cristal"]):
+            archetype = "BELLS_MALLETS"
+        elif any(w in ai_text for w in ["theremin", "whistle", "silbido"]):
+            archetype = "THEREMIN_WHISTLE"
+        elif any(w in ai_text for w in ["riser", "sweep", "siren", "impact", "laser", "caida", "caída"]):
+            archetype = "FX_TRANSITION"
         elif role in ("PAD", "STRINGS", "TEXTURE"):
             archetype = "PAD_ORGANIC" if directives.get("warmth_drive", 0) > 0.4 else "PAD_LUSH"
         elif role in ("KEYS", "CHORDS", "PIANO"):
-            archetype = "CHORD_SUPERAW" if directives.get("stereo_width", 0) > 0.5 else "KEYS_HYBRID"
+            archetype = "CHORD_SUPERAW" if directives.get("stereo_width", 0) > 0.5 else "KEYS_RHODES"
         elif role in ("LEAD", "COUNTER_LEAD"):
             if directives.get("decay_sustain", 0) < 0.3 or directives.get("punch", 0) > 0.85:
                 archetype = "LEAD_PLUCK"
