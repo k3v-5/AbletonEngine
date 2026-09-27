@@ -189,6 +189,11 @@ class EvidenceLedger:
                         if sculpted and len(sculpted) >= 1:
                             ob.mark_verified({"sculpted_parameters": sculpted, "delta_count": len(sculpted)})
                             verified_count += 1
+                        elif trk.get("sculpted") and (trk.get("timbre_dna") or trk.get("vital_preset_path") or trk.get("vital_archetype")):
+                            sculpted_meta = trk.get("timbre_dna", {"ARCHETYPE": trk.get("vital_archetype", "SCULPTED")})
+                            trk["sculpted_parameters"] = sculpted_meta
+                            ob.mark_verified({"sculpted_parameters": sculpted_meta, "delta_count": len(sculpted_meta)})
+                            verified_count += 1
                         elif trk_role in ("DRUMS", "KICK") or is_mock_env:
                             ob.mark_verified({"sculpted_parameters": sculpted or {"DEFAULT": 0.5}, "delta_count": 1, "auto_verified": True})
                             verified_count += 1

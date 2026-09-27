@@ -529,6 +529,7 @@ class DedicatedPluginConfigurator:
             "transient_strength": 0.80 if is_percussive else 0.30,
             "movement": 0.40
         }
+        trk["sculpted_parameters"] = dict(params)
 
         logger.info(f"Decent Sampler modeled & validated on Track {t_idx} [{role}]: {lib_display}")
         return {
@@ -598,6 +599,13 @@ class DedicatedPluginConfigurator:
             "stereo_width": 0.70,
             "transient_strength": 0.85 if surge_patch.amp_envelope.attack < 0.05 else 0.35,
             "movement": 0.50
+        }
+        trk["sculpted_parameters"] = {
+            "FILTER_CUTOFF": float(surge_patch.filter1.cutoff),
+            "AMP_ATTACK": float(surge_patch.amp_envelope.attack),
+            "AMP_RELEASE": float(surge_patch.amp_envelope.release),
+            "DRIVE": float(surge_patch.filter1.drive),
+            "OSC_TYPES": [osc.osc_type for osc in surge_patch.oscillators]
         }
 
         # Dispatch LOM parameters if connected
@@ -832,6 +840,14 @@ class DedicatedPluginConfigurator:
             "stereo_width": 0.05 if is_bass else directives.get("stereo_width", 0.75),
             "transient_strength": directives.get("punch", 0.80),
             "movement": directives.get("movement", 0.45)
+        }
+        trk["sculpted_parameters"] = {
+            "FILTER_CUTOFF": float(directives.get("brightness", 0.70)),
+            "DRIVE": float(directives.get("warmth_drive", 0.35)),
+            "PUNCH": float(directives.get("punch", 0.80)),
+            "MOVEMENT": float(directives.get("movement", 0.45)),
+            "STEREO_WIDTH": 0.05 if is_bass else float(directives.get("stereo_width", 0.75)),
+            "ARCHETYPE": v_role
         }
 
         # Dispatch basic macro controls to Live if device is present

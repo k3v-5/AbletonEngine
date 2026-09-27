@@ -592,6 +592,8 @@ class InstalledPluginScanner:
         ),
     ]
 
+    _GLOBAL_SCAN_CACHE: Optional[Dict[str, "ScannedPlugin"]] = None
+
     def __init__(self, scan_paths: Optional[List[str]] = None):
         self.scan_paths = scan_paths or self.DEFAULT_SCAN_PATHS
         self._cache: Dict[str, ScannedPlugin] = {}
@@ -599,6 +601,11 @@ class InstalledPluginScanner:
 
     def scan(self, force_rescan: bool = False) -> Dict[str, ScannedPlugin]:
         """Scans the configured plugin directories and builds the index."""
+        if not force_rescan and InstalledPluginScanner._GLOBAL_SCAN_CACHE is not None:
+            self._cache = dict(InstalledPluginScanner._GLOBAL_SCAN_CACHE)
+            self._scanned = True
+            return self._cache
+
         if self._scanned and not force_rescan and self._cache:
             return self._cache
 
@@ -615,10 +622,13 @@ class InstalledPluginScanner:
 
             try:
                 for root, dirs, files in os.walk(directory):
-                    for d in dirs:
-                        if d.lower().endswith(".vst3"):
-                            full_path = os.path.join(root, d)
-                            self._process_plugin_file(d, full_path, PluginCategory.VST3)
+                    # Prune test junctions, hidden dirs, and don't descend inside .vst3 bundles
+                    vst3_dirs = [d for d in dirs if d.lower().endswith(".vst3")]
+                    dirs[:] = [d for d in dirs if not d.startswith("__") and not d.startswith(".") and not d.lower().endswith(".vst3")]
+
+                    for d in vst3_dirs:
+                        full_path = os.path.join(root, d)
+                        self._process_plugin_file(d, full_path, PluginCategory.VST3)
 
                     for f in files:
                         lower_f = f.lower()
@@ -673,6 +683,7 @@ class InstalledPluginScanner:
             )
 
         self._scanned = True
+        InstalledPluginScanner._GLOBAL_SCAN_CACHE = dict(self._cache)
         return self._cache
 
     def _process_plugin_file(self, filename: str, full_path: str, category: PluginCategory):
