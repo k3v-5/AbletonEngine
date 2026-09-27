@@ -26,6 +26,7 @@ class ArchetypeCatalog:
         Path("presets/vital"),
         Path("presets/vital/kshmr"),
         Path("engine/sound/vital"),
+        Path("Vital presets"),
         Path(r"C:\Users\kevin.garrido\Downloads\Kshmr Vital Preset Pack Vol. 1\Kshmr Vital Preset Pack Vol\Presets")
     ]
 
@@ -86,36 +87,72 @@ class ArchetypeCatalog:
         if "808" in fn or "GLIDE" in fn:
             return "BASS_808"
 
-        # 2. Reese and Neuro Basses
-        if "REESE" in fn or "NEURO" in fn:
+        # 2. Acid 303 Basses
+        if "ACID" in fn or "303" in fn:
+            return "BASS_ACID"
+
+        # 3. Growl, Wobble & Neuro Basses
+        if any(w in fn for w in ["GROWL", "WOBBLE", "WOOBLE", "NEURO", "COLOR_BASS"]):
+            return "BASS_GROWL"
+
+        # 4. Reese Basses
+        if "REESE" in fn:
             return "BASS_REECE"
 
-        # 3. Sub Bass
+        # 5. Sub Bass
         if "SUB" in fn:
             return "BASS_SUB"
 
-        # 4. General / Punch Bass
-        if "BASS" in fn or "BASS" in style:
+        # 6. House Organ, Slap & Donk
+        if any(w in fn for w in ["ORGAN", "SLAP", "DONK"]):
+            return "HOUSE_ORGAN_DONK"
+
+        # 7. Acoustic Guitars, Strings & Plucks
+        if any(w in fn for w in ["GUITAR", "ACOUSTIC", "STRING"]):
+            return "ACOUSTIC_STRINGS"
+
+        # 8. Bells & Mallets
+        if "BELL" in fn or "MALLET" in fn:
+            return "BELLS_MALLETS"
+
+        # 9. Chiptune, 8-Bit & Glitch
+        if any(w in fn for w in ["8BIT", "CHIPTUNE", "GLITCH", "COIN_OP"]):
+            return "CHIPTUNE_GLITCH"
+
+        # 10. Vocal Synths, Vocoders & Choirs
+        if any(w in fn for w in ["VOCAL", "VOCODER", "CHOIR", "LYRICISM", "CHOP"]):
+            return "VOCAL_SYNTH"
+
+        # 11. Theremin & Whistle
+        if "THEREMIN" in fn or "WHISTLE" in fn:
+            return "THEREMIN_WHISTLE"
+
+        # 12. Transitions, Risers & FX
+        if any(w in fn for w in ["RISER", "FX", "LASER", "SIREN", "IMPACT"]):
+            return "FX_TRANSITION"
+
+        # 13. General / Punch Bass
+        if "BASS" in fn or "BASS" in style or "BS_" in fn:
             return "BASS_PUNCH"
 
-        # 5. Rhodes / E-Piano / Keys
-        if "RHODES" in fn or "PIANO" in fn or "KEYS" in fn:
+        # 14. Rhodes / E-Piano / Keys
+        if "RHODES" in fn or "PIANO" in fn or "KEYS" in fn or "ROADS" in fn:
             return "KEYS_RHODES"
 
-        # 6. Plucks & Stabs
+        # 15. Plucks & Stabs
         if "PLUCK" in fn or "STAB" in fn:
             return "LEAD_PLUCK"
 
-        # 7. Leads & Supersaws
-        if "LEAD" in fn or "LEAD" in style:
+        # 16. Leads & Supersaws
+        if "LEAD" in fn or "LEAD" in style or "LD_" in fn:
             return "LEAD_SAW"
 
-        # 8. Chords & Polysynths
+        # 17. Chords & Polysynths
         if "CHORD" in fn or ("PAD" in style and poly > 4 and "PAD" not in fn):
             return "CHORD_SUPERAW"
 
-        # 9. Pads & Textures
-        if "PAD" in fn or "PAD" in style:
+        # 18. Pads & Textures
+        if "PAD" in fn or "PAD" in style or "DRONE" in fn:
             return "PAD_LUSH"
 
         return "GENERIC"
@@ -144,22 +181,36 @@ class ArchetypeCatalog:
 
         # Fallback mappings
         if not matches:
-            if "808" in role_upper:
+            if "ACID" in role_upper or "303" in role_upper:
+                matches = self.catalog.get("BASS_ACID", []) or self.catalog.get("BASS_PUNCH", [])
+            elif "GROWL" in role_upper or "WOBBLE" in role_upper or "NEURO" in role_upper:
+                matches = self.catalog.get("BASS_GROWL", []) or self.catalog.get("BASS_REECE", [])
+            elif "808" in role_upper:
                 matches = self.catalog.get("BASS_808", []) or self.catalog.get("BASS_SUB", [])
+            elif "ORGAN" in role_upper or "DONK" in role_upper or "SLAP" in role_upper:
+                matches = self.catalog.get("HOUSE_ORGAN_DONK", []) or self.catalog.get("BASS_PUNCH", [])
+            elif "GUITAR" in role_upper or "STRING" in role_upper or "ACOUSTIC" in role_upper:
+                matches = self.catalog.get("ACOUSTIC_STRINGS", []) or self.catalog.get("LEAD_PLUCK", [])
+            elif "CHIPTUNE" in role_upper or "8BIT" in role_upper or "GLITCH" in role_upper:
+                matches = self.catalog.get("CHIPTUNE_GLITCH", []) or self.catalog.get("LEAD_PLUCK", [])
+            elif "VOCAL" in role_upper or "VOICE" in role_upper or "VOCODER" in role_upper:
+                matches = self.catalog.get("VOCAL_SYNTH", []) or self.catalog.get("LEAD_SAW", [])
+            elif "RISER" in role_upper or "FX" in role_upper or "SWEEP" in role_upper:
+                matches = self.catalog.get("FX_TRANSITION", [])
+            elif "THEREMIN" in role_upper or "WHISTLE" in role_upper:
+                matches = self.catalog.get("THEREMIN_WHISTLE", []) or self.catalog.get("LEAD_SAW", [])
             elif "SUB" in role_upper:
                 matches = self.catalog.get("BASS_SUB", []) or self.catalog.get("BASS_PUNCH", [])
             elif "REECE" in role_upper or "REESE" in role_upper:
                 matches = self.catalog.get("BASS_REECE", []) or self.catalog.get("BASS_PUNCH", [])
             elif "BASS" in role_upper:
                 matches = self.catalog.get("BASS_PUNCH", []) or self.catalog.get("BASS_SUB", [])
+            elif "BELL" in role_upper or "MALLET" in role_upper or "METALLIC" in role_upper:
+                matches = self.catalog.get("BELLS_MALLETS", []) or self.catalog.get("LEAD_PLUCK", [])
             elif "PERCUSSION" in role_upper or "DRUM" in role_upper or "CLICK" in role_upper or "TRANSIENT" in role_upper:
                 matches = self.catalog.get("LEAD_PLUCK", []) or self.catalog.get("BASS_PUNCH", [])
-            elif "BELL" in role_upper or "MALLET" in role_upper or "METALLIC" in role_upper:
-                matches = self.catalog.get("LEAD_PLUCK", []) or self.catalog.get("KEYS_RHODES", [])
             elif "DRONE" in role_upper or "TEXTURE" in role_upper or "AMBIENT" in role_upper:
                 matches = self.catalog.get("PAD_LUSH", [])
-            elif "VOCAL" in role_upper or "VOICE" in role_upper:
-                matches = self.catalog.get("LEAD_SAW", []) or self.catalog.get("PAD_LUSH", [])
             elif "TEMPLATE" in role_upper:
                 matches = self.catalog.get("TEMPLATE", []) or self.catalog.get("GENERIC", [])
             elif "PLUCK" in role_upper:
