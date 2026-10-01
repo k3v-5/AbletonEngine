@@ -21,7 +21,9 @@ logger = logging.getLogger("LiveGuiProjectSaver")
 
 # Windows API Constants
 DESKTOP_ALL = 0x01FF
-DEFAULT_PROJECTS_DIR = Path(r"E:\Disco F\Proyectos Musicales")
+PRIMARY_PROJECTS_DIR = Path(r"F:\Canciones")
+FALLBACK_PROJECTS_DIR = Path(r"E:\Disco F\Proyectos Musicales")
+DEFAULT_PROJECTS_DIR = PRIMARY_PROJECTS_DIR if PRIMARY_PROJECTS_DIR.exists() or Path("F:/").exists() else FALLBACK_PROJECTS_DIR
 
 WM_SETTEXT = 0x000C
 BM_CLICK = 0x00F5
@@ -31,6 +33,28 @@ IDCANCEL = 2
 IDYES = 6
 
 
+def normalize_genre_family(genre_str: Optional[str]) -> str:
+    """Normalizes any musical genre string into its primary catalog genre folder."""
+    if not genre_str:
+        return "Reggaeton"
+    g = str(genre_str).lower().strip()
+    if any(k in g for k in ["reggaeton", "dembow", "neoperreo", "perreo", "tainy"]):
+        return "Reggaeton"
+    elif any(k in g for k in ["trap", "hip hop", "hiphop", "drill", "boombap"]):
+        return "Trap_HipHop"
+    elif any(k in g for k in ["house", "tech", "techno", "edm", "afro", "electronic"]):
+        return "Electronic"
+    elif any(k in g for k in ["synthwave", "cyberpunk", "retrowave", "synth"]):
+        return "Synthwave"
+    elif any(k in g for k in ["rock", "metal", "punk", "guitar"]):
+        return "Rock"
+    elif any(k in g for k in ["pop", "rnb", "r&b", "indie"]):
+        return "Pop_RnB"
+    else:
+        clean = "".join(c for c in str(genre_str) if c.isalnum() or c in ("_", "-")).strip("_")
+        return clean.capitalize() if clean else "Reggaeton"
+
+
 class LiveGuiProjectSaver:
     """Automates saving the running Ableton Live Set (.als) with a named project folder."""
 
@@ -38,12 +62,14 @@ class LiveGuiProjectSaver:
     def save_live_set(
         cls,
         project_name: str,
+        genre: Optional[str] = "Reggaeton",
         base_dir: Optional[Path] = None,
         timeout_seconds: float = 8.0
     ) -> Dict[str, Any]:
-        """
+        r"""
         Automates 'Save Live Set As...' in Ableton Live 12.
-        Saves to <base_dir>/<project_name>/<project_name>.als and updates the window title.
+        Saves to <base_dir>/<genre>/<project_name>/<project_name>.als and updates the window title.
+        Default base_dir: F:\Canciones (organized by genre).
         Includes a fail-safe watchdog that dismisses the dialog if save fails,
         guaranteeing Ableton never stays locked in a modal state.
         """
@@ -52,14 +78,15 @@ class LiveGuiProjectSaver:
             clean_name = "Untitled_Project"
 
         if base_dir is None:
-            base_dir = DEFAULT_PROJECTS_DIR
+            base_dir = DEFAULT_PROJECTS_DIR if (DEFAULT_PROJECTS_DIR.exists() or Path("F:/").exists()) else FALLBACK_PROJECTS_DIR
 
-        dest_dir = Path(base_dir) / clean_name
+        genre_dir = normalize_genre_family(genre)
+        dest_dir = Path(base_dir) / genre_dir / clean_name
         dest_dir.mkdir(parents=True, exist_ok=True)
         target_als = dest_dir / f"{clean_name}.als"
         full_path_str = str(target_als.resolve())
 
-        logger.info(f"Initiating autonomous Live Set save for '{clean_name}' at {full_path_str}")
+        logger.info(f"Initiating autonomous Live Set save for '{clean_name}' (Genre: {genre_dir}) at {full_path_str}")
 
         u = ctypes.windll.user32
         k = ctypes.windll.kernel32

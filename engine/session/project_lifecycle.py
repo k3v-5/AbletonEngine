@@ -25,6 +25,8 @@ class ProjectLifecycleManager:
     """Manages project persistence, archiving, and clean transitions between productions."""
 
     SAVED_PROJECTS_DIR = Path("saved_projects")
+    PRIMARY_SONGS_DIR = Path(r"F:\Canciones")
+    FALLBACK_SONGS_DIR = Path(r"E:\Disco F\Proyectos Musicales")
 
     @classmethod
     def get_current_project_name(cls, session: Any) -> str:
@@ -48,61 +50,113 @@ class ProjectLifecycleManager:
         cls,
         session: Any,
         conn: Any = None,
-        custom_name: Optional[str] = None
+        custom_name: Optional[str] = None,
+        genre: Optional[str] = None
     ) -> Dict[str, Any]:
+        r"""
+        Creates a complete, self-contained project archive inside F:\Canciones\<Genre>\<Song_Name>:
+        - <Song_Name> Project / <Song_Name>.als (Native Ableton Live Project)
+        - Presets/ (Synthesized .vital presets and presets manifest)
+        - GuidedSession_Info/ (guided_session_state.json, scores, project_manifest.json, report)
+        - saved_projects/ historical rollback snapshot
         """
-        Creates a complete, self-contained project archive:
-        - state/production/guided_session.json (session history & parameters)
-        - scores and MIDI arrangement data
-        - synthesized .vital presets
-        - project_manifest.json (summary metadata)
-        - safety snapshot
-        """
+        from engine.session.gui_project_saver import LiveGuiProjectSaver, normalize_genre_family
+
+        s_data = session.data if hasattr(session, "data") else {}
+        proj_genre = genre or s_data.get("genre") or "Reggaeton"
+        safe_genre = normalize_genre_family(proj_genre)
+
         proj_name = custom_name or cls.get_current_project_name(session)
         safe_name = "".join(c for c in proj_name if c.isalnum() or c in ("_", "-")).strip() or "Project"
         timestamp = time.strftime("%Y%m%d_%H%M%S")
+
+        # 1. Base Target Directories: Primary in F:\Canciones\<Genre>\<Song_Name>
+        base_songs_root = cls.PRIMARY_SONGS_DIR if (cls.PRIMARY_SONGS_DIR.exists() or Path("F:/").exists()) else cls.FALLBACK_SONGS_DIR
+        song_project_dir = base_songs_root / safe_genre / safe_name
+        song_project_dir.mkdir(parents=True, exist_ok=True)
+
         target_dir = cls.SAVED_PROJECTS_DIR / f"{safe_name}_{timestamp}"
         target_dir.mkdir(parents=True, exist_ok=True)
 
         archived_files = []
 
-        # 1. Archive Guided Session State
+        # 2. Presets Directory inside Song Project: F:\Canciones\<Genre>\<Song_Name>\Presets
+        song_presets_dir = song_project_dir / "Presets"
+        song_presets_dir.mkdir(parents=True, exist_ok=True)
+        archive_presets_dir = target_dir / "presets"
+        archive_presets_dir.mkdir(parents=True, exist_ok=True)
+
+        vital_cache = Path("cache/vital_presets")
+        vital_user = Path(r"D:\Documentos\Vital\User\Presets\PIE_Presets")
+        active_presets = []
+
+        # Collect presets from cache and user dir
+        for p_dir in [vital_cache, vital_user]:
+            if p_dir.exists():
+                for v_file in p_dir.glob("*.vital"):
+                    dst_song = song_presets_dir / v_file.name
+                    dst_arch = archive_presets_dir / v_file.name
+                    shutil.copy2(v_file, dst_song)
+                    shutil.copy2(v_file, dst_arch)
+                    archived_files.append(str(dst_song))
+                    if v_file.name not in active_presets:
+                        active_presets.append(v_file.name)
+
+        # Write presets manifest
+        tracks = s_data.get("tracks", [])
+        presets_manifest = {
+            "song": safe_name,
+            "genre": safe_genre,
+            "total_presets": len(active_presets),
+            "presets": active_presets,
+            "tracks": [
+                {
+                    "track_index": t.get("index", idx),
+                    "track_name": t.get("name", f"Track {idx}"),
+                    "role": t.get("role", "OTHER"),
+                    "instrument": t.get("instrument", "Unknown")
+                }
+                for idx, t in enumerate(tracks)
+            ]
+        }
+        with open(song_presets_dir / "presets_manifest.json", "w", encoding="utf-8") as f_pm:
+            json.dump(presets_manifest, f_pm, indent=2)
+        archived_files.append(str(song_presets_dir / "presets_manifest.json"))
+
+        # 3. Guided Session Info inside Song Project: F:\Canciones\<Genre>\<Song_Name>\GuidedSession_Info
+        song_info_dir = song_project_dir / "GuidedSession_Info"
+        song_info_dir.mkdir(parents=True, exist_ok=True)
+
         session_state_file = CopilotStateManager.STATE_FILE
         if session_state_file.exists():
-            dst = target_dir / "guided_session_state.json"
-            shutil.copy2(session_state_file, dst)
-            archived_files.append(str(dst))
+            dst_info = song_info_dir / "guided_session_state.json"
+            dst_arch = target_dir / "guided_session_state.json"
+            shutil.copy2(session_state_file, dst_info)
+            shutil.copy2(session_state_file, dst_arch)
+            archived_files.append(str(dst_info))
 
-        # 2. Archive Active Score Files (from scratch/)
+        # Copy Active Score Files
         scratch_dir = Path("scratch")
         if scratch_dir.exists():
-            scores_dir = target_dir / "scores"
-            scores_dir.mkdir(parents=True, exist_ok=True)
+            song_scores_dir = song_info_dir / "scores"
+            song_scores_dir.mkdir(parents=True, exist_ok=True)
+            arch_scores_dir = target_dir / "scores"
+            arch_scores_dir.mkdir(parents=True, exist_ok=True)
             for score_file in scratch_dir.glob("*score*.json"):
-                dst = scores_dir / score_file.name
-                shutil.copy2(score_file, dst)
-                archived_files.append(str(dst))
+                dst_score = song_scores_dir / score_file.name
+                dst_arch = arch_scores_dir / score_file.name
+                shutil.copy2(score_file, dst_score)
+                shutil.copy2(score_file, dst_arch)
+                archived_files.append(str(dst_score))
 
-        # 3. Archive Vital Presets (from cache/vital_presets/)
-        vital_cache = Path("cache/vital_presets")
-        if vital_cache.exists():
-            presets_dir = target_dir / "presets"
-            presets_dir.mkdir(parents=True, exist_ok=True)
-            for v_file in vital_cache.glob("*.vital"):
-                dst = presets_dir / v_file.name
-                shutil.copy2(v_file, dst)
-                archived_files.append(str(dst))
-
-        # 4. Generate Project Manifest
-        s_data = session.data if hasattr(session, "data") else {}
-        tracks = s_data.get("tracks", [])
+        # 4. Generate Project Manifest and Summary Report
         manifest = {
             "project_name": proj_name,
+            "genre": safe_genre,
             "archived_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "bpm": s_data.get("bpm", 120.0),
             "key": s_data.get("key", "C"),
             "scale": s_data.get("scale", "natural_minor"),
-            "genre": s_data.get("genre", "Unknown"),
             "phase_reached": s_data.get("current_phase", "PHASE_10_COMPLETED"),
             "tracks_count": len(tracks),
             "tracks": [
@@ -117,10 +171,43 @@ class ProjectLifecycleManager:
             "archived_files_count": len(archived_files)
         }
 
-        manifest_path = target_dir / "project_manifest.json"
-        with open(manifest_path, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2)
-        archived_files.append(str(manifest_path))
+        manifest_path_song = song_info_dir / "project_manifest.json"
+        manifest_path_arch = target_dir / "project_manifest.json"
+        for m_p in [manifest_path_song, manifest_path_arch]:
+            with open(m_p, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2)
+        archived_files.append(str(manifest_path_song))
+
+        # Generate Guided Session Human-Readable Report
+        report_path = song_info_dir / "guided_session_report.md"
+        report_content = f"""# 🎵 Guided Session Production Report: {safe_name}
+
+- **Genre Family:** {safe_genre}
+- **Tempo:** {manifest['bpm']} BPM
+- **Key & Scale:** {manifest['key']} {manifest['scale']}
+- **Produced via:** AbletonEngine Guided Session Engine (Phases 1-10)
+- **Saved Location:** `{song_project_dir}`
+
+## Track Architecture
+| Index | Track Name | Role | Instrument / Device Chain |
+|-------|------------|------|---------------------------|
+"""
+        for t in manifest["tracks"]:
+            report_content += f"| {t['index']} | {t['name']} | {t['role']} | {t['instrument']} |\n"
+
+        report_content += f"""
+## Presets & Sound Design
+All synthesized Vital presets used for this production have been exported into:
+`{song_presets_dir}`
+
+## Project Files
+- Ableton Live Set: `{safe_name}.als` (located in `{song_project_dir}`)
+- Presets Manifest: `presets_manifest.json`
+- Session Metadata: `guided_session_state.json`
+"""
+        with open(report_path, "w", encoding="utf-8") as f_rep:
+            f_rep.write(report_content)
+        archived_files.append(str(report_path))
 
         # 5. Autonomous Native Live Set (.als) Save via GUI Automation
         als_saved_info = None
@@ -132,8 +219,11 @@ class ProjectLifecycleManager:
         )
         if not is_test_env:
             try:
-                from engine.session.gui_project_saver import LiveGuiProjectSaver
-                als_saved_info = LiveGuiProjectSaver.save_live_set(project_name=proj_name)
+                als_saved_info = LiveGuiProjectSaver.save_live_set(
+                    project_name=safe_name,
+                    genre=safe_genre,
+                    base_dir=base_songs_root
+                )
                 if als_saved_info.get("success"):
                     logger.info(f"Native Ableton Live Set (.als) saved autonomously: {als_saved_info.get('path')}")
                     target_als = Path(als_saved_info.get("path", ""))
@@ -150,11 +240,13 @@ class ProjectLifecycleManager:
         # 6. Create Checkpoint Snapshot
         snapshot_file = CleanSlateManager.create_snapshot(s_data, tag=f"archive_{safe_name}")
 
-        logger.info(f"Project '{proj_name}' archived to {target_dir} ({len(archived_files)} files)")
+        logger.info(f"Project '{proj_name}' persisted to {song_project_dir} and archived to {target_dir}")
 
         return {
             "status": "ARCHIVED",
             "project_name": proj_name,
+            "genre": safe_genre,
+            "song_project_dir": str(song_project_dir),
             "archive_dir": str(target_dir),
             "archived_files": archived_files,
             "snapshot_file": str(snapshot_file),
