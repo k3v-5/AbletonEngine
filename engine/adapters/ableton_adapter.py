@@ -53,7 +53,9 @@ class LiveAbletonAdapter(BaseAbletonAdapter):
         return self._send("delete_clip", {"track_index": track_index, "clip_index": clip_index})
 
     def set_track_volume(self, track_index: int, volume: float) -> Dict[str, Any]:
-        return self._send("set_track_volume", {"track_index": track_index, "volume": volume})
+        # Safeguard: Never allow volume <= 0.05 (-inf dB / mute) for musical tracks
+        safe_vol = max(0.20, float(volume))
+        return self._send("set_track_volume", {"track_index": track_index, "volume": safe_vol})
 
     def set_track_panning(self, track_index: int, panning: float) -> Dict[str, Any]:
         return self._send("set_track_panning", {"track_index": track_index, "panning": panning})

@@ -1722,6 +1722,16 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
     ],
     "808_BASS": [
         SoundSourceOption(
+            id="vst3_vital_808",
+            name="Vital Audio 808 Sub (mejor diseño de sonido)",
+            role="808_BASS",
+            category=InstrumentSourceCategory.VST3,
+            uri="query:Plugins#VST3:Vital%20Audio:Vital",
+            vendor="Vital Audio",
+            description="Spectral warp 808 sub-bass with gliding portamento (mejor diseño de sonido).",
+            blueprint={"sculpt_type": "semantic", "parameters": {"SUB_LEVEL": 0.90, "FILTER_CUTOFF": 0.30, "PORTAMENTO_GLIDE": 0.20}},
+        ),
+        SoundSourceOption(
             id="vst3_sublab_xl_808",
             name="FAW SubLab XL (808 Engine)",
             role="808_BASS",

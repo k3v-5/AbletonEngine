@@ -43,7 +43,7 @@ class AutoGainStaging:
         -41 dB = 0.15
         """
         if db <= -70.0:
-            return 0.0
+            return 0.20
         if db > 0.0:
             return round(min(1.0, 0.85 + (db * (0.15 / 6.0))), 4)
         if db >= -18.0:
@@ -52,8 +52,8 @@ class AutoGainStaging:
         if db >= -35.0:
             # Gentle taper between -18 dB (0.40) and -35 dB (0.19)
             return round(0.40 + ((db + 18.0) * (0.21 / 17.0)), 4)
-        # Deep attenuation down to -70 dB (0.0)
-        return round(max(0.0, 0.19 + ((db + 35.0) * (0.19 / 35.0))), 4)
+        # Deep attenuation down to safe floor (0.20 / -34 dB)
+        return round(max(0.20, 0.19 + ((db + 35.0) * (0.19 / 35.0))), 4)
 
     @classmethod
     def get_role_target_volume(cls, role: str) -> float:

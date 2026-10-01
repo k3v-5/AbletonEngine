@@ -69,6 +69,13 @@ class CleanSlateManager:
                         for c_idx in range(16):
                             conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": c_idx})
                             deleted_clips += 1
+
+                        # Purge leftover insert effects (keep root instrument at slot 0)
+                        t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                        t_data = t_info.get("result", t_info) if isinstance(t_info, dict) else {}
+                        devs = t_data.get("devices", [])
+                        for d_idx in range(len(devs) - 1, 0, -1):
+                            conn.send_command("delete_device", {"track_index": t_idx, "device_index": d_idx})
                     except Exception:
                         pass
 
@@ -81,6 +88,18 @@ class CleanSlateManager:
                             cid = cp.get("id", cp.get("time"))
                             if cid is not None:
                                 conn.send_command("delete_cue_point", {"cue_point_id": cid})
+                except Exception:
+                    pass
+
+                # Clear stale devices from Master track to prevent master chain pollution
+                try:
+                    clean_master_code = """
+m = song.master_track
+while len(m.devices) > 0:
+    m.delete_device(len(m.devices) - 1)
+res = 'ok'
+"""
+                    conn.send_command("execute_code", {"code": clean_master_code})
                 except Exception:
                     pass
 

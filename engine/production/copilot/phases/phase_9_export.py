@@ -179,6 +179,36 @@ class Phase9ExportHandler(BasePhaseHandler):
         except Exception as ex_audit:
             logger.debug(f"Static mix audit notice: {ex_audit}")
 
+        # 0. Per-Track Acoustic Loudness & Pre-Sum LUFS Audit (ITU-R BS.1770-5)
+        per_track_audit = None
+        per_track_calibrations = []
+        try:
+            from engine.mix.per_track_loudness import PerTrackLoudnessAuditor
+            if conn is not None and hasattr(conn, "send_command"):
+                drop_beat = 136.0
+                for sec in session.data.get("sections", []):
+                    s_name = str(sec.get("name", "")).lower()
+                    if any(k in s_name for k in ["drop", "coro", "estribillo", "chorus"]):
+                        drop_beat = float(sec.get("start_bar", 32.0)) * 4.0
+                        break
+
+                per_track_audit = PerTrackLoudnessAuditor.audit_session_tracks(
+                    conn,
+                    start_time_sec=drop_beat,
+                    duration_samples=6
+                )
+                if per_track_audit.get("hot_count", 0) > 0:
+                    per_track_calibrations = PerTrackLoudnessAuditor.apply_auto_calibration(conn, per_track_audit)
+
+                session.data["per_track_loudness"] = per_track_audit
+                session.data["per_track_calibrations"] = per_track_calibrations
+                logger.info(
+                    f"Per-track LUFS audit completed: {per_track_audit.get('tracks_audited')} tracks audited, "
+                    f"{len(per_track_calibrations)} calibrated."
+                )
+        except Exception as ex_ptl:
+            logger.warning(f"Per-track LUFS audit notice: {ex_ptl}")
+
         # 1. Routing Automático de Sidechain (Kick -> Bajo/Pads)
         kick_idx = None
         kick_name = None
@@ -472,6 +502,8 @@ class Phase9ExportHandler(BasePhaseHandler):
             "required_trim_db": audit_res.required_trim_db,
             "certificate": audit_res.certificate,
             "passed": audit_res.passed,
+            "per_track_loudness": per_track_audit,
+            "per_track_calibrations": per_track_calibrations,
             "psychoacoustic_report": psycho_report,
             "resonance_report": resonance_report,
             "top_and_tail_audit": top_tail_report
@@ -516,6 +548,14 @@ class Phase9ExportHandler(BasePhaseHandler):
         session.data["target_profile"] = target_profile
         session._save_state()
 
+        ptl_line = ""
+        if per_track_audit and per_track_audit.get("metrics"):
+            from engine.mix.per_track_loudness import PerTrackLoudnessAuditor
+            cal_count = len(per_track_calibrations)
+            cal_txt = f" ({cal_count} canales auto-calibrados quirúrgicamente)" if cal_count > 0 else " (Todos los canales dentro de norma pre-suma)"
+            table_md = PerTrackLoudnessAuditor.generate_markdown_report(per_track_audit)
+            ptl_line = f"• **Auditoría de Sonoridad por Pista (ITU-R BS.1770-5 Pre-Suma):**{cal_txt}\n{table_md}\n\n"
+
         psycho_line = ""
         if psycho_report:
             clash_hz = psycho_report.get("clash_center_freq_hz", 0.0)
@@ -547,6 +587,7 @@ class Phase9ExportHandler(BasePhaseHandler):
             f"• **Vocal Ducking & Sidechain:** {session.data.get('vocal_ducking', {}).get('status', 'CONFIGURADO')} (Atenuación: {session.data.get('vocal_ducking', {}).get('duck_amount_db', -2.5):.1f} dB).\n"
             f"• **Limpieza Mud Box Post-Vocal:** Notch en 441.4 Hz (-3.5 dB, Q=12.0) verificado y activo.\n"
             f"• **Master Boost (+3.0 dB):** Limiter Gain ajustado para True Peak competitivo y máxima pegada analógica.\n"
+            f"{ptl_line}"
             f"• **Auditoría Acústica ITU-R BS.1770-5 (Audio Real):**\n"
             f"  - Fuente: **{audio_source_type}**\n"
             f"  - Sonoridad Integrada: **{audit_res.integrated_lufs:.1f} LUFS** (Target: {audit_res.target_lufs:.1f} LUFS)\n"
@@ -561,8 +602,9 @@ class Phase9ExportHandler(BasePhaseHandler):
             "*(Ej: 'Saltar al Drop 1', 'Ir al Breakdown', 'Reproducir compás 32', 'Escuchar la Intro')*\n\n"
             "📦 **Exportación de Stems Verificada:** Responde 'Exportar stems' o 'Revisar stems' para auditar la correlación de fase en subgraves, headroom dinámico y generar el manifiesto oficial de distribución.\n"
             "🔄 **Cambio de Instrumento con Re-Validación:** Responde 'Cambiar instrumento' o 'Cambiar sonido' para reemplazar el instrumento de cualquier canal y ejecutar el ciclo completo de validación técnica (Carga VST -> Esculpido Delta >= 1 -> EQ Eight Obligatorio -> Notas MIDI -> Re-auditoría LUFS).\n"
+            "💾 **Guardar y Empezar de Nuevo:** Responde 'Guardar proyecto y empezar nuevo' o 'Nuevo proyecto' para archivar este tema en `saved_projects/`, resetear Live a lienzo limpio y comenzar una nueva producción desde Fase 1.\n"
             "🎧 **El Copilot permanece activo y escuchando en esta misma herramienta.**\n"
-            "Puedes solicitar cualquier ajuste en lenguaje natural (ej: 'Saltar al Drop 1', 'Exportar stems', 'Cambiar instrumento', 'Sube 1.5 dB al bajo', 'Cambia el tempo a 128 BPM')."
+            "Puedes solicitar cualquier ajuste en lenguaje natural (ej: 'Saltar al Drop 1', 'Exportar stems', 'Guardar y empezar nuevo', 'Cambiar instrumento', 'Sube 1.5 dB al bajo', 'Cambia el tempo a 128 BPM')."
         )
 
         return {

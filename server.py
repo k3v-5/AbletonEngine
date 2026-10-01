@@ -8386,6 +8386,39 @@ def export_and_audit_stems(
         return {"status": "error", "message": str(e)}
 
 
+@mcp.tool()
+def audit_and_calibrate_track_lufs(
+    apply_calibration: bool = False,
+    start_time_sec: float = 136.0,
+    duration_samples: int = 8
+) -> dict:
+    """
+    Physical per-track loudness and ITU-R BS.1770-5 compliance auditor.
+    1. Plays physical arrangement in Ableton Live at highest energy section (Drop).
+    2. Samples real-time meter telemetry (peak, RMS, K-weighted loudness estimation) across all active tracks.
+    3. Compares each track against professional pre-sum standards (-14 to -20 LUFS).
+    4. Generates an executive Markdown compliance table with deviation and suggested trim dB.
+    5. Optionally applies calibrated fader adjustments directly to Live mixer (with min 0.20 safety floor).
+    """
+    try:
+        from engine.mix.per_track_loudness import PerTrackLoudnessAuditor
+        conn = get_ableton_connection()
+        res = PerTrackLoudnessAuditor.audit_session_tracks(
+            conn=conn,
+            start_time_sec=start_time_sec,
+            duration_samples=duration_samples
+        )
+        report_md = PerTrackLoudnessAuditor.generate_markdown_report(res)
+        res["markdown_report"] = report_md
+        if apply_calibration:
+            trims = PerTrackLoudnessAuditor.apply_auto_calibration(conn, res)
+            res["trims_applied"] = trims
+        return res
+    except Exception as e:
+        logger.error(f"Error in audit_and_calibrate_track_lufs: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 
 @mcp.tool()
 def generate_organic_foley_bed(

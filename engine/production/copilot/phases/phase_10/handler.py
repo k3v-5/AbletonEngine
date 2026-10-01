@@ -62,6 +62,19 @@ class Phase10ListenersHandler(BasePhaseHandler):
         tracks = session.data.get("tracks", [])
         completed_phase = session.data.get("current_phase", "PHASE_10_COMPLETED")
 
+        # 0. Project Lifecycle: Save & Start New Project Gatekeeper
+        is_lifecycle = any(w in text for w in [
+            "guardar y empezar", "guardar y nuevo", "nuevo proyecto", "empezar de nuevo",
+            "reiniciar proyecto", "comenzar nuevo proyecto", "nuevo beat", "nueva cancion",
+            "guardar proyecto", "archivar proyecto"
+        ]) or (("opcion 5" in text or "opcion e" in text) and any(w in text for w in ["guardar", "nuevo", "proyecto", "archivar"]))
+        if is_lifecycle or session.data.get("lifecycle_decision_active", False):
+            from engine.session.project_lifecycle import ProjectLifecycleManager
+            if session.data.get("lifecycle_decision_active", False):
+                return ProjectLifecycleManager.handle_lifecycle_decision(session, conn, user_input)
+            session.data["lifecycle_decision_active"] = True
+            return ProjectLifecycleManager.prompt_lifecycle_decision(session)
+
         # 0. Instrument Swap Re-validation Flow (Fases 3 -> 4 -> 5 -> 6 -> 9 -> 10)
         is_swap_trigger = any(w in text for w in [
             "cambiar instrumento", "cambio de instrumento", "reemplazar instrumento",

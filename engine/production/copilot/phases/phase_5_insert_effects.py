@@ -315,6 +315,18 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         if is_express_chain:
             applied_express_devices = []
             trk["insert_effects"] = []
+
+            # Deduplication & Clean-Slate Guard: Purge any existing insert audio effects on this track before loading fresh chain
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
+                    # Purge insert effects strictly from highest index down to index 1 (never delete index 0)
+                    for d_i in range(len(raw_devs) - 1, 0, -1):
+                        conn.send_command("delete_device", {"track_index": t_idx, "device_index": d_i})
+                except Exception as ex_clean:
+                    logger.debug(f"Notice during express chain cleanup on track {t_idx}: {ex_clean}")
+
             for d_i, d_eff in enumerate(fx_list):
                 d_eff_name = d_eff["name"]
                 d_eff_uri = d_eff["uri"]
@@ -346,6 +358,20 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
                         conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": d_eff_uri})
+                        # Apply calibrated parameters to the loaded effect
+                        t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
+                        cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
+                        dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
+                        for p_k, p_v in d_params.items():
+                            try:
+                                conn.send_command("set_device_parameter", {
+                                    "track_index": t_idx,
+                                    "device_index": dev_target_idx,
+                                    "parameter": p_k,
+                                    "value": float(p_v) if isinstance(p_v, (int, float)) else 0.5
+                                })
+                            except Exception:
+                                pass
                     except Exception:
                         pass
 

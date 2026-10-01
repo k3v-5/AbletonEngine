@@ -241,3 +241,5 @@ scratch/
 temp_*.json
 temp_slices/
 .agents/
+*.zip
+saved_projects/

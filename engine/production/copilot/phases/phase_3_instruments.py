@@ -354,14 +354,18 @@ else:
                 return session._prompt_current_track_params()
     
         # Audio Track / Vocal Take Loading Branch
-        if is_audio and role == "VOCALS" and not wants_chopping:
+        if is_audio and role == "VOCALS":
             p_samples = get_personal_samples("vocal")
             v_samples = [s for s in p_samples if "vocal" in str(s.get("folder", "")).lower() or "vocales" in str(s.get("folder", "")).lower() or any(k in str(s.get("name", "")).lower() for k in ["duki", "vocal", "vox", "kanye", "bts"])]
     
-            # Check if user explicitly selected Option 2 (Import external take from library)
+            # Check if user explicitly selected Option 2 or Option 3 (Import/Chopping audio take)
             wants_import = any(w in u_clean for w in ["opcion 2", "2.", "importar", "cargar toma", "archivo", "libreria"]) or u_clean == "2"
+            if wants_chopping:
+                trk["chopping_mode"] = True
+                wants_import = True
+
             chosen_sample = None
-            if not wants_import:
+            if not wants_import and not wants_chopping:
                 for vs in v_samples:
                     vs_name = vs["name"].lower()
                     vs_base = vs_name.rsplit(".", 1)[0]
@@ -656,8 +660,21 @@ for slot in t.clip_slots:
     
         is_verified = False
         load_error = None
-    
-        if conn is not None and hasattr(conn, "send_command"):
+
+        if trk.get("is_audio") or role == "VOCALS":
+            logger.info(f"Track {t_idx} is an audio track ({role}). Bypassing instrument loader to prevent Live track spawning.")
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": "query:AudioFx#EQ%20Eight"})
+                    conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": "query:AudioFx#Compressor"})
+                except Exception:
+                    pass
+            is_verified = True
+            display_name = trk.get("instrument") or f"Audio Track ({role})"
+            target_uri = "query:AudioFx#EQ%20Eight"
+            dev_idx = 0
+
+        if conn is not None and hasattr(conn, "send_command") and not trk.get("is_audio") and role != "VOCALS":
             try:
                 try:
                     res = conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": target_uri})

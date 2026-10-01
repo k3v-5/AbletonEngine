@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 import json
 import logging
+import shutil
 
 from engine.sound_design.vital_parameter_schema import VitalParameterSchema
 from engine.sound_design.vital_wavetable_synth import WavetableSynthesizer
@@ -29,6 +30,26 @@ class VitalSoundEngine:
     """
 
     DEFAULT_OUTPUT_DIR = Path("cache/vital_presets")
+
+    @staticmethod
+    def _sync_to_user_presets(file_path: Path) -> Optional[Path]:
+        """Automatically mirrors a compiled .vital file to the user's native Vital directory."""
+        candidates = [
+            Path(r"D:\Documentos\Vital\User\Presets\PIE_Presets"),
+            Path.home() / "Documents" / "Vital" / "User" / "Presets" / "PIE_Presets",
+            Path.home() / "Documentos" / "Vital" / "User" / "Presets" / "PIE_Presets"
+        ]
+        for dest_dir in candidates:
+            try:
+                if dest_dir.parent.exists() or dest_dir.exists():
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    dest_path = dest_dir / file_path.name
+                    shutil.copy2(file_path, dest_path)
+                    logger.info(f"[VitalSoundEngine] Synced preset to user directory: {dest_path}")
+                    return dest_path
+            except Exception as ex:
+                logger.debug(f"[VitalSoundEngine] Could not sync to {dest_dir}: {ex}")
+        return None
 
     def __init__(self, catalog_paths: Optional[List[Path]] = None):
         self.catalog = ArchetypeCatalog(search_paths=catalog_paths)
@@ -96,6 +117,8 @@ class VitalSoundEngine:
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(sculpted_data, f, indent=2)
 
+        self._sync_to_user_presets(out_path)
+
         logger.info(f"[VitalSoundEngine] Successfully generated preset: {out_path} ({out_path.stat().st_size} bytes)")
         return out_path
 
@@ -136,6 +159,8 @@ class VitalSoundEngine:
         out_path = target_dir / f"{preset_name}.vital"
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(sculpted_data, f, indent=2)
+
+        self._sync_to_user_presets(out_path)
 
         logger.info(f"[VitalSoundEngine] Mutated preset saved: {out_path}")
         return out_path
@@ -190,6 +215,8 @@ class VitalSoundEngine:
 
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(designed_data, f, indent=2)
+
+        self._sync_to_user_presets(out_path)
 
         logger.info(
             f"[VitalSoundEngine] Granular preset created: {out_path} "

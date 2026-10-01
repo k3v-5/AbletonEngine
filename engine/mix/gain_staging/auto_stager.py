@@ -50,14 +50,14 @@ class AutoGainStagingEngine:
     def db_to_linear(cls, db_val: float) -> float:
         """Converts dB to Live 12 fader linear gain using verified piecewise calibration (0 dB = 0.85)."""
         if db_val <= -70.0:
-            return 0.0
+            return 0.20
         if db_val > 0.0:
             return round(min(1.0, 0.85 + (db_val * (0.15 / 6.0))), 4)
         if db_val >= -18.0:
             return round(0.85 + (db_val / 40.0), 4)
         if db_val >= -35.0:
             return round(0.40 + ((db_val + 18.0) * (0.21 / 17.0)), 4)
-        return round(max(0.0, 0.19 + ((db_val + 35.0) * (0.19 / 35.0))), 4)
+        return round(max(0.20, 0.19 + ((db_val + 35.0) * (0.19 / 35.0))), 4)
 
     @classmethod
     def calculate_session_calibration(

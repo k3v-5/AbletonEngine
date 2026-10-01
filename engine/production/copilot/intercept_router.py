@@ -25,6 +25,22 @@ class CopilotInterceptRouter:
         norm_text = _normalize_text(user_input)
         phase = session.data.get("current_phase", "PHASE_1_TRACKS")
 
+        # Project Lifecycle Intercept (Save & Start New Project / Clean Slate)
+        if session.data.get("lifecycle_decision_active", False):
+            from engine.session.project_lifecycle import ProjectLifecycleManager
+            return ProjectLifecycleManager.handle_lifecycle_decision(session, conn, user_input)
+
+        is_lifecycle_trigger = any(w in norm_text for w in [
+            "guardar y empezar", "guardar y nuevo", "nuevo proyecto", "empezar de nuevo",
+            "reiniciar proyecto", "comenzar nuevo proyecto", "nuevo beat", "nueva cancion",
+            "nuevo tema", "guardar proyecto", "archivar proyecto", "save and new",
+            "save project", "start new project", "fresh project"
+        ])
+        if is_lifecycle_trigger:
+            from engine.session.project_lifecycle import ProjectLifecycleManager
+            session.data["lifecycle_decision_active"] = True
+            return ProjectLifecycleManager.prompt_lifecycle_decision(session)
+
         # 1. Creative Continuity & Omission Audit Queries
         if any(w in norm_text for w in ["ver contrato", "contrato de la cancion", "contrato de la obra", "mostrar contrato", "obligaciones", "song contract"]):
             return session._handle_song_contract_query()
@@ -51,7 +67,7 @@ class CopilotInterceptRouter:
             return session._handle_hook_evaluation_query()
 
         # Smart Ear Candy & Micro-Transitions Query
-        if any(w in norm_text for w in ["inyectar ear candy", "ear candy", "micro transiciones", "gestos de ear candy", "ver ear candy"]):
+        if any(w in norm_text for w in ["inyectar ear candy", "micro transiciones", "gestos de ear candy", "ver ear candy", "consultar ear candy"]) or (phase != "PHASE_1_TRACKS" and norm_text == "ear candy"):
             return session._handle_ear_candy_query()
 
         # Dynamic Space Ducking (Reverbs & Delays Duckeados con Bloom) Query
