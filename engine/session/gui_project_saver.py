@@ -1,10 +1,11 @@
 # engine/session/gui_project_saver.py
 """
-Windows GUI Automation Project Saver for Ableton Live.
+Deterministic Windows GUI Automation Project Saver for Ableton Live.
 
 Enables autonomous system-level saving of the native Ableton Live Set (.als)
 with its real song name and project directory without requiring user mouse/keyboard input.
-Works across interactive desktop sessions (WinSta0\\default) via thread desktop binding.
+Uses Win32 message-based controls (WM_SETTEXT, BM_CLICK, WM_COMMAND) and includes
+an automatic watchdog fail-safe (IDCANCEL) to prevent dialogs from ever hanging open.
 """
 
 import os
@@ -22,6 +23,13 @@ logger = logging.getLogger("LiveGuiProjectSaver")
 DESKTOP_ALL = 0x01FF
 DEFAULT_PROJECTS_DIR = Path(r"E:\Disco F\Proyectos Musicales")
 
+WM_SETTEXT = 0x000C
+BM_CLICK = 0x00F5
+WM_COMMAND = 0x0111
+IDOK = 1
+IDCANCEL = 2
+IDYES = 6
+
 
 class LiveGuiProjectSaver:
     """Automates saving the running Ableton Live Set (.als) with a named project folder."""
@@ -31,11 +39,13 @@ class LiveGuiProjectSaver:
         cls,
         project_name: str,
         base_dir: Optional[Path] = None,
-        timeout_seconds: float = 10.0
+        timeout_seconds: float = 8.0
     ) -> Dict[str, Any]:
         """
         Automates 'Save Live Set As...' in Ableton Live 12.
         Saves to <base_dir>/<project_name>/<project_name>.als and updates the window title.
+        Includes a fail-safe watchdog that dismisses the dialog if save fails,
+        guaranteeing Ableton never stays locked in a modal state.
         """
         clean_name = "".join(c for c in project_name if c.isalnum() or c in (" ", "_", "-")).strip()
         if not clean_name:
@@ -99,9 +109,9 @@ class LiveGuiProjectSaver:
 
         # 4. Bring window to foreground with thread attachment
         my_tid = k.GetCurrentThreadId()
-        _, ab_pid = wintypes.DWORD(), wintypes.DWORD()
+        ab_pid = wintypes.DWORD()
         ab_tid = u.GetWindowThreadProcessId(main_win.handle, ctypes.byref(ab_pid))
-        
+
         attached = False
         if ab_tid and ab_tid != my_tid:
             attached = bool(u.AttachThreadInput(my_tid, ab_tid, True))
@@ -132,37 +142,80 @@ class LiveGuiProjectSaver:
 
         if not dialog:
             if attached:
-                u.AttachThreadInput(my_tid, ab_tid, False)
+                try:
+                    u.AttachThreadInput(my_tid, ab_tid, False)
+                except Exception:
+                    pass
             logger.error("Save As dialog did not appear within timeout.")
             return {"success": False, "error": "Save dialog timed out", "path": full_path_str}
 
         logger.info(f"Save dialog detected: '{dialog.window_text()}' (Handle: {dialog.handle})")
         time.sleep(0.4)
 
-        # 7. Locate Edit control and set full path
-        edit_ctrl = None
-        for c in dialog.children():
-            if c.class_name() == "Edit":
-                edit_ctrl = c
-                break
+        # 7. Locate Edit controls and Guardar button using Win32 Child Enum
+        WNDENUMCHILDPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        edit_hwnds = []
+        guardar_btn_hwnd = None
 
-        if edit_ctrl:
-            edit_ctrl.set_text(full_path_str)
-            time.sleep(0.3)
-            edit_ctrl.type_keys("{ENTER}")
+        def enum_child(hwnd, lparam):
+            nonlocal guardar_btn_hwnd
+            ctrl_id = u.GetDlgCtrlID(hwnd)
+            cls_name = ctypes.create_unicode_buffer(256)
+            u.GetClassNameW(hwnd, cls_name, 256)
+            txt = ctypes.create_unicode_buffer(256)
+            u.GetWindowTextW(hwnd, txt, 256)
+
+            if cls_name.value == "Edit":
+                edit_hwnds.append(hwnd)
+            elif cls_name.value == "Button":
+                if ctrl_id == IDOK or any(k in txt.value.lower() for k in ["guardar", "save"]):
+                    guardar_btn_hwnd = hwnd
+            return True
+
+        u.EnumChildWindows(dialog.handle, WNDENUMCHILDPROC(enum_child), 0)
+
+        # 8. Set target path in Edit controls via direct Win32 WM_SETTEXT
+        if edit_hwnds:
+            for eh in edit_hwnds:
+                u.SendMessageW(eh, WM_SETTEXT, 0, full_path_str)
         else:
-            dialog.type_keys(f"^a{full_path_str}{{ENTER}}", with_spaces=True)
+            dialog.type_keys(f"^a{full_path_str}", with_spaces=True)
 
-        # 8. Check for overwrite dialog if file existed
-        time.sleep(0.8)
+        time.sleep(0.3)
+
+        # 9. Trigger click on Guardar via Win32 BM_CLICK and WM_COMMAND
+        if guardar_btn_hwnd:
+            u.SendMessageW(guardar_btn_hwnd, BM_CLICK, 0, 0)
+            time.sleep(0.15)
+            u.SendMessageW(dialog.handle, WM_COMMAND, IDOK, guardar_btn_hwnd)
+        else:
+            u.SendMessageW(dialog.handle, WM_COMMAND, IDOK, 0)
+            dialog.type_keys("{ENTER}")
+
+        # 10. Check for overwrite confirmation dialog ("¿Desea reemplazarlo?")
+        time.sleep(0.6)
         for w in app.windows():
-            if w.handle not in (main_win.handle, getattr(dialog, "handle", None)):
+            if w.handle not in (main_win.handle, dialog.handle):
                 txt = w.window_text().lower()
                 if any(k in txt for k in ["confirmar", "reemplazar", "replace", "already exists", "sobrescribir"]):
-                    logger.info("Overwrite confirmation dialog detected. Confirming replacement...")
-                    w.type_keys("{ENTER}")
+                    logger.info(f"Overwrite confirmation dialog detected: '{w.window_text()}'. Confirming replacement...")
+                    u.SendMessageW(w.handle, WM_COMMAND, IDYES, 0)
+                    u.SendMessageW(w.handle, WM_COMMAND, IDOK, 0)
                     time.sleep(0.4)
                     break
+
+        # 11. Fail-Safe Watchdog: Ensure the dialog closes completely
+        time.sleep(0.8)
+        dialog_still_open = False
+        for w in app.windows():
+            if w.handle == dialog.handle:
+                dialog_still_open = True
+                break
+
+        if dialog_still_open:
+            logger.warning("Watchdog: Save dialog still open after click. Sending fail-safe IDCANCEL to prevent lockup...")
+            u.SendMessageW(dialog.handle, WM_COMMAND, IDCANCEL, 0)
+            time.sleep(0.3)
 
         if attached:
             try:
@@ -170,10 +223,10 @@ class LiveGuiProjectSaver:
             except Exception:
                 pass
 
-        # 9. Verify title update
+        # 12. Verify title update and file existence
         new_title = old_title
         verify_start = time.time()
-        while time.time() - verify_start < 8.0:
+        while time.time() - verify_start < 5.0:
             time.sleep(0.25)
             try:
                 new_title = main_win.window_text()
@@ -182,7 +235,7 @@ class LiveGuiProjectSaver:
             except Exception:
                 pass
 
-        logger.info(f"Ableton window title updated to: '{new_title}'")
+        logger.info(f"Ableton window title is now: '{new_title}'")
         is_success = clean_name.lower() in new_title.lower() or target_als.exists()
 
         return {

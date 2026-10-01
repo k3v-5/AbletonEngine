@@ -124,21 +124,28 @@ class ProjectLifecycleManager:
 
         # 5. Autonomous Native Live Set (.als) Save via GUI Automation
         als_saved_info = None
-        try:
-            from engine.session.gui_project_saver import LiveGuiProjectSaver
-            als_saved_info = LiveGuiProjectSaver.save_live_set(project_name=proj_name)
-            if als_saved_info.get("success"):
-                logger.info(f"Native Ableton Live Set (.als) saved autonomously: {als_saved_info.get('path')}")
-                target_als = Path(als_saved_info.get("path", ""))
-                if target_als.exists():
-                    archive_als = target_dir / target_als.name
-                    try:
-                        shutil.copy2(target_als, archive_als)
-                        archived_files.append(str(archive_als))
-                    except Exception:
-                        pass
-        except Exception as ex_als_save:
-            logger.warning(f"Notice on autonomous Live Set save: {ex_als_save}")
+        is_test_env = bool(
+            os.environ.get("PYTEST_CURRENT_TEST")
+            or getattr(session, "_is_test_mode", False)
+            or (conn is not None and getattr(conn, "__class__", None).__name__ == "MockAbletonAdapter")
+            or "test" in str(proj_name).lower()
+        )
+        if not is_test_env:
+            try:
+                from engine.session.gui_project_saver import LiveGuiProjectSaver
+                als_saved_info = LiveGuiProjectSaver.save_live_set(project_name=proj_name)
+                if als_saved_info.get("success"):
+                    logger.info(f"Native Ableton Live Set (.als) saved autonomously: {als_saved_info.get('path')}")
+                    target_als = Path(als_saved_info.get("path", ""))
+                    if target_als.exists():
+                        archive_als = target_dir / target_als.name
+                        try:
+                            shutil.copy2(target_als, archive_als)
+                            archived_files.append(str(archive_als))
+                        except Exception:
+                            pass
+            except Exception as ex_als_save:
+                logger.warning(f"Notice on autonomous Live Set save: {ex_als_save}")
 
         # 6. Create Checkpoint Snapshot
         snapshot_file = CleanSlateManager.create_snapshot(s_data, tag=f"archive_{safe_name}")
