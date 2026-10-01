@@ -126,6 +126,10 @@ class Phase6Arranger:
                     )
                     raise ex_retry
             else:
+                if "MIDI clips can only be created on MIDI tracks" in err_msg or "only be created on MIDI" in err_msg:
+                    logger.info(f"Track {t_idx} ('{trk.get('name')}') is an audio track in Live. Bypassing MIDI clip creation safely.")
+                    trk["is_audio"] = True
+                    return True
                 logger.error(f"Clip deployment error on track {t_idx} section {s_idx}: {ex}")
                 raise ex
 

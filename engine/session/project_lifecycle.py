@@ -156,7 +156,6 @@ class ProjectLifecycleManager:
             # LOM Deep Clean: Reduce tracks to 1 pristine track and clear master
             clean_code = """
 import Live
-song = self.song()
 
 # 1. Stop playback
 song.stop_playing()

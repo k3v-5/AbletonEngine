@@ -148,6 +148,12 @@ class Phase6Parser:
         if isinstance(trks, dict):
             for t_k, sec_val in trks.items():
                 if isinstance(sec_val, dict):
+                    if "notes" in sec_val and isinstance(sec_val["notes"], list):
+                        normed_notes = _norm_notes(sec_val["notes"])
+                        custom_map[(t_k, "all")] = normed_notes
+                        t_role = sec_val.get("role")
+                        if t_role:
+                            custom_map[(str(t_role).upper(), "all")] = normed_notes
                     for s_k, n_list in sec_val.items():
                         try:
                             s_idx = int(s_k)
