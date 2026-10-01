@@ -237,6 +237,26 @@ All synthesized Vital presets used for this production have been exported into:
             except Exception as ex_als_save:
                 logger.warning(f"Notice on autonomous Live Set save: {ex_als_save}")
 
+        # 5.5 Autonomous Visual Audit Capture (Arrangement View Screenshot)
+        visual_audit_info = None
+        if not is_test_env:
+            try:
+                from engine.session.visual_auditor import LiveVisualAuditor
+                img_path = song_project_dir / "visual_audit.png"
+                visual_audit_info = LiveVisualAuditor.capture_session_screenshot(
+                    output_path=img_path,
+                    conn=conn,
+                    switch_view=True
+                )
+                if visual_audit_info.get("success"):
+                    archived_files.append(str(img_path))
+                    try:
+                        shutil.copy2(img_path, target_dir / "visual_audit.png")
+                    except Exception:
+                        pass
+            except Exception as ex_vis:
+                logger.debug(f"Visual audit notice: {ex_vis}")
+
         # 6. Create Checkpoint Snapshot
         snapshot_file = CleanSlateManager.create_snapshot(s_data, tag=f"archive_{safe_name}")
 
@@ -251,7 +271,8 @@ All synthesized Vital presets used for this production have been exported into:
             "archived_files": archived_files,
             "snapshot_file": str(snapshot_file),
             "als_saved": als_saved_info.get("success", False) if als_saved_info else False,
-            "als_path": als_saved_info.get("path") if als_saved_info else None
+            "als_path": als_saved_info.get("path") if als_saved_info else None,
+            "visual_audit": visual_audit_info
         }
 
     @classmethod
