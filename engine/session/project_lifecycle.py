@@ -122,7 +122,25 @@ class ProjectLifecycleManager:
             json.dump(manifest, f, indent=2)
         archived_files.append(str(manifest_path))
 
-        # 5. Create Checkpoint Snapshot
+        # 5. Autonomous Native Live Set (.als) Save via GUI Automation
+        als_saved_info = None
+        try:
+            from engine.session.gui_project_saver import LiveGuiProjectSaver
+            als_saved_info = LiveGuiProjectSaver.save_live_set(project_name=proj_name)
+            if als_saved_info.get("success"):
+                logger.info(f"Native Ableton Live Set (.als) saved autonomously: {als_saved_info.get('path')}")
+                target_als = Path(als_saved_info.get("path", ""))
+                if target_als.exists():
+                    archive_als = target_dir / target_als.name
+                    try:
+                        shutil.copy2(target_als, archive_als)
+                        archived_files.append(str(archive_als))
+                    except Exception:
+                        pass
+        except Exception as ex_als_save:
+            logger.warning(f"Notice on autonomous Live Set save: {ex_als_save}")
+
+        # 6. Create Checkpoint Snapshot
         snapshot_file = CleanSlateManager.create_snapshot(s_data, tag=f"archive_{safe_name}")
 
         logger.info(f"Project '{proj_name}' archived to {target_dir} ({len(archived_files)} files)")
@@ -132,7 +150,9 @@ class ProjectLifecycleManager:
             "project_name": proj_name,
             "archive_dir": str(target_dir),
             "archived_files": archived_files,
-            "snapshot_file": str(snapshot_file)
+            "snapshot_file": str(snapshot_file),
+            "als_saved": als_saved_info.get("success", False) if als_saved_info else False,
+            "als_path": als_saved_info.get("path") if als_saved_info else None
         }
 
     @classmethod
