@@ -237,8 +237,9 @@ All synthesized Vital presets used for this production have been exported into:
             except Exception as ex_als_save:
                 logger.warning(f"Notice on autonomous Live Set save: {ex_als_save}")
 
-        # 5.5 Autonomous Visual Audit Capture (Arrangement View Screenshot)
+        # 5.5 Autonomous Visual Audit Capture (Arrangement View Screenshot) & Physical Audit
         visual_audit_info = None
+        audit_verdict = None
         if not is_test_env:
             try:
                 from engine.session.visual_auditor import LiveVisualAuditor
@@ -254,6 +255,13 @@ All synthesized Vital presets used for this production have been exported into:
                         shutil.copy2(img_path, target_dir / "visual_audit.png")
                     except Exception:
                         pass
+
+                audit_verdict = LiveVisualAuditor.audit_session_physical_integrity(
+                    conn=conn,
+                    song_dir=song_project_dir,
+                    project_name=safe_name
+                )
+                logger.info(f"Integrity audit verdict for '{safe_name}': {audit_verdict.get('overall_verdict')}")
             except Exception as ex_vis:
                 logger.debug(f"Visual audit notice: {ex_vis}")
 
@@ -272,7 +280,8 @@ All synthesized Vital presets used for this production have been exported into:
             "snapshot_file": str(snapshot_file),
             "als_saved": als_saved_info.get("success", False) if als_saved_info else False,
             "als_path": als_saved_info.get("path") if als_saved_info else None,
-            "visual_audit": visual_audit_info
+            "visual_audit": visual_audit_info,
+            "audit_verdict": audit_verdict
         }
 
     @classmethod

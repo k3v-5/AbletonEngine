@@ -50,3 +50,28 @@ Cada proyecto debe conservar dentro de `GuidedSession_Info\`:
 2. Las partituras MIDI generadas (`scores/*.json`).
 3. El manifiesto del proyecto con los parámetros de mezcla y masterización (`project_manifest.json`).
 4. El informe Markdown estructurado (`guided_session_report.md`).
+5. El veredicto técnico de integridad (`session_audit_verdict.json`).
+
+---
+
+## 👁️ 5. Regla Mandatoria de Inspección Visual de la IA (`visual_audit.png`)
+
+Al finalizar cada producción de canción (sea individual o en bucle nocturno), la IA **TIENE LA OBLIGACIÓN ESTRICTA** de:
+1. **Ver la imagen físicamente:** La IA debe invocar la herramienta `view_file` sobre el archivo de imagen:
+   `F:\Canciones\<Género>\<Nombre_Cancion>\visual_audit.png`
+2. **Inspeccionar visualmente los 4 criterios de integridad:**
+   - **Criterio A (Título):** Confirmar en la barra superior de Ableton que el proyecto tiene el nombre real de la canción (ej: `DATA_Horizon - Ableton Live 12 Suite`).
+   - **Criterio B (Línea de Tiempo / Arrangement):** Confirmar que la vista Arrangement muestra los bloques de clips MIDI verdes distribuidos a lo largo del tiempo (intro, coro, versos) y que la canción no es un lienzo vacío.
+   - **Criterio C (Batería en Pista 0):** Confirmar que la Pista 0 (`[DRUMS]`) contiene el Drum Rack y su cadena de inserción de efectos en la vista inferior, y que no fue secuestrada ni reemplazada por un sintetizador o bajo.
+   - **Criterio D (Ausencia de Modales de Error):** Confirmar que la interfaz de Ableton está limpia y sin ventanas emergentes de error ("Audio Engine Off", "Missing Files", "Crash Dialog") bloqueando la pantalla.
+
+---
+
+## 🛡️ 6. Veredicto de Integridad Física Obligatorio (`audit_session_physical_integrity`)
+
+El sistema ejecutará automáticamente la compuerta de verificación `LiveVisualAuditor.audit_session_physical_integrity()`:
+- Comprueba que el `.als` exista y pese > 300 KB.
+- Comprueba que la carpeta `Presets/` contenga los presets `.vital` y el `presets_manifest.json`.
+- Comprueba que la Pista 0 contenga el kit de batería (`has_drum_kit: True`) y no esté secuestrada (`track_0_hijacked: False`).
+- Comprueba que la imagen `visual_audit.png` sea válida (no sea un fotograma negro o congelado).
+- **Si el veredicto no es `VERIFIED_SUCCESS`, la producción NO se da por finalizada** y el sistema debe aplicar reparación inmediata o alertar al usuario.
