@@ -146,7 +146,24 @@ class RoleTrackOrchestrator:
         if cleaned_under in cls.ROLE_MAP:
             return cls.ROLE_MAP[cleaned_under]
 
-        words = set(cleaned.replace("-", " ").replace("_", " ").split())
+        # Extract bracketed role tag if present (e.g. "[DRUMS] 808 Core Kit" -> "DRUMS")
+        import re
+        tag_match = re.match(r"^\[([A-Za-z0-9_]+)\]", cleaned)
+        if tag_match:
+            tag = tag_match.group(1)
+            if tag in cls.ROLE_MAP.values():
+                return tag
+
+        clean_tokens = re.sub(r"[^\w\s]", " ", cleaned)
+        words = set(clean_tokens.split())
+
+        # Disambiguate 808 drum kits vs 808 bass synths
+        if "808" in words:
+            if words.intersection({"KIT", "DRUM", "DRUMS", "BEAT", "PERC", "PERCUSSION", "ADG"}):
+                return "DRUMS"
+            if words.intersection({"BASS", "SUB", "BAJO", "LOW", "PUNCH", "REESE"}):
+                return "808_BASS"
+
         for role_name, token_set in cls.PRIORITY_CATEGORIES:
             if words.intersection(token_set):
                 return role_name

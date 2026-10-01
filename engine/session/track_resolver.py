@@ -88,6 +88,15 @@ class LiveTrackResolver:
                     c_name = str(c_res.get("name", "")).strip()
                     if any(ign in c_name.lower() for ign in ["reference", "guia", "guía", "plantilla"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"]):
                         continue
+
+                    # If candidate track already has an explicit bracket role tag like [DRUMS] that conflicts with t_role, skip!
+                    import re
+                    tag_m = re.match(r"^\[([A-Za-z0-9_]+)\]", c_name)
+                    if tag_m:
+                        existing_tag = tag_m.group(1).upper()
+                        if t_role and existing_tag != t_role.upper():
+                            continue
+
                     norm_c_role = RoleTrackOrchestrator.normalize_role(c_name)
                     if t_role and norm_c_role and norm_c_role == t_role:
                         trk["index"] = cand_idx

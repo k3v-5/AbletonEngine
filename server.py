@@ -83,7 +83,7 @@ class AbletonConnection:
     def get_track_count(self) -> int:
         """Cached track count resolver to validate track boundaries without LOM latency."""
         now = time.time()
-        if self._cached_track_count is not None and (now - self._cached_track_count_time < 15.0):
+        if self._cached_track_count is not None and (now - self._cached_track_count_time < 2.0):
             return self._cached_track_count
         try:
             res = self._send_raw("get_session_info", {})
@@ -93,6 +93,7 @@ class AbletonConnection:
                 return self._cached_track_count
         except Exception:
             pass
+        return self._cached_track_count or 8
         return self._cached_track_count or 18
     
     def connect(self) -> bool:
@@ -461,7 +462,12 @@ class AbletonConnection:
                     }
                     max_allowed = num_tracks if command_type in master_capable else (num_tracks - 1)
                     if idx > max_allowed:
-                        raise ValueError(f"Track index {idx} out of range (total tracks: {num_tracks}, max allowed: {max_allowed})")
+                        # Refresh cache once before raising to eliminate false positives from freshly created tracks
+                        self._cached_track_count = None
+                        num_tracks = self.get_track_count()
+                        max_allowed = num_tracks if command_type in master_capable else (num_tracks - 1)
+                        if idx > max_allowed:
+                            raise ValueError(f"Track index {idx} out of range (total tracks: {num_tracks}, max allowed: {max_allowed})")
                 except (ValueError, TypeError) as t_err:
                     if "out of range" in str(t_err):
                         raise
@@ -550,6 +556,9 @@ class AbletonConnection:
                     if t_cnt is not None:
                         self._cached_track_count = int(t_cnt)
                         self._cached_track_count_time = time.time()
+                elif command_type in ["create_midi_track", "create_audio_track", "delete_track", "duplicate_track", "execute_code"]:
+                    self._cached_track_count = None
+                    self._cached_track_count_time = 0.0
 
                 return response.get("result", {})
             except AbletonAPIError as e:
