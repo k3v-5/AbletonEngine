@@ -81,13 +81,13 @@ class CleanSlateManager:
 
                 # Clear cue points
                 try:
-                    cues = conn.send_command("get_cue_points", {})
-                    c_list = cues.get("cue_points", cues) if isinstance(cues, dict) else []
-                    if isinstance(c_list, list):
-                        for cp in c_list:
-                            cid = cp.get("id", cp.get("time"))
-                            if cid is not None:
-                                conn.send_command("delete_cue_point", {"cue_point_id": cid})
+                    for _ in range(30):
+                        cues = conn.send_command("get_cue_points", {})
+                        c_data = cues.get("result", cues) if isinstance(cues, dict) else {}
+                        c_list = c_data.get("cue_points", []) if isinstance(c_data, dict) else []
+                        if not c_list:
+                            break
+                        conn.send_command("delete_cue_point", {"time_or_index": 0})
                 except Exception:
                     pass
 

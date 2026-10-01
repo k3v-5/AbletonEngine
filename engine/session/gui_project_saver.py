@@ -93,17 +93,41 @@ class LiveGuiProjectSaver:
             logger.error(f"Could not connect pywinauto to Ableton PID {pid}: {ex_conn}")
             return {"success": False, "error": str(ex_conn), "path": full_path_str}
 
-        # 3. Locate Main Window
+        # 3. Locate Main Window (Ableton Live Window Class)
         main_win = None
-        for w in app.windows():
-            if "Ableton Live 12" in w.window_text():
-                main_win = w
+        WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        win_candidates = []
+        def enum_win(hwnd, lparam):
+            p = wintypes.DWORD()
+            u.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
+            if p.value == pid:
+                cls_buf = ctypes.create_unicode_buffer(256)
+                u.GetClassNameW(hwnd, cls_buf, 256)
+                title_buf = ctypes.create_unicode_buffer(512)
+                u.GetWindowTextW(hwnd, title_buf, 512)
+                win_candidates.append((hwnd, cls_buf.value, title_buf.value, bool(u.IsWindowVisible(hwnd))))
+            return True
+
+        cb = WNDENUMPROC(enum_win)
+        u.EnumWindows(cb, 0)
+
+        main_hwnd = None
+        for h, c, t, v in win_candidates:
+            if c == "Ableton Live Window Class" and v and t:
+                main_hwnd = h
                 break
 
-        if not main_win:
+        if not main_hwnd:
+            for h, c, t, v in win_candidates:
+                if "Ableton Live 12" in t and "GDI+" not in t and v:
+                    main_hwnd = h
+                    break
+
+        if not main_hwnd:
             logger.error("Ableton Live 12 main window not found.")
             return {"success": False, "error": "Main window not found", "path": full_path_str}
 
+        main_win = app.window(handle=main_hwnd)
         old_title = main_win.window_text()
         logger.info(f"Ableton main window located (Handle: {main_win.handle}, Title: '{old_title}')")
 
@@ -131,16 +155,31 @@ class LiveGuiProjectSaver:
         start_wait = time.time()
         while time.time() - start_wait < timeout_seconds:
             time.sleep(0.2)
-            for w in app.windows():
-                if w.handle != main_win.handle:
-                    w_title = w.window_text().lower()
-                    if ("guardar" in w_title or "save" in w_title or w.class_name() == "#32770"):
-                        dialog = w
-                        break
-            if dialog:
+            dlg_candidates = []
+            def enum_dlg(hwnd, lparam):
+                p = wintypes.DWORD()
+                u.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
+                if p.value == pid and hwnd != main_win.handle:
+                    cls_buf = ctypes.create_unicode_buffer(256)
+                    u.GetClassNameW(hwnd, cls_buf, 256)
+                    title_buf = ctypes.create_unicode_buffer(512)
+                    u.GetWindowTextW(hwnd, title_buf, 512)
+                    dlg_candidates.append((hwnd, cls_buf.value, title_buf.value))
+                return True
+            cb_dlg = WNDENUMPROC(enum_dlg)
+            u.EnumWindows(cb_dlg, 0)
+            dialog_hwnd = None
+            dialog_title = ""
+            for h, c, t in dlg_candidates:
+                t_lower = t.lower()
+                if c == "#32770" or "guardar" in t_lower or "save" in t_lower:
+                    dialog_hwnd = h
+                    dialog_title = t
+                    break
+            if dialog_hwnd:
                 break
 
-        if not dialog:
+        if not dialog_hwnd:
             if attached:
                 try:
                     u.AttachThreadInput(my_tid, ab_tid, False)
@@ -149,7 +188,7 @@ class LiveGuiProjectSaver:
             logger.error("Save As dialog did not appear within timeout.")
             return {"success": False, "error": "Save dialog timed out", "path": full_path_str}
 
-        logger.info(f"Save dialog detected: '{dialog.window_text()}' (Handle: {dialog.handle})")
+        logger.info(f"Save dialog detected: '{dialog_title}' (Handle: {dialog_hwnd})")
         time.sleep(0.4)
 
         # 7. Locate Edit controls and Guardar button using Win32 Child Enum
@@ -172,30 +211,32 @@ class LiveGuiProjectSaver:
                     guardar_btn_hwnd = hwnd
             return True
 
-        u.EnumChildWindows(dialog.handle, WNDENUMCHILDPROC(enum_child), 0)
+        u.EnumChildWindows(dialog_hwnd, WNDENUMCHILDPROC(enum_child), 0)
 
         # 8. Set target path in Edit controls via direct Win32 WM_SETTEXT
         if edit_hwnds:
             for eh in edit_hwnds:
                 u.SendMessageW(eh, WM_SETTEXT, 0, full_path_str)
         else:
-            dialog.type_keys(f"^a{full_path_str}", with_spaces=True)
+            try:
+                dlg_wrap = app.window(handle=dialog_hwnd)
+                dlg_wrap.type_keys(f"^a{full_path_str}", with_spaces=True)
+            except Exception:
+                pass
 
         time.sleep(0.3)
 
         # 9. Trigger click on Guardar via Win32 BM_CLICK and WM_COMMAND
-        if guardar_btn_hwnd:
+        if guardar_btn_hwnd and u.IsWindow(guardar_btn_hwnd):
             u.SendMessageW(guardar_btn_hwnd, BM_CLICK, 0, 0)
             time.sleep(0.15)
-            u.SendMessageW(dialog.handle, WM_COMMAND, IDOK, guardar_btn_hwnd)
-        else:
-            u.SendMessageW(dialog.handle, WM_COMMAND, IDOK, 0)
-            dialog.type_keys("{ENTER}")
+        if u.IsWindow(dialog_hwnd):
+            u.SendMessageW(dialog_hwnd, WM_COMMAND, IDOK, guardar_btn_hwnd or 0)
 
         # 10. Check for overwrite confirmation dialog ("¿Desea reemplazarlo?")
         time.sleep(0.6)
         for w in app.windows():
-            if w.handle not in (main_win.handle, dialog.handle):
+            if w.handle not in (main_win.handle, dialog_hwnd):
                 txt = w.window_text().lower()
                 if any(k in txt for k in ["confirmar", "reemplazar", "replace", "already exists", "sobrescribir"]):
                     logger.info(f"Overwrite confirmation dialog detected: '{w.window_text()}'. Confirming replacement...")
@@ -206,15 +247,9 @@ class LiveGuiProjectSaver:
 
         # 11. Fail-Safe Watchdog: Ensure the dialog closes completely
         time.sleep(0.8)
-        dialog_still_open = False
-        for w in app.windows():
-            if w.handle == dialog.handle:
-                dialog_still_open = True
-                break
-
-        if dialog_still_open:
+        if u.IsWindow(dialog_hwnd) and u.IsWindowVisible(dialog_hwnd):
             logger.warning("Watchdog: Save dialog still open after click. Sending fail-safe IDCANCEL to prevent lockup...")
-            u.SendMessageW(dialog.handle, WM_COMMAND, IDCANCEL, 0)
+            u.SendMessageW(dialog_hwnd, WM_COMMAND, IDCANCEL, 0)
             time.sleep(0.3)
 
         if attached:

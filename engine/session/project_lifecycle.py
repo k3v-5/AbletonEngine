@@ -180,31 +180,45 @@ class ProjectLifecycleManager:
             conn.send_command("stop_playback", {})
             conn.send_command("set_tempo", {"tempo": target_bpm})
 
-            # LOM Deep Clean: Reduce tracks to 1 pristine track and clear master
+            # 1. Purge cue points via Remote Script delete_cue_point loop
+            try:
+                for _ in range(30):
+                    cues_info = conn.send_command("get_cue_points", {})
+                    c_data = cues_info.get("result", cues_info) if isinstance(cues_info, dict) else {}
+                    c_list = c_data.get("cue_points", []) if isinstance(c_data, dict) else []
+                    if not c_list:
+                        break
+                    conn.send_command("delete_cue_point", {"time_or_index": 0})
+            except Exception as ex_cues:
+                logger.debug(f"Cue purge notice: {ex_cues}")
+
+            # 2. LOM Deep Clean: Reduce tracks and groups to 1 pristine track and clear master
             clean_code = """
 import Live
 
 # 1. Stop playback
 song.stop_playing()
 
-# 2. Delete all cue points
-while len(song.cue_points) > 0:
-    song.delete_cue_point(song.cue_points[0])
-
-# 3. Clean Master Track devices
+# 2. Clean Master Track devices and restore safe volume
 m = song.master_track
 while len(m.devices) > 0:
     m.delete_device(len(m.devices) - 1)
 m.mixer_device.volume.value = 0.85
 
-# 4. Remove all tracks down to 1
-while len(song.tracks) > 1:
-    song.delete_track(len(song.tracks) - 1)
+# 3. Remove all tracks cleanly down to 1 pristine MIDI track
+# Always create a fresh MIDI track first so we never have 0 tracks or leave an empty group header
+song.create_midi_track()
+initial_count = len(song.tracks) - 1
+for i in range(initial_count - 1, -1, -1):
+    try:
+        song.delete_track(i)
+    except Exception:
+        pass
 
-# 5. Reset remaining Track 0
-if len(song.tracks) == 1:
+# 4. Reset remaining Track 0
+if len(song.tracks) >= 1:
     t0 = song.tracks[0]
-    t0.name = "Track 1"
+    t0.name = "1-MIDI"
     t0.mute = False
     t0.solo = False
     t0.arm = False
