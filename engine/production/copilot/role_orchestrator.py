@@ -117,7 +117,7 @@ class RoleTrackOrchestrator:
         ("DRUMS", {"DRUM", "DRUMS", "KIT", "BEAT", "BREAK", "BREAKBEAT", "KICK", "SNARE", "HIHAT", "HIHATS", "BATERIA", "BATERÍA", "BATERIAS", "BATERÍAS"}),
         ("BRASS", {"BRASS", "TRUMPET", "TRUMPETS", "TROMPETA", "TROMPETAS", "HORN", "HORNS", "CORNO", "TROMBONE", "TROMBON", "TUBA", "FANFARE", "FANFARRIA"}),
         ("CHOIR", {"CHOIR", "CHOIRS", "CORO", "COROS", "CHURCH", "GOTHIC", "LITURGICAL"}),
-        ("VOCALS", {"VOCAL", "VOCALS", "VOX", "VOZ", "VOCES", "CHOPS"}),
+        ("VOCALS", {"VOCAL", "VOCALS", "VOX", "VOZ", "VOCES"}),
         ("COUNTER_LEAD", {"COUNTER", "COUNTER_LEAD", "COUNTERLEAD", "COUNTER_MELODY", "ARP", "ARPS", "ARPEGGIO"}),
         ("EAR_CANDY", {"CANDY", "EAR_CANDY", "EARCANDY"}),
         ("TEXTURE_FOLEY", {"TEXTURE", "FOLEY", "VINYL", "RAIN"}),
@@ -127,7 +127,8 @@ class RoleTrackOrchestrator:
         ("PAD", {"PAD", "ATMOSPHERE", "AMBIENT", "ATMOSFERA", "COLCHON"}),
         ("FX", {"FX", "EFFECT", "EFFECTS", "GLITCH", "GLITCHEADO", "GLITCHES", "STUTTER", "NOISE", "SWEEP", "RISER", "IMPACT", "DOWNLIFTER"}),
         ("LEAD", {"LEAD", "MELODY", "TOPLINE", "SOLO", "HOOK", "STAB", "STABS", "SINTE", "SINTES", "SINTETIZADOR", "SINTETIZADORES"}),
-        ("LEAD", {"SYNTH"})
+        ("LEAD", {"SYNTH"}),
+        ("VOCALS", {"CHOPS"})
     ]
 
     @classmethod
@@ -146,13 +147,17 @@ class RoleTrackOrchestrator:
         if cleaned_under in cls.ROLE_MAP:
             return cls.ROLE_MAP[cleaned_under]
 
-        # Extract bracketed role tag if present (e.g. "[DRUMS] 808 Core Kit" -> "DRUMS")
+        # Extract bracketed role tag anywhere in string (e.g. "[DRUMS] 808 Core Kit" or "Upright Piano Chops [KEYS | MIDI]")
         import re
-        tag_match = re.match(r"^\[([A-Za-z0-9_]+)\]", cleaned)
-        if tag_match:
-            tag = tag_match.group(1)
-            if tag in cls.ROLE_MAP.values():
-                return tag
+        bracket_match = re.search(r"\[(.*?)\]", cleaned)
+        if bracket_match:
+            bracket_content = bracket_match.group(1).strip()
+            tokens = [t.strip().upper() for t in re.split(r"[|/:]", bracket_content)]
+            for tok in tokens:
+                if tok in cls.ROLE_MAP.values():
+                    return tok
+                if tok in cls.ROLE_MAP:
+                    return cls.ROLE_MAP[tok]
 
         clean_tokens = re.sub(r"[^\w\s]", " ", cleaned)
         words = set(clean_tokens.split())

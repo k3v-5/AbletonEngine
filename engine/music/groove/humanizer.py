@@ -175,19 +175,21 @@ class DynamicGrooveHumanizer:
         role: str = "drums",
         pocket_style: str = "atlanta_trap",
         tempo: float = 120.0,
+        swing_percentage: Optional[float] = None,
         seed: int = 42
     ) -> List[Dict[str, Any]]:
-        """Humanizes notes according to the 5 Discrete Levels (1 to 5, default 2)."""
+        """Humanizes notes according to the 5 Discrete Levels (1 to 5, default 2) and optional custom swing."""
         if not dict_notes:
             return []
         cfg = cls.get_level_config(level)
+        effective_swing = swing_percentage if swing_percentage is not None else cfg["swing_percentage"]
         return cls.humanize_clip_dict_notes(
             dict_notes=dict_notes,
             role=role,
             pocket_style=pocket_style,
             tempo=tempo,
             strength=cfg["strength"],
-            swing_percentage=cfg["swing_percentage"],
+            swing_percentage=effective_swing,
             seed=seed
         )
 

@@ -1121,6 +1121,24 @@ for trk in song.tracks:
         session.data["bpm"] = bpm
         session.data["ai_composed"] = bool(has_custom_notes)
 
+        pocket_style = ai_meta.get("pocket_style") or ai_meta.get("groove") or ai_meta.get("pocket")
+        if pocket_style:
+            session.data["pocket_style"] = str(pocket_style).lower()
+
+        swing_val = ai_meta.get("swing_percentage") or ai_meta.get("swing")
+        if swing_val is not None:
+            try:
+                session.data["swing_percentage"] = float(swing_val)
+            except (ValueError, TypeError):
+                pass
+
+        hum_val = ai_meta.get("humanization_level") or ai_meta.get("humanization")
+        if hum_val is not None:
+            try:
+                session.data["humanization_level"] = int(hum_val)
+            except (ValueError, TypeError):
+                pass
+
         if conn is not None and hasattr(conn, "send_command"):
             try:
                 conn.send_command("set_tempo", {"tempo": bpm})

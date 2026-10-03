@@ -62,6 +62,9 @@ class DeviceParameterSupervisor:
         "VOICE_PITCH": "Desplazamiento de tono (pitch shift) en semitonos para voces, texturas o leads (-12 a +12).",
         "VOICE_FORMANT": "Modificación de formantes vocales (modifica el tamaño del tracto vocal / garganta sin alterar el tono).",
         "VOICE_MODE": "Modo de transposición vocal (Transpose natural, Quantize robótico, Robot sintético).",
+        "POLYPHONY": "Modo de polifonía y número de voces (Mono = 1 voz, Poly = 2 a 32 voces).",
+        "VOICES": "Cantidad de voces polifónicas disponibles para el sintetizador.",
+        "LEGATO": "Modo legato: activa ligadura entre notas sin redisparar envolventes de ataque.",
         "HARMONY_SPRAY": "Dispersión micro-tonal de los intervalos armónicos generados.",
         "HARMONY_CHORD": "Estructura de acordes o intervalos para generación de armonías automáticas.",
 
@@ -513,6 +516,9 @@ class DeviceParameterSupervisor:
             "VOICE_PITCH": ["pitch", "pitch shift", "transpose", "voice pitch", "pitchshaper on", "osc 1 - pitch"],
             "VOICE_FORMANT": ["formant", "voice formant"],
             "VOICE_MODE": ["shiftmode", "mode", "quantize", "robot", "formantlink", "osc 1 - warp mode"],
+            "POLYPHONY": ["poly voice depth", "polyphony", "voices", "voice count", "voice mode"],
+            "VOICES": ["poly voice depth", "polyphony", "voices", "voice count"],
+            "LEGATO": ["legato on", "legato", "voice - legato"],
             "HARMONY_SPRAY": ["harmony spray", "spray direction"],
             "HARMONY_CHORD": ["harmony chord", "scale"]
         },
@@ -657,7 +663,11 @@ class DeviceParameterSupervisor:
         "MIX": ["mix", "dry/wet", "wet", "grain mix", "master dry/wet", "master-dry wet"],
         "DRY_WET": ["mix", "dry/wet", "wet", "grain mix", "master dry/wet", "master-dry wet"],
         "VOLUME": ["master", "master volume", "output level", "out gain", "gain", "outputtrim", "volume", "trim", "master-volume", "output", "grain volume", "amp - level"],
-        "GLIDE": ["porta time", "portamento time", "glide", "portamento", "pitch bend", "voice - glide"],
+        "GLIDE": ["glide time", "porta time", "portamento time", "glide", "portamento", "pitch bend", "voice - glide"],
+        "PORTAMENTO": ["glide time", "porta time", "portamento time", "glide", "portamento"],
+        "POLYPHONY": ["poly voice depth", "polyphony", "voices", "voice count"],
+        "VOICES": ["poly voice depth", "polyphony", "voices", "voice count"],
+        "LEGATO": ["legato on", "legato", "voice - legato"],
         "EQ_HPF": ["band 1 frequency", "low cut", "hpf", "band 1 state", "band 1 on", "master hp cutoff"],
         "EQ_LOW_BOOST": ["band 2 gain", "eq low gain", "low gain", "sub", "04 fill"],
         "EQ_MUD_CUT": ["band 3 gain", "band 3 frequency", "eq mid gain", "mid gain"],
@@ -876,6 +886,17 @@ class DeviceParameterSupervisor:
                 return round(0.50 - (cut_db / 60.0), 4)
             else:
                 return 0.50
+
+        # Ableton Live 12 Drift Polyphony: 0.0 = Mono (1 voice), 0.33 = 4 voices, 0.66 = 8 voices, 1.0 = 16 voices
+        if "poly voice depth" in p_lower:
+            if norm_val <= 0.15:
+                return 0.0
+            elif norm_val <= 0.45:
+                return 0.33
+            elif norm_val <= 0.80:
+                return 0.66
+            else:
+                return 1.0
 
         return p_min + norm_val * (p_max - p_min)
 
@@ -1610,10 +1631,27 @@ class DeviceParameterSupervisor:
 
                 # Try direct name match first
                 matched_id = None
-                for live_name, orig_id in live_param_map.items():
-                    if p_clean == live_name or p_clean in live_name or live_name in p_clean:
-                        matched_id = orig_id
-                        break
+                if p_clean in ("polyphony", "voices", "voice_mode", "poly"):
+                    for live_name, orig_id in live_param_map.items():
+                        if "poly voice depth" in live_name or "polyphony" in live_name or "voices" in live_name:
+                            matched_id = orig_id
+                            break
+                elif p_clean in ("legato", "voice_legato"):
+                    for live_name, orig_id in live_param_map.items():
+                        if "legato" in live_name:
+                            matched_id = orig_id
+                            break
+                elif p_clean in ("glide", "portamento", "portamento_glide"):
+                    for live_name, orig_id in live_param_map.items():
+                        if "glide" in live_name or "porta" in live_name:
+                            matched_id = orig_id
+                            break
+
+                if matched_id is None:
+                    for live_name, orig_id in live_param_map.items():
+                        if p_clean == live_name or p_clean in live_name or live_name in p_clean:
+                            matched_id = orig_id
+                            break
 
                 if matched_id is not None:
                     try:

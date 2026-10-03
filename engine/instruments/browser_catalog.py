@@ -584,4 +584,43 @@ class LiveBrowserCatalogEngine:
         }
 
 
+    @classmethod
+    def find_drum_kit_uri(cls, name_query: str) -> Optional[Tuple[str, str]]:
+        """
+        Looks up drum kit name across the 159 scanned Live drum kits.
+        Returns: (item_uri, display_name) or None
+        """
+        import os, json
+        json_path = os.path.join(os.path.dirname(__file__), "live_drum_kits.json")
+        if not os.path.exists(json_path):
+            return None
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                kits = json.load(f)
+        except Exception:
+            return None
+
+        q_clean = str(name_query or "").lower().replace(".adg", "").replace("kit", "").strip()
+        # 1. Exact match
+        for k_name, k_uri in kits.items():
+            if k_name.lower() == str(name_query or "").lower().replace(".adg", "").strip():
+                return k_uri, k_name
+
+        # 2. Substring match
+        for k_name, k_uri in kits.items():
+            k_clean = k_name.lower().replace(".adg", "").replace("kit", "").strip()
+            if q_clean and (q_clean in k_clean or k_clean in q_clean):
+                return k_uri, k_name
+
+        # 3. Token match
+        q_tokens = [t for t in q_clean.split() if len(t) > 2]
+        if q_tokens:
+            for k_name, k_uri in kits.items():
+                if all(t in k_name.lower() for t in q_tokens):
+                    return k_uri, k_name
+
+        return None
+
+
 BrowserCatalogEngine = LiveBrowserCatalogEngine
+

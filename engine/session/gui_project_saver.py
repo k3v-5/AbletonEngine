@@ -33,11 +33,40 @@ IDCANCEL = 2
 IDYES = 6
 
 
+KNOWN_CATALOG_GENRES = {
+    "pop": "Pop",
+    "rock": "Rock",
+    "alternative_rock": "Alternative_Rock",
+    "indie_alternative": "Indie_Alternative",
+    "indie_psychedelic": "Indie_Psychedelic",
+    "alternative_electronic": "Alternative_Electronic",
+    "avantgarde_pop": "AvantGarde_Pop",
+    "bedroom_pop": "Bedroom_Pop",
+    "mutant_funk": "Mutant_Funk",
+    "nudisco_dancepop": "NuDisco_DancePop",
+    "neosoul_rnb": "NeoSoul_RnB",
+    "reggaeton": "Reggaeton",
+    "latin_trap": "Latin_Trap",
+    "trap_hiphop": "Trap_HipHop",
+    "dark_trap": "Dark_Trap",
+    "experimental_trap": "Experimental_Trap",
+    "rock_trap": "Rock_Trap",
+    "industrial_hiphop": "Industrial_HipHop",
+    "hiphop_boombap": "HipHop_BoomBap",
+    "westcoast_hiphop": "WestCoast_HipHop",
+    "synthwave": "Synthwave",
+    "electronic": "Electronic",
+    "pop_rnb": "Pop_RnB",
+}
+
+
 def normalize_genre_family(genre_str: Optional[str]) -> str:
     """Normalizes any musical genre string into its primary catalog genre folder."""
     if not genre_str:
         return "Reggaeton"
     g = str(genre_str).lower().strip()
+    if g in KNOWN_CATALOG_GENRES:
+        return KNOWN_CATALOG_GENRES[g]
     if any(k in g for k in ["reggaeton", "dembow", "neoperreo", "perreo", "tainy"]):
         return "Reggaeton"
     elif any(k in g for k in ["trap", "hip hop", "hiphop", "drill", "boombap"]):

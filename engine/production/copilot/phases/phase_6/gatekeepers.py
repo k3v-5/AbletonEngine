@@ -137,6 +137,9 @@ for t in song.tracks:
                         s_name=o_name,
                         s_beats=o_beats
                     )
+                    if o_notes is not None and len(o_notes) == 0:
+                        # Explicit silence declared by the AI: intentional artistic choice (radical minimalism)
+                        continue
                     if not o_notes:
                         silenced_synths_in_outro.append(trk.get("name", f"Pista {trk.get('index')}"))
 

@@ -19,6 +19,9 @@ class PocketStyle(str, Enum):
     DARK_RAGE = "dark_rage"
     FRENCH_PUMP = "french_pump"
     ORGANIC_HUMAN = "organic_human"
+    UKG_2STEP = "ukg_2step"
+    REGGAETON_DEMBOW = "reggaeton_dembow"
+    LOFI_SP1200 = "lofi_sp1200"
 
 
 # Budget per role: (offset_ms_mean, jitter_ms_std)
@@ -106,6 +109,48 @@ ROLE_POCKET_BUDGETS: Dict[PocketStyle, Dict[str, tuple]] = {
         "piano": (4.0, 4.0),
         "lead": (3.0, 3.5),
         "chords": (3.0, 3.5),
+    },
+    PocketStyle.UKG_2STEP: {
+        "kick": (0.0, 1.0),
+        "sub_bass": (2.0, 2.0),
+        "bass": (2.0, 2.0),
+        "snare": (9.0, 3.5),          # UK Garage laid-back 2-step rim/snare
+        "clap": (9.0, 3.5),
+        "hihat": (5.0, 5.0),          # UK Garage skipping 16th swing (58-62%)
+        "hat_closed": (4.5, 4.5),
+        "hat_open": (6.5, 5.5),
+        "percussion": (7.0, 6.0),
+        "piano": (2.5, 3.0),
+        "lead": (2.0, 2.5),
+        "chords": (2.5, 3.0),
+    },
+    PocketStyle.REGGAETON_DEMBOW: {
+        "kick": (0.0, 0.5),           # Locked 4/4 / 1-3 pulse
+        "sub_bass": (1.5, 1.5),
+        "bass": (1.5, 1.5),
+        "snare": (4.0, 2.0),          # Characteristic dembow syncopation pocket
+        "clap": (4.0, 2.0),
+        "hihat": (2.0, 2.5),
+        "hat_closed": (2.0, 2.0),
+        "hat_open": (3.0, 3.0),
+        "percussion": (3.5, 3.0),
+        "piano": (1.0, 1.5),
+        "lead": (0.5, 1.0),
+        "chords": (1.0, 1.5),
+    },
+    PocketStyle.LOFI_SP1200: {
+        "kick": (-2.0, 2.5),          # SP-1200 slightly pushed downbeat
+        "sub_bass": (3.5, 3.0),
+        "bass": (3.5, 3.0),
+        "snare": (8.5, 4.0),          # Laid-back boom bap crack
+        "clap": (8.0, 4.0),
+        "hihat": (3.5, 5.5),          # Gritty 12-bit swing
+        "hat_closed": (3.0, 4.5),
+        "hat_open": (4.5, 5.0),
+        "percussion": (5.5, 5.5),
+        "piano": (3.5, 3.5),
+        "lead": (2.5, 3.0),
+        "chords": (3.5, 3.5),
     }
 }
 
@@ -117,7 +162,13 @@ class GroovePocketEngine:
     def producer_to_pocket_style(cls, producer_name: Optional[str]) -> PocketStyle:
         """Maps a producer name or stylistic prompt to a canonical PocketStyle."""
         name = str(producer_name or "").lower()
-        if "dilla" in name or "soul" in name:
+        if "ukg" in name or "garage" in name or "2step" in name or "2-step" in name:
+            return PocketStyle.UKG_2STEP
+        elif "dembow" in name or "reggaeton" in name or "perreo" in name:
+            return PocketStyle.REGGAETON_DEMBOW
+        elif "sp1200" in name or "sp-1200" in name:
+            return PocketStyle.LOFI_SP1200
+        elif "dilla" in name or "soul" in name:
             return PocketStyle.NEO_SOUL_DILLA
         elif "metro" in name or "boomin" in name or "trap" in name:
             return PocketStyle.ATLANTA_TRAP

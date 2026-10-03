@@ -302,38 +302,31 @@ All synthesized Vital presets used for this production have been exported into:
             conn.send_command("stop_playback", {})
             conn.send_command("set_tempo", {"tempo": target_bpm})
 
-            # 1. Purge cue points via Remote Script delete_cue_point loop
-            try:
-                for _ in range(30):
-                    cues_info = conn.send_command("get_cue_points", {})
-                    c_data = cues_info.get("result", cues_info) if isinstance(cues_info, dict) else {}
-                    c_list = c_data.get("cue_points", []) if isinstance(c_data, dict) else []
-                    if not c_list:
-                        break
-                    conn.send_command("delete_cue_point", {"time_or_index": 0})
-            except Exception as ex_cues:
-                logger.debug(f"Cue purge notice: {ex_cues}")
-
-            # 2. LOM Deep Clean: Reduce tracks and groups to 1 pristine track and clear master
+            # Purge cue points and reduce tracks via LOM
             clean_code = """
 import Live
 
 # 1. Stop playback
 song.stop_playing()
 
-# 2. Clean Master Track devices and restore safe volume
+# 2. Purge cue points instantly
+while len(song.cue_points) > 0:
+    try:
+        song.delete_cue_point(song.cue_points[0])
+    except Exception:
+        break
+
+# 3. Clean Master Track devices and restore safe volume
 m = song.master_track
 while len(m.devices) > 0:
     m.delete_device(len(m.devices) - 1)
 m.mixer_device.volume.value = 0.85
 
-# 3. Remove all tracks cleanly down to 1 pristine MIDI track
-# Always create a fresh MIDI track first so we never have 0 tracks or leave an empty group header
-song.create_midi_track()
-initial_count = len(song.tracks) - 1
-for i in range(initial_count - 1, -1, -1):
+# 3. Insert a pristine MIDI track at index 0 and delete all other tracks backwards
+song.create_midi_track(0)
+for idx in range(len(song.tracks) - 1, 0, -1):
     try:
-        song.delete_track(i)
+        song.delete_track(idx)
     except Exception:
         pass
 

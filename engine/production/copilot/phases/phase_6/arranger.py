@@ -48,25 +48,93 @@ class Phase6Arranger:
         hum_level = 2
         bpm = 120.0
         is_custom_ai = kwargs.get("is_custom_ai", False)
+        pocket_style_name = kwargs.get("pocket_style")
+        swing_pct = kwargs.get("swing_percentage")
+
         if session_obj and hasattr(session_obj, "data"):
             hum_level = session_obj.data.get("humanization_level", 2)
             bpm = float(session_obj.data.get("bpm", 120.0))
             if session_obj.data.get("ai_composed", False):
                 is_custom_ai = True
+            if not pocket_style_name:
+                pocket_style_name = session_obj.data.get("pocket_style")
+            if swing_pct is None:
+                swing_pct = session_obj.data.get("swing_percentage")
         elif "humanization_level" in kwargs:
             hum_level = kwargs["humanization_level"]
 
-        if is_custom_ai:
-            final_notes_dicts = s_notes_dicts
+        from engine.music.groove.pocket import GroovePocketEngine, PocketStyle
+        genre_str = session_obj.data.get("genre", "trap") if session_obj and hasattr(session_obj, "data") else "trap"
+        resolved_pocket = GroovePocketEngine.producer_to_pocket_style(pocket_style_name or genre_str)
+
+        # Default swing percentage per pocket style if not explicitly given
+        if swing_pct is None:
+            if resolved_pocket == PocketStyle.UKG_2STEP:
+                swing_pct = 60.0
+            elif resolved_pocket == PocketStyle.NEO_SOUL_DILLA:
+                swing_pct = 62.0
+            elif resolved_pocket == PocketStyle.LOFI_SP1200:
+                swing_pct = 57.0
+            elif resolved_pocket == PocketStyle.REGGAETON_DEMBOW:
+                swing_pct = 54.0
+            elif resolved_pocket == PocketStyle.BOOM_BAP:
+                swing_pct = 56.0
+
+        notes_to_process = s_notes_dicts or []
+        role_for_hum = str(trk.get("role", "drums")).lower()
+        t_name_lower = str(trk.get("name", "")).lower()
+
+        # Check if AI provided intentional micro-timing on notes (non-grid positions like 0.28, 0.53, etc.)
+        has_ai_microtiming = False
+        if is_custom_ai and notes_to_process:
+            for n in notes_to_process:
+                st = float(n.get("start_time", n.get("start", 0.0)))
+                # 16th grid is multiples of 0.25 (tolerance 0.02)
+                rem = st % 0.25
+                if 0.02 <= rem <= 0.23:
+                    has_ai_microtiming = True
+                    break
+
+        # 1. Polyphonic Chord Strumming:
+        # Micro-delay (10-18ms) staggered across chord voicings for guitars, pianos, and keys
+        is_guitar_or_keys = (
+            any(k in role_for_hum for k in ["guitar", "keys", "chord", "piano", "rhodes"])
+            or any(k in t_name_lower for k in ["guitar", "piano", "rhodes", "keys", "requinto", "charcheta"])
+        )
+        if is_guitar_or_keys and notes_to_process:
+            try:
+                from engine.music.harmony.strum import PhysicalChordStrummer
+                strum_ms = 16.0 if ("guitar" in role_for_hum or "guitar" in t_name_lower) else 12.0
+                notes_to_process = PhysicalChordStrummer.strum_dict_notes(
+                    dict_notes=notes_to_process,
+                    tempo=bpm,
+                    strum_ms=strum_ms,
+                    direction="alternating",
+                    velocity_tilt=0.15
+                )
+            except Exception as ex_strum:
+                logger.debug(f"Strum processing notice: {ex_strum}")
+
+        # 2. Organic Humanization & Roger Linn Swing:
+        # If hum_level == 0: timing remains exact as specified without jitter
+        # If AI provided custom micro-timing and hum_level <= 1 and no specific pocket requested:
+        # preserve exact micro-timing positions without destructive modification
+        if hum_level == 0 or (has_ai_microtiming and hum_level <= 1):
+            final_notes_dicts = notes_to_process
         else:
-            from engine.music.groove.humanizer import DynamicGrooveHumanizer
-            role_for_hum = str(trk.get("role", "drums")).lower()
-            final_notes_dicts = DynamicGrooveHumanizer.humanize_with_level(
-                dict_notes=s_notes_dicts,
-                level=hum_level,
-                role=role_for_hum,
-                tempo=bpm
-            ) if s_notes_dicts else []
+            try:
+                from engine.music.groove.humanizer import DynamicGrooveHumanizer
+                final_notes_dicts = DynamicGrooveHumanizer.humanize_with_level(
+                    dict_notes=notes_to_process,
+                    level=hum_level,
+                    role=role_for_hum,
+                    pocket_style=resolved_pocket.value if hasattr(resolved_pocket, "value") else str(resolved_pocket),
+                    tempo=bpm,
+                    swing_percentage=swing_pct
+                ) if notes_to_process else []
+            except Exception as ex_hum:
+                logger.debug(f"Humanizer processing notice: {ex_hum}")
+                final_notes_dicts = notes_to_process
 
         notes_payload = [
             {
@@ -170,7 +238,11 @@ class Phase6Arranger:
         tracks = session.data.get("tracks", [])
 
         # --- VOCAL / AUDIO TRACK HANDLING ---
-        if (role == "VOCALS" or trk.get("is_audio")) and not trk.get("chopping_mode"):
+        has_custom_midi = any(
+            k[0] in (t_idx, str(t_idx), str(trk.get("name", "")).lower(), role)
+            for k in custom_notes_map.keys()
+        )
+        if (role == "VOCALS" or trk.get("is_audio")) and not trk.get("chopping_mode") and not has_custom_midi:
             if trk.get("live_recording_mode") or not trk.get("sample_path"):
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
@@ -443,7 +515,7 @@ if len(arr_clips) == 0:
             is_custom_ai = (raw_notes is not None) or bool(custom_notes_map)
             humanization_requested = False
             last_prompt = str(session.data.get("last_composition_prompt", "")).lower()
-            if any(w in last_prompt for w in ["humanizar", "humanize", "respirar", "breathing", "dilla", "pocket", "laid_back", "laid back"]):
+            if any(w in last_prompt for w in ["humanizar", "humanize", "respirar", "breathing", "dilla", "pocket", "laid_back", "laid back", "groove", "swing"]):
                 humanization_requested = True
 
             if s_notes_dicts and (not is_custom_ai or humanization_requested):
@@ -502,7 +574,11 @@ if len(arr_clips) == 0:
                         s_beats=s_beats,
                         s_notes_dicts=s_notes_dicts,
                         current_beat=current_beat,
-                        trk=trk
+                        trk=trk,
+                        is_custom_ai=is_custom_ai,
+                        pocket_style=session.data.get("pocket_style"),
+                        swing_percentage=session.data.get("swing_percentage"),
+                        humanization_level=session.data.get("humanization_level", 2)
                     )
                     total_notes_trk += len(s_notes_dicts)
                 except Exception as ex:

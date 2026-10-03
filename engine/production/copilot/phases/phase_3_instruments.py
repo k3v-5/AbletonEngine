@@ -162,22 +162,31 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         # Inyectar recetas quirúrgicas y emulaciones de la Base de Conocimiento
         kb_notes = []
         if role == "DRUMS":
-            kb_notes.append("  💡 **Emulaciones Hardware:** SP-1200 (12-bit punch), MPC 3000 (pocket swing), TR-808/909.")
-            kb_notes.append("  💡 **Sample Indexer en Parquet:** Búsqueda activa disponible en tu librería local.")
+            kb_notes.append("  🥁 **Kits de Batería Nativos por Género (159 kits disponibles por nombre):**")
+            kb_notes.append("     • *Rock / Pop Acústico:* `Dry Session Kit`, `Acuff Kit`, `Corvaire Kit`, `Gen Purpose Kit`")
+            kb_notes.append("     • *UK Garage / 2-Step:* `Garage Kit`, `Selectah Kit`, `Warehouse Stutter Kit`")
+            kb_notes.append("     • *Boom-Bap / 90s Hip-Hop:* `Boom Bap Kit`, `Mt Dill Kit` (Dilla), `Street Mind Kit`")
+            kb_notes.append("     • *Trap / Drill / Urbano:* `808 Core Kit`, `BNYX Boot Kit`, `Driller Kit`, `Cortex Kit`")
+            kb_notes.append("     • *Reggaeton / Dancehall:* `Dancehall 80s Kit`, `Percussion Core Kit`, `Perc Tamuz Kit`")
+            kb_notes.append("     • *Club / Techno / Electro:* `909 Core Kit`, `707 Core Kit`, `AG Techno Kit`, `DMX Core Kit`")
+            kb_notes.append("     • *Lo-Fi / Chill:* `Lo-Fi Tech Kit`, `LDre Cozy Kit`, `LDre Cafe Kit`, `Late Nite Kit`")
         elif role in ["BASS", "SUB"]:
-            kb_notes.append("  💡 **Prioridad de Bajos:** Vital (mejor diseño de sonido) (#1 Synth), SubLab XL, Serum 2, Massive X, Massive, Cyclop.")
+            kb_notes.append("  💡 **Prioridad de Bajos:** Vital (mejor diseño de sonido) (#1 Synth), SubLab XL, Serum 2, Massive X, Massive, Cyclop, Drift.")
         elif role in ["LEAD", "SYNTH"]:
             kb_notes.append("  💡 **Receta Quirúrgica Vital (mejor diseño de sonido):** `vital_spectral_lead` (Spectral warping, Formant LFO) o Serum 2 `hyperpop_lead`.")
         elif role in ["PAD", "STRINGS"]:
             kb_notes.append("  💡 **Receta Quirúrgica Vital (mejor diseño de sonido):** `vital_lush_pad` (Stereo spread, Dual wavetable) o Serum 2 `analog_warm_pad`.")
         
         if kb_notes:
-            opts_text.append("\n**Recetas de la Base de Conocimiento:**\n" + "\n".join(kb_notes))
+            opts_text.append("\n**Opciones y Recetas de la Base de Conocimiento:**\n" + "\n".join(kb_notes))
     
         # Autonomous Chopping Mode (Synthesis & Internal Transformation)
         chop_idx = (min(7, len(cat_options)) if cat_options else 2) + 1
         opts_text.append(
             f"\n  {chop_idx}. 🔪 **Modo Chopping Autónomo** (Ableton Simpler con generación interna y transformación por síntesis aditiva/FM y remuestreo mutado)"
+        )
+        opts_text.append(
+            f"  ✨ **Layering Dual:** Escribe `[Inst 1] + [Inst 2]` o `Layer: Drift + Vital` para crear un Instrument Rack con dos cadenas en paralelo."
         )
     
         options_block = "\n".join(opts_text)
@@ -190,11 +199,12 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 f"¿Qué generador sonoro o kit deseas cargar en esta pista?\n\n"
                 f"*Instrumentos y plugins verificados (prioridad a sintetizadores de terceros, nativos al final):*\n"
                 f"{options_block}\n\n"
-                f"• *Responde con el número de opción o nombre de plugin (ej: 'Opción 1', 'Vital (mejor diseño de sonido)', 'SubLab XL', 'Serum 2').*\n"
+                f"• *Responde con el número de opción, nombre de plugin o kit de batería (ej: 'Dry Session Kit', 'Garage Kit', 'Vital', 'SubLab XL').*\n"
+                f"• *Para combinar dos instrumentos en paralelo: usa el formato 'Instrumento A + Instrumento B'.*\n"
                 f"• *Si eliges Analog Lab V u Omnisphere, el asistente abrirá el sub-menú de presets por carpeta y la opción de plugin limpio default.*\n"
-                f"• *O selecciona el Modo Chopping Autónomo escribiendo 'Opción {chop_idx}' o 'Modo Chopping' (sintetiza una fuente armónica única, la procesa y rebanará en Simpler sin usar librerías externas).*"
+                f"• *O selecciona el Modo Chopping Autónomo escribiendo 'Opción {chop_idx}' o 'Modo Chopping'.*"
             ),
-            "instructions_for_ai": f"Indica la opción de instrumento o kit para {t_name}.",
+            "instructions_for_ai": f"Indica la opción de instrumento o kit para {t_name}. Puedes indicar cualquier kit de batería por nombre (ej: 'Dry Session Kit', 'Garage Kit') o usar layering con '+' (ej: 'Drift + Vital').",
             "target_track": t_idx,
             "role": role,
             "phase": "PHASE_3_INSTRUMENTS"
@@ -522,9 +532,63 @@ for slot in t.clip_slots:
             trk.pop("pending_plugin_subselection", None)
             target_uri = selected_sub_opt.uri if selected_sub_opt else f"query:Plugins#VST3:{pending_plugin.replace(' ', '%20')}"
             display_name = selected_sub_opt.name if selected_sub_opt else pending_plugin
-            if selected_sub_opt and selected_sub_opt.blueprint:
-                trk["blueprint"] = selected_sub_opt.blueprint
-        else:
+        # Dual Instrument Layering (Instrument Rack with two parallel chains)
+        is_layering = ("+" in user_input) or ("layer:" in user_input.lower())
+        if is_layering and not is_audio and not is_fx_audio:
+            raw_input = user_input.replace("Layer:", "").replace("layer:", "").strip()
+            parts = [p.strip() for p in raw_input.split("+") if p.strip()]
+            part1 = parts[0] if len(parts) > 0 else "Drift"
+            part2 = parts[1] if len(parts) > 1 else "Vital"
+
+            rack_uri = "query:Synths#Instrument%20Rack"
+            display_name = f"Instrument Rack ({part1} + {part2})"
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": rack_uri})
+                    code_rack = f"""
+t = song.tracks[{t_idx}]
+rack = t.devices[0] if t.devices else None
+if rack and getattr(rack, 'can_have_chains', False):
+    while len(rack.chains) < 2:
+        rack.insert_chain(-1)
+    if len(rack.chains) >= 2:
+        rack.chains[0].name = "{part1}"
+        rack.chains[1].name = "{part2}"
+        is_center = "{role}".upper() in ("BASS", "SUB", "808", "808_BASS", "KICK")
+        pan_val = 0.0 if is_center else 0.30
+        try:
+            rack.chains[0].mixer_device.panning.value = -pan_val
+            rack.chains[1].mixer_device.panning.value = pan_val
+        except Exception:
+            pass
+"""
+                    conn.send_command("execute_code", {"code": code_rack})
+                    conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] Layer: {part1} + {part2}"})
+                except Exception as ex_rack:
+                    logger.warning(f"Dual layering notice for track {t_idx}: {ex_rack}")
+
+            trk["instrument"] = display_name
+            trk["is_layered"] = True
+            trk["layered_instruments"] = [part1, part2]
+            session.data["current_track_ptr"] = ptr + 1
+            session._save_state()
+            if session.data["current_track_ptr"] < len(tracks):
+                return session._prompt_current_track_instrument()
+            else:
+                session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+                session.data["phase_index"] = 4
+                session.data["current_param_ptr"] = 0
+                session._save_state()
+                return session._prompt_current_track_params()
+
+        # Dynamic Drum Kit Lookup across all 159 Live kits
+        drum_match = None
+        if (role == "DRUMS" or "kit" in u_clean) and not is_audio:
+            drum_match = LiveBrowserCatalogEngine.find_drum_kit_uri(user_input)
+            if drum_match:
+                target_uri, display_name = drum_match
+
+        if not locals().get("target_uri"):
             options = LiveBrowserCatalogEngine.get_available_sources_for_role(lookup_role, filter_installed=True)
 
             selected_opt = None
@@ -606,7 +670,19 @@ for slot in t.clip_slots:
                                 selected_opt = opt
                                 break
     
-                    # 3. Keyword / word match (length > 4)
+                    # 3. Global exact or substring match across all CURATED_SOURCES (allows cross-role physical instruments)
+                    if not selected_opt:
+                        from engine.instruments.curated_data import CURATED_SOURCES
+                        for c_role, c_list in CURATED_SOURCES.items():
+                            for c_opt in c_list:
+                                c_clean = c_opt.name.lower()
+                                if c_clean == u_clean or c_clean in u_clean or u_clean in c_clean:
+                                    selected_opt = c_opt
+                                    break
+                            if selected_opt:
+                                break
+
+                    # 4. Keyword / word match (length > 4) within options
                     if not selected_opt:
                         for opt in options:
                             if any(word in opt.name.lower() for word in u_clean.split() if len(word) > 4):

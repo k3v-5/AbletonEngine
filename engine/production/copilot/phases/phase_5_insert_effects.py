@@ -238,7 +238,19 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     
         if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
             fx_kb.append("  ⚠️ **OBLIGATORIO — KEY Y SCALE:** Auto-Tune Artist **exige obligatoriamente** definir la **Key** (Tono: C, C#, D, D#, E, F, F#, G, G#, A, A#, B) y la **Scale** (Escala: Minor o Major). No se permite omitir estos valores.")
-    
+
+        is_reverb = any(w in eff_name.lower() for w in ["reverb", "vintageverb", "supermassive", "valhalla"])
+        if is_reverb:
+            is_front_element = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
+            max_mix_pct = 22 if is_front_element else 35
+            fx_kb.append(
+                f"  🏛️ **POLÍTICA DE REVERBERACIÓN Y CLARIDAD ACÚSTICA ({role}):**\n"
+                f"     • **Libertad Creativa de Espacio:** Elige libremente cualquier tipo o algoritmo (Hall, Plate, Room, Shimmer, VintageVerb, Supermassive, etc.).\n"
+                f"     • **Pre-Delay Obligatorio (≥ 15 ms):** Garantiza que el golpe transitorio directo se entienda con total nitidez antes de la cola reverberante.\n"
+                f"     • **Filtro Paso-Alto (Low Cut ≥ 180 Hz):** Elimina cualquier enturbiamiento del subgrave en el espacio difuso.\n"
+                f"     • **Techo Seguro de Mezcla (Dry/Wet ≤ {max_mix_pct}%):** Protege la pista para que nunca quede sepultada ni pierda inteligibilidad en la mezcla."
+            )
+
         if fx_kb:
             params_info.append("\n**Directrices Quirúrgicas de Inserción (FabFilter / Plugins):**\n" + "\n".join(fx_kb))
     
@@ -669,7 +681,20 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     applied_params[p_id] = val_found
                 else:
                     applied_params[p_id] = p["default"]
-    
+
+            # Reverb Clarity Enforcement (Pre-Delay >= 15ms, Low-Cut >= 180Hz, Dry/Wet <= 22% on front elements)
+            is_reverb = any(w in eff_name.lower() for w in ["reverb", "vintageverb", "supermassive", "valhalla"])
+            if is_reverb:
+                is_front = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
+                for k, v in list(applied_params.items()):
+                    k_l = k.lower()
+                    if ("mix" in k_l or "dry" in k_l) and is_front:
+                        applied_params[k] = min(float(v), 0.22)
+                    elif "predelay" in k_l or "pre-delay" in k_l:
+                        applied_params[k] = max(float(v), 0.15)
+                    elif "lowcut" in k_l or "low cut" in k_l:
+                        applied_params[k] = max(float(v), 0.18)
+
             if conn is not None and hasattr(conn, "send_command"):
                 try:
                     t_info = conn.send_command("get_track_info", {"track_index": t_idx})
@@ -773,15 +798,18 @@ for p in d.parameters:
     elif 'mix' in p_l: p.value = 0.75
 """
                         conn.send_command("execute_code", {"code": code_sat})
-                    elif "valhalla" in eff_name.lower():
+                    elif any(w in eff_name.lower() for w in ["valhalla", "vintageverb", "reverb"]):
+                        is_front = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
+                        mix_limit = 0.16 if is_front else 0.28
                         code_val = f"""
 t = song.tracks[{t_idx}]
 d = t.devices[{dev_idx}]
 for p in d.parameters:
     p_l = p.name.lower()
-    if 'mix' in p_l: p.value = 0.18
+    if 'mix' in p_l or 'dry' in p_l: p.value = {mix_limit}
     elif 'decay' in p_l: p.value = 0.25
-    elif 'predelay' in p_l: p.value = 0.15
+    elif 'predelay' in p_l or 'pre-delay' in p_l: p.value = 0.18
+    elif 'low cut' in p_l or 'lowcut' in p_l or 'in lowcut' in p_l: p.value = 0.20
 """
                         conn.send_command("execute_code", {"code": code_val})
     

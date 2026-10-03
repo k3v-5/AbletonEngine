@@ -342,7 +342,11 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 f"   • `AMP_SUSTAIN` (Rango: `0.0 - 1.0`): 0.0 pluck/percusivo sin sustain; 0.4-0.8 cuerpo constante; 1.0 sostenido total al mantener la nota.\n"
                 f"   • `AMP_RELEASE` (Rango: `0.0 - 1.0`): 0.05 corte seco al levantar tecla; 0.2-0.5 resonancia acústica natural; >0.6 estela atmosférica larga.\n"
                 f"4. **Espacio y Modulación**:\n"
-                f"   • `BRIGHTNESS` / `TIMBRE` (Rango: `0.0 - 1.0`): Apertura de agudos y modulación de brillo global.\n\n"
+                f"   • `BRIGHTNESS` / `TIMBRE` (Rango: `0.0 - 1.0`): Apertura de agudos y modulación de brillo global.\n"
+                f"5. **Control Soberano de Polifonía y Articulación**:\n"
+                f"   • `VOICES` / `POLYPHONY`: La IA tiene libertad soberana absoluta para decidir polifonía y número de voces (`1` = Mono, `2`, `4`, `8`, `16`, `32` voces). ¡Cualquier instrumento puede ser mono o polifónico según tu visión creativa!\n"
+                f"   • `LEGATO`: `On` / `Off` (articulación sin redisparo de envolventes).\n"
+                f"   • `GLIDE` / `PORTAMENTO`: `0.0 - 1.0` (o ms, tiempo de deslizamiento tonal entre notas consecutivas).\n\n"
                 f"📋 **5 Presets Especializados para `{role}` (con ajustes acústicos adaptados y TimbreDNA explícito):**\n"
                 f"{presets_block}\n\n"
                 f"🔀 **Separación Psicoacústica Crossover (Opcional):**\n"
@@ -458,6 +462,61 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                         val = val / 100.0
                     custom_params[p_name] = max(0.0, min(1.0, val))
                     break
+
+        # Sovereign Polyphony & Voice Mode Parsing
+        voice_mode = None
+        voices_val = None
+        if re.search(r"\b(?:mono|monof[oó]nico|monophonic|1\s*voz|1\s*voice)\b", text):
+            voice_mode = "MONO"
+            voices_val = 0.0
+        elif re.search(r"\b(?:poly|polif[oó]nico|polyphonic)\b", text):
+            voice_mode = "POLY"
+            voices_val = 0.66
+
+        v_match = re.search(r"(?:voces|voices|polyphony|polifon[ií]a)\s*[:=]?\s*(\d+)", text)
+        if not v_match:
+            v_match = re.search(r"(\d+)\s*(?:voces|voices)", text)
+        if v_match:
+            n_v = int(v_match.group(1))
+            if n_v <= 1:
+                voices_val = 0.0
+                voice_mode = "MONO"
+            elif n_v <= 4:
+                voices_val = 0.33
+                voice_mode = "POLY"
+            elif n_v <= 8:
+                voices_val = 0.66
+                voice_mode = "POLY"
+            else:
+                voices_val = 1.0
+                voice_mode = "POLY"
+
+        if voices_val is not None:
+            custom_params["POLYPHONY"] = voices_val
+            custom_params["VOICES"] = voices_val
+            custom_params["Poly Voice Depth"] = voices_val
+            trk["voice_mode"] = voice_mode
+            trk["voices"] = 1 if voices_val == 0.0 else (4 if voices_val == 0.33 else (8 if voices_val == 0.66 else 16))
+
+        # Legato Parsing
+        legato_m = re.search(r"legato\s*[:=]?\s*(on|off|true|false|1|0|s[ií]|no)", text)
+        if legato_m:
+            leg_v = 1.0 if legato_m.group(1).lower() in ("on", "true", "1", "si", "sí") else 0.0
+            custom_params["LEGATO"] = leg_v
+            custom_params["Legato On"] = leg_v
+            trk["legato"] = bool(leg_v)
+
+        # Glide / Portamento Parsing
+        glide_m = re.search(r"(?:glide|portamento)\s*[:=]?\s*([0-9\.]+)", text)
+        if glide_m:
+            g_v = float(glide_m.group(1))
+            if g_v > 1.0 and g_v <= 1000.0:
+                g_v = min(1.0, g_v / 500.0)
+            elif g_v > 1.0:
+                g_v = g_v / 100.0
+            custom_params["PORTAMENTO_GLIDE"] = max(0.0, min(1.0, g_v))
+            custom_params["Glide Time"] = max(0.0, min(1.0, g_v))
+            trk["glide"] = max(0.0, min(1.0, g_v))
 
         # TimbreDNA attributes parsing & synthesis parameter derivation
         from engine.sound.timbre_dna import TimbreRelationshipMatrix, TimbreDNA

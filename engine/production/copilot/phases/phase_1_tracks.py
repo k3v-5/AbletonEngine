@@ -56,13 +56,21 @@ class Phase1TracksHandler(BasePhaseHandler):
                 "• **BACKING_VOCALS** (150 Hz - 12 kHz): Coros, segundas voces y armonías abiertas en estéreo detrás del lead.\n"
                 "• **FX (Audio)** (20 Hz - 20 kHz): Pista de efecto de audio / bus de retorno o procesamiento paralelo con monitoreo 'In'.\n"
                 "• **FX (MIDI)** (20 Hz - 20 kHz): Efectos generativos, risers de sintetizador, downlifters, impactos y barridos espectrales mediante MIDI.\n\n"
+                "🎛️ **Los 3 Tipos Fundamentales de Pistas:**\n"
+                "  1. `MIDI`: Pista de instrumento virtual / sintetizador / sampler (recibe y procesa eventos de notas MIDI).\n"
+                "  2. `AUDIO`: Pista de audio para stems, samples o tomas de micrófono en vivo.\n"
+                "  3. `BUS`: Pista de retorno o sub-mezcla con monitoreo en 'In' y ruteo interno desde otra pista.\n\n"
                 "🧠 **Decisión Técnica Requerida:**\n"
                 "Evalúa la intención artística y el concepto de tu canción e indica **cuáles de estos tipos de instrumentos requieres**.\n"
                 "✨ **Libertad Creativa Total:** Puedes indicar cualquier nombre o rol musical con total libertad (ej: *'Guitarra Rítmica, Guitarra Lead, Bajo Eléctrico, Batería, Coros'* para Rock, o *'Dembow, Bajo 808, Sintetizador Lead, Coros'* para Reggaeton).\n\n"
-                "📋 **Estructura esperada:** Envía la lista de instrumentos separados por comas.\n"
-                "*(Ej: 'Batería, Bombo, 808 Bass, Teclado, Guitarra Rítmica, Sintes, Coros, FX'). El atajo 'Opción A' y plantillas fijas están deshabilitados.*"
+                "📋 **Tipificación Explícita Soportada:**\n"
+                "Para total precisión sobre el tipo de canal, puedes adjuntar el tipo y rol entre corchetes o enviar JSON estructurado:\n"
+                "• **Sintaxis con Corchetes:** `Upright Piano Chops [KEYS | MIDI], Drums [DRUMS | MIDI], Vocal Lead [VOCALS | AUDIO], Drum Parallel Bus [DRUMS | BUS]`\n"
+                "• **Sintaxis JSON:** `[{\"name\": \"Upright Piano Chops\", \"role\": \"KEYS\", \"type\": \"MIDI\"}, ...]`\n"
+                "• **Sintaxis Simple Tradicional:** `Batería, Bombo, 808 Bass, Teclado, Guitarra Rítmica, Sintes, Coros, FX` (el motor asignará tipos según el rol acústico).\n\n"
+                "*(El atajo 'Opción A' y plantillas fijas están deshabilitados).* "
             ),
-            "instructions_for_ai": "Indica explícitamente los instrumentos deseados separados por comas. Puedes usar cualquiera de los 21 roles del catálogo. El atajo 'Opción A' está deshabilitado.",
+            "instructions_for_ai": "Indica explícitamente los instrumentos deseados separados por comas o en JSON. Puedes usar la sintaxis 'Nombre [ROL | TIPO]' (ej: 'Upright Piano Chops [KEYS | MIDI]') para garantizar el tipo de pista exacto. El atajo 'Opción A' está deshabilitado.",
             "phase": "PHASE_1_TRACKS"
         }
     
@@ -80,28 +88,117 @@ class Phase1TracksHandler(BasePhaseHandler):
             getattr(session, "_is_test_mode", False)
         )
 
-        if "," in user_input:
+        parsed_json = None
+        try:
+            stripped = user_input.strip()
+            if (stripped.startswith("[") and stripped.endswith("]")) or (stripped.startswith("{") and stripped.endswith("}")):
+                import json
+                j_val = json.loads(stripped)
+                if isinstance(j_val, dict):
+                    j_val = j_val.get("tracks", j_val.get("instruments", [j_val]))
+                if isinstance(j_val, list):
+                    parsed_json = j_val
+        except Exception:
+            parsed_json = None
+
+        if parsed_json:
+            for item in parsed_json:
+                if isinstance(item, dict):
+                    raw_name = str(item.get("name", "")).strip()
+                    raw_role = str(item.get("role", "")).strip()
+                    raw_type = str(item.get("type", "")).strip().upper()
+                    c_role = RoleTrackOrchestrator.normalize_role(raw_role) if raw_role else RoleTrackOrchestrator.normalize_role(raw_name)
+                    c_name = raw_name or c_role.title()
+                    if raw_type == "MIDI":
+                        is_audio = False
+                        is_fx_audio = False
+                    elif raw_type == "AUDIO":
+                        is_audio = True
+                        is_fx_audio = False
+                    elif raw_type == "BUS":
+                        is_audio = True
+                        is_fx_audio = True
+                    else:
+                        is_audio = (c_role == "VOCALS") or ("audio" in c_name.lower())
+                        is_fx_audio = ("bus" in c_name.lower()) or (c_role == "FX" and is_audio)
+                    roles.append((c_name, c_role, is_audio, is_fx_audio))
+                elif isinstance(item, str):
+                    c_name = item.strip()
+                    if c_name:
+                        tag_match = re.search(r"\[(.*?)\]", c_name)
+                        explicit_type = None
+                        explicit_role = None
+                        clean_name = c_name
+                        if tag_match:
+                            inner = tag_match.group(1).strip()
+                            clean_name = re.sub(r"\[.*?\]", "", c_name).strip()
+                            tokens = [t.strip().upper() for t in re.split(r"[|/:]", inner)]
+                            for tok in tokens:
+                                if tok in ("MIDI", "AUDIO", "BUS"):
+                                    explicit_type = tok
+                                elif tok in RoleTrackOrchestrator.ROLE_MAP.values() or tok in RoleTrackOrchestrator.ROLE_MAP:
+                                    explicit_role = RoleTrackOrchestrator.normalize_role(tok)
+                        c_role = explicit_role or RoleTrackOrchestrator.normalize_role(clean_name or c_name)
+                        final_name = clean_name or c_name
+                        if explicit_type == "MIDI":
+                            is_audio = False
+                            is_fx_audio = False
+                        elif explicit_type == "AUDIO":
+                            is_audio = True
+                            is_fx_audio = False
+                        elif explicit_type == "BUS":
+                            is_audio = True
+                            is_fx_audio = True
+                        else:
+                            c_name_lower = c_name.lower()
+                            is_audio = ("(audio)" in c_name_lower) or ("audio" in c_name_lower) or (c_role == "VOCALS")
+                            is_fx_audio = ("bus" in c_name_lower) or (c_role == "FX" and is_audio)
+                        roles.append((final_name, c_role, is_audio, is_fx_audio))
+        elif "," in user_input:
             for item in user_input.split(","):
                 c_name = item.strip()
                 if c_name:
-                    c_name_lower = c_name.lower()
-                    is_audio = ("audio" in c_name_lower) or ("(audio)" in c_name_lower) or ("bus" in c_name_lower)
-                    c_role = RoleTrackOrchestrator.normalize_role(c_name)
-                    if c_role == "VOCALS":
+                    tag_match = re.search(r"\[(.*?)\]", c_name)
+                    explicit_type = None
+                    explicit_role = None
+                    clean_name = c_name
+                    if tag_match:
+                        inner = tag_match.group(1).strip()
+                        clean_name = re.sub(r"\[.*?\]", "", c_name).strip()
+                        tokens = [t.strip().upper() for t in re.split(r"[|/:]", inner)]
+                        for tok in tokens:
+                            if tok in ("MIDI", "AUDIO", "BUS"):
+                                explicit_type = tok
+                            elif tok in RoleTrackOrchestrator.ROLE_MAP.values() or tok in RoleTrackOrchestrator.ROLE_MAP:
+                                explicit_role = RoleTrackOrchestrator.normalize_role(tok)
+                    c_role = explicit_role or RoleTrackOrchestrator.normalize_role(clean_name or c_name)
+                    final_name = clean_name or c_name
+                    if explicit_type == "MIDI":
+                        is_audio = False
+                        is_fx_audio = False
+                    elif explicit_type == "AUDIO":
                         is_audio = True
-                    roles.append((c_name, c_role, is_audio))
+                        is_fx_audio = False
+                    elif explicit_type == "BUS":
+                        is_audio = True
+                        is_fx_audio = True
+                    else:
+                        c_name_lower = c_name.lower()
+                        is_audio = ("(audio)" in c_name_lower) or ("audio" in c_name_lower) or (c_role == "VOCALS")
+                        is_fx_audio = ("bus" in c_name_lower) or (c_role == "FX" and is_audio)
+                    roles.append((final_name, c_role, is_audio, is_fx_audio))
         elif is_test_env and ("opcion a" in text or "quinteto" in text):
             # Preserved STRICTLY for automated mock test compatibility in offline CI/test runner
             roles = [
-                ("Drums", "DRUMS", False),
-                ("Keys", "KEYS", False),
-                ("Pad", "PAD", False),
-                ("808 Bass", "BASS", False),
-                ("Lead Synth", "LEAD", False)
+                ("Drums", "DRUMS", False, False),
+                ("Keys", "KEYS", False, False),
+                ("Pad", "PAD", False, False),
+                ("808 Bass", "BASS", False, False),
+                ("Lead Synth", "LEAD", False, False)
             ]
         elif is_test_env and ("opcion b" in text or "trio" in text):
             # Preserved STRICTLY for automated mock test compatibility in offline CI/test runner
-            roles = [("Drums", "DRUMS", False), ("Bass", "BASS", False), ("Keys", "KEYS", False)]
+            roles = [("Drums", "DRUMS", False, False), ("Bass", "BASS", False, False), ("Keys", "KEYS", False, False)]
         else:
             # Parse space/newline-delimited instrument names (only if valid acoustic roles are found)
             raw_input = user_input
@@ -206,7 +303,7 @@ class Phase1TracksHandler(BasePhaseHandler):
                 name = r_item[0]
                 role = r_item[1]
                 is_audio_role = r_item[2] if len(r_item) > 2 else (role == "VOCALS")
-                is_fx_audio = (role == "FX" and is_audio_role)
+                is_fx_audio = r_item[3] if len(r_item) > 3 else ((role == "FX") and is_audio_role)
     
                 if is_audio_role:
                     if role == "VOCALS" and vocal_group_audio_indices:

@@ -103,6 +103,16 @@ class VitalSoundSculptor:
         if "release" in directives:
             settings["env_1_release"] = max(0.01, min(15.0, float(directives["release"])))
 
+        # Polyphony, Legato & Portamento (Sovereign Voice Control)
+        if "polyphony" in directives:
+            settings["polyphony"] = max(1.0, min(32.0, float(directives["polyphony"])))
+        if "legato" in directives:
+            settings["legato"] = 1.0 if directives["legato"] else 0.0
+        if "glide" in directives or "portamento" in directives:
+            g_val = float(directives.get("glide", directives.get("portamento", 0.0)))
+            settings["portamento_time"] = -10.0 + (min(1.0, max(0.0, g_val)) * 8.0)
+            settings["portamento_force"] = 1.0 if g_val > 0.01 else 0.0
+
         # 6. Principle 3: Zero-Delay Anti-Clutter & Pre-Filtered Reverb
         space_val = float(directives.get("space_dimension", 0.3))
         enable_delay = directives.get("delay", False)
@@ -110,7 +120,8 @@ class VitalSoundSculptor:
 
         # 7. Principle 2: 7-Voice JP-8000 Unison Sweet Spot & Harmonic Stacking
         width_val = float(directives.get("stereo_width", 0.5))
-        cls._apply_stereo_width(settings, width_val, is_bass=is_bass)
+        has_explicit_poly = "polyphony" in directives
+        cls._apply_stereo_width(settings, width_val, is_bass=is_bass, explicit_polyphony=has_explicit_poly)
         if not is_bass and width_val > 0.55:
             cls._apply_harmonic_octave_stacking(settings, width_val)
 
@@ -291,17 +302,25 @@ class VitalSoundSculptor:
             settings["delay_on"] = 0.0
 
     @classmethod
-    def _apply_stereo_width(cls, settings: Dict[str, Any], val: float, is_bass: bool = False) -> None:
+    def _apply_stereo_width(cls, settings: Dict[str, Any], val: float, is_bass: bool = False, explicit_polyphony: bool = False) -> None:
         """
         Principle 2: The 7-Voice JP-8000 Unison Sweet Spot (~1.95 detune).
         Provides a rock-solid mono core with wide side stereo without phase blur.
+        Respects sovereign polyphony when requested by the AI.
         """
         w = max(0.0, min(1.0, val))
 
-        if is_bass:
+        if is_bass and not explicit_polyphony:
             settings["osc_1_unison_voices"] = 1.0
             settings["osc_1_unison_detune"] = 0.0
             settings["polyphony"] = 1.0
+            return
+        elif is_bass and explicit_polyphony:
+            # Sovereign polyphony for bass (e.g. Reese bass / chord bass):
+            # allow polyphony and controlled unison while protecting sub-bass (< 80 Hz)
+            if w > 0.20:
+                settings["osc_1_unison_voices"] = min(4.0, max(2.0, round(w * 4.0)))
+                settings["osc_1_unison_detune"] = min(0.80, w * 0.80)
             return
 
         if w < 0.20:

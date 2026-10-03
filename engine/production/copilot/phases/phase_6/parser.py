@@ -74,6 +74,40 @@ class Phase6Parser:
                 if brace_m:
                     json_str = brace_m.group(1)
 
+            def _extract_freetext_meta(txt: str, target_meta: Dict[str, Any]):
+                groove_m = re.search(r'(?:groove|pocket|estilo_groove|estilo)\s*[:=]\s*([a-zA-Z0-9_\-]+)', txt, re.IGNORECASE)
+                if groove_m and "groove" not in target_meta and "pocket_style" not in target_meta:
+                    target_meta["pocket_style"] = groove_m.group(1).lower()
+
+                if "pocket_style" not in target_meta and "groove" not in target_meta:
+                    u_lower = txt.lower()
+                    if any(w in u_lower for w in ["ukg_2step", "uk garage", "ukg", "2step", "2-step", "garage londinense"]):
+                        target_meta["pocket_style"] = "ukg_2step"
+                    elif any(w in u_lower for w in ["dilla_drunk", "dilla", "drunken"]):
+                        target_meta["pocket_style"] = "dilla_drunk"
+                    elif any(w in u_lower for w in ["lofi_sp1200", "sp1200", "sp-1200"]):
+                        target_meta["pocket_style"] = "lofi_sp1200"
+                    elif any(w in u_lower for w in ["reggaeton_dembow", "dembow"]):
+                        target_meta["pocket_style"] = "reggaeton_dembow"
+                    elif any(w in u_lower for w in ["mpc_60", "mpc60", "roger linn"]):
+                        target_meta["pocket_style"] = "mpc_60"
+
+                swing_m = re.search(r'(?:swing|swing_pct|swing_percentage)\s*[:=]?\s*(\d{2}(?:\.\d+)?)\s*%?', txt, re.IGNORECASE)
+                if swing_m and "swing" not in target_meta and "swing_percentage" not in target_meta:
+                    try:
+                        target_meta["swing_percentage"] = float(swing_m.group(1))
+                    except ValueError:
+                        pass
+
+                hum_m = re.search(r'(?:humanizaci[oó]n|humanization|hum_level|nivel_humanizaci[oó]n)\s*[:=]?\s*([0-5])', txt, re.IGNORECASE)
+                if hum_m and "humanization_level" not in target_meta:
+                    try:
+                        target_meta["humanization_level"] = int(hum_m.group(1))
+                    except ValueError:
+                        pass
+
+            _extract_freetext_meta(user_input, meta)
+
             if not json_str:
                 return meta, custom_map, False
 
@@ -89,7 +123,11 @@ class Phase6Parser:
         if not isinstance(data, dict):
             return meta, custom_map, False
 
-        for k in ["bpm", "key", "scale", "genre"]:
+        for k in [
+            "bpm", "key", "scale", "genre",
+            "groove", "pocket", "pocket_style",
+            "swing", "swing_percentage", "humanization", "humanization_level"
+        ]:
             if k in data:
                 meta[k] = data[k]
 
@@ -127,21 +165,41 @@ class Phase6Parser:
         elif isinstance(comp, list):
             for item in comp:
                 if isinstance(item, dict):
-                    t_ident = item.get("track", item.get("track_name", item.get("track_index", item.get("role", item.get("name")))))
                     s_idx = item.get("section", item.get("section_index", 0))
                     try:
                         s_idx = int(s_idx)
                     except ValueError:
                         s_idx = str(s_idx).lower()
-                    normed = _norm_notes(item.get("notes", []))
-                    custom_map[(t_ident, s_idx)] = normed
-                    if isinstance(t_ident, str):
-                        custom_map[(t_ident.lower(), s_idx)] = normed
-                        if not t_ident.isdigit():
-                            norm_r = RoleTrackOrchestrator.normalize_role(t_ident)
-                            if norm_r:
-                                custom_map[(norm_r, s_idx)] = normed
-                                custom_map[(norm_r.lower(), s_idx)] = normed
+
+                    # Support nested "tracks" dict inside section item: {"tracks": {"0": {"notes": [...]}}}
+                    if "tracks" in item and isinstance(item["tracks"], dict):
+                        for sub_t_k, sub_t_val in item["tracks"].items():
+                            sub_notes = sub_t_val.get("notes", []) if isinstance(sub_t_val, dict) else sub_t_val
+                            if isinstance(sub_notes, list):
+                                sub_normed = _norm_notes(sub_notes)
+                                try:
+                                    sub_t_idx = int(sub_t_k)
+                                    custom_map[(sub_t_idx, s_idx)] = sub_normed
+                                    custom_map[(str(sub_t_idx), s_idx)] = sub_normed
+                                except ValueError:
+                                    custom_map[(sub_t_k, s_idx)] = sub_normed
+                                    custom_map[(sub_t_k.lower(), s_idx)] = sub_normed
+                                    norm_sub_r = RoleTrackOrchestrator.normalize_role(sub_t_k)
+                                    if norm_sub_r:
+                                        custom_map[(norm_sub_r, s_idx)] = sub_normed
+                                        custom_map[(norm_sub_r.lower(), s_idx)] = sub_normed
+
+                    t_ident = item.get("track", item.get("track_name", item.get("track_index", item.get("role", item.get("name")))))
+                    if t_ident is not None:
+                        normed = _norm_notes(item.get("notes", []))
+                        custom_map[(t_ident, s_idx)] = normed
+                        if isinstance(t_ident, str):
+                            custom_map[(t_ident.lower(), s_idx)] = normed
+                            if not t_ident.isdigit():
+                                norm_r = RoleTrackOrchestrator.normalize_role(t_ident)
+                                if norm_r:
+                                    custom_map[(norm_r, s_idx)] = normed
+                                    custom_map[(norm_r.lower(), s_idx)] = normed
 
         # 2. 'tracks' list or dict
         trks = data.get("tracks")

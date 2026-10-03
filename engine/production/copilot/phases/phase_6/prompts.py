@@ -63,6 +63,22 @@ class Phase6Prompts:
                 "⚠️ *Para evitar pads silenciosos en Ableton Live, mapea tus notas a partir de C1 (pitch 36 a 51).*"
             )
 
+        from engine.music.groove.humanizer import DynamicGrooveHumanizer
+        pocket_style = session.data.get("pocket_style", "ukg_2step" if "garage" in str(session.data.get("genre", "")).lower() else "atlanta_trap")
+        swing_pct = session.data.get("swing_percentage", 60.0 if pocket_style == "ukg_2step" else 55.0)
+        hum_level = session.data.get("humanization_level", 2)
+        hum_cfg = DynamicGrooveHumanizer.get_level_config(hum_level)
+        groove_spec_block = (
+            f"\n\n🎛️ **Groove, Swing & Micro-Timing (Roger Linn Swing / Pockets):**\n"
+            f"• **Groove Activo:** `{pocket_style}` | **Swing:** `{swing_pct}%` | **Humanización:** `{hum_cfg['name']}`\n"
+            "• **Pockets Disponibles:** `ukg_2step` (UK Garage 58-62% swing, skipping hats), `mpc_60` (Roger Linn 54-66%), "
+            "`dilla_drunk` (Neo-Soul / J Dilla swing retrasado), `reggaeton_dembow` (Dembow síncopa), "
+            "`lofi_sp1200` (SP-1200 boom-bap 57%), `atlanta_trap` (Trap 808 anclado).\n"
+            "• **Micro-Timing y Cuantización Soberana:** Puedes enviar `start_time` con decimales de micro-timing "
+            "(ej: `0.28`, `0.53` en lugar de pasos rígidos `0.25`, `0.50`) para empuje/arrastre humano real sin cuantización forzada.\n"
+            "*(Para configurar responde 'Groove: [estilo]', 'Swing: [50-75]%', o 'Humanización: [0-5]').*"
+        )
+
         return {
             "status": "AWAITING_TRACK_COMPOSITION",
             "current_step": f"PASO 6 (POR PISTA {trk_idx + 1}/{len(tracks)}): COMPOSICIÓN PARA '{cur_trk.get('name')}'",
@@ -76,12 +92,16 @@ class Phase6Prompts:
                 f"Define las notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) **únicamente para esta pista** en todas sus secciones activas.\n\n"
                 f"Puedes enviar un JSON con `notes` (para todo el arreglo o sección) o `sections` detallando las notas por sección."
                 f"{drum_spec_block}"
+                f"{groove_spec_block}"
             ),
-            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para la pista '{cur_trk.get('name')}' ({cur_trk.get('role')}). El motor no autocompletará notas.",
+            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para la pista '{cur_trk.get('name')}' ({cur_trk.get('role')}). El motor no autocompletará notas. Puedes usar micro-timing explícito o especificar 'Groove: [estilo]'.",
             "phase": "PHASE_6_COMPOSITION",
             "track_index": trk_idx,
             "track_name": cur_trk.get("name"),
-            "track_role": cur_trk.get("role")
+            "track_role": cur_trk.get("role"),
+            "pocket_style": pocket_style,
+            "swing_percentage": swing_pct,
+            "humanization_level": hum_level
         }
 
     @staticmethod
@@ -145,6 +165,8 @@ class Phase6Prompts:
         key = session.data.get("key", "F")
         scale = session.data.get("scale", "Minor")
         bpm = session.data.get("bpm", 120.0)
+        pocket_style = session.data.get("pocket_style", "ukg_2step" if "garage" in str(session.data.get("genre", "")).lower() else "atlanta_trap")
+        swing_pct = session.data.get("swing_percentage", 60.0 if pocket_style == "ukg_2step" else 55.0)
         hum_level = session.data.get("humanization_level", 2)
         hum_cfg = DynamicGrooveHumanizer.get_level_config(hum_level)
 
@@ -175,8 +197,9 @@ class Phase6Prompts:
                 f"• **Instrumento / Pista:** `{cur_trk.get('name')}` [{cur_trk.get('role')}] ({cur_trk.get('instrument', cur_trk.get('name'))})\n"
                 f"• **Sección Perteneciente:** **'{cur_sec.get('name')}'** ({s_bars} compases / {s_beats} tiempos métricos, inicio en compás {cur_sec.get('start_bar', sec_idx * 8)})\n"
                 f"• **Tonalidad y Escala del Proyecto:** `{key} {scale}` | Tempo: `{bpm} BPM`\n"
-                f"• **Humanización de Groove Activa:** `{hum_cfg['name']}` ({hum_cfg['description']})\n"
-                f"  *(Para cambiar nivel de humanización responde 'Humanización: [1-5]')*\n\n"
+                f"• **Groove & Swing:** Pocket `{pocket_style}` | Swing `{swing_pct}%` | Humanización `{hum_cfg['name']}` ({hum_cfg['description']})\n"
+                f"  *(Pockets: `ukg_2step`, `mpc_60`, `dilla_drunk`, `reggaeton_dembow`, `lofi_sp1200`, `atlanta_trap` | 'Groove: [estilo]' | 'Swing: [50-75]%' | 'Humanización: [0-5]')*\n"
+                f"  *(Micro-Timing Soberano: Puedes enviar `start_time` con micro-desplazamiento libre ej: `0.28`, `0.53` sin cuantización forzada)*\n\n"
                 f"📋 **Progreso del Arreglo (Clips Agregados Actualmente):**\n"
                 f"{accumulated_block}\n\n"
                 f"• **Ventana Temporal del Clip:** `start_time` relativo de `0.0` a `{s_beats}` (o motivo de 16 tiempos con auto-tiling)\n\n"
@@ -187,7 +210,7 @@ class Phase6Prompts:
                 "*(Escribe 'Modo: Por Pista' si deseas alternar a composición pista completa).* "
                 f"{drum_spec_block}"
             ),
-            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para el clip '{cur_sec.get('name')}' ({s_bars} compases) de '{cur_trk.get('name')}' en {key} {scale}.",
+            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para el clip '{cur_sec.get('name')}' ({s_bars} compases) de '{cur_trk.get('name')}' en {key} {scale}. Puedes incluir micro-timing explícito.",
             "phase": "PHASE_6_COMPOSITION",
             "track_index": trk_idx,
             "section_index": sec_idx,
@@ -199,6 +222,8 @@ class Phase6Prompts:
             "clip_beats": s_beats,
             "key": key,
             "scale": scale,
+            "pocket_style": pocket_style,
+            "swing_percentage": swing_pct,
             "humanization_level": hum_level
         }
 
@@ -212,6 +237,8 @@ class Phase6Prompts:
         tracks = session.data.get("tracks", [])
         sections = session.data.get("sections", [])
         total_bars = session.data.get("total_bars", 96)
+        pocket_style = session.data.get("pocket_style", "ukg_2step" if "garage" in str(session.data.get("genre", "")).lower() else "atlanta_trap")
+        swing_pct = session.data.get("swing_percentage", 60.0 if pocket_style == "ukg_2step" else 55.0)
 
         pref_mode = "monolithic"
         try:
@@ -254,6 +281,10 @@ class Phase6Prompts:
                 + "\n".join(track_lines) + "\n\n"
                 f"**Estructura del Arreglo ({total_bars} compases totales):**\n"
                 + "\n".join(sec_lines) + "\n\n"
+                f"🎛️ **Groove & Micro-Timing:**\n"
+                f"• Pocket actual: `{pocket_style}` | Swing: `{swing_pct}%`\n"
+                f"• Opciones de pocket: `ukg_2step`, `mpc_60`, `dilla_drunk`, `reggaeton_dembow`, `lofi_sp1200`, `atlanta_trap`\n"
+                "• Micro-timing soberano: Puedes suministrar notas con micro-timing milimétrico explícito (ej: `0.28`, `0.53`) sin cuantización forzada.\n\n"
                 "🧠 **Decisión Técnica Requerida:**\n"
                 "⚠️ **Regla de Oro del Motor (Cero Auto-Relleno Procedural):**\n"
                 "El motor prohíbe terminantemente autocompletar con notas genéricas o sugerir 'Siguiente' para inventar patrones.\n"
@@ -265,6 +296,6 @@ class Phase6Prompts:
                 "• **Composición Combinada**: Escribe 'Combinado' para pista y sección específica.\n\n"
                 "*Envía el JSON con la tonalidad, escala y notas de tu composición o indica tu modalidad modular para comenzar.*"
             ),
-            "instructions_for_ai": "Genera y envía las notas MIDI explícitas para cada pista y sección activa. El motor no autocompletará notas.",
+            "instructions_for_ai": "Genera y envía las notas MIDI explícitas para cada pista y sección activa. El motor no autocompletará notas. Puedes incluir micro-timing explícito o especificar 'Groove: [estilo]'.",
             "phase": "PHASE_6_COMPOSITION"
         }

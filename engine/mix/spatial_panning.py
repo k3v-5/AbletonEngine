@@ -215,6 +215,9 @@ class SpatialRuleEngine:
                     harmonic_right_count += 1
                 rationale = "Separación estéreo secundaria equilibrada."
 
+            if t.get("is_layered") or "layer:" in name.lower() or "layer " in name.lower():
+                rationale += " [Layering Dual activo: Cadenas en Instrument Rack con paneo complementario para apertura estéreo]."
+
             is_optimized = abs(cur_p - rec_p) < 0.04
             status = "OPTIMIZADO" if is_optimized else "SOLAPAMIENTO_DETECTADO" if abs(cur_p) < 0.05 and rec_p != 0.0 else "AJUSTE_RECOMENDADO"
 

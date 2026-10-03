@@ -138,7 +138,17 @@ class AcousticProbe:
             t_count = sess.get("result", {}).get("track_count", 0) if isinstance(sess, dict) else 0
             target_tracks = list(range(t_count))
 
-        # Jump to DROP (beat 80) where all arrangement layers are playing
+        # Query arrangement clips for all target tracks to identify active windows
+        track_clips: Dict[int, List[Dict[str, Any]]] = {}
+        for t_idx in target_tracks:
+            try:
+                arr_res = conn.send_command("get_arrangement_clips", {"track_index": t_idx})
+                clips = arr_res.get("result", {}).get("clips", []) if isinstance(arr_res, dict) else (arr_res if isinstance(arr_res, list) else [])
+                track_clips[t_idx] = clips
+            except Exception:
+                track_clips[t_idx] = []
+
+        # Primary Probe Pass: Jump to DROP (beat 80) where main arrangement layers are playing
         try:
             conn.send_command("set_current_song_time", {"time": 80.0})
         except Exception:
@@ -163,8 +173,34 @@ class AcousticProbe:
                     meter_maxima[t_idx] = lvl
             time.sleep(0.4)
 
-        # Stop playback and rewind
+        # Stop playback after primary pass
         conn.send_command("stop_playback", {})
+
+        # Radical Minimalism & Sparse Track Probe:
+        # For tracks silent at beat 80 that have arrangement clips located elsewhere (e.g. ear candy in 10% of the song)
+        for t_idx in target_tracks:
+            if meter_maxima[t_idx] < 0.001 and track_clips.get(t_idx):
+                clips = track_clips[t_idx]
+                first_clip = clips[0]
+                c_start = float(first_clip.get("start_time", 0.0))
+                c_len = float(first_clip.get("length", first_clip.get("duration", 8.0)))
+                probe_time = c_start + min(2.0, max(0.5, c_len / 2.0))
+                try:
+                    conn.send_command("set_current_song_time", {"time": probe_time})
+                    conn.send_command("start_playback", {})
+                    time.sleep(0.8)
+                    for _ in range(2):
+                        t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                        t_data = t_info.get("result", {}) if isinstance(t_info, dict) else {}
+                        lvl = float(t_data.get("output_meter_level", 0.0))
+                        if lvl > meter_maxima[t_idx]:
+                            meter_maxima[t_idx] = lvl
+                        time.sleep(0.3)
+                    conn.send_command("stop_playback", {})
+                except Exception as ex_sparse:
+                    logger.debug(f"Sparse track probe notice on track {t_idx}: {ex_sparse}")
+
+        # Rewind transport to 0.0
         try:
             conn.send_command("set_current_song_time", {"time": 0.0})
         except Exception:
@@ -182,12 +218,12 @@ class AcousticProbe:
 
             clip_slots = t_data.get("clip_slots", [])
             has_clips = any(cs.get("has_clip", False) for cs in clip_slots)
-            arr_res = conn.send_command("get_arrangement_clips", {"track_index": t_idx})
-            arr_clips = arr_res.get("result", {}).get("clips", []) if isinstance(arr_res, dict) else []
+            arr_clips = track_clips.get(t_idx, [])
 
-            is_musical = (len(devs) > 0 and (has_clips or len(arr_clips) > 0))
-            # Track is silent if muted, volume zero, or meter never exceeded 0.001 during playback
-            is_silent = muted or (vol < 0.05) or (is_musical and meter < 0.001)
+            has_any_clips = has_clips or len(arr_clips) > 0
+            is_musical = len(devs) > 0
+            # Track is silent if muted, volume zero (<0.05), has no clips, or if meter never exceeded 0.001 in its active window
+            is_silent = muted or (vol < 0.05) or (not has_any_clips) or (meter < 0.001)
 
             report = {
                 "track_index": t_idx,
@@ -198,6 +234,7 @@ class AcousticProbe:
                 "device_count": len(devs),
                 "devices": [d.get("name") for d in devs],
                 "meter_level": meter,
+                "arrangement_clip_count": len(arr_clips),
                 "status": "SILENT" if is_silent else "AUDIBLE"
             }
 

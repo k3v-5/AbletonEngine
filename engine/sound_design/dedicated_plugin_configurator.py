@@ -756,6 +756,26 @@ class DedicatedPluginConfigurator:
             if m:
                 directives[key] = float(m.group(1))
 
+        # 4b. Sovereign Polyphony & Voice Mode Parsing for Vital
+        if re.search(r"\b(?:mono|monof[oó]nico|monophonic|1\s*voz|1\s*voice)\b", ai_text):
+            directives["polyphony"] = 1.0
+        elif re.search(r"\b(?:poly|polif[oó]nico|polyphonic)\b", ai_text):
+            directives["polyphony"] = 8.0
+
+        v_m = re.search(r"(?:voces|voices|polyphony|polifon[ií]a)\s*[:=]?\s*(\d+)", ai_text)
+        if not v_m:
+            v_m = re.search(r"(\d+)\s*(?:voces|voices)", ai_text)
+        if v_m:
+            directives["polyphony"] = max(1.0, min(32.0, float(v_m.group(1))))
+
+        l_m = re.search(r"legato\s*[:=]?\s*(on|off|true|false|1|0|s[ií]|no)", ai_text)
+        if l_m:
+            directives["legato"] = 1.0 if l_m.group(1).lower() in ("on", "true", "1", "si", "sí") else 0.0
+
+        g_m = re.search(r"(?:glide|portamento)\s*[:=]?\s*([0-9\.]+)", ai_text)
+        if g_m:
+            directives["glide"] = float(g_m.group(1))
+
         # 5. Determine base archetype
         if is_bass:
             if any(w in ai_text for w in ["acid", "303", "rave", "twiddle"]):
@@ -1040,11 +1060,12 @@ for p in d.parameters:
             vv_model.decay = 0.25
             vv_model.mix = 0.16
 
-        # Apply engine limits: Low cut >= 120 Hz, Mix clamping
+        # Apply engine limits: Low cut >= 180 Hz (0.18), Pre-delay >= 15 ms (0.15), Mix clamping
         vv_model.low_cut = max(0.18, vv_model.low_cut)
-        is_lead_or_drop = role in ("LEAD", "COUNTER_LEAD", "DRUMS", "BASS")
-        if is_lead_or_drop:
-            vv_model.mix = min(vv_model.mix, 0.15)
+        is_front = role in ("LEAD", "COUNTER_LEAD", "DRUMS", "BASS", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR")
+        if is_front:
+            vv_model.mix = min(vv_model.mix, 0.22)
+            vv_model.predelay = max(vv_model.predelay, 0.15)
 
         v_rep_vv = ValhallaVintageVerbValidator.validate(vv_model, role=role, strict=False)
 
