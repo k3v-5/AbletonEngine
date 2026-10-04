@@ -25,11 +25,30 @@ class Phase1TracksHandler(BasePhaseHandler):
         return self._handle_phase_1(session, conn, user_input)
 
     def _prompt_phase_1(self, session) -> Dict[str, Any]:
+        design = session.data.get("design", {})
+        design_density_str = ""
+        sig_num, sig_denom = session.data.get("time_signature", (4, 4)) if isinstance(session.data.get("time_signature"), (list, tuple)) else (4, 4)
+        sig_str = f"{sig_num}/{sig_denom}"
+        bpm_val = float(session.data.get("bpm", 120.0))
+
+        if design:
+            d_art = design.get("artist", "Artista Referente")
+            d_gen = design.get("genre", "Género")
+            d_dens = design.get("channel_density", 10)
+            d_insts = design.get("instruments", [])
+            inst_note = f"\n• **Instrumentación Preliminar Diseñada:** {', '.join(d_insts)}" if d_insts else ""
+            design_density_str = (
+                f"🎯 **Densidad de Canales Establecida en Pre-Producción ({d_art} - {d_gen}):**\n"
+                f"• **Densidad recomendada:** `{d_dens} pistas separadas` (Kick, Snare, HiHats, Percs, 808/Sub, Keys, Lead, Pads, Ear Candy, Audio FX; arquitectura profesional con stems independientes).{inst_note}\n\n"
+            )
+
         return {
             "current_step": "PASO 1 DE 7: CONFIGURACIÓN DE PISTAS Y ROLES ACÚSTICOS",
             "action_taken": "Iniciando sesión guiada de producción en Ableton Live (Pre-flight cleaner activo).",
             "question": (
                 "👋 **Bienvenido a la Producción Guiada por el Copilot.**\n\n" + get_learned_context_summary() + "\n\n"
+                + design_density_str +
+                f"🎵 **Compás Métrico y Tempo:** Compás configurado: `{sig_str}` | Tempo: `{bpm_val:.1f} BPM`. (Puedes confirmar o especificar cambios de métrica ej: `4/4`, `3/4`, `6/8`, `7/8`).\n\n"
                 "🧹 **Pre-flight Cleaner Activo:** Al confirmar este paso, el motor inspecciona y limpia transportes activos, cue points anteriores, clips y dispositivos huérfanos para iniciar siempre desde un punto idéntico y reproducible.\n\n"
                 "**Paso 1 de 7: Catálogo de Tipos de Instrumentos y Asignación de Roles**\n\n"
                 "El motor prohíbe el uso de plantillas estándar fijas. Ofrece un catálogo completo de 21 tipos de instrumentos según su función acústica y espectral (diseñado para Rock, Trap, Reggaeton, Pop y géneros híbridos):\n\n"
@@ -81,6 +100,33 @@ class Phase1TracksHandler(BasePhaseHandler):
     
         text = _normalize_text(user_input)
         roles = []
+
+        # Parse Time Signature if provided in Phase 1
+        sig_match = re.search(r'\b(\d{1,2})\s*/\s*(\d{1,2})\b', user_input)
+        if sig_match:
+            s_num = int(sig_match.group(1))
+            s_den = int(sig_match.group(2))
+            session.data["time_signature"] = (s_num, s_den)
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("execute_code", {"code": f"song.signature_numerator = {s_num}\nsong.signature_denominator = {s_den}"})
+                    logger.info(f"Phase 1 physically updated Live time signature to {s_num}/{s_den}")
+                except Exception as ex_ts:
+                    logger.debug(f"Time signature Live sync notice: {ex_ts}")
+
+        # Parse BPM if provided in Phase 1
+        bpm_match = re.search(r'(?:bpm|tempo)[:\s]+(\d+(?:\.\d+)?)', user_input, re.IGNORECASE)
+        if not bpm_match:
+            bpm_match = re.search(r'\b(\d{2,3}(?:\.\d+)?)\s*bpm\b', user_input, re.IGNORECASE)
+        if bpm_match:
+            new_bpm = float(bpm_match.group(1))
+            session.data["bpm"] = new_bpm
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("set_tempo", {"tempo": new_bpm})
+                    logger.info(f"Phase 1 physically updated Live tempo to {new_bpm} BPM")
+                except Exception as ex_bpm:
+                    logger.debug(f"Tempo Live sync notice: {ex_bpm}")
 
         is_test_env = bool(
             os.environ.get("PYTEST_CURRENT_TEST") or
@@ -155,7 +201,11 @@ class Phase1TracksHandler(BasePhaseHandler):
                             is_fx_audio = ("bus" in c_name_lower) or (c_role == "FX" and is_audio)
                         roles.append((final_name, c_role, is_audio, is_fx_audio))
         elif "," in user_input:
-            for item in user_input.split(","):
+            track_input_source = user_input
+            if ":" in user_input and any(k in user_input.lower().split(":", 1)[0] for k in ["pista", "canal", "track", "configur", "setup", "instancia", "stem"]):
+                track_input_source = user_input.split(":", 1)[1].strip()
+
+            for item in track_input_source.split(","):
                 c_name = item.strip()
                 if c_name:
                     tag_match = re.search(r"\[(.*?)\]", c_name)
@@ -234,8 +284,7 @@ class Phase1TracksHandler(BasePhaseHandler):
                 "Debes enviar una lista explícita de nombres o roles de instrumentos separados por comas. Puedes combinar libremente cualquiera de los 21 roles acústicos:\n\n"
                 "• **Formato requerido:** `[Instrumento 1], [Instrumento 2], [Instrumento 3], ...`\n"
                 "• **Ejemplo Rock:** `Batería, Bajo Eléctrico, Guitarra Rítmica, Guitarra Lead, Voz, Coros`\n"
-                "• **Ejemplo Trap / Urbano:** `Drums, Kick, 808 Bass, Dembow, Keys, Lead, Vocals, Backing Vocals, FX (Audio)`\n"
-                "• **Ejemplo Esencial:** `Drums, Kick, Bass, Keys, Lead`\n\n"
+                "• **Ejemplo Completo (10 pistas profesionales):** `Drums, Kick, 808 Bass, Keys, Pad, Lead Synth, Vocal Lead, Backing Vocals, Percussion, FX (Audio)`\n\n"
                 "**Catálogo de Roles Soportados:**\n"
                 "  1. `DRUMS`: Batería base acústica, breakbeat o drum rack.\n"
                 "  2. `KICK`: Bombo dedicado y aislado.\n"
@@ -365,6 +414,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                         ti = conn.send_command("get_track_info", {"track_index": idx})
                         res_ti = ti.get("result", ti) if isinstance(ti, dict) else {}
                         t_n = str(res_ti.get("name", "")).lower()
+                        if "[bus]" in t_n or "bus" in t_n or "[return]" in t_n or "return" in t_n:
+                            continue
                         is_audio = bool(res_ti.get("is_audio_track") or not res_ti.get("is_midi_track", True))
                         is_foldable = bool(res_ti.get("is_foldable", False))
                         if not is_foldable and (is_audio or any(k in t_n for k in ["vocal", "vox", "voz"])):
@@ -373,7 +424,9 @@ class Phase1TracksHandler(BasePhaseHandler):
                                 vocal_cand_name = res_ti.get("name", "Lead Vocal")
                                 break
                     if vocal_cand_idx is not None:
-                        clean_v_name = "Lead Vocal" if ("audio" in vocal_cand_name.lower() or "vocal" not in vocal_cand_name.lower()) else vocal_cand_name
+                        clean_v_name = re.sub(r"^(\[VOCALS\]\s*)+", "", vocal_cand_name, flags=re.IGNORECASE).strip()
+                        if not clean_v_name or "bus" in clean_v_name.lower() or "audio" in clean_v_name.lower():
+                            clean_v_name = "Lead Vocal"
                         try:
                             conn.send_command("set_track_name", {"track_index": vocal_cand_idx, "name": f"[VOCALS] {clean_v_name}"})
                         except Exception:
@@ -406,10 +459,12 @@ class Phase1TracksHandler(BasePhaseHandler):
                 trk["top_recommendations"] = ["Ableton Native Preset"]
     
         session.data["tracks"] = created_tracks
-        for g_candidate in ["trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
-            if g_candidate in text:
-                session.data["genre"] = g_candidate.replace(" ", "_").replace("hip_hop", "trap").replace("lofi", "boom_bap").replace("dnb", "drum_and_bass")
-                break
+        from engine.knowledge.genres.sixty_genres import SixtyGenresKnowledgeBase
+        matched_g = SixtyGenresKnowledgeBase.find_by_name(text)
+        if matched_g:
+            session.data["genre"] = matched_g.name
+        elif "genre" not in session.data:
+            session.data["genre"] = "Trap"
     
         # Apply Suite 2.0 Autonomous Foundation: Colors, Headroom Faders & Submix Buses
         try:
@@ -429,34 +484,42 @@ class Phase1TracksHandler(BasePhaseHandler):
     # SINCRONIZACIÓN DE TONALIDAD Y AFINACIÓN EN LIVE 12
     # -------------------------------------------------------------------------
     @classmethod
-    def _sync_session_tuning(cls, conn: Any, key: str = "F", scale: str = "Minor") -> Dict[str, Any]:
+    def _sync_session_tuning(cls, conn: Any, key: Optional[str] = None, scale: Optional[str] = None) -> Dict[str, Any]:
         """
-        Sincroniza físicamente la tonalidad y escala musical en Ableton Live 12:
-        1. Configura song.root_note y song.scale_name en el motor LOM de Live 12.
-        2. Escanea y afina plugins de pitch y corrección vocal (ej. Antares Auto-Tune Artist / Pro).
+        Sincroniza físicamente la tonalidad y escala musical en Ableton Live 12 y Auto-Tune en tiempo real:
+        1. Si key/scale son provistos, configura song.root_note y song.scale_name en Live 12.
+        2. Si no son provistos o son None, lee en tiempo real song.root_note y song.scale_name del proyecto de Live 12.
+        3. Escanea y sincroniza plugins de afinación vocal (Antares Auto-Tune Artist / Pro).
         """
         if conn is None or not hasattr(conn, "send_command"):
-            return {"status": "mock", "key": key, "scale": scale}
-    
-        key_clean = (key or "F").strip().capitalize()
+            return {"status": "mock", "key": key or "F", "scale": scale or "Minor"}
+
         NOTE_TO_ROOT = {
             "C": 0, "C#": 1, "DB": 1, "D": 2, "D#": 3, "EB": 3,
             "E": 4, "F": 5, "F#": 6, "GB": 6, "G": 7, "G#": 8,
             "AB": 8, "A": 9, "A#": 10, "BB": 10, "B": 11
         }
-        root_int = NOTE_TO_ROOT.get(key_clean.upper(), 5)
-        scale_clean = "Minor" if any(w in (scale or "").lower() for w in ["min", "menor", "dark", "natural_minor"]) else "Major"
-    
-        from engine.vocal.vocal_chain_processor import VocalChainProcessor
-        at_key_val = VocalChainProcessor.AUTOTUNE_KEY_VALUES.get(key_clean.upper(), 0.48)
-        at_scale_val = VocalChainProcessor.AUTOTUNE_SCALE_VALUES.get(scale_clean.upper(), 0.05)
-    
+        root_int = NOTE_TO_ROOT.get(key.strip().upper(), 5) if key else None
+        scale_clean = ("Minor" if any(w in scale.lower() for w in ["min", "menor", "dark", "natural_minor"]) else "Major") if scale else None
+
         code = f"""
 tuned_devices = []
-if hasattr(song, 'root_note'):
-    song.root_note = {root_int}
-if hasattr(song, 'scale_name'):
-    song.scale_name = {repr(scale_clean)}
+effective_root = getattr(song, 'root_note', 5)
+effective_scale = getattr(song, 'scale_name', 'Minor')
+
+set_root = {repr(root_int)}
+set_scale = {repr(scale_clean)}
+
+if set_root is not None and hasattr(song, 'root_note'):
+    song.root_note = set_root
+    effective_root = set_root
+if set_scale is not None and hasattr(song, 'scale_name'):
+    song.scale_name = set_scale
+    effective_scale = set_scale
+
+at_key_lut = {{0: 0.05, 1: 0.14, 2: 0.23, 3: 0.32, 4: 0.41, 5: 0.48, 6: 0.58, 7: 0.67, 8: 0.76, 9: 0.85, 10: 0.93, 11: 0.98}}
+at_key_val = at_key_lut.get(effective_root, 0.48)
+at_scale_val = 0.05 if 'min' in str(effective_scale).lower() else 0.00
 
 for t_idx, t in enumerate(song.tracks):
     for d_idx, dev in enumerate(t.devices):
@@ -465,16 +528,23 @@ for t_idx, t in enumerate(song.tracks):
             for p in dev.parameters:
                 p_l = p.name.lower()
                 if p_l == 'key':
-                    p.value = {at_key_val}
+                    p.value = at_key_val
                     tuned_devices.append(f"Auto-Tune Key on track {{t_idx}}")
                 elif p_l == 'scale':
-                    p.value = {at_scale_val}
+                    p.value = at_scale_val
                     tuned_devices.append(f"Auto-Tune Scale on track {{t_idx}}")
-result = {{'root_note': {root_int}, 'scale_name': {repr(scale_clean)}, 'tuned_devices': tuned_devices}}
+
+root_to_note = {{0: 'C', 1: 'C#', 2: 'D', 3: 'D#', 4: 'E', 5: 'F', 6: 'F#', 7: 'G', 8: 'G#', 9: 'A', 10: 'A#', 11: 'B'}}
+result = {{
+    'root_note': effective_root,
+    'scale_name': effective_scale,
+    'key': root_to_note.get(effective_root, 'F'),
+    'tuned_devices': tuned_devices
+}}
 """
         try:
             res = conn.send_command("execute_code", {"code": code})
-            logger.info(f"Sincronización de afinación en Live: Tonalidad {key_clean} {scale_clean} -> {res}")
+            logger.info(f"Sincronización de afinación en Live en tiempo real -> {res}")
             return res.get("result", {})
         except Exception as ex:
             logger.debug(f"Aviso al sincronizar afinación de sesión: {ex}")

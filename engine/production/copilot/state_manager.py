@@ -41,16 +41,16 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
     """Manages session state, persistence, checkpoints, and journals."""
 
     @classmethod
-    def default_state(cls) -> Dict[str, Any]:
+    def default_state(cls, bpm: Optional[float] = None) -> Dict[str, Any]:
         return {
-            "current_phase": "PHASE_1_TRACKS",
-            "phase_index": 1,
+            "current_phase": "PHASE_0_DESIGN",
+            "phase_index": 0,
             "tracks": [],
             "sections": [],
             "total_bars": 96,
             "key": "F",
             "scale": "natural_minor",
-            "bpm": 120.0,
+            "bpm": float(bpm) if bpm is not None else 120.0,
             "current_track_ptr": 0,
             "current_param_ptr": 0,
             "current_fx_track_ptr": 0,

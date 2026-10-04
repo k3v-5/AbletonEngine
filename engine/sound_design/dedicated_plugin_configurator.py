@@ -93,29 +93,29 @@ class DedicatedPluginConfigurator:
         t_name: str
     ) -> Dict[str, Any]:
         if role == "BASS":
-            opt1 = "Opción 1: Arquetipo BASS_808 Saturado (Punch 0.90, Warmth 0.70, Brightness 0.40, Mono Sub puro)"
-            opt2 = "Opción 2: Arquetipo BASS_SUB Profundo (Subliminal 30-65Hz, Clean Sine, Cero Detune, Sólido)"
-            opt3 = "Opción 3: Arquetipo BASS_PUNCH Reese Agresivo (Detune 0.35, Drive 0.50, Movement 0.60)"
+            opt1 = "Arquetipo 1: BASS_808 Saturado (Punch 0.90, Warmth 0.70, Brightness 0.40, Mono Sub puro)"
+            opt2 = "Arquetipo 2: BASS_SUB Profundo (Subliminal 30-65Hz, Clean Sine, Cero Detune, Sólido)"
+            opt3 = "Arquetipo 3: BASS_PUNCH Reese Agresivo (Detune 0.35, Drive 0.50, Movement 0.60)"
             def_archetype = "BASS_808"
         elif role == "LEAD":
-            opt1 = "Opción 1: Arquetipo LEAD_SAW Hyperpop Piercing (Brightness 0.85, Unison 7 voces, Punch 0.80)"
-            opt2 = "Opción 2: Arquetipo LEAD_PLUCK Transiente Rápido (Decay 0.25, Sustain 0.0, Brightness 0.75)"
-            opt3 = "Opción 3: Arquetipo LEAD_VOCAL Formante Vocálico (Custom Wavetable VOCAL, Movement 0.55)"
+            opt1 = "Arquetipo 1: LEAD_SAW Hyperpop Piercing (Brightness 0.85, Unison 7 voces, Punch 0.80)"
+            opt2 = "Arquetipo 2: LEAD_PLUCK Transiente Rápido (Decay 0.25, Sustain 0.0, Brightness 0.75)"
+            opt3 = "Arquetipo 3: LEAD_VOCAL Formante Vocálico (Custom Wavetable VOCAL, Movement 0.55)"
             def_archetype = "LEAD_SAW"
         elif role == "PAD":
-            opt1 = "Opción 1: Arquetipo PAD_LUSH Shimmer Evolutivo (Attack 1.8s, Space 0.85, Stereo 0.90)"
-            opt2 = "Opción 2: Arquetipo PAD_ORGANIC Calidez Analógica (Warmth 0.75, Brightness 0.45, Detune sutil)"
-            opt3 = "Opción 3: Arquetipo PAD_TEXTURE Drone Oscuro (Cutoff 0.40, LFO Filter 0.50, Movement 0.70)"
+            opt1 = "Arquetipo 1: PAD_LUSH Shimmer Evolutivo (Attack 1.8s, Space 0.85, Stereo 0.90)"
+            opt2 = "Arquetipo 2: PAD_ORGANIC Calidez Analógica (Warmth 0.75, Brightness 0.45, Detune sutil)"
+            opt3 = "Arquetipo 3: PAD_TEXTURE Drone Oscuro (Cutoff 0.40, LFO Filter 0.50, Movement 0.70)"
             def_archetype = "PAD_LUSH"
         elif role in ("KEYS", "CHORDS"):
-            opt1 = "Opción 1: Arquetipo CHORD_SUPERAW Polifónico (Brightness 0.80, Unison 0.60, Movement 0.40)"
-            opt2 = "Opción 2: Arquetipo KEYS_HYBRID Mellow (Warmth 0.80, Decay 1.2s, Brightness 0.55)"
-            opt3 = "Opción 3: Arquetipo PLUCK_ORGANIC Neo-Soul (Attack 0.01, Decay 0.50, Brightness 0.65)"
+            opt1 = "Arquetipo 1: CHORD_SUPERAW Polifónico (Brightness 0.80, Unison 0.60, Movement 0.40)"
+            opt2 = "Arquetipo 2: KEYS_HYBRID Mellow (Warmth 0.80, Decay 1.2s, Brightness 0.55)"
+            opt3 = "Arquetipo 3: PLUCK_ORGANIC Neo-Soul (Attack 0.01, Decay 0.50, Brightness 0.65)"
             def_archetype = "CHORD_SUPERAW"
         else:
-            opt1 = f"Opción 1: Arquetipo Principal de Rol (Balance tímbrico optimizado para {role})"
-            opt2 = "Opción 2: Variante Brillante y Espaciosa (Brightness 0.80, Stereo 0.75)"
-            opt3 = "Opción 3: Variante Cálida y Percusiva (Punch 0.85, Warmth 0.70, Attack rápido)"
+            opt1 = f"Arquetipo 1: Principal de Rol (Balance tímbrico optimizado para {role})"
+            opt2 = f"Arquetipo 2: Variante Brillante y Espaciosa (Brightness 0.80, Stereo 0.75)"
+            opt3 = f"Arquetipo 3: Variante Cálida y Percusiva (Punch 0.85, Warmth 0.70, Attack rápido)"
             def_archetype = "LEAD_SAW"
 
         question = (
@@ -138,13 +138,14 @@ class DedicatedPluginConfigurator:
             f"subgrave mono 20-70Hz limpio, anti-silencio y calibración de nivel pre-fader a -14 dBFS.\n\n"
             f"*Diseña libremente el sonido con tus especificaciones o directivas "
             f"(ej: 'Quiero un lead supersaw brillante con tabla vocal, punch agresivo y apertura estéreo') "
-            f"o elige una opción de referencia (ej: 'Opción 1').*"
+            f"o elige el arquetipo de referencia que mejor encaje con la visión de la obra.*"
         )
         return {
             "current_step": f"PASO 4 DE 7: DISEÑO DE SÍNTESIS EN VITAL (PISTA {ptr + 1} DE {total_tracks})",
             "action_taken": f"Vital cargado en Pista {t_idx} ('{t_name}'). Lienzo de diseño sonoro abierto para la IA.",
             "question": question,
             "instructions_for_ai": f"Diseña cómo debe sonar Vital para {t_name} según la visión del tema y su rol {role}.",
+            "options": [opt1, opt2, opt3],
             "target_track": t_idx,
             "role": role,
             "instrument": "Vital",
@@ -187,6 +188,7 @@ class DedicatedPluginConfigurator:
             "action_taken": f"Surge XT activo en Pista {t_idx} ('{t_name}'). Iniciando fase de modelado arquitectónico mediante SurgeSynthPatchFactory.",
             "question": question,
             "instructions_for_ai": f"Modela la arquitectura de Surge XT para {t_name} seleccionando una opción o enviando tus especificaciones.",
+            "options": [opt1, opt2, opt3],
             "target_track": t_idx,
             "role": role,
             "instrument": "Surge XT",
@@ -237,6 +239,7 @@ class DedicatedPluginConfigurator:
             "action_taken": f"Decent Sampler listo en Pista {t_idx} ('{t_name}'). Iniciando fase de modelado mediante DecentSamplerLibraryManager.",
             "question": question,
             "instructions_for_ai": f"Modela las muestras de Decent Sampler para {t_name} seleccionando una opción o librería.",
+            "options": [opt1, opt2, opt3],
             "target_track": t_idx,
             "role": role,
             "instrument": "Decent Sampler",
@@ -317,6 +320,7 @@ class DedicatedPluginConfigurator:
             "action_taken": f"Supermassive seleccionado en Pista {t_idx} ('{t_name}'). Iniciando modelado espacial.",
             "question": question,
             "instructions_for_ai": f"Modela el comportamiento de Supermassive para {t_name} seleccionando una opción o modo celeste.",
+            "options": [opt1, opt2, opt3],
             "target_track": t_idx,
             "target_device": eff.get("name", "Valhalla Supermassive"),
             "device_index_in_chain": dev_ptr + 1,
@@ -361,6 +365,7 @@ class DedicatedPluginConfigurator:
             "action_taken": f"VintageVerb seleccionado en Pista {t_idx} ('{t_name}'). Iniciando modelado acústico.",
             "question": question,
             "instructions_for_ai": f"Modela el espacio de VintageVerb para {t_name} seleccionando una opción o era acústica.",
+            "options": [opt1, opt2, opt3],
             "target_track": t_idx,
             "target_device": eff.get("name", "Valhalla VintageVerb"),
             "device_index_in_chain": dev_ptr + 1,
@@ -405,6 +410,7 @@ class DedicatedPluginConfigurator:
             "action_taken": f"Surge XT Effects listo en Pista {t_idx} ('{t_name}'). Iniciando modelado de rack modular.",
             "question": question,
             "instructions_for_ai": f"Modela la arquitectura de Surge XT Effects para {t_name} seleccionando una opción de rack.",
+            "options": [opt1, opt2, opt3],
             "target_track": t_idx,
             "target_device": eff.get("name", "Surge XT Effects"),
             "device_index_in_chain": dev_ptr + 1,
@@ -845,11 +851,54 @@ class DedicatedPluginConfigurator:
         patch_name = f"Vital_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
 
         # VitalSoundEngine compiles preset while enforcing anti-silence and anti-corruption invariants
+        presets_dir = Path("Presets")
+        presets_dir.mkdir(parents=True, exist_ok=True)
         preset_path = vital_engine.create_preset(
             preset_name=patch_name,
             role=v_role,
-            directives=directives
+            directives=directives,
+            output_dir=presets_dir
         )
+
+        # Update or create Presets/presets_manifest.json
+        manifest_path = presets_dir / "presets_manifest.json"
+        manifest_data: Dict[str, Any] = {"total_presets": 0, "presets": {}, "tracks": []}
+        if manifest_path.exists():
+            try:
+                manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        manifest_data.setdefault("presets", {})[patch_name] = {
+            "file": preset_path.name,
+            "path": str(preset_path),
+            "role": v_role,
+            "track_index": t_idx,
+            "track_name": trk.get("name", ""),
+            "directives": directives
+        }
+        manifest_data["total_presets"] = len(manifest_data["presets"])
+
+        trk_list = manifest_data.setdefault("tracks", [])
+        existing_trk = next((item for item in trk_list if item.get("track_index") == t_idx), None)
+        if existing_trk:
+            existing_trk["preset_file"] = preset_path.name
+            existing_trk["instrument"] = "Vital"
+        else:
+            trk_list.append({
+                "track_index": t_idx,
+                "track_name": trk.get("name", ""),
+                "role": role,
+                "instrument": "Vital",
+                "preset_file": preset_path.name
+            })
+
+        try:
+            with open(manifest_path, "w", encoding="utf-8") as f_pm:
+                json.dump(manifest_data, f_pm, indent=2)
+            logger.info(f"Recorded Vital preset in {manifest_path}")
+        except Exception as ex_pm:
+            logger.debug(f"Manifest save notice: {ex_pm}")
 
         trk["vital_preset_path"] = str(preset_path)
         trk["vital_archetype"] = v_role
@@ -1028,25 +1077,36 @@ for p in d.parameters:
     @classmethod
     def _configure_valhalla_vintage_verb(
         cls,
-        trk: Dict[str, Any],
-        role: str,
-        bpm: float,
-        t_idx: int,
-        dev_idx: int,
-        song_name: str,
-        conn: Any,
-        ai_input: Optional[str] = None
+        trk: Optional[Dict[str, Any]] = None,
+        role: str = "PAD",
+        bpm: float = 120.0,
+        t_idx: int = 0,
+        dev_idx: int = 0,
+        song_name: str = "Session",
+        conn: Any = None,
+        ai_input: Optional[str] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """Dedicated modeling and validation pipeline for Valhalla VintageVerb."""
         from engine.sound_design.valhalla_vintage_verb.mode_selector import VintageVerbModeSelector
         from engine.sound_design.valhalla_vintage_verb.validator import ValhallaVintageVerbValidator
         from engine.sound_design.valhalla_vintage_verb.serializer import ValhallaVintageVerbSerializer
 
+        if trk is None:
+            trk = {}
+        if "track_index" in kwargs:
+            t_idx = kwargs["track_index"]
+        if "device_index" in kwargs:
+            dev_idx = kwargs["device_index"]
+        if "config" in kwargs and not ai_input:
+            ai_input = kwargs["config"]
+
+
         ai_text = str(ai_input or "").lower()
         preset_name = f"VV_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
         vv_model = VintageVerbModeSelector.build_role_preset(preset_name=preset_name, role=role, bpm=bpm)
 
-        # Parse AI intent
+        # Parse AI intent - Base Archetypes
         if "opcion 2" in ai_text or "opción 2" in ai_text or "plate" in ai_text or "1970" in ai_text:
             vv_model.color_mode = 0.0  # 1970s
             vv_model.decay = 0.20
@@ -1060,12 +1120,69 @@ for p in d.parameters:
             vv_model.decay = 0.25
             vv_model.mix = 0.16
 
-        # Apply engine limits: Low cut >= 180 Hz (0.18), Pre-delay >= 15 ms (0.15), Mix clamping
-        vv_model.low_cut = max(0.18, vv_model.low_cut)
+        # Granular parameter overrides from JSON payload
+        json_match = re.search(r"\{[^{}]*\}", ai_text)
+        if json_match:
+            try:
+                pj = json.loads(json_match.group(0))
+                for k, v in pj.items():
+                    k_l = str(k).lower().replace("-", "_").replace(" ", "_")
+                    val = float(v)
+                    if "predelay" in k_l or "pre_delay" in k_l:
+                        vv_model.predelay = val / 500.0 if val > 1.0 else val
+                    elif "decay" in k_l:
+                        vv_model.decay = val / 70.0 if val > 1.0 else val
+                    elif "low_cut" in k_l or "lowcut" in k_l or "hpf" in k_l:
+                        vv_model.low_cut = (val - 10.0) / 490.0 if val > 1.0 else val
+                    elif "high_cut" in k_l or "highcut" in k_l or "lpf" in k_l:
+                        vv_model.high_cut = val / 20000.0 if val > 1.0 else val
+                    elif "mix" in k_l or "dry_wet" in k_l:
+                        vv_model.mix = val / 100.0 if val > 1.0 else val
+                    elif "size" in k_l:
+                        vv_model.size = val / 100.0 if val > 1.0 else val
+            except Exception:
+                pass
+
+        # Granular parameter overrides from Natural Language
+        pd_m = re.search(r'(?:pre[ _-]?delay|predelay)\s*(?:[:=]|de|en|al|a)?\s*(\d+(?:\.\d+)?)\s*(?:ms)?', ai_text, re.IGNORECASE)
+        if pd_m:
+            raw_pd = float(pd_m.group(1))
+            vv_model.predelay = min(1.0, max(0.0, raw_pd / 500.0 if raw_pd > 1.0 else raw_pd))
+
+        dec_m = re.search(r'(?:decay|tiempo)\s*(?:[:=]|de|en|al|a)?\s*(\d+(?:\.\d+)?)\s*(?:s|seg)?', ai_text, re.IGNORECASE)
+        if dec_m:
+            raw_dec = float(dec_m.group(1))
+            vv_model.decay = min(1.0, max(0.0, raw_dec / 70.0 if raw_dec > 1.0 else raw_dec))
+
+        lc_m = re.search(r'(?:low[ _-]?cut|hpf|corte[ _-]bajo|corte)\s*(?:[:=]|de|en|al|a)?\s*(\d+(?:\.\d+)?)\s*(?:hz)?', ai_text, re.IGNORECASE)
+        if lc_m:
+            raw_lc = float(lc_m.group(1))
+            vv_model.low_cut = min(1.0, max(0.0, (raw_lc - 10.0) / 490.0 if raw_lc > 1.0 else raw_lc))
+
+        hc_m = re.search(r'(?:high[ _-]?cut|lpf|corte[ _-]alto)\s*(?:[:=]|de|en|al|a)?\s*(\d+(?:\.\d+)?)\s*(?:hz)?', ai_text, re.IGNORECASE)
+        if hc_m:
+            raw_hc = float(hc_m.group(1))
+            vv_model.high_cut = min(1.0, max(0.0, raw_hc / 20000.0 if raw_hc > 1.0 else raw_hc))
+
+        mix_m = re.search(r'(?:mix|dry[ _/-]?wet|mezcla)\s*(?:[:=]|de|en|al|a)?\s*(\d+(?:\.\d+)?)\s*%?', ai_text, re.IGNORECASE)
+        if mix_m:
+            raw_mix = float(mix_m.group(1))
+            vv_model.mix = min(1.0, max(0.0, raw_mix / 100.0 if raw_mix > 1.0 else raw_mix))
+
+        size_m = re.search(r'(?:size|tamano|tamaño|dimension)\s*(?:[:=]|de|en|al|a)?\s*(\d+(?:\.\d+)?)\s*%?', ai_text, re.IGNORECASE)
+        if size_m:
+            raw_sz = float(size_m.group(1))
+            vv_model.size = min(1.0, max(0.0, raw_sz / 100.0 if raw_sz > 1.0 else raw_sz))
+
+        # Apply engine limits if not explicitly specified by AI/user
+        if not lc_m:
+            vv_model.low_cut = max(0.18, vv_model.low_cut)
         is_front = role in ("LEAD", "COUNTER_LEAD", "DRUMS", "BASS", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR")
         if is_front:
-            vv_model.mix = min(vv_model.mix, 0.22)
-            vv_model.predelay = max(vv_model.predelay, 0.15)
+            if not mix_m:
+                vv_model.mix = min(vv_model.mix, 0.22)
+            if not pd_m:
+                vv_model.predelay = max(vv_model.predelay, 0.15)
 
         v_rep_vv = ValhallaVintageVerbValidator.validate(vv_model, role=role, strict=False)
 
@@ -1108,6 +1225,14 @@ for p in d.parameters:
             "preset_path": str(preset_p),
             "clipboard_ready": cb_ok,
             "parameters": {
+                "Mix": vv_model.mix,
+                "Decay": vv_model.decay,
+                "PreDelay": vv_model.predelay,
+                "LowCut": vv_model.low_cut,
+                "HighCut": vv_model.high_cut,
+                "Size": vv_model.size
+            },
+            "parameters_applied": {
                 "Mix": vv_model.mix,
                 "Decay": vv_model.decay,
                 "PreDelay": vv_model.predelay,

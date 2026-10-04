@@ -3,17 +3,18 @@
 Device Parameter Supervisor & Multi-Section Semantic Engine:
 Comprehensive parameter abstraction for professional music production in Ableton Live.
 Organizes all exposed parameters across Vital, Analog Lab V, Pigments, FabFilter Pro-Q 4,
-The God Particle, OTT, ValhallaVintageVerb, Efx REFRACT, 808 Core Kit, and Native Live devices
+The God Particle, OTT, ValhallaVintageVerb, Efx REFRACT, FabFilter Pro-DS, Arturia Tape MELLO-FI,
+808 Core Kit, and Native Live devices
 into 8 production-grade functional sections:
 
 Section 1: MACROS & MASTER (Quick sound character & overall gain)
 Section 2: OSCILLATORS & ENGINES (Wavetable position, pitch, unison, morph)
 Section 3: FILTERS & SPECTRAL CUTOFF (Filter cutoff, resonance, drive, filter modes)
-Section 4: SURGICAL & DYNAMIC EQ (Pro-Q 4 bands 1-13: HPF, Sub bump, Mud cut, Air shelf, Thresholds)
+Section 4: SURGICAL & DYNAMIC EQ (Pro-Q 4 bands 1-13: HPF, Sub bump, Mud cut, Air shelf, Thresholds, Pro-DS de-essing)
 Section 5: ENVELOPES & TIME DYNAMICS (Attack, decay, sustain, release, glide/portamento)
-Section 6: DYNAMICS & COMPRESSION (OTT depth/bands, Glue threshold, Limiter drive)
-Section 7: HARMONIC SATURATION & COLOR (Analog drive, distortion, character, bitcrusher)
-Section 8: SPACE & MODULATION FX (Reverb mix/decay, delay feedback, chorus, flanger, phaser)
+Section 6: DYNAMICS & COMPRESSION (OTT depth/bands, Glue threshold, Limiter drive, Pro-DS range)
+Section 7: HARMONIC SATURATION & COLOR (Analog drive, distortion, character, tape wear, bitcrusher)
+Section 8: SPACE & MODULATION FX (Reverb mix/decay, delay feedback, wow/flutter, chorus, flanger, phaser)
 
 Guarantees:
 - Dynamic live inspection of what parameters are actually present on each device.
@@ -90,6 +91,7 @@ class DeviceParameterSupervisor:
         "SOOTHE_RELEASE": "Tiempo de recuperación de la curva tras suprimir un pico resonante.",
         "SOOTHE_LOWCUT": "Filtro paso-alto en el detector para evitar que el sub grave active la reducción.",
         "SOOTHE_HIGHCUT": "Filtro paso-bajo en el detector para centrar la acción en frecuencias medias.",
+        "DEESS_FREQ": "Frecuencia central de detección espectral para domesticar sibilancias ásperas ('s', 't', 'ch').",
 
         # Section 5: ENVELOPES & TIME DYNAMICS
         "AMP_ATTACK": "Tiempo de ataque de amplitud (rápido para pegada inmediata, lento para pads).",
@@ -109,6 +111,8 @@ class DeviceParameterSupervisor:
         "COMP_TIME": "Constante de tiempo global para tiempos de ataque y relajación de compresión multibanda.",
         "UPWARD_COMP": "Fuerza de la compresión ascendente (levanta detalles tímbricos y sustain silencioso).",
         "DOWNWARD_COMP": "Fuerza de la compresión descendente (controla y aplasta picos transitorios).",
+        "DEESS_THRESHOLD": "Umbral dinámico de reducción de sibilancias en Pro-DS.",
+        "DEESS_RANGE": "Rango máximo de reducción de ganancia de sibilancias en dB (Pro-DS).",
         "LIMITER_GAIN": "Ganancia de empuje hacia el techo del limitador (maximización de sonoridad comercial LUFS).",
         "LIMITER_CEILING": "Techo máximo de pico verdadero (True Peak) para prevenir distorsión inter-sample (-0.3 a -1.0 dB).",
         "LIMITER_LOOKAHEAD": "Tiempo de anticipación del limitador para atrapar transitorios rápidos de forma transparente.",
@@ -120,6 +124,9 @@ class DeviceParameterSupervisor:
         "DRIVE_MIX": "Balance Dry/Wet entre la señal limpia y la señal saturada (compresión/saturación paralela).",
         "DRIVE_THUMP": "Acento y realce de pegada en graves para conservar peso y cuerpo en el bombo o bajo.",
         "DRIVE_STYLE": "Estilo o modelo de circuito analógico emulado (A/E/N/T/P: cinta, consola, válvulas).",
+        "TAPE_WEAR": "Nivel de desgaste físico y envejecimiento de la emulsión magnética (Tape MELLO-FI).",
+        "TAPE_SPEED": "Velocidad de cinta analógica (Tape MELLO-FI: 7.5 ips / 15 ips / 30 ips).",
+        "TAPE_NOISE": "Nivel de ruido de fondo y soplido de cinta magnética analógica.",
         "BITCRUSHER_DEPTH": "Reducción de profundidad de bits (bitcrushing) para texturas lofi crujientes.",
         "BITCRUSHER_RATE": "Submuestreo (downsampling) para generar artefactos y aliasing armónico digital.",
 
@@ -141,6 +148,8 @@ class DeviceParameterSupervisor:
         "REFRACTION": "Cantidad de dispersión o separación armónica estéreo de múltiples capas.",
         "HUMANIZE": "Fluctuación analógica orgánica y micro-variaciones humanas de tiempo/tono.",
         "VINTAGE": "Coloración analógica cálida, calidez de válvulas y transformadores vintage.",
+        "WOW": "Fluctuación lenta de velocidad de transporte de cinta (desafinación periódica cálida y orgánica).",
+        "FLUTTER": "Fluctuación rápida de velocidad de transporte de cinta (aspereza y vibración analógica vintage).",
         "FRACTALIZE": "Descomposición tímbrica granular y repeticiones fractales rítmicas.",
         "VOICE_EFFECT": "Procesamiento combinado de formantes, pitch y mezcla para voces y transiciones.",
         "STEREO_WIDTH": "Control de apertura y amplitud del panorama estéreo o ensanchamiento acústico.",
@@ -165,6 +174,12 @@ class DeviceParameterSupervisor:
         "SOOTHE_DEPTH": "0.20-0.45 para limpieza quirúrgica transparente; 0.50-0.70 para voces o platos estridentes; evitar >0.85.",
         "SOOTHE_SHARPNESS": "0.40-0.60 para respuesta balanceada; >0.70 para muescas muy estrechas en picos aislados.",
         "SOOTHE_SELECTIVITY": "0.35-0.60 para discriminar solo picos ásperos sin alterar la tonalidad global.",
+        "DEESS_THRESHOLD": "0.35-0.65 para domesticar sibilancias sin apagar la presencia vocal ni crear ceceo.",
+        "DEESS_RANGE": "0.30-0.55 (-6 dB a -12 dB) para reducción natural transparente.",
+        "DEESS_FREQ": "0.50-0.80 (5 kHz a 9 kHz) adaptado a la tesitura vocal o brillo de platillos.",
+        "WOW": "0.10-0.30 para movimiento analógico sutil y calidez; >0.50 para efecto cinta rota/lo-fi.",
+        "FLUTTER": "0.10-0.25 para textura analógica orgánica; >0.40 para vibrato vintage pronunciado.",
+        "TAPE_WEAR": "0.15-0.35 para calor y redondeo de transitorios analógicos.",
         "WAVETABLE_POS": "0.0 para forma de onda base limpia; 0.3-0.7 para timbres evolutivos y ricos en armónicos.",
         "LIMITER_GAIN": "0.35-0.65 para empuje comercial balanceado (-14 a -9 LUFS); >0.75 para limitación agresiva.",
         "LIMITER_CEILING": "0.95-0.98 (-0.5 a -0.2 dB True Peak) para evitar recortes al codificar a MP3/AAC en Spotify.",
@@ -310,6 +325,15 @@ class DeviceParameterSupervisor:
         },
         "VALHALLAVINTAGEVERB": {
             "SPACE_MODULATION": {"REVERB_MIX": 0.28, "REVERB_DECAY": 0.45, "REVERB_PREDELAY": 0.20}
+        },
+        "PRO_DS": {
+            "DYNAMICS": {"DEESS_THRESHOLD": 0.50, "DEESS_RANGE": 0.45},
+            "SURGICAL_EQ": {"DEESS_FREQ": 0.65}
+        },
+        "TAPE_MELLO_FI": {
+            "SATURATION": {"DRIVE": 0.35, "DRIVE_TONE": 0.50, "TAPE_WEAR": 0.25},
+            "SPACE_MODULATION": {"WOW": 0.20, "FLUTTER": 0.22, "HUMANIZE": 0.30},
+            "MACROS_MASTER": {"DRY_WET": 0.85, "MASTER_VOLUME": 0.85}
         },
         "FRACTION": {
             "MACROS_MASTER": {"MASTER_VOLUME": 0.50, "HUMANIZE": 0.40},
@@ -562,7 +586,8 @@ class DeviceParameterSupervisor:
             "EQ_DYN_THRESH_1": ["band 1 threshold"],
             "EQ_DYN_THRESH_2": ["band 2 threshold"],
             "EQ_DYN_THRESH_3": ["band 3 threshold"],
-            "EQ_ENABLE": ["eq-on off", "eq bypass"]
+            "EQ_ENABLE": ["eq-on off", "eq bypass"],
+            "DEESS_FREQ": ["frequency", "center freq", "high cut freq", "filter freq"]
         },
 
         # Section 5: Envelopes & Time Dynamics
@@ -577,7 +602,7 @@ class DeviceParameterSupervisor:
             "LFO_SMOOTH": ["lfo 1 smooth", "vibrato", "07 drift"]
         },
 
-        # Section 6: Dynamics & Compression (FabFilter Pro-L 2, OTT, The God Particle, ShaperBox)
+        # Section 6: Dynamics & Compression (FabFilter Pro-L 2, OTT, The God Particle, ShaperBox, FabFilter Pro-DS)
         "DYNAMICS": {
             "COMP_DEPTH": ["depth", "glue", "ratio", "volumeshaper mix", "volume - mix", "volumeshaper on", "volume mid mix", "volumeshaper depth", "volume amount", "nonlinear - comp"],
             "COMP_TIME": ["time"],
@@ -586,6 +611,10 @@ class DeviceParameterSupervisor:
             "COMP_OUT_GAIN": ["out gain", "output gain", "gain m", "gain l", "gain h", "master compressor gain"],
             "UPWARD_COMP": ["upwd strgth"],
             "DOWNWARD_COMP": ["dnwd strgth"],
+            "DEESS_THRESHOLD": ["threshold", "de-ess threshold", "thresh"],
+            "DEESS_RANGE": ["range", "reduction range", "max reduction"],
+            "DEESS_AUDITION": ["audition", "audition sidechain"],
+            "DEESS_SPLIT_BAND": ["split band", "split / wide", "band split"],
             "LIMITER_GAIN": ["gain", "limiter input gain"],
             "LIMITER_CEILING": ["output level", "out ceiling", "ceiling"],
             "LIMITER_LOOKAHEAD": ["lookahead"],
@@ -594,7 +623,7 @@ class DeviceParameterSupervisor:
             "LIMITER_STEREO_LINK": ["channel link transients", "channel link release"]
         },
 
-        # Section 7: Harmonic Saturation & Color (Decapitator, LittleAlterBoy, EchoBoy, Efx REFRACT, Thermal)
+        # Section 7: Harmonic Saturation & Color (Decapitator, LittleAlterBoy, EchoBoy, Efx REFRACT, Thermal, Tape MELLO-FI)
         "SATURATION": {
             "DRIVE": ["drive", "saturation", "distortion drive amount", "distortion drive", "character", "distortion", "drive amount", "stage 1 drive", "stage 2 drive", "nonlinear - drive", "feedback-amp", "driveshaper on", "driveshaper drive", "drive - drive", "drive mid mix"],
             "PUNISH": ["punish"],
@@ -602,11 +631,14 @@ class DeviceParameterSupervisor:
             "DRIVE_MIX": ["mix", "distortion mix", "fxa dry/wet", "stage 1 mix", "stage 2 mix"],
             "DRIVE_THUMP": ["lowthump", "low thump"],
             "DRIVE_STYLE": ["style"],
+            "TAPE_WEAR": ["wear", "tape wear", "degradation"],
+            "TAPE_SPEED": ["tape speed", "speed", "ips"],
+            "TAPE_NOISE": ["tape noise", "noise", "hiss"],
             "BITCRUSHER_DEPTH": ["bitcrusher bit depth", "grain crush", "crushshaper on"],
             "BITCRUSHER_RATE": ["bitcrusher downsample ratio"]
         },
 
-        # Section 8: Space & Modulation FX (ValhallaVintageVerb, EchoBoy, LittleAlterBoy, Efx REFRACT, ShaperBox)
+        # Section 8: Space & Modulation FX (ValhallaVintageVerb, EchoBoy, LittleAlterBoy, Efx REFRACT, ShaperBox, Tape MELLO-FI)
         "SPACE_MODULATION": {
             "REVERB_MIX": ["reverb volume", "reverb mix", "reverb", "room", "space", "fx2 reverb size", "fx1 dry / wet"],
             "REVERB_DECAY": ["decay", "reverb decay time", "size", "fx2 reverb decay", "fx2 rev decay"],
@@ -626,6 +658,8 @@ class DeviceParameterSupervisor:
             "CHORUS_MIX": ["chorus mix", "refraction amount", "refraction", "voices", "phaser mix", "flanger mix", "01 spread", "fxb dry/wet"],
             "CHORUS_DEPTH": ["chorus mod depth", "phaser depth", "flanger depth", "vibrato"],
             "FRACTALIZE": ["fractalize"],
+            "WOW": ["wow", "wow amount", "tape wow"],
+            "FLUTTER": ["flutter", "flutter amount", "tape flutter"],
             "VOICE_PITCH": ["pitch", "pitch shift", "transpose"],
             "VOICE_FORMANT": ["formant", "voice formant"],
             "VOICE_MODE": ["mode", "shiftmode", "quantize", "robot"],
@@ -639,6 +673,13 @@ class DeviceParameterSupervisor:
         "BRIGHTNESS": ["macro 1", "macro_1", "p1 brightness", "brightness", "f1 cutoff", "filter 1 cutoff", "cutoff", "bandpass filter cutoff frequency", "03 cutoff", "filter1-param1", "filter cutoff"],
         "WARMTH": ["macro 2", "macro_2", "p1 timbre", "timbre", "f1 resonance", "filter 1 resonance", "resonance", "filter1-param2", "filter resonance", "reso"],
         "HUMANIZE": ["humanize", "07 drift"],
+        "DEESS_THRESHOLD": ["threshold", "de-ess threshold"],
+        "DEESS_RANGE": ["range", "reduction range"],
+        "DEESS_FREQ": ["frequency", "center freq", "high cut freq"],
+        "WOW": ["wow", "tape wow", "wow amount"],
+        "FLUTTER": ["flutter", "tape flutter", "flutter amount"],
+        "TAPE_WEAR": ["wear", "tape wear"],
+        "TAPE_SPEED": ["tape speed", "speed"],
         "VINTAGE": ["vintage", "tone", "drive tone", "stage 1 tone", "stage 2 tone"],
         "FRACTALIZE": ["fractalize", "grain crush"],
         "ATTACK": ["macro 3", "macro_3", "p1 time", "envelope 1 attack", "env 1 attack", "time", "attack", "amp env - attack", "filter attack"],
@@ -1521,6 +1562,10 @@ class DeviceParameterSupervisor:
             profile_key = "THE_GOD_PARTICLE"
         elif "pro-l" in dev_lower:
             profile_key = "PRO_L2"
+        elif "pro-ds" in dev_lower:
+            profile_key = "PRO_DS"
+        elif "mello-fi" in dev_lower or "mello fi" in dev_lower or "tape mello" in dev_lower:
+            profile_key = "TAPE_MELLO_FI"
         elif "auto-tune" in dev_lower or "autotune" in dev_lower:
             profile_key = "VOCALS"
         elif "pro-q" in dev_lower or "eq eight" in dev_lower or "eq" in dev_lower:

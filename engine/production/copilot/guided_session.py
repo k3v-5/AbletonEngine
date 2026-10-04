@@ -139,6 +139,7 @@ class CopilotGuidedSession:
         return CopilotStateManager.JOURNAL_FILE
 
     PHASES = [
+        "PHASE_0_DESIGN",
         "PHASE_1_TRACKS",
         "PHASE_2_SECTIONS",
         "PHASE_3_INSTRUMENTS",
@@ -183,8 +184,13 @@ class CopilotGuidedSession:
         return LiveTrackResolver.resolve_track_index(conn, trk)
 
 
-    def _default_state(self) -> Dict[str, Any]:
-        return CopilotStateManager.default_state()
+    def _default_state(self, bpm: Optional[float] = None) -> Dict[str, Any]:
+        return CopilotStateManager.default_state(bpm=bpm)
+
+    def reset(self, bpm: Optional[float] = None) -> Dict[str, Any]:
+        self.data = self._default_state(bpm=bpm)
+        self._save_state(action_tag="RESET_SESSION")
+        return self.data
 
     def _load_state(self) -> Dict[str, Any]:
         return CopilotStateManager.load_state(state_file=getattr(self, "STATE_FILE", None))
@@ -244,6 +250,11 @@ class CopilotGuidedSession:
         # 2. Target Phase Detection
         target_phase = None
         phase_map = {
+            "diseño": "PHASE_0_DESIGN",
+            "diseno": "PHASE_0_DESIGN",
+            "fase 0": "PHASE_0_DESIGN",
+            "paso 0": "PHASE_0_DESIGN",
+            "concepto": "PHASE_0_DESIGN",
             "pistas": "PHASE_1_TRACKS",
             "tracks": "PHASE_1_TRACKS",
             "fase 1": "PHASE_1_TRACKS",
@@ -339,7 +350,9 @@ class CopilotGuidedSession:
         self._save_state(action_tag=f"ROLLBACK_TO_{target_phase}")
 
         # Return prompt for the target phase
-        if target_phase == "PHASE_1_TRACKS":
+        if target_phase == "PHASE_0_DESIGN":
+            prompt = self.phase_registry.dispatch_prompt("PHASE_0_DESIGN", self)
+        elif target_phase == "PHASE_1_TRACKS":
             prompt = self._prompt_phase_1()
         elif target_phase == "PHASE_2_SECTIONS":
             prompt = self._prompt_phase_2(tracks)
@@ -364,11 +377,48 @@ class CopilotGuidedSession:
         prompt["action_taken"] = f"Rollback no destructivo ejecutado exitosamente hacia {target_phase}. Pistas y clips existentes en Live preservados."
         return prompt
 
-    def reset(self):
-        """Resets the state machine back to step 1."""
-        self.data = self._default_state()
+    def reset(self, bpm: Optional[float] = None) -> Dict[str, Any]:
+        """Resets the state machine back to step 0 (Design Phase)."""
+        target_bpm = bpm if bpm is not None else (self.data.get("bpm") if hasattr(self, "data") and isinstance(self.data, dict) else None)
+        self.data = self._default_state(bpm=target_bpm)
         self.creative_controller = None
         self._save_state(action_tag="SESSION_RESET")
+        return self.data
+
+    def _inject_design_reminder(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """Injects persistent reminder of the Phase 0 design blueprint into prompt questions."""
+        if not isinstance(response, dict):
+            return response
+        design = self.data.get("design")
+        artist = self.data.get("artist")
+        if not design and not artist:
+            return response
+        phase = self.data.get("current_phase")
+        if phase in ("PHASE_0_DESIGN", "PHASE_10_COMPLETED"):
+            return response
+
+        q = response.get("question", "")
+        if "RECORDATORIO DEL DISEÑO" in q or "DISEÑO CONCEPTUAL" in q:
+            return response
+
+        artist_name = self.data.get("artist", (design or {}).get("artist", "Referente"))
+        genre = self.data.get("genre", (design or {}).get("genre", "Trap"))
+        bpm = self.data.get("bpm", 120.0)
+        time_sig = self.data.get("time_signature", (4, 4))
+        sig_str = f"{time_sig[0]}/{time_sig[1]}" if isinstance(time_sig, (list, tuple)) else str(time_sig)
+        key = self.data.get("key", "F")
+        scale = self.data.get("scale", "Minor")
+        drop_bar = self.data.get("drop_bar", 32)
+        target_lufs = self.data.get("target_lufs", -8.5)
+
+        reminder = (
+            f"🎯 **RECORDATORIO DEL DISEÑO CONCEPTUAL ({artist_name} - {genre}):**\n"
+            f"• **Tempo:** `{bpm} BPM` | **Compás:** `{sig_str}` | **Tonalidad:** `{key} {scale}`\n"
+            f"• **Drop:** `Compás {drop_bar}` | **Target LUFS:** `{target_lufs}`\n"
+            f"• *Recuerda mantener fidelidad a la técnica e identidad sónica de {artist_name} en cada decisión.*\n\n"
+        )
+        response["question"] = reminder + q
+        return response
 
     def handle_input(self, user_input: str = "", conn: Any = None) -> Dict[str, Any]:
         """Convenience wrapper for step(conn, user_input)."""
@@ -422,15 +472,25 @@ class CopilotGuidedSession:
         if not u_in:
             if self.phase_registry.has_phase(phase):
                 if phase == "PHASE_2_SECTIONS":
-                    return self.phase_registry.dispatch_prompt(phase, self, tracks=self.data.get("tracks", []))
-                return self.phase_registry.dispatch_prompt(phase, self)
+                    res = self.phase_registry.dispatch_prompt(phase, self, tracks=self.data.get("tracks", []))
+                else:
+                    res = self.phase_registry.dispatch_prompt(phase, self)
+                res = self._inject_design_reminder(res)
+                self.data["last_prompt"] = res
+                return res
             if phase in ("PHASE_9_COMPLETED", "PHASE_10_COMPLETED"):
-                return self._handle_phase_10(conn, "")
+                res = self._handle_phase_10(conn, "")
+                res = self._inject_design_reminder(res)
+                self.data["last_prompt"] = res
+                return res
             return {"status": "ERROR", "message": f"Fase desconocida: {phase}"}
 
         # Phase handle dispatching (when user_input is provided)
         if self.phase_registry.has_phase(phase):
-            return self.phase_registry.dispatch_handle(phase, self, conn, u_in)
+            res = self.phase_registry.dispatch_handle(phase, self, conn, u_in)
+            res = self._inject_design_reminder(res)
+            self.data["last_prompt"] = res
+            return res
 
         return {"status": "ERROR", "message": f"Fase desconocida: {phase}"}
 

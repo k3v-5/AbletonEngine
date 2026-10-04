@@ -91,19 +91,26 @@ class LUFSValidationGate:
         # Calculate required compensation trim
         required_trim_db = 0.0
         if violations:
-            # If peak clips, trim must pull peak below ceiling
-            tp_needed_trim = max_tp - tp_dbtp if tp_dbtp > max_tp else 0.0
-            # If LUFS is too loud, trim must pull integrated to target
-            lufs_needed_trim = target_lufs - int_lufs if int_lufs > target_lufs + tolerance else 0.0
-            
-            # The more restrictive trim takes precedence to prevent clipping
-            required_trim_db = min(tp_needed_trim, lufs_needed_trim)
+            if int_lufs > target_lufs + tolerance:
+                # If LUFS is too loud, trim must pull integrated to target
+                tp_needed_trim = max_tp - tp_dbtp if tp_dbtp > max_tp else 0.0
+                lufs_needed_trim = target_lufs - int_lufs
+                # The more restrictive trim takes precedence to prevent clipping
+                required_trim_db = min(tp_needed_trim, lufs_needed_trim)
+            elif int_lufs < target_lufs - tolerance:
+                # If LUFS is too quiet, boost towards target without exceeding True Peak ceiling
+                lufs_needed_boost = target_lufs - int_lufs
+                headroom = max_tp - tp_dbtp
+                required_trim_db = min(lufs_needed_boost, max(0.0, headroom))
+            elif tp_dbtp > max_tp:
+                # LUFS within tolerance but True Peak exceeds limit
+                required_trim_db = max_tp - tp_dbtp
 
         passed = len(violations) == 0
         cert = (
             "ITU-R BS.1770-5 / EBU R 128 COMPLIANT"
             if passed
-            else f"NON-COMPLIANT: Requires {round(required_trim_db, 2)} dB attenuation."
+            else f"NON-COMPLIANT: Requires {round(required_trim_db, 2)} dB adjustment."
         )
 
         return LoudnessAuditResult(

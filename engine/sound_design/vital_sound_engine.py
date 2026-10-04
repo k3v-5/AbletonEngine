@@ -117,9 +117,25 @@ class VitalSoundEngine:
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(sculpted_data, f, indent=2)
 
+        # 6. Validate Generated Preset via existing validator
+        audit_res = self.audit_preset_file(out_path)
+        if not audit_res.get("valid", False) or not audit_res.get("audible", False):
+            logger.warning(f"[VitalSoundEngine] Preset {out_path.name} failed acoustic audit: {audit_res}. Auto-correcting...")
+            v_spec = {"osc_1_level": 0.8, "filter_1_cutoff": 0.8, "volume": 0.75, "env_1_sustain": 0.7}
+            rep = self.validator.validate_specification(v_spec)
+            for k, val in rep.sanitized_spec.items():
+                settings[k] = val
+            sculpted_data["settings"] = self.schema.enforce_anti_silence_invariants(settings)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(sculpted_data, f, indent=2)
+            audit_res = self.audit_preset_file(out_path)
+
         self._sync_to_user_presets(out_path)
 
-        logger.info(f"[VitalSoundEngine] Successfully generated preset: {out_path} ({out_path.stat().st_size} bytes)")
+        logger.info(
+            f"[VitalSoundEngine] Successfully generated preset: {out_path} "
+            f"({out_path.stat().st_size} bytes, audible: {audit_res.get('audible')})"
+        )
         return out_path
 
     def mutate_preset(
@@ -160,9 +176,20 @@ class VitalSoundEngine:
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(sculpted_data, f, indent=2)
 
+        audit_res = self.audit_preset_file(out_path)
+        if not audit_res.get("valid", False) or not audit_res.get("audible", False):
+            logger.warning(f"[VitalSoundEngine] Mutated preset {out_path.name} failed acoustic audit: {audit_res}. Auto-correcting...")
+            v_spec = {"osc_1_level": 0.8, "filter_1_cutoff": 0.8, "volume": 0.75, "env_1_sustain": 0.7}
+            rep = self.validator.validate_specification(v_spec)
+            for k, val in rep.sanitized_spec.items():
+                settings[k] = val
+            sculpted_data["settings"] = self.schema.enforce_anti_silence_invariants(settings)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(sculpted_data, f, indent=2)
+
         self._sync_to_user_presets(out_path)
 
-        logger.info(f"[VitalSoundEngine] Mutated preset saved: {out_path}")
+        logger.info(f"[VitalSoundEngine] Mutated preset saved and validated: {out_path}")
         return out_path
 
     def design_granular_preset(

@@ -1062,15 +1062,15 @@ for trk in song.tracks:
 
         key = ai_meta.get("key")
         if not key:
-            key = "F"
             for k_candidate in ["C#", "DB", "D#", "EB", "F#", "GB", "G#", "AB", "A#", "BB", "C", "D", "E", "F", "G", "A", "B"]:
                 if f" {k_candidate} " in f" {text} " or f"KEY {k_candidate}" in text or f"TONALIDAD {k_candidate}" in text:
                     key = k_candidate.title()
                     break
+        if not key:
+            key = session.data.get("key", "F")
 
         scale = ai_meta.get("scale")
         if not scale:
-            scale = "natural_minor"
             if "ROYAL" in text or "JPOP" in text or "J-POP" in text or "ROYAL_ROAD" in text:
                 scale = "royal_road"
             elif "DORIAN" in text or "DORICA" in text:
@@ -1093,22 +1093,26 @@ for trk in song.tracks:
                 scale = "phrygian_dark"
             elif "NEO_SOUL" in text or "NEOSOUL" in text:
                 scale = "neo_soul"
+        if not scale:
+            scale = session.data.get("scale", "natural_minor")
 
-        bpm = 120.0
+        bpm = None
         if "bpm" in ai_meta:
             try:
                 bpm = float(ai_meta["bpm"])
             except (ValueError, TypeError):
-                bpm = 120.0
-        else:
+                bpm = None
+        if bpm is None:
             bpm_match = re.search(r"(\d{2,3}(?:\.\d+)?)\s*BPM", user_input, re.IGNORECASE)
             if bpm_match:
                 bpm = float(bpm_match.group(1))
+        if bpm is None:
+            bpm = float(session.data.get("bpm", 120.0))
 
         detected_genre = ai_meta.get("genre")
         if not detected_genre:
             for g_candidate in ["trap", "house", "neo_soul", "reggaeton", "synthwave", "boom_bap", "techno", "cumbia", "afrobeat", "edm", "drum_and_bass", "pop", "rock", "lofi", "hip_hop", "hip hop", "dnb"]:
-                if g_candidate.upper() in text:
+                if f" {g_candidate.upper()} " in f" {text} " or f"GENRE {g_candidate.upper()}" in text or f"GENERO {g_candidate.upper()}" in text:
                     detected_genre = g_candidate.replace(" ", "_").replace("hip_hop", "trap").replace("lofi", "boom_bap").replace("dnb", "drum_and_bass")
                     break
         if detected_genre:
@@ -1122,6 +1126,8 @@ for trk in song.tracks:
         session.data["ai_composed"] = bool(has_custom_notes)
 
         pocket_style = ai_meta.get("pocket_style") or ai_meta.get("groove") or ai_meta.get("pocket")
+        if not pocket_style:
+            pocket_style = session.data.get("pocket_style") or session.data.get("groove_style")
         if pocket_style:
             session.data["pocket_style"] = str(pocket_style).lower()
 
@@ -1131,6 +1137,8 @@ for trk in song.tracks:
                 session.data["swing_percentage"] = float(swing_val)
             except (ValueError, TypeError):
                 pass
+        elif "swing_percentage" not in session.data:
+            session.data["swing_percentage"] = 56.0
 
         hum_val = ai_meta.get("humanization_level") or ai_meta.get("humanization")
         if hum_val is not None:

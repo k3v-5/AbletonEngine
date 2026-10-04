@@ -141,10 +141,8 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 "is_subselection": True
             }
     
-        # Dynamically retrieve verified sources filtering out uninstalled VSTs (Level 1: Strictly Plugins)
-        lookup_role = "GUITAR" if ("guitar" in t_name.lower() or "acustic" in t_name.lower() or "flamenc" in t_name.lower()) else (
-            "PERCUSSION" if ("perc" in t_name.lower() or "palma" in t_name.lower() or "clap" in t_name.lower()) else role
-        )
+        # Retrieve verified sources strictly using the track's sovereign role decided in Phase 0
+        lookup_role = role
         cat_options = LiveBrowserCatalogEngine.get_available_sources_for_role(lookup_role, filter_installed=True)
         opts_text = []
         if cat_options:
@@ -171,11 +169,11 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
             kb_notes.append("     • *Club / Techno / Electro:* `909 Core Kit`, `707 Core Kit`, `AG Techno Kit`, `DMX Core Kit`")
             kb_notes.append("     • *Lo-Fi / Chill:* `Lo-Fi Tech Kit`, `LDre Cozy Kit`, `LDre Cafe Kit`, `Late Nite Kit`")
         elif role in ["BASS", "SUB"]:
-            kb_notes.append("  💡 **Prioridad de Bajos:** Vital (mejor diseño de sonido) (#1 Synth), SubLab XL, Serum 2, Massive X, Massive, Cyclop, Drift.")
+            kb_notes.append("  💡 **Opciones Destacadas de Bajo:** SubLab XL (sub 808 profesional), Vital, Serum 2, Massive X, Massive, Cyclop, Drift, Mini V3.")
         elif role in ["LEAD", "SYNTH"]:
-            kb_notes.append("  💡 **Receta Quirúrgica Vital (mejor diseño de sonido):** `vital_spectral_lead` (Spectral warping, Formant LFO) o Serum 2 `hyperpop_lead`.")
+            kb_notes.append("  💡 **Opciones de Sintetizador Solista:** Pigments (granular/wavetable), Serum 2 (hyperpop/electronic), Vital, Analog Lab V, OP-Xa V, Drift.")
         elif role in ["PAD", "STRINGS"]:
-            kb_notes.append("  💡 **Receta Quirúrgica Vital (mejor diseño de sonido):** `vital_lush_pad` (Stereo spread, Dual wavetable) o Serum 2 `analog_warm_pad`.")
+            kb_notes.append("  💡 **Opciones Armónicas / Atmosféricas:** Augmented STRINGS, Pigments, Vital, Analog Lab V, Prophet V3, Jup-8 V4.")
         
         if kb_notes:
             opts_text.append("\n**Opciones y Recetas de la Base de Conocimiento:**\n" + "\n".join(kb_notes))
@@ -206,7 +204,11 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
             ),
             "instructions_for_ai": f"Indica la opción de instrumento o kit para {t_name}. Puedes indicar cualquier kit de batería por nombre (ej: 'Dry Session Kit', 'Garage Kit') o usar layering con '+' (ej: 'Drift + Vital').",
             "target_track": t_idx,
+            "track_ptr": ptr,
+            "track_name": t_name,
             "role": role,
+            "planned_instrument": trk.get("instrument"),
+            "options": [opt.name for opt in cat_options] if cat_options else [],
             "phase": "PHASE_3_INSTRUMENTS"
         }
     
@@ -477,6 +479,11 @@ for slot in t.clip_slots:
             if session.data["current_track_ptr"] < len(tracks):
                 return session._prompt_current_track_instrument()
             else:
+                try:
+                    from engine.mix.bus_routing import BusRoutingManager
+                    BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
+                except Exception as ex_bus_route:
+                    logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
                 session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
                 session.data["phase_index"] = 4
                 session.data["current_param_ptr"] = 0
@@ -485,9 +492,7 @@ for slot in t.clip_slots:
     
         is_chopping = False
         chosen_sample = None
-        lookup_role = "GUITAR" if ("guitar" in t_name.lower() or "acustic" in t_name.lower() or "flamenc" in t_name.lower()) else (
-            "PERCUSSION" if ("perc" in t_name.lower() or "palma" in t_name.lower() or "clap" in t_name.lower()) else role
-        )
+        lookup_role = role
 
         # Check if track is currently in Level 2 Sub-selection for a multi-preset plugin
         pending_plugin = trk.get("pending_plugin_subselection")
@@ -575,15 +580,20 @@ if rack and getattr(rack, 'can_have_chains', False):
             if session.data["current_track_ptr"] < len(tracks):
                 return session._prompt_current_track_instrument()
             else:
+                try:
+                    from engine.mix.bus_routing import BusRoutingManager
+                    BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
+                except Exception as ex_bus_route:
+                    logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
                 session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
                 session.data["phase_index"] = 4
                 session.data["current_param_ptr"] = 0
                 session._save_state()
                 return session._prompt_current_track_params()
 
-        # Dynamic Drum Kit Lookup across all 159 Live kits
+        # Dynamic Drum Kit Lookup across all 159 Live kits (strictly restricted to DRUMS / PERCUSSION roles)
         drum_match = None
-        if (role == "DRUMS" or "kit" in u_clean) and not is_audio:
+        if role in ("DRUMS", "PERCUSSION") and not is_audio:
             drum_match = LiveBrowserCatalogEngine.find_drum_kit_uri(user_input)
             if drum_match:
                 target_uri, display_name = drum_match
@@ -956,6 +966,11 @@ for p in d.parameters:
         if session.data["current_track_ptr"] < len(tracks):
             return session._prompt_current_track_instrument()
         else:
+            try:
+                from engine.mix.bus_routing import BusRoutingManager
+                BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
+            except Exception as ex_bus_route:
+                logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
             session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
             session.data["phase_index"] = 4
             session.data["current_param_ptr"] = 0

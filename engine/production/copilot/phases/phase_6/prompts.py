@@ -139,7 +139,11 @@ class Phase6Prompts:
 
         cur_sec = sections[sec_idx] if sec_idx < len(sections) else sections[0]
         s_bars = int(cur_sec.get("bars", 8))
-        s_beats = float(s_bars * 4.0)
+        time_sig = session.data.get("time_signature", (4, 4))
+        s_num = time_sig[0] if isinstance(time_sig, (list, tuple)) and len(time_sig) >= 1 else 4
+        s_den = time_sig[1] if isinstance(time_sig, (list, tuple)) and len(time_sig) >= 2 else 4
+        bpb = float(s_num * (4.0 / max(1, s_den)))
+        s_beats = float(s_bars * bpb)
 
         drum_spec_block = ""
         role_upper = str(cur_trk.get("role", "")).upper()

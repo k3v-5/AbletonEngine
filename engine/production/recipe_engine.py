@@ -82,11 +82,11 @@ class ProductionRecipeEngine:
                     "options_available": list(VERIFIED_PLUGIN_URIS.keys()),
                     "example": {
                         "keys": "Analog Lab V",
-                        "bass": "Vital (mejor diseño de sonido)",
+                        "bass": "Vital",
                         "reese": "Massive",
                         "arp": "Massive X",
                         "pad": "Pigments",
-                        "lead": "Vital (mejor diseño de sonido)",
+                        "lead": "Vital",
                         "drums": "Drum Rack"
                     }
                 },
@@ -480,6 +480,7 @@ class ProductionRecipeEngine:
                             "id": f"filter_riser_{t.track_index}_{s_cur.name}_to_{s_next.name}".replace(" ", "_").replace(".", ""),
                             "type": "FILTER_SWEEP_UP",
                             "track_index": t.track_index,
+                            "clip_index": getattr(s_cur, "section_index", i),
                             "track_name": t.name,
                             "role": t.role,
                             "section_from": s_cur.name,
@@ -510,6 +511,7 @@ class ProductionRecipeEngine:
                             "id": f"reverb_wash_{t.track_index}_{s_cur.name}_to_{s_next.name}".replace(" ", "_").replace(".", ""),
                             "type": "REVERB_WASHOUT",
                             "track_index": t.track_index,
+                            "clip_index": getattr(s_cur, "section_index", i),
                             "track_name": t.name,
                             "role": t.role,
                             "section_from": s_cur.name,
@@ -537,6 +539,7 @@ class ProductionRecipeEngine:
                             "id": f"sub_vacuum_{t.track_index}_{s_cur.name}_to_{s_next.name}".replace(" ", "_").replace(".", ""),
                             "type": "SUB_CLEANUP",
                             "track_index": t.track_index,
+                            "clip_index": getattr(s_cur, "section_index", i),
                             "track_name": t.name,
                             "role": t.role,
                             "section_from": s_cur.name,
@@ -567,6 +570,7 @@ class ProductionRecipeEngine:
                             "id": f"filter_down_{t.track_index}_{s_cur.name}_to_{s_next.name}".replace(" ", "_").replace(".", ""),
                             "type": "FILTER_SWEEP_DOWN",
                             "track_index": t.track_index,
+                            "clip_index": getattr(s_cur, "section_index", i),
                             "track_name": t.name,
                             "role": t.role,
                             "section_from": s_cur.name,
@@ -716,13 +720,24 @@ class ProductionRecipeEngine:
 
             if conn is not None and hasattr(conn, "send_command"):
                 try:
+                    c_idx = auto.get("clip_index", None)
                     res = conn.send_command("create_arrangement_automation_envelope", {
                         "track_index": t_idx,
                         "device_index": dev_idx,
                         "parameter": param,
                         "points": points,
-                        "clip_index": auto.get("clip_index", None)
+                        "clip_index": c_idx
                     })
+                    if c_idx is not None and "start_bar" in auto:
+                        try:
+                            start_beat = float(auto["start_bar"]) * 4.0
+                            conn.send_command("duplicate_session_clip_to_arrangement", {
+                                "track_index": t_idx,
+                                "clip_index": c_idx,
+                                "destination_time": start_beat
+                            })
+                        except Exception as re_dup_err:
+                            logger.debug(f"Optional duplicate to arrangement notice: {re_dup_err}")
                     applied.append({
                         "id": auto_id,
                         "track_index": t_idx,
@@ -1539,7 +1554,7 @@ class ProductionRecipeEngine:
         Executes the entire 0-to-100 Zomboy Heavy Brostep beat through the authoritative engine.
         Guarantees:
         1. All tracks physically present and verified in Arrangement View.
-        2. Real VST3 instruments (Vital (mejor diseño de sonido), Serum 2, Analog Lab V) physically loaded on tracks.
+        2. Real VST3 instruments (Vital, Serum 2, Analog Lab V) physically loaded on tracks.
         3. Populated 16-pad Drum Rack with authentic samples on Track 2.
         4. Physical sidechain Kick -> Bass.
         5. 5-stage native mastering chain on Premaster Bus (Track 17).

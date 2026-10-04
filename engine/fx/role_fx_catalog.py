@@ -141,7 +141,20 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             "uri": "query:Plugins#VST3:Xfer%20Records:OTT",
             "params": [
                 {"id": "Depth", "name": "Depth (Profundidad Multibanda)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Cantidad de compresión ascendente/descendente sobre las tres bandas espectrales.", "default": 0.25},
-                {"id": "Time", "name": "Time (Velocidad dinámica)", "range": "0.0 a 1.0 (10% a 1000%)", "behavior": "Escala de constantes de tiempo de ataque y relajación de la compresión.", "default": 0.50}
+                {"id": "Time", "name": "Time (Velocidad dinámica)", "range": "0.0 a 1.0 (10% a 1000%)", "behavior": "Escala de constantes de tiempo de ataque y relajación de la compresión.", "default": 0.50},
+                {"id": "Upwd Strgth", "name": "Upward Strength (Dinámica Ascendente)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Compresión ascendente que levanta detalles y armónicos débiles bajo el umbral.", "default": 1.0},
+                {"id": "Dnwd Strgth", "name": "Downward Strength (Dinámica Descendente)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Compresión descendente estándar para aplastar picos transientes.", "default": 1.0},
+                {"id": "In Gain", "name": "Input Gain (Ganancia de Entrada)", "range": "-24 dB a +24 dB", "behavior": "Calibración del nivel de entrada para forzar el umbral multibanda.", "default": 0.50},
+                {"id": "Out Gain", "name": "Output Gain (Ganancia de Salida)", "range": "-24 dB a +24 dB", "behavior": "Compensación de volumen limpio post-compresión.", "default": 0.50}
+            ]
+        },
+        {
+            "name": "Pro-DS",
+            "uri": "query:Plugins#VST3:FabFilter:Pro-DS",
+            "params": [
+                {"id": "Threshold", "name": "Threshold (Umbral de Detección)", "range": "-60 dB a 0 dB", "behavior": "Umbral de activación para sibilancias y asperezas agudas del sintetizador.", "default": -20.0},
+                {"id": "Range", "name": "Range (Atenuación Máxima)", "range": "-40 dB a 0 dB", "behavior": "Reducción de ganancia máxima en la banda de aspereza (5-9 kHz).", "default": -6.0},
+                {"id": "HP Frequency", "name": "HP Frequency (Banda de Detección)", "range": "2 kHz a 20 kHz", "behavior": "Filtro pasa-altos del detector para aislar asperezas.", "default": 0.55}
             ]
         }
     ],
@@ -211,6 +224,25 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "Decay", "name": "Decay (Tiempo de Reverberación)", "range": "0.2 s a 70 s", "behavior": "Longitud de la cola ambiental (1.8s a 2.5s ideal para trap/pop).", "default": 0.25},
                 {"id": "PreDelay", "name": "Pre-Delay (Retardo Inicial)", "range": "0 ms a 200 ms", "behavior": "Separa la voz seca del inicio de la reverberación para máxima inteligibilidad.", "default": 0.15}
             ]
+        },
+        {
+            "name": "Pro-DS",
+            "uri": "query:Plugins#VST3:FabFilter:Pro-DS",
+            "params": [
+                {"id": "Threshold", "name": "Threshold (Umbral de Sibilancia)", "range": "-60 dB a 0 dB", "behavior": "Nivel donde se activa la atenuación de sibilancias vocales duras ('s', 't', 'ch').", "default": -22.0},
+                {"id": "Range", "name": "Range (Atenuación Máxima)", "range": "-40 dB a 0 dB", "behavior": "Cantidad máxima de reducción en frecuencias sibilantes sin apagar la voz.", "default": -9.0},
+                {"id": "HP Frequency", "name": "HP Frequency (Banda de Sibilancia)", "range": "2 kHz a 20 kHz", "behavior": "Filtro pasa-altos del detector (típicamente 5-7 kHz para vocales).", "default": 0.50},
+                {"id": "Audition", "name": "Audition (Escucha de Sidechain)", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Aísla auditivamente sólo las sibilancias que están siendo atenuadas.", "default": 0.0}
+            ]
+        },
+        {
+            "name": "Tape MELLO-FI",
+            "uri": "query:Plugins#VST3:Arturia:Tape%20MELLO-FI",
+            "params": [
+                {"id": "Drive", "name": "Drive (Preamp y Cinta)", "range": "0.0 a 1.0", "behavior": "Saturación cálida analógica y compresión armónica suave.", "default": 0.25},
+                {"id": "Tone", "name": "Tone (Balance Espectral)", "range": "0.0 a 1.0", "behavior": "Oscurece o da brillo vintage a la toma vocal.", "default": 0.55},
+                {"id": "Wear", "name": "Wear (Desgaste)", "range": "0.0 a 1.0", "behavior": "Textura y micro-imperfecciones de cinta de 1/4 de pulgada.", "default": 0.08}
+            ]
         }
     ],
     "PAD": [
@@ -228,6 +260,31 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             "params": [
                 {"id": "Mix", "name": "Mix (Ambiente estéreo)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Profundidad ambiental para texturas de fondo.", "default": 0.30},
                 {"id": "Decay", "name": "Decay (Sostenimiento largo)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Cola extendida para colchón armónico.", "default": 0.35}
+            ]
+        },
+        {
+            "name": "Tape MELLO-FI",
+            "uri": "query:Plugins#VST3:Arturia:Tape%20MELLO-FI",
+            "params": [
+                {"id": "Wow", "name": "Wow (Fluctuación Lenta)", "range": "0.0 a 1.0", "behavior": "Deriva lenta de pitch para atmósfera vintage bedroom/lo-fi.", "default": 0.28},
+                {"id": "Flutter", "name": "Flutter (Fluctuación Rápida)", "range": "0.0 a 1.0", "behavior": "Vibración rápida de tono de cabezal analógico.", "default": 0.18},
+                {"id": "Drive", "name": "Drive (Saturación de Cinta)", "range": "0.0 a 1.0", "behavior": "Calidez analógica saturada que suaviza transientes digitales.", "default": 0.35}
+            ]
+        },
+        {
+            "name": "Redux",
+            "uri": "query:AudioFx#Redux",
+            "params": [
+                {"id": "Bit Depth", "name": "Bit Depth (Resolución)", "range": "1 a 16 bits", "behavior": "Degradación digital vintage para estética lo-fi / bedroom pop.", "default": 12.0},
+                {"id": "Downsample", "name": "Downsample (Frecuencia de Muestreo)", "range": "1.0 a 32.0", "behavior": "Aliasing musical para añadir textura y aspereza orgánica.", "default": 2.0}
+            ]
+        },
+        {
+            "name": "Vinyl Distortion",
+            "uri": "query:AudioFx#Vinyl%20Distortion",
+            "params": [
+                {"id": "Crackle Density", "name": "Crackle Density (Fritura de Vinilo)", "range": "0.0 a 1.0", "behavior": "Polvo y crujido de disco de vinilo a -24 dBFS.", "default": 0.20},
+                {"id": "Crackle Volume", "name": "Crackle Volume", "range": "0.0 a 1.0", "behavior": "Nivel de ruido atmosférico de fondo.", "default": 0.15}
             ]
         }
     ],
@@ -589,5 +646,8 @@ ROLE_FREQUENCY_GUIDE: Dict[str, Dict[str, str]] = {
         "transient_handling": "Compresión densa y rápida (4:1 a 6:1) para aplanar la dinámica coral y mantenerla como un colchón uniforme detrás del lead."
     }
 }
+
+# Alias for semantic catalog queries
+ROLE_FX_CATALOG = ROLE_INSERT_EFFECTS
 
 

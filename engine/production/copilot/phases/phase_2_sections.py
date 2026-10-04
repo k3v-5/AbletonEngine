@@ -45,11 +45,13 @@ class Phase2SectionsHandler(BasePhaseHandler):
                 f"🎹 **Afinación Armónica (Escala y Tonalidad del Proyecto):**\n"
                 f"El motor afinará automáticamente Ableton Live 12 (`song.root_note`, `song.scale_name`) y los plugins de afinación (Auto-Tune Artist/Pro).\n"
                 f"• *Recomendaciones por género:* Dubstep/Bass Music: **Fa Menor (F Minor)** o **Re Menor (D Minor)**; Trap: **Do Menor (C Minor)**; Pop/House: **La Menor (A Minor)** / **Do Mayor (C Major)**.\n\n"
+                f"📍 **Ubicación del Drop / Clímax:**\n"
+                f"Especifica el compás exacto donde ocurrirá el drop (el motor expone el arreglo y la IA decide soberanamente; ya **NO** se asume el compás 80 rígidamente; ej: 'Drop en compás 32', 'Drop en compás 24').\n\n"
                 f"🧠 **Decisión Técnica Requerida:**\n"
-                f"Elige la estructura y **obligatoriamente** la tonalidad y escala deseadas (la tonalidad ya no es opcional ni se asume por defecto).\n\n"
-                f"*Ejemplo de respuesta: 'Opción A en Fa Menor', 'Opción B en Re Menor', 'Opción C en Do Menor'.*"
+                f"Elige la estructura (canónica o personalizada en JSON), la tonalidad y escala obligatorias, y la ubicación del drop.\n\n"
+                f"*Ejemplo de respuesta: 'Opción A en Fa Menor con Drop en compás 32', 'Opción B en Re Menor', 'Opción C en Do Menor con Drop en compás 40'.*"
             ),
-            "instructions_for_ai": "Selecciona la estructura (Opción A, B, C o D) y obligatoriamente la tonalidad y escala (ej. 'Opción A en Fa Menor').",
+            "instructions_for_ai": "Selecciona la estructura (Opción A, B, C, D o JSON), obligatoriamente la tonalidad y escala, e indica la ubicación del drop (ej. 'Opción A en Fa Menor con Drop en compás 32').",
             "phase": "PHASE_2_SECTIONS"
         }
     
@@ -116,7 +118,40 @@ class Phase2SectionsHandler(BasePhaseHandler):
     
         # Physical tuning sync in Live 12
         session._sync_session_tuning(conn, final_key, final_scale)
-    
+
+        # Physical BPM / Tempo extraction and sync in Live 12
+        parsed_bpm = None
+        if isinstance(user_input, dict) and ("bpm" in user_input or "tempo" in user_input):
+            parsed_bpm = float(user_input.get("bpm") or user_input.get("tempo"))
+        elif isinstance(user_input, str):
+            try:
+                js = json.loads(user_input)
+                if isinstance(js, dict) and ("bpm" in js or "tempo" in js):
+                    parsed_bpm = float(js.get("bpm") or js.get("tempo"))
+            except Exception:
+                pass
+        if parsed_bpm is None:
+            bm = re.search(r'(?:bpm|tempo)[:\s]+(\d+(?:\.\d+)?)', text, re.IGNORECASE)
+            if not bm:
+                bm = re.search(r'\b(\d{2,3}(?:\.\d+)?)\s*bpm\b', text, re.IGNORECASE)
+            if bm:
+                parsed_bpm = float(bm.group(1))
+
+        if parsed_bpm is not None and 20.0 <= parsed_bpm <= 350.0:
+            session.data["bpm"] = parsed_bpm
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("set_tempo", {"tempo": parsed_bpm})
+                    logger.info(f"Phase 2 physically updated Live tempo to {parsed_bpm} BPM.")
+                except Exception as ex_bpm:
+                    logger.debug(f"Phase 2 tempo sync notice: {ex_bpm}")
+        elif session.data.get("bpm") and conn is not None and hasattr(conn, "send_command"):
+            # Re-assert confirmed session BPM to Live to prevent silent desync
+            try:
+                conn.send_command("set_tempo", {"tempo": float(session.data["bpm"])})
+            except Exception as ex_re_bpm:
+                logger.debug(f"Phase 2 tempo baseline assertion notice: {ex_re_bpm}")
+
         parsed_custom = None
         if isinstance(user_input, dict) and "sections" in user_input:
             parsed_custom = user_input["sections"]
@@ -203,6 +238,27 @@ class Phase2SectionsHandler(BasePhaseHandler):
         session.data["sections"] = sections
         session.data["total_bars"] = total_bars
 
+        # Extract or maintain drop location dynamically (avoid hardcoded drop at bar 80)
+        drop_match = re.search(r'(?:en\s+el\s+compas|en\s+el\s+compás|compas|compás|bar)\s*[:=]?\s*(\d+)', text)
+        if not drop_match:
+            drop_match = re.search(r'(?:drop|climax|clímax|caida|caída)(?:\s+en)?(?:\s+el)?(?:\s+compas|\s+compás|\s+bar)?[:\s]+(\d+)', text)
+        if drop_match:
+            session.data["drop_bar"] = int(drop_match.group(1))
+        elif "drop_bar" not in session.data:
+            drop_s = next((s for s in sections if any(k in s.get("name", "").lower() for k in ["drop", "climax", "coro"])), None)
+            session.data["drop_bar"] = drop_s.get("start_bar", 32) if drop_s else 32
+
+        time_sig = session.data.get("time_signature", (4, 4))
+        if isinstance(time_sig, (list, tuple)) and len(time_sig) >= 2:
+            s_num, s_den = int(time_sig[0]), int(time_sig[1])
+        elif isinstance(time_sig, str) and "/" in time_sig:
+            parts = time_sig.split("/")
+            s_num, s_den = int(parts[0]), int(parts[1])
+        else:
+            s_num, s_den = 4, 4
+        beats_per_bar = float(s_num * (4.0 / max(1, s_den)))
+        session.data["drop_beat"] = float(session.data["drop_bar"] * beats_per_bar)
+
         # Infer emotion automatically by key, scale, and genre (or respect user override)
         genre = session.data.get("genre", "trap")
         from engine.arrangement.emotional_arc import EmotionalArcDirector, MusicalEmotion
@@ -235,7 +291,7 @@ class Phase2SectionsHandler(BasePhaseHandler):
     
         if conn is not None and hasattr(conn, "send_command"):
             try:
-                TransportManager.sync_section_cue_points(conn, sections)
+                TransportManager.sync_section_cue_points(conn, sections, time_signature=(s_num, s_den))
             except Exception as ex_cue:
                 logger.debug(f"TransportManager cue sync notice: {ex_cue}")
     

@@ -194,19 +194,38 @@ class ExpectationDeviationEngine:
     def synthesize_consequence_fanfare(
         cls,
         tonal_center: str = "Eb",
+        scale: str = "natural_minor",
         start_beat: float = 14.5,
         velocity: int = 112
     ) -> List[Dict[str, Any]]:
         """
-        Generates the soaring brass fanfare answering the rhythmic vacuum.
+        Generates the soaring brass fanfare answering the rhythmic vacuum,
+        dynamically transposed and scaled to the song's actual key and mode.
         """
-        # Eb minor pentatonic fanfare: Eb5, Gb5, Bb5, Db6, Eb6
-        # Root MIDI for Eb5 = 75
+        key_map = {
+            "C": 0, "C#": 1, "DB": 1, "D": 2, "D#": 3, "EB": 3,
+            "E": 4, "F": 5, "F#": 6, "GB": 6, "G": 7, "G#": 8,
+            "AB": 8, "A": 9, "A#": 10, "BB": 10, "B": 11
+        }
+        clean_key = tonal_center.upper().strip()
+        root_offset = key_map.get(clean_key, 3)
+        # Root pitch in the 5th octave (approx MIDI 72-83)
+        root_pitch = 72 + root_offset
+
+        is_major = "major" in scale.lower() or "ionian" in scale.lower() or "lydian" in scale.lower()
+        if is_major:
+            # Major pentatonic intervals: Root, 2nd, 3rd, 5th, Octave
+            intervals = [0, 2, 4, 7, 12]
+        else:
+            # Minor pentatonic intervals: Root, minor 3rd, 4th/5th, minor 7th, Octave
+            intervals = [0, 3, 7, 10, 12]
+
         notes = [
-            {"pitch": 75, "start_time": start_beat, "duration": 0.25, "velocity": velocity - 10},
-            {"pitch": 78, "start_time": start_beat + 0.25, "duration": 0.25, "velocity": velocity - 5},
-            {"pitch": 82, "start_time": start_beat + 0.50, "duration": 0.50, "velocity": velocity},
-            {"pitch": 85, "start_time": start_beat + 1.00, "duration": 0.50, "velocity": velocity + 5},
-            {"pitch": 87, "start_time": start_beat + 1.50, "duration": 1.50, "velocity": 125},
+            {"pitch": root_pitch + intervals[0], "start_time": start_beat, "duration": 0.25, "velocity": max(1, velocity - 10)},
+            {"pitch": root_pitch + intervals[1], "start_time": start_beat + 0.25, "duration": 0.25, "velocity": max(1, velocity - 5)},
+            {"pitch": root_pitch + intervals[2], "start_time": start_beat + 0.50, "duration": 0.50, "velocity": velocity},
+            {"pitch": root_pitch + intervals[3], "start_time": start_beat + 1.00, "duration": 0.50, "velocity": min(127, velocity + 5)},
+            {"pitch": root_pitch + intervals[4], "start_time": start_beat + 1.50, "duration": 1.50, "velocity": min(127, velocity + 15)},
         ]
         return notes
+

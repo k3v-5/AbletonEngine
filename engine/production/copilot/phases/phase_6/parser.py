@@ -91,8 +91,12 @@ class Phase6Parser:
                         target_meta["pocket_style"] = "reggaeton_dembow"
                     elif any(w in u_lower for w in ["mpc_60", "mpc60", "roger linn"]):
                         target_meta["pocket_style"] = "mpc_60"
+                    elif any(w in u_lower for w in ["straight_precise", "straight", "cuantizado", "rigido", "grid", "sin swing"]):
+                        target_meta["pocket_style"] = "straight_precise"
 
                 swing_m = re.search(r'(?:swing|swing_pct|swing_percentage)\s*[:=]?\s*(\d{2}(?:\.\d+)?)\s*%?', txt, re.IGNORECASE)
+                if not swing_m:
+                    swing_m = re.search(r'(\d{2}(?:\.\d+)?)\s*%\s*(?:de\s+)?swing', txt, re.IGNORECASE)
                 if swing_m and "swing" not in target_meta and "swing_percentage" not in target_meta:
                     try:
                         target_meta["swing_percentage"] = float(swing_m.group(1))

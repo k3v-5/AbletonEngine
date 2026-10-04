@@ -115,11 +115,12 @@ class AcousticProbe:
         cls,
         conn: Any,
         target_tracks: Optional[List[int]] = None,
-        duration_beats: float = 8.0
+        duration_beats: float = 8.0,
+        drop_beat: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Audits physical signal output across all tracks during real playback at the Drop:
-        - Jumps transport to Drop (beat 80)
+        - Jumps transport to Drop (explicit drop_beat or dynamic Cue Point, not hardcoded beat 80)
         - Starts playback and waits for buffer latency
         - Multi-samples output_meter_level on each track
         - Enforces that all tracks produce physical energy (> 0.001)
@@ -148,9 +149,25 @@ class AcousticProbe:
             except Exception:
                 track_clips[t_idx] = []
 
-        # Primary Probe Pass: Jump to DROP (beat 80) where main arrangement layers are playing
+        # Determine target drop time dynamically from explicit drop_beat or Live cue points
+        target_drop_time = float(drop_beat) if drop_beat is not None else None
+        if target_drop_time is None and conn is not None:
+            try:
+                cues_res = conn.send_command("get_cue_points", {})
+                cues = cues_res.get("result", {}).get("cue_points", cues_res.get("cue_points", [])) if isinstance(cues_res, dict) else (cues_res if isinstance(cues_res, list) else [])
+                for cp in cues:
+                    c_name = str(cp.get("name", "")).lower()
+                    if any(k in c_name for k in ["drop", "climax", "coro", "chorus"]):
+                        target_drop_time = float(cp.get("time", 80.0))
+                        break
+            except Exception:
+                pass
+        if target_drop_time is None:
+            target_drop_time = 80.0
+
+        # Primary Probe Pass: Jump to target drop time where main arrangement layers are playing
         try:
-            conn.send_command("set_current_song_time", {"time": 80.0})
+            conn.send_command("set_current_song_time", {"time": target_drop_time})
         except Exception:
             pass
 
@@ -248,6 +265,7 @@ class AcousticProbe:
 
         return {
             "status": "PASSED" if len(silent_tracks) == 0 else "WARNING_SILENCE",
+            "drop_beat": target_drop_time,
             "tracks_audited": len(track_reports),
             "audible_count": len(audible_tracks),
             "silent_count": len(silent_tracks),
@@ -346,3 +364,41 @@ class AcousticProbe:
                         break
 
         return {"status": "SUCCESS", "actions_taken": actions_taken}
+
+    @classmethod
+    def jump_to_drop(
+        cls,
+        conn: Any,
+        drop_beat: Optional[float] = None,
+        state: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Jumps transport to the dynamic drop location."""
+        target = drop_beat
+        if target is None and state and isinstance(state, dict):
+            target = state.get("drop_beat")
+        if target is None and conn is not None and hasattr(conn, "send_command"):
+            try:
+                cues_res = conn.send_command("get_cue_points", {})
+                cues = cues_res.get("result", {}).get("cue_points", cues_res.get("cue_points", [])) if isinstance(cues_res, dict) else (cues_res if isinstance(cues_res, list) else [])
+                for cp in cues:
+                    c_name = str(cp.get("name", "")).lower()
+                    if any(k in c_name for k in ["drop", "climax", "coro", "chorus"]):
+                        target = float(cp.get("time", 80.0))
+                        break
+            except Exception:
+                pass
+        if target is None:
+            target = 80.0
+
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                conn.send_command("set_current_song_time", {"time": float(target)})
+            except Exception as e:
+                logger.warning(f"Failed to jump to drop at {target}: {e}")
+
+        return {"status": "SUCCESS", "target_beat": float(target)}
+
+
+# Alias for backwards compatibility with reality probe references
+AcousticRealityProbe = AcousticProbe
+

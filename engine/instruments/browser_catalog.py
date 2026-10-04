@@ -334,10 +334,10 @@ class LiveBrowserCatalogEngine:
                     insert_idx += 1
             third_party = new_third
 
-        # Ensure all Vital options display '(mejor diseño de sonido)'
+        # Ensure all Vital options display ''
         for opt in third_party:
-            if "vital" in (opt.id + " " + opt.name).lower() and "(mejor diseño de sonido)" not in opt.name:
-                opt.name = f"{opt.name} (mejor diseño de sonido)"
+            if "vital" in (opt.id + " " + opt.name).lower() and "" not in opt.name:
+                opt.name = f"{opt.name}"
 
         verified = third_party + native
         return verified or raw_sources

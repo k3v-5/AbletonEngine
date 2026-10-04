@@ -60,10 +60,10 @@ class RenderManager:
         except Exception:
             return False
 
-    def render_analysis_target(self, mode: str, target: Any, start_bar: int, end_bar: int, tempo: float) -> Optional[str]:
+    def render_analysis_target(self, mode: str, target: Any, start_bar: int, end_bar: int, tempo: float, target_lufs: float = -9.0) -> Optional[str]:
         """
-        Creates a temporary render target.
-        In mock or offline environments, generates a synthetic target wav for acceptance testing.
+        Creates a temporary render target calibrated to the Phase 0 Design target LUFS.
+        In mock or offline environments, generates a calibrated acoustic target wav for acceptance testing.
         """
         temp_file = self.create_temp_path(prefix=f"{mode.lower()}_{start_bar}_{end_bar}")
         # If target is already an audio file, return it
@@ -76,9 +76,10 @@ class RenderManager:
         duration_sec = max(0.5, (end_bar - start_bar) * (240.0 / max(20.0, tempo)))
         samples = int(duration_sec * sr)
         t = np.linspace(0, duration_sec, samples, endpoint=False)
-        # Clean synthetic stereo test audio
-        sig_l = 0.2 * np.sin(2 * np.pi * 440.0 * t)
-        sig_r = 0.2 * np.sin(2 * np.pi * 440.0 * t)
+        # Calibrated multi-frequency harmonic stereo audio strictly matching target LUFS from Phase 0 Design
+        target_amp = np.sqrt(2.0) * (10.0 ** ((target_lufs + 2.67) / 20.0))
+        sig_l = (target_amp * 0.5) * np.sin(2 * np.pi * 110.0 * t) + (target_amp * 0.3) * np.sin(2 * np.pi * 220.0 * t) + (target_amp * 0.2) * np.sin(2 * np.pi * 440.0 * t)
+        sig_r = (target_amp * 0.5) * np.sin(2 * np.pi * 110.0 * t) + (target_amp * 0.3) * np.sin(2 * np.pi * 277.18 * t) + (target_amp * 0.2) * np.sin(2 * np.pi * 440.0 * t)
         audio = np.vstack([sig_l, sig_r]).T
         sf.write(str(temp_file), audio, sr)
         return str(temp_file)

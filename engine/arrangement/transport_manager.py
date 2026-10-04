@@ -16,19 +16,31 @@ class TransportManager:
     """Orchestrates arrangement cue points and conversational transport navigation."""
 
     @classmethod
-    def get_timeline_map(cls, sections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def get_timeline_map(
+        cls,
+        sections: List[Dict[str, Any]],
+        time_signature: Tuple[int, int] = (4, 4),
+        beats_per_bar: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
         """
         Calculates exact bar and beat intervals for every section in the arrangement.
         """
         timeline: List[Dict[str, Any]] = []
         current_bar = 0.0
 
+        if beats_per_bar is None:
+            s_num = time_signature[0] if isinstance(time_signature, (list, tuple)) and len(time_signature) >= 1 else 4
+            s_den = time_signature[1] if isinstance(time_signature, (list, tuple)) and len(time_signature) >= 2 else 4
+            bpb = float(s_num * (4.0 / max(1, s_den)))
+        else:
+            bpb = float(beats_per_bar)
+
         for idx, sec in enumerate(sections):
             name = str(sec.get("name", f"Section_{idx + 1}"))
             bars = float(sec.get("bars", 16.0))
-            start_beat = current_bar * 4.0
+            start_beat = current_bar * bpb
             end_bar = current_bar + bars
-            end_beat = end_bar * 4.0
+            end_beat = end_bar * bpb
 
             timeline.append({
                 "index": idx,
@@ -44,14 +56,19 @@ class TransportManager:
         return timeline
 
     @classmethod
-    def sync_section_cue_points(cls, conn: Any, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def sync_section_cue_points(
+        cls,
+        conn: Any,
+        sections: List[Dict[str, Any]],
+        time_signature: Tuple[int, int] = (4, 4)
+    ) -> Dict[str, Any]:
         """
         Creates named cue points on Live's Arrangement timeline for all project sections.
         """
         if not conn or not hasattr(conn, "send_command"):
             return {"status": "SKIPPED", "message": "No Live connection available."}
 
-        timeline = cls.get_timeline_map(sections)
+        timeline = cls.get_timeline_map(sections, time_signature=time_signature)
         created_cues = []
 
         try:

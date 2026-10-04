@@ -828,6 +828,32 @@ class Phase7AutomationHandler(BasePhaseHandler):
 
         session.data["automations"] = applied_autos
 
+        # Apply Vocal & Lead Fader Riding across sections to ensure active arrangement dynamics
+        tracks = session.data.get("tracks", [])
+        sections = session.data.get("sections", [])
+        if conn is not None and hasattr(conn, "send_command") and tracks and sections:
+            from engine.mix.fader_rider import VocalLeadFaderRider
+            for trk in tracks:
+                r = str(trk.get("role", "")).upper()
+                n = str(trk.get("name", "")).lower()
+                t_idx = trk.get("index")
+                if t_idx is not None and (r in ("LEAD", "VOCALS", "KEYS", "COUNTER_LEAD", "SYNTH") or any(k in n for k in ("lead", "vocal", "synth", "vox", "hook"))):
+                    try:
+                        VocalLeadFaderRider.apply_to_track(
+                            conn=conn,
+                            track_index=t_idx,
+                            role="lead" if "lead" in r.lower() or "synth" in r.lower() else "vocal",
+                            sections=sections
+                        )
+                    except Exception as ex_rider:
+                        logger.debug(f"Notice applying fader riding to track {t_idx}: {ex_rider}")
+
+            try:
+                from engine.mix.bus_routing import BusRoutingManager
+                BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
+            except Exception as ex_bus_mix:
+                logger.debug(f"Submix bus refresh notice in Phase 7: {ex_bus_mix}")
+
         # Integrate macro & micro tension dynamics (Dead Air, Stereo Narrowing, Gain Dip)
         from engine.arrangement.transitions.tension_dynamics import TensionDynamicsEngine
         sections = session.data.get("sections", [])

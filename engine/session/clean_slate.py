@@ -37,13 +37,13 @@ class CleanSlateManager:
         cls,
         conn: Any,
         session_data: Optional[Dict[str, Any]] = None,
-        target_bpm: float = 120.0
+        target_bpm: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Executes atomic cleanup across Live:
         - Creates safety snapshot
         - Stops playback
-        - Sets target tempo
+        - Sets target tempo (or preserves current Live/session BPM, never freezing at 120.0)
         - Deletes clips in session view (up to 16 slots per track)
         - Clears cue points
         - Unmutes and resets tracks
@@ -56,7 +56,10 @@ class CleanSlateManager:
         if conn and hasattr(conn, "send_command"):
             try:
                 conn.send_command("stop_playback", {})
-                conn.send_command("set_tempo", {"tempo": target_bpm})
+                if target_bpm is not None:
+                    conn.send_command("set_tempo", {"tempo": float(target_bpm)})
+                elif session_data and "bpm" in session_data:
+                    conn.send_command("set_tempo", {"tempo": float(session_data["bpm"])})
 
                 s_info = conn.send_command("get_session_info", {})
                 s_data = s_info.get("result", s_info) if isinstance(s_info, dict) else {}

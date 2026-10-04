@@ -41,6 +41,10 @@ class CopilotInterceptRouter:
             session.data["lifecycle_decision_active"] = True
             return ProjectLifecycleManager.prompt_lifecycle_decision(session)
 
+        # In PHASE_0_DESIGN, do not intercept questionnaire responses with mix/vocal/LUFS commands
+        if phase == "PHASE_0_DESIGN":
+            return None
+
         # 1. Creative Continuity & Omission Audit Queries
         if any(w in norm_text for w in ["ver contrato", "contrato de la cancion", "contrato de la obra", "mostrar contrato", "obligaciones", "song contract"]):
             return session._handle_song_contract_query()

@@ -432,7 +432,7 @@ class Phase11ResamplingHandler(BasePhaseHandler):
             f"🎛️ **DISEÑO DE PISTA FUENTE — PASO 2 DE 4: INSTRUMENTO / VST (Rol: {role})**\n\n"
             "Selecciona el sintetizador o instrumento que generará el sonido:\n\n"
             "1. **Arturia Analog Lab V** (Recomendado para pianos orquestales, Rhodes físicos y timbres vintage).\n"
-            "2. **Matt Tytel Vital (mejor diseño de sonido)** (Síntesis espectral avanzada con modulación estéreo transparente y mejor diseño de sonido).\n"
+            "2. **Matt Tytel Vital** (Síntesis espectral avanzada con modulación estéreo transparente).\n"
             "3. **Xfer Serum 2** (Síntesis wavetable de alta precisión, filtros limpios y modulación extrema).\n"
             "4. **Arturia Pigments** (Motores híbridos analógico/granular para texturas complejas).\n"
             "5. **Ableton Native Drift / Wavetable** (Bajo consumo de CPU y máxima integración DAW).\n\n"

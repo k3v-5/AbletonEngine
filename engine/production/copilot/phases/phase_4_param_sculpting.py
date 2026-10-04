@@ -358,6 +358,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 f"*Responde con el número de preset (ej: 'Opción 1'), 'crossover' o tus parámetros personalizados de síntesis y timbre.*"
             ),
             "instructions_for_ai": f"Razona sobre el rol {role} de '{t_name}' y selecciona el preset adaptativo del 1 al 5 o envía parámetros explícitos.",
+            "options": [f"{p_data['name']}: {p_data['description']}" for p_data in role_presets.values()],
             "target_track": t_idx,
             "role": role,
             "target_dbfs": target_db,
@@ -621,7 +622,10 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                         f"{p_guide_str}\n"
                         "• O personalizado: `Cutoff: 0.70, Drive: 0.30, Brillo: 0.80, Ancho: 0.70`\n"
                     ),
-                    "instructions_for_ai": f"Selecciona una opción del 1 al 5 adaptada a {role} o especifica parámetros de TimbreDNA y síntesis."
+                    "instructions_for_ai": f"Selecciona una opción del 1 al 5 adaptada a {role} o especifica parámetros de TimbreDNA y síntesis.",
+                    "options": [role_presets[k]['name'] for k in sorted(role_presets.keys())],
+                    "target_track": t_idx,
+                    "role": role
                 }
     
         # 1. Apply physical parameters in Live

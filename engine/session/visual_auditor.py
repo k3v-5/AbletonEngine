@@ -206,6 +206,145 @@ class LiveVisualAuditor:
             return {"is_valid": False, "error": str(ex)}
 
     @classmethod
+    def audit_als_xml_integrity(cls, als_path: Path) -> Dict[str, Any]:
+        """
+        Directly decompresses and parses the physical Ableton Live Set (.als) XML file.
+        Inspects:
+        - Physical project tempo (<Tempo><Manual Value="..."/>)
+        - Time signature (<TimeSignature><Numerator Value="..."/>)
+        - Musical tracks, names, roles, and device chains
+        - Audio output routing: checks if member tracks route into [BUS] submix channels
+        - Sidechain compression: checks if Compressor sidechain sources are physically bound
+        - Clip counts and arrangement note events
+        """
+        als_path = Path(als_path)
+        if not als_path.exists():
+            return {"valid": False, "error": f"File not found: {als_path}"}
+
+        import gzip
+        import xml.etree.ElementTree as ET
+
+        try:
+            with gzip.open(als_path, "rb") as gz:
+                tree = ET.parse(gz)
+                root = tree.getroot()
+
+            # 1. Physical Tempo
+            tempo_el = root.find(".//Tempo/Manual")
+            physical_tempo = float(tempo_el.attrib.get("Value", 120.0)) if tempo_el is not None else 120.0
+
+            # 2. Physical Time Signature
+            sig_num_el = root.find(".//TimeSignature/Numerator")
+            sig_den_el = root.find(".//TimeSignature/Denominator")
+            sig_num = int(sig_num_el.attrib.get("Value", 4)) if sig_num_el is not None else 4
+            sig_den = int(sig_den_el.attrib.get("Value", 4)) if sig_den_el is not None else 4
+
+            # 3. Tracks & Devices
+            tracks_info = []
+            bus_tracks = []
+            audio_tracks = []
+            midi_tracks = []
+            routed_to_buses_count = 0
+            sidechain_connected_count = 0
+            total_midi_clips = 0
+            total_audio_clips = 0
+
+            # First pass: map Track IDs to names and identify submix buses
+            track_id_map = {}
+            bus_track_ids = set()
+            for t in root.findall(".//Tracks/*"):
+                if t.tag in ("MidiTrack", "AudioTrack"):
+                    tid = t.attrib.get("Id")
+                    name_el = t.find(".//Name/EffectiveName")
+                    t_name = name_el.attrib.get("Value", "Untitled") if name_el is not None else "Untitled"
+                    track_id_map[tid] = t_name
+                    if t_name.startswith("[BUS]"):
+                        bus_track_ids.add(tid)
+                        if t_name not in bus_tracks:
+                            bus_tracks.append(t_name)
+
+            for t in root.findall(".//Tracks/*"):
+                if t.tag not in ("MidiTrack", "AudioTrack"):
+                    continue
+
+                name_el = t.find(".//Name/EffectiveName")
+                t_name = name_el.attrib.get("Value", "Untitled") if name_el is not None else "Untitled"
+
+                # Check clips
+                m_clips = len(t.findall(".//MidiClip"))
+                a_clips = len(t.findall(".//AudioClip"))
+                total_midi_clips += m_clips
+                total_audio_clips += a_clips
+
+                # Devices
+                dev_tags = [d.tag for d in t.findall(".//DeviceChain/Devices/*")]
+
+                # Check Audio Output Routing
+                out_target_el = t.find(".//AudioOutputRouting/Target")
+                out_target = out_target_el.attrib.get("Value", "AudioOut/Main") if out_target_el is not None else "AudioOut/Main"
+                is_bus = t_name.startswith("[BUS]")
+                dest_name = "Main"
+                if "Track." in out_target:
+                    dest_id = out_target.split("Track.")[1].split("/")[0]
+                    dest_name = track_id_map.get(dest_id, f"Track {dest_id}")
+                    if dest_id in bus_track_ids or dest_name.startswith("[BUS]"):
+                        routed_to_buses_count += 1
+                elif "BUS" in out_target or "Bus" in out_target:
+                    routed_to_buses_count += 1
+
+                # Check Compressor Sidechain
+                for comp in t.findall(".//Compressor2"):
+                    sc_routed = comp.find(".//SideChain/RoutedInput//Target")
+                    if sc_routed is not None:
+                        sc_val = sc_routed.attrib.get("Value", "")
+                        if sc_val and sc_val != "AudioIn/None":
+                            sidechain_connected_count += 1
+
+                t_data = {
+                    "name": t_name,
+                    "type": t.tag,
+                    "clips": m_clips + a_clips,
+                    "devices": dev_tags,
+                    "output_routing": f"{out_target} [-> {dest_name}]" if dest_name != "Main" else out_target
+                }
+                if t.tag == "MidiTrack":
+                    midi_tracks.append(t_data)
+                else:
+                    audio_tracks.append(t_data)
+                tracks_info.append(t_data)
+
+            # Master chain check (Live 12 uses MainTrack, older sets use MasterTrack)
+            master_devs = [d.tag for d in root.findall(".//MainTrack//DeviceChain/Devices/*")]
+            if not master_devs:
+                master_devs = [d.tag for d in root.findall(".//MasterTrack//DeviceChain/Devices/*")]
+
+            total_clips = total_midi_clips + total_audio_clips
+            auto_envelopes = root.findall(".//AutomationEnvelope")
+            total_auto_envelopes = len(auto_envelopes)
+            is_valid = (len(tracks_info) >= 4) and (len(bus_tracks) >= 1) and (physical_tempo > 0)
+
+            return {
+                "valid": is_valid,
+                "physical_tempo": physical_tempo,
+                "physical_time_signature": f"{sig_num}/{sig_den}",
+                "total_tracks": len(tracks_info),
+                "midi_tracks_count": len(midi_tracks),
+                "audio_tracks_count": len(audio_tracks),
+                "submix_bus_tracks": bus_tracks,
+                "tracks_routed_to_buses": routed_to_buses_count,
+                "sidechains_connected": sidechain_connected_count,
+                "total_automation_envelopes": total_auto_envelopes,
+                "total_midi_clips": total_midi_clips,
+                "total_audio_clips": total_audio_clips,
+                "total_clips": total_clips,
+                "master_devices": master_devs,
+                "tracks_summary": tracks_info[:10]
+            }
+        except Exception as ex_als:
+            logger.error(f"Error parsing ALS XML: {ex_als}")
+            return {"valid": False, "error": str(ex_als)}
+
+    @classmethod
     def audit_session_physical_integrity(
         cls,
         conn: Any,
@@ -238,16 +377,18 @@ class LiveVisualAuditor:
             checks["visual_audit_image"] = {"exists": False, "valid": False}
 
         # 2. Check .als Project
-        als_candidates = list(song_dir.rglob("*.als"))
+        als_candidates = sorted(list(song_dir.rglob("*.als")), key=lambda p: p.stat().st_mtime, reverse=True)
         if als_candidates:
             main_als = als_candidates[0]
             size = main_als.stat().st_size
+            xml_audit = cls.audit_als_xml_integrity(main_als)
             checks["ableton_live_set"] = {
                 "exists": True,
                 "path": str(main_als),
                 "size_bytes": size,
-                "valid": size > 50000,
-                "valid_size": size > 50000
+                "valid": size > 50000 and xml_audit.get("valid", False),
+                "valid_size": size > 50000,
+                "xml_forensics": xml_audit
             }
         else:
             checks["ableton_live_set"] = {"exists": False, "valid": False}

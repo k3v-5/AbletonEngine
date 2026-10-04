@@ -117,8 +117,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
                 f"📋 **Formato Esperado de Parámetros:**\n"
                 f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"`\n"
-                f"• Preset rápido: `\"Opción 1\"` (Recomendado: aplica el blueprint espectral exacto)\n\n"
-                f"*Especifica tus parámetros para EQ Eight o escribe 'Opción 1' para aplicar el blueprint.*"
+                f"• Preset base: `\"Opción 1\"` (aplica el blueprint espectral base)\n\n"
+                f"*Especifica tus parámetros para EQ Eight, o usa 'Opción 1' para el preset base.*"
             ),
             "instructions_for_ai": f"Define los parámetros obligatorios para EQ Eight en la pista {missing_trk.get('name')}.",
             "target_track": t_idx,
@@ -272,8 +272,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             f"• Clave-Valor: `\"Parámetro: Valor, Parámetro: Valor\"` (ej: `\"{p_examples}\"` o `\"Drive: 35%, Dry/Wet: 50%\"`)\n"
             f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
             f"• JSON: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
-            f"• Calibración recomendada: `\"Opción 1\"` (Aplica valores óptimos para este procesador)\n"
-            f"• 🚀 **Cadena Express (Recomendada)**: Escribe `'cadena express'` o `'lote'` para calibrar todos los efectos de esta pista ({t_name}) en 1 solo paso y avanzar.\n"
+            f"• Preset base: `\"Opción 1\"` (Aplica valores estándar para este procesador)\n"
+            f"• 🚀 **Cadena Express**: Escribe `'cadena express'` o `'lote'` para calibrar todos los efectos de esta pista ({t_name}) en 1 solo paso y avanzar.\n"
             f"• Bypass puntual: Solo si determinas acústicamente que este canal no requiere este proceso (máximo 35% de la sesión)."
         )
     
@@ -470,7 +470,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento')}\n"
                     f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF')}\n"
                     f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
-                    f"*Por favor define los parámetros del ecualizador para continuar (o escribe 'Opción 1' para aplicar los valores recomendados).*"
+                    f"*Por favor define los parámetros del ecualizador para continuar (o utiliza 'Opción 1' para el preset base).*"
                 ),
                 "instructions_for_ai": f"No puedes omitir el ecualizador {eff_name}. Envía los parámetros de configuración.",
                 "target_track": t_idx,
@@ -503,9 +503,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         f"⛔ **CUOTA MÁXIMA DE BYPASS EXCEDIDA ({current_bypassed}/{tot_non_eq} procesadores omitidos)**\n\n"
                         f"Una producción comercial de alto nivel exige control dinámico (compresión), calidez armónica (saturación) y espacialidad.\n"
                         f"No se permite omitir `{eff_name}` en la pista '{trk.get('name')}'.\n\n"
-                        f"Por favor define los parámetros para `{eff_name}` (o responde 'Opción 1' para aplicar la calibración recomendada, o 'cadena express' para toda la pista)."
+                        f"Por favor define los parámetros para `{eff_name}` (o responde 'Opción 1' para aplicar el preset base, o 'cadena express' para procesar en lote)."
                     ),
-                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name} o escribe 'Opción 1'.",
+                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name}, o utiliza 'Opción 1' / 'cadena express'.",
                     "target_track": t_idx,
                     "target_device": eff_name,
                     "device_index_in_chain": dev_ptr + 1,

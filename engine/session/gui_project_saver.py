@@ -61,27 +61,36 @@ KNOWN_CATALOG_GENRES = {
 
 
 def normalize_genre_family(genre_str: Optional[str]) -> str:
-    """Normalizes any musical genre string into its primary catalog genre folder."""
+    """Normalizes any musical genre string without collapsing into 6 generic folders.
+    Preserves exact genre fidelity across the 60 catalog genres."""
     if not genre_str:
         return "Reggaeton"
-    g = str(genre_str).lower().strip()
-    if g in KNOWN_CATALOG_GENRES:
-        return KNOWN_CATALOG_GENRES[g]
-    if any(k in g for k in ["reggaeton", "dembow", "neoperreo", "perreo", "tainy"]):
-        return "Reggaeton"
-    elif any(k in g for k in ["trap", "hip hop", "hiphop", "drill", "boombap"]):
-        return "Trap_HipHop"
-    elif any(k in g for k in ["house", "tech", "techno", "edm", "afro", "electronic"]):
-        return "Electronic"
-    elif any(k in g for k in ["synthwave", "cyberpunk", "retrowave", "synth"]):
-        return "Synthwave"
-    elif any(k in g for k in ["rock", "metal", "punk", "guitar"]):
-        return "Rock"
-    elif any(k in g for k in ["pop", "rnb", "r&b", "indie"]):
-        return "Pop_RnB"
-    else:
-        clean = "".join(c for c in str(genre_str) if c.isalnum() or c in ("_", "-")).strip("_")
-        return clean.capitalize() if clean else "Reggaeton"
+    g = str(genre_str).strip()
+    g_low = g.lower()
+    
+    # 0. Check KNOWN_CATALOG_GENRES and existing genre directories first
+    if g_low in KNOWN_CATALOG_GENRES:
+        return KNOWN_CATALOG_GENRES[g_low]
+    if PRIMARY_PROJECTS_DIR.exists() and (PRIMARY_PROJECTS_DIR / g).exists() and (PRIMARY_PROJECTS_DIR / g).is_dir():
+        return g
+
+    # 1. Check SixtyGenresKnowledgeBase exact or profile match
+    try:
+        from engine.knowledge.genres.sixty_genres import SixtyGenresKnowledgeBase
+        prof = SixtyGenresKnowledgeBase.get_profile(g)
+        if prof and (g_low == prof.name.lower() or g_low == prof.id.lower()):
+            res = prof.name.replace("/", "_").replace("-", "_").replace(" ", "_")
+            while "__" in res:
+                res = res.replace("__", "_")
+            return res.strip("_")
+    except Exception:
+        pass
+
+    # Sanitize name while preserving exact subgenre identity
+    clean = "".join(c if (c.isalnum() or c in ("_", "-")) else "_" for c in g).strip("_")
+    while "__" in clean:
+        clean = clean.replace("__", "_")
+    return clean if clean else "Reggaeton"
 
 
 class LiveGuiProjectSaver:
@@ -336,3 +345,20 @@ class LiveGuiProjectSaver:
             "als_exists": target_als.exists(),
             "window_title": new_title
         }
+
+    @classmethod
+    def _resolve_genre_subfolder(cls, genre: str) -> str:
+        """Resolves readable folder name preserving full 60-genre fidelity."""
+        try:
+            from engine.knowledge.genres.sixty_genres import SixtyGenresKnowledgeBase
+            prof = SixtyGenresKnowledgeBase.get_profile(genre)
+            if prof:
+                return prof.name.split("/")[0].strip()
+        except Exception:
+            pass
+        return normalize_genre_family(genre)
+
+
+# Architectural alias
+GUIProjectSaver = LiveGuiProjectSaver
+

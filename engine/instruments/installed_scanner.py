@@ -65,7 +65,7 @@ class InstalledPluginScanner:
             "vendor": "Vital Audio",
             "primary_role": "BASS",
             "supported_roles": ["BASS", "LEAD", "PAD", "KEYS", "COUNTER_LEAD", "PLUCK", "VOCALS", "FX"],
-            "description": "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes (mejor diseño de sonido).",
+            "description": "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes.",
             "is_instrument": True,
             "live_uri": "query:Plugins#VST3:Vital%20Audio:Vital",
         },
@@ -671,13 +671,13 @@ class InstalledPluginScanner:
             sig = self.SIGNATURE_MAP.get("vital", {})
             self._cache["vst3_vital"] = ScannedPlugin(
                 id="vst3_vital",
-                name="Vital Audio Vital (mejor diseño de sonido)",
+                name="Vital Audio Vital",
                 vendor="Vital Audio",
                 path=os.path.join(appdata_vital, "Vital.config") if os.path.exists(os.path.join(appdata_vital, "Vital.config")) else docs_vital,
                 category=PluginCategory.VST3,
                 primary_role=sig.get("primary_role", "BASS"),
                 supported_roles=sig.get("supported_roles", ["BASS", "LEAD", "PAD", "KEYS", "COUNTER_LEAD", "PLUCK", "VOCALS", "FX"]),
-                description=sig.get("description", "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes (mejor diseño de sonido)."),
+                description=sig.get("description", "Spectral warping wavetable synthesizer with modern modulation, glide, and formant modes."),
                 uri=sig.get("live_uri", "query:Plugins#VST3:Vital%20Audio:Vital"),
                 is_instrument=True,
             )
@@ -715,8 +715,8 @@ class InstalledPluginScanner:
                 uri = meta.get("live_uri") or f"query:Plugins#{category.value.upper()}:{encoded_vendor}:{encoded_item}"
 
                 p_disp_name = f"{vendor} {clean_name}" if vendor not in clean_name else clean_name
-                if "vital" in lower_name and "(mejor diseño de sonido)" not in p_disp_name:
-                    p_disp_name = f"{p_disp_name} (mejor diseño de sonido)"
+                if "vital" in lower_name and "" not in p_disp_name:
+                    p_disp_name = f"{p_disp_name}"
 
                 plugin = ScannedPlugin(
                     id=plug_id,
@@ -788,8 +788,8 @@ class InstalledPluginScanner:
                             is_inst = False
 
                         p_disp_name = f"{v_name} {p_name}"
-                        if "vital" in low_name and "(mejor diseño de sonido)" not in p_disp_name:
-                            p_disp_name = f"{p_disp_name} (mejor diseño de sonido)"
+                        if "vital" in low_name and "" not in p_disp_name:
+                            p_disp_name = f"{p_disp_name}"
                         self._cache[plug_id] = ScannedPlugin(
                             id=plug_id,
                             name=p_disp_name,
@@ -798,7 +798,7 @@ class InstalledPluginScanner:
                             category=PluginCategory.VST3,
                             primary_role=role,
                             supported_roles=[role, "FX", "PITCH_CORRECTION"] if "tune" in low_name else [role, "FX"],
-                            description=f"Host-installed {v_name} {p_name} in Ableton Live{' (mejor diseño de sonido)' if 'vital' in low_name else ''}.",
+                            description=f"Host-installed {v_name} {p_name} in Ableton Live{'' if 'vital' in low_name else ''}.",
                             uri=p_uri,
                             is_instrument=is_inst
                         )

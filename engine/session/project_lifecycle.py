@@ -51,7 +51,8 @@ class ProjectLifecycleManager:
         session: Any,
         conn: Any = None,
         custom_name: Optional[str] = None,
-        genre: Optional[str] = None
+        genre: Optional[str] = None,
+        base_songs_dir: Optional[Path] = None
     ) -> Dict[str, Any]:
         r"""
         Creates a complete, self-contained project archive inside F:\Canciones\<Genre>\<Song_Name>:
@@ -70,8 +71,8 @@ class ProjectLifecycleManager:
         safe_name = "".join(c for c in proj_name if c.isalnum() or c in ("_", "-")).strip() or "Project"
         timestamp = time.strftime("%Y%m%d_%H%M%S")
 
-        # 1. Base Target Directories: Primary in F:\Canciones\<Genre>\<Song_Name>
-        base_songs_root = cls.PRIMARY_SONGS_DIR if (cls.PRIMARY_SONGS_DIR.exists() or Path("F:/").exists()) else cls.FALLBACK_SONGS_DIR
+        # 1. Base Target Directories: Primary in F:\Canciones\<Genre>\<Song_Name> (or custom base_songs_dir)
+        base_songs_root = Path(base_songs_dir) if base_songs_dir else (cls.PRIMARY_SONGS_DIR if (cls.PRIMARY_SONGS_DIR.exists() or Path("F:/").exists()) else cls.FALLBACK_SONGS_DIR)
         song_project_dir = base_songs_root / safe_genre / safe_name
         song_project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -215,7 +216,6 @@ All synthesized Vital presets used for this production have been exported into:
             os.environ.get("PYTEST_CURRENT_TEST")
             or getattr(session, "_is_test_mode", False)
             or (conn is not None and getattr(conn, "__class__", None).__name__ == "MockAbletonAdapter")
-            or "test" in str(proj_name).lower()
         )
         if not is_test_env:
             try:
@@ -360,7 +360,7 @@ result = {"tracks_remaining": len(song.tracks), "tempo": song.tempo}
         cls,
         session: Any,
         conn: Any = None,
-        target_bpm: float = 120.0,
+        target_bpm: Optional[float] = None,
         save_first: bool = True,
         project_name: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -368,8 +368,8 @@ result = {"tracks_remaining": len(song.tracks), "tempo": song.tempo}
         Executes end-to-end lifecycle transition:
         1. Archives current project (if save_first is True)
         2. Cleans Ableton Live to pristine baseline
-        3. Resets CopilotGuidedSession state to Phase 1
-        4. Returns the Phase 1 questionnaire
+        3. Resets CopilotGuidedSession state to Phase 0 (Design Phase)
+        4. Returns the Phase 0 questionnaire
         """
         archive_info = None
         if save_first:
@@ -378,30 +378,41 @@ result = {"tracks_remaining": len(song.tracks), "tempo": song.tempo}
         # Clean Live DAW
         live_clean_res = cls.clean_slate_live(conn, target_bpm=target_bpm)
 
-        # Reset Guided Session state to Phase 1
-        session.reset()
+        # Reset Guided Session state to Phase 0 (Design Phase)
+        session.reset(bpm=target_bpm)
 
-        # Prompt Phase 1
-        phase1_prompt = session._prompt_phase_1()
+        # Prompt Phase 0 Design questionnaire
+        if hasattr(session, "phase_registry") and session.phase_registry.has_phase("PHASE_0_DESIGN"):
+            initial_prompt = session.phase_registry.dispatch_prompt("PHASE_0_DESIGN", session)
+        else:
+            initial_prompt = session._prompt_phase_1()
 
         action_summary = "Proyecto anterior archivado y nuevo proyecto iniciado." if save_first else "Nuevo proyecto iniciado (sin archivar)."
+        bpm_desc = f", tempo {target_bpm} BPM" if target_bpm is not None else ""
 
         return {
-            "current_step": "PASO 1 DE 7: ARQUITECTURA DE PISTAS (NUEVO PROYECTO)",
-            "action_taken": f"{action_summary} Live restablecido a lienzo virgen (1 pista limpia, tempo {target_bpm} BPM).",
+            "current_step": "PASO 0: DISEÑO Y CONCEPCIÓN ARTÍSTICA (NUEVO PROYECTO)",
+            "action_taken": f"{action_summary} Live restablecido a lienzo virgen (1 pista limpia{bpm_desc}).",
             "question": (
                 f"🎉 **¡Nuevo Proyecto Iniciado con Éxito!**\n\n"
                 + (f"📁 *El proyecto anterior '{archive_info.get('project_name')}' fue archivado de forma segura en:*\n`{archive_info.get('archive_dir')}`\n\n" if archive_info else "")
                 + f"Live ha sido restablecido a su estado inicial limpio.\n\n"
                 f"---\n\n"
-                + phase1_prompt.get("question", "")
+                + initial_prompt.get("question", "")
             ),
-            "instructions_for_ai": "Guía al usuario en la concepción del nuevo track (género, tempo, escala y asignación de pistas).",
-            "phase": "PHASE_1_TRACKS",
+            "instructions_for_ai": "Guía al usuario en la concepción del nuevo track (artista de referencia, género de los 60 documentados, tempo, compás, tonalidad y dotación de pistas).",
+            "phase": session.data.get("current_phase", "PHASE_0_DESIGN"),
             "status": "NEW_PROJECT_STARTED",
             "archive_info": archive_info,
             "live_status": live_clean_res
         }
+
+    @classmethod
+    def prompt_project_startup(cls, session: Any = None, project_name: Optional[str] = None) -> str:
+        """Returns the project lifecycle decision question text."""
+        dummy_session = session or type("MockSession", (), {"data": {}})()
+        res = cls.prompt_lifecycle_decision(dummy_session, project_name=project_name)
+        return res.get("question", "")
 
     @classmethod
     def prompt_lifecycle_decision(cls, session: Any, project_name: Optional[str] = None) -> Dict[str, Any]:
@@ -414,11 +425,11 @@ result = {"tracks_remaining": len(song.tracks), "tempo": song.tempo}
             f"Proyecto actual: **'{current_name}'** (Estado: `{phase}`)\n\n"
             f"¿Deseas guardar y archivar el proyecto actual y comenzar una nueva producción desde cero?\n\n"
             f"📋 **Opciones Disponibles:**\n"
-            f"• **Opción 1: Guardar y Empezar de Nuevo (Recomendado)**\n"
+            f"• **Opción 1: Guardar y Empezar de Nuevo**\n"
             f"  *Archiva todo el estado actual (metadata, partituras MIDI, presets de Vital, mezclas) en `saved_projects/`, "
-            f"limpia Ableton Live a lienzo virgen y arranca el Paso 1 para un nuevo track.*\n\n"
+            f"limpia Ableton Live a lienzo virgen y arranca el Paso 0 de Diseño para un nuevo track.*\n\n"
             f"• **Opción 2: Empezar de Nuevo sin Guardar**\n"
-            f"  *Descarta el estado actual, restablece Live a estado limpio y reinicia el motor en Fase 1.*\n\n"
+            f"  *Descarta el estado actual, restablece Live a estado limpio y reinicia el motor en Fase 0.*\n\n"
             f"• **Opción 3: Solo Guardar y Archivar**\n"
             f"  *Guarda el paquete completo del proyecto actual y permanece en la sesión actual.*\n\n"
             f"• **Opción 4: Cancelar**\n"

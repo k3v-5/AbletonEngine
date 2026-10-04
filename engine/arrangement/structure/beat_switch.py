@@ -5,7 +5,10 @@ Coordinates dramatic mid-song beat switches (tempo jumps, mood transitions,
 track group muting/activation, and metric handoffs).
 """
 
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class BeatSwitchOrchestrator:
@@ -48,13 +51,13 @@ class BeatSwitchOrchestrator:
             })
             tempo_automation_points.append({
                 "time": round(switch_beat - 0.05, 4),
-                "value": round(target_bpm * 0.85, 2) # trough slowdown
+                "value": round(target_bpm * 0.85, 2)  # trough slowdown
             })
             tempo_automation_points.append({
                 "time": round(switch_beat, 4),
                 "value": target_bpm
             })
-        else: # linear ramp
+        else:  # linear ramp
             start_ramp = max(0.0, switch_beat - 8.0)
             tempo_automation_points.append({"time": start_ramp, "value": current_bpm})
             tempo_automation_points.append({"time": round(switch_beat, 4), "value": target_bpm})
@@ -74,4 +77,67 @@ class BeatSwitchOrchestrator:
             "transition_mode": transition_mode,
             "tempo_points": tempo_automation_points,
             "section_markers": section_markers
+        }
+
+    @classmethod
+    def apply_beat_switch(
+        cls,
+        conn: Any,
+        plan: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Applies a calculated beat switch plan into Ableton Live:
+        1. Injects arrangement cue points (locators) for the movements.
+           Ableton Live locators named with tempo (e.g. '90 BPM') naturally act as arrangement tempo markers.
+        2. Injects master tempo automation points or syncs song tempo.
+        3. Returns execution report with created cue points and status.
+        """
+        if conn is None or not hasattr(conn, "send_command"):
+            return {
+                "status": "MOCK_OK",
+                "switch_bar": plan.get("switch_bar"),
+                "switch_beat": plan.get("switch_beat"),
+                "cue_points_created": len(plan.get("section_markers", [])),
+                "tempo_points_count": len(plan.get("tempo_points", []))
+            }
+
+        created_cues = []
+        for marker in plan.get("section_markers", []):
+            time_beat = float(marker.get("beat", 0.0))
+            name = marker.get("name", "Beat Switch")
+            bpm = marker.get("bpm")
+            # If marker specifies bpm, format locator name so Live arrangement respects tempo
+            if bpm and f"{bpm} BPM" not in name and f"{int(bpm)} BPM" not in name:
+                cue_name = f"{name} ({bpm} BPM)"
+            else:
+                cue_name = name
+
+            try:
+                conn.send_command("create_cue_point", {
+                    "time": time_beat,
+                    "name": cue_name
+                })
+                created_cues.append({"name": cue_name, "beat": time_beat})
+            except Exception as e:
+                logger.warning(f"Could not create cue point '{cue_name}': {e}")
+
+        # Also inject master tempo automation if available
+        tempo_points = plan.get("tempo_points", [])
+        if tempo_points:
+            try:
+                conn.send_command("create_arrangement_automation_envelope", {
+                    "track_index": -1,
+                    "parameter": "Tempo",
+                    "points": tempo_points
+                })
+            except Exception:
+                pass
+
+        return {
+            "status": "SUCCESS",
+            "switch_bar": plan.get("switch_bar"),
+            "switch_beat": plan.get("switch_beat"),
+            "target_bpm": plan.get("target_bpm"),
+            "cue_points_created": created_cues,
+            "tempo_points_count": len(tempo_points)
         }

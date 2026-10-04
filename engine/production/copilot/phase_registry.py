@@ -88,7 +88,11 @@ class PhaseRegistry:
         return handler.handle(session, conn, user_input)
 
     def _register_default_phases(self) -> None:
-        """Registers lazy factories for all 10 canonical production phases."""
+        """Registers lazy factories for all canonical production phases (Phase 0 to Phase 10)."""
+
+        def _p0():
+            from .phases.phase_0_design import Phase0DesignHandler
+            return Phase0DesignHandler()
 
         def _p1():
             from .phases.phase_1_tracks import Phase1TracksHandler
@@ -130,6 +134,7 @@ class PhaseRegistry:
             from .phases.phase_10.handler import Phase10ListenersHandler
             return Phase10ListenersHandler()
 
+        self.register_lazy("PHASE_0_DESIGN", _p0)
         self.register_lazy("PHASE_1_TRACKS", _p1)
         self.register_lazy("PHASE_2_SECTIONS", _p2)
         self.register_lazy("PHASE_3_INSTRUMENTS", _p3)
@@ -138,6 +143,7 @@ class PhaseRegistry:
         self.register_lazy("PHASE_6_COMPOSITION", _p6)
         self.register_lazy("PHASE_7_AUTOMATION", _p7)
         self.register_lazy("PHASE_8_VOCAL_DUCKING", _p8)
+        self.register_lazy("PHASE_9_EXPORT", _p9)
         self.register_lazy("PHASE_9_MIX_MASTER_CANONICAL", _p9)
         self.register_lazy("PHASE_9_MIX_MASTER", _p9)
         self.register_lazy("PHASE_8_MIX_MASTER", _p9)

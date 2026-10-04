@@ -176,7 +176,8 @@ class SidechainManager:
             code = f"""
 track_idx = {int(track_index)}
 dev_idx = {int(device_index)}
-query_src = {repr(source_query)}.lower()
+source_idx = {int(source_name_or_index) if isinstance(source_name_or_index, int) else -1}
+source_str = {repr(str(source_name_or_index))}.lower()
 matched_type = None
 matched_channel = None
 
@@ -184,19 +185,27 @@ if 0 <= track_idx < len(song.tracks):
     trk = song.tracks[track_idx]
     if 0 <= dev_idx < len(trk.devices):
         dev = trk.devices[dev_idx]
+        
+        target_name = ""
+        if 0 <= source_idx < len(song.tracks):
+            target_name = song.tracks[source_idx].name.lower()
+        else:
+            target_name = source_str
+            
         if hasattr(dev, 'available_input_routing_types'):
             for t in dev.available_input_routing_types:
                 t_name = getattr(t, 'display_name', str(t)).lower()
-                is_match = query_src in t_name
-                if not is_match and len(query_src) > 3:
-                    for w in query_src.split():
-                        if w in t_name:
+                is_match = bool(target_name and (target_name in t_name or t_name in target_name))
+                if not is_match and len(target_name) > 3:
+                    for w in target_name.replace('[', ' ').replace(']', ' ').split():
+                        if len(w) > 3 and w in t_name:
                             is_match = True
                             break
                 if is_match:
                     dev.input_routing_type = t
                     matched_type = getattr(t, 'display_name', str(t))
                     break
+                    
         if hasattr(dev, 'available_input_routing_channels'):
             for c in dev.available_input_routing_channels:
                 c_name = getattr(c, 'display_name', str(c)).lower()
@@ -204,8 +213,17 @@ if 0 <= track_idx < len(song.tracks):
                     dev.input_routing_channel = c
                     matched_channel = getattr(c, 'display_name', str(c))
                     break
+                    
+        for p in getattr(dev, 'parameters', []):
+            pn = p.name.lower()
+            if 's/c on' in pn or 'sidechain' in pn:
+                try:
+                    p.value = 1.0
+                except Exception:
+                    pass
 
 routing_report = {{'matched_type': matched_type, 'matched_channel': matched_channel}}
+res = routing_report
 """
             res = conn.send_command("execute_code", {"code": code})
             return {

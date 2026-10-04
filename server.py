@@ -522,67 +522,85 @@ class AbletonConnection:
                 "set_drum_pad_mute_solo": 20.0
             }
             
-            try:
-                logger.info(f"Sending command: {command_type} with params: {params}")
-                
-                # Send the command
-                self.sock.sendall(json.dumps(command).encode('utf-8'))
-                logger.info(f"Command sent, waiting for response...")
-                
-                # Set timeout based on command type (extended budgets for high-load operations)
-                if command_type in long_running_commands:
-                    timeout = long_running_commands[command_type]
-                elif command_type in plugin_commands:
-                    timeout = plugin_commands[command_type]
-                else:
-                    timeout = 30.0 if is_modifying_command else 15.0
-                self.sock.settimeout(timeout)
-    
-                # Receive the response
-                response_data = self.receive_full_response(self.sock)
-                logger.info(f"Received {len(response_data)} bytes of data")
-    
-                # Parse the response
-                response = json.loads(response_data.decode('utf-8'))
-                logger.info(f"Response parsed, status: {response.get('status', 'unknown')}")
-    
-                if response.get("status") == "error":
-                    logger.error(f"Ableton error: {response.get('message')}")
-                    raise AbletonAPIError(response.get("message", "Unknown error from Ableton"))
-                
-                # Update cached track_count if get_session_info returned it
-                if command_type == "get_session_info" and isinstance(response.get("result"), dict):
-                    t_cnt = response["result"].get("track_count")
-                    if t_cnt is not None:
-                        self._cached_track_count = int(t_cnt)
-                        self._cached_track_count_time = time.time()
-                elif command_type in ["create_midi_track", "create_audio_track", "delete_track", "duplicate_track", "execute_code"]:
-                    self._cached_track_count = None
-                    self._cached_track_count_time = 0.0
+            max_retries = 2
+            for attempt in range(max_retries + 1):
+                try:
+                    logger.info(f"Sending command: {command_type} with params: {params} (attempt {attempt + 1}/{max_retries + 1})")
+                    
+                    # Ensure socket is connected before sending
+                    if not self.sock and not self.connect():
+                        raise ConnectionError("Not connected to Ableton")
 
-                return response.get("result", {})
-            except AbletonAPIError as e:
-                # Ableton LOM application error (socket is completely intact and healthy)
-                logger.warning(f"Ableton LOM application error (preserving socket): {str(e)}")
-                raise
-            except socket.timeout:
-                logger.error("Socket timeout while waiting for response from Ableton")
-                self.sock = None
-                raise Exception("Timeout waiting for Ableton response")
-            except (ConnectionError, BrokenPipeError, ConnectionResetError) as e:
-                logger.error(f"Socket connection error: {str(e)}")
-                self.sock = None
-                raise Exception(f"Connection to Ableton lost: {str(e)}")
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON response from Ableton: {str(e)}")
-                if 'response_data' in locals() and response_data:
-                    logger.error(f"Raw response (first 200 bytes): {response_data[:200]}")
-                self.sock = None
-                raise Exception(f"Invalid response from Ableton: {str(e)}")
-            except Exception as e:
-                logger.error(f"Error communicating with Ableton: {str(e)}")
-                self.sock = None
-                raise Exception(f"Communication error with Ableton: {str(e)}")
+                    # Send the command
+                    self.sock.sendall(json.dumps(command).encode('utf-8'))
+                    logger.info(f"Command sent, waiting for response...")
+                    
+                    # Set timeout based on command type (extended budgets for high-load operations)
+                    if command_type in long_running_commands:
+                        timeout = long_running_commands[command_type]
+                    elif command_type in plugin_commands:
+                        timeout = plugin_commands[command_type]
+                    else:
+                        timeout = 30.0 if is_modifying_command else 15.0
+                    self.sock.settimeout(timeout)
+        
+                    # Receive the response
+                    response_data = self.receive_full_response(self.sock)
+                    logger.info(f"Received {len(response_data)} bytes of data")
+        
+                    # Parse the response
+                    response = json.loads(response_data.decode('utf-8'))
+                    logger.info(f"Response parsed, status: {response.get('status', 'unknown')}")
+        
+                    if response.get("status") == "error":
+                        logger.error(f"Ableton error: {response.get('message')}")
+                        raise AbletonAPIError(response.get("message", "Unknown error from Ableton"))
+                    
+                    # Update cached track_count if get_session_info returned it
+                    if command_type == "get_session_info" and isinstance(response.get("result"), dict):
+                        t_cnt = response["result"].get("track_count")
+                        if t_cnt is not None:
+                            self._cached_track_count = int(t_cnt)
+                            self._cached_track_count_time = time.time()
+                    elif command_type in ["create_midi_track", "create_audio_track", "delete_track", "duplicate_track", "execute_code"]:
+                        self._cached_track_count = None
+                        self._cached_track_count_time = 0.0
+
+                    return response.get("result", {})
+                except AbletonAPIError as e:
+                    # Ableton LOM application error (socket is completely intact and healthy)
+                    logger.warning(f"Ableton LOM application error (preserving socket): {str(e)}")
+                    raise
+                except (socket.timeout, ConnectionError, BrokenPipeError, ConnectionResetError) as e:
+                    logger.warning(f"Ableton communication hiccup (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                    self.sock = None
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                        logger.info("Attempting automatic socket reconnection to Ableton Live...")
+                        try:
+                            self.connect()
+                        except Exception as rec_err:
+                            logger.error(f"Reconnection attempt failed: {rec_err}")
+                        continue
+                    raise Exception(f"Connection to Ableton lost after {max_retries + 1} attempts: {str(e)}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON response from Ableton: {str(e)}")
+                    if 'response_data' in locals() and response_data:
+                        logger.error(f"Raw response (first 200 bytes): {response_data[:200]}")
+                    self.sock = None
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                        self.connect()
+                        continue
+                    raise Exception(f"Invalid response from Ableton: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Error communicating with Ableton: {str(e)}")
+                    self.sock = None
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                        self.connect()
+                        continue
+                    raise Exception(f"Communication error with Ableton: {str(e)}")
 
 @asynccontextmanager
 async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
@@ -8157,14 +8175,9 @@ def orchestrate_beat_switch(
             transition_mode=transition_mode
         )
 
-        try:
-            conn.send_command("create_cue_point", {
-                "name": f"Part 2: {target_genre.title()} Switch ({target_bpm} BPM)",
-                "time": plan["switch_beat"]
-            })
-        except Exception:
-            pass
-
+        # Apply markers and tempo automation via orchestrator
+        apply_res = BeatSwitchOrchestrator.apply_beat_switch(conn, plan)
+        plan["execution"] = apply_res
         return plan
     except Exception as e:
         logger.error(f"Error in orchestrate_beat_switch: {e}")

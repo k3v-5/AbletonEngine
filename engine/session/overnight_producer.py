@@ -46,9 +46,9 @@ DEFAULT_OVERNIGHT_PLAYLIST = [
         "tracks_input": "Drums, 808 Bass, Lead, Keys, Vocals",
         "instruments": [
             "808 Core Kit (.adg)",
-            "Vital Audio 808 Sub (mejor diseño de sonido)",
-            "Vital Audio Ambient Keys (mejor diseño de sonido)",
-            "Vital Audio Poly Shimmer Pad (mejor diseño de sonido)",
+            "Vital Audio 808 Sub",
+            "Vital Audio Ambient Keys",
+            "Vital Audio Poly Shimmer Pad",
             "Opción 1"
         ],
         "sculpt_choices": [
@@ -77,8 +77,8 @@ DEFAULT_OVERNIGHT_PLAYLIST = [
         "tracks_input": "Drums, Sub Bass, Synth Lead, Brass, Vocals",
         "instruments": [
             "808 Core Kit (.adg)",
-            "Vital Audio 808 Sub (mejor diseño de sonido)",
-            "Vital Audio Ambient Keys (mejor diseño de sonido)",
+            "Vital Audio 808 Sub",
+            "Vital Audio Ambient Keys",
             "Nativo Live Brass",
             "Opción 1"
         ],
@@ -108,9 +108,9 @@ DEFAULT_OVERNIGHT_PLAYLIST = [
         "tracks_input": "Drums, 808 Bass, Acid Lead, Pluck, Vocals",
         "instruments": [
             "808 Core Kit (.adg)",
-            "Vital Audio 808 Sub (mejor diseño de sonido)",
-            "Vital Audio Ambient Keys (mejor diseño de sonido)",
-            "Vital Audio Poly Shimmer Pad (mejor diseño de sonido)",
+            "Vital Audio 808 Sub",
+            "Vital Audio Ambient Keys",
+            "Vital Audio Poly Shimmer Pad",
             "Opción 1"
         ],
         "sculpt_choices": [
@@ -138,9 +138,9 @@ DEFAULT_OVERNIGHT_PLAYLIST = [
         "tracks_input": "Drums, Retro Bass, Neon Lead, Chords, Vocals",
         "instruments": [
             "808 Core Kit (.adg)",
-            "Vital Audio 808 Sub (mejor diseño de sonido)",
-            "Vital Audio Ambient Keys (mejor diseño de sonido)",
-            "Vital Audio Poly Shimmer Pad (mejor diseño de sonido)",
+            "Vital Audio 808 Sub",
+            "Vital Audio Ambient Keys",
+            "Vital Audio Poly Shimmer Pad",
             "Opción 1"
         ],
         "sculpt_choices": [

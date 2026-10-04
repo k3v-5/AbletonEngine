@@ -374,36 +374,85 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
                 if duck_amount_db != -2.5:
                     sc_params["threshold"] = round(max(0.0, min(1.0, (duck_amount_db * 2.0 + 40.0) / 40.0)), 4)
 
-                for t_idx in target_indices:
-                    comp_res = SidechainManager.find_or_load_compressor(conn, t_idx)
-                    d_idx = comp_res.get("device_index", 0)
-                    if d_idx >= 0:
-                        for p_idx, p_val in [
-                            (0, 1.0),
-                            (20, 1.0),
-                            (1, sc_params["threshold"]),
-                            (2, sc_params["ratio"]),
-                            (4, sc_params["attack"]),
-                            (5, sc_params["release"]),
-                            (12, 4.0),
-                            (21, 0.40),
-                            (22, 1.0)
-                        ]:
-                            try:
-                                conn.send_command("set_device_parameter", {
-                                    "track_index": t_idx,
-                                    "device_index": d_idx,
-                                    "parameter": p_idx,
-                                    "value": p_val
-                                })
-                            except Exception:
-                                pass
-                        if vocal_idx is not None:
+                if vocal_idx is None:
+                    logger.warning("Vocal sidechain ducking omitted: vocal_idx is None (no vocal track identified in session).")
+                else:
+                    for t_idx in target_indices:
+                        comp_res = SidechainManager.find_or_load_compressor(conn, t_idx)
+                        d_idx = comp_res.get("device_index", 0)
+                        if d_idx >= 0:
+                            for p_idx, p_val in [
+                                (0, 1.0),
+                                (20, 1.0),
+                                (1, sc_params["threshold"]),
+                                (2, sc_params["ratio"]),
+                                (4, sc_params["attack"]),
+                                (5, sc_params["release"]),
+                                (12, 4.0),
+                                (21, 0.40),
+                                (22, 1.0)
+                            ]:
+                                try:
+                                    conn.send_command("set_device_parameter", {
+                                        "track_index": t_idx,
+                                        "device_index": d_idx,
+                                        "parameter": p_idx,
+                                        "value": p_val
+                                    })
+                                except Exception:
+                                    pass
                             try:
                                 SidechainManager.route_compressor_sidechain_source(conn, t_idx, d_idx, vocal_idx)
                             except Exception:
                                 pass
-                        ducking_report["compressors_configured"] += 1
+                            ducking_report["compressors_configured"] += 1
+
+                # Physical Kick -> Bass / Sub Ducking Configuration
+                kick_track_idx = None
+                bass_track_indices = []
+                for trk in tracks:
+                    t_idx_cand = trk.get("index")
+                    r = str(trk.get("role", "")).upper()
+                    n = str(trk.get("name", "")).lower()
+                    if kick_track_idx is None and (r in ("KICK", "DRUMS", "DEMBOW", "PERCUSSION", "BEAT", "RHYTHM", "DRUM") or any(k in n for k in ("kick", "drum", "dembow", "bombo", "perc", "percussion", "bateria"))):
+                        kick_track_idx = t_idx_cand
+                    if r in ("BASS", "808_BASS", "ELECTRIC_BASS", "SUB") or any(k in n for k in ("bass", "808", "sub")):
+                        bass_track_indices.append(t_idx_cand)
+
+                if kick_track_idx is None and len(tracks) > 0:
+                    kick_track_idx = tracks[0].get("index", 0)
+
+                if kick_track_idx is not None and bass_track_indices:
+                    for b_idx in bass_track_indices:
+                        try:
+                            b_comp = SidechainManager.find_or_load_compressor(conn, b_idx)
+                            b_d_idx = b_comp.get("device_index", 0)
+                            if b_d_idx >= 0:
+                                for p_idx, p_val in [
+                                    (0, 1.0),   # Device On
+                                    (20, 1.0),  # S/C On
+                                    (1, 0.52),  # Threshold ~ -18 dB
+                                    (2, 0.75),  # Ratio 4:1
+                                    (4, 0.0),   # Attack 0.0 ms
+                                    (5, 0.16),  # Release ~120 ms
+                                    (12, 4.0),  # Peak mode
+                                    (21, 0.40), # S/C Gain
+                                    (22, 1.0)   # S/C Mix 100%
+                                ]:
+                                    try:
+                                        conn.send_command("set_device_parameter", {
+                                            "track_index": b_idx,
+                                            "device_index": b_d_idx,
+                                            "parameter": p_idx,
+                                            "value": p_val
+                                        })
+                                    except Exception:
+                                        pass
+                                SidechainManager.route_compressor_sidechain_source(conn, b_idx, b_d_idx, kick_track_idx)
+                                ducking_report["compressors_configured"] += 1
+                                logger.info(f"Physically routed Kick (Track {kick_track_idx}) sidechain into Bass (Track {b_idx}).")
+                        except Exception as ex_b_sc:
+                            logger.warning(f"Notice routing Kick->Bass sidechain: {ex_b_sc}")
 
                 if vocal_idx is not None:
                     try:
