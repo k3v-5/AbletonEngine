@@ -470,6 +470,75 @@ class Phase1TracksHandler(BasePhaseHandler):
                         logger.info(f"Auto-detected and registered vocal audio track at index {vocal_cand_idx}: '{clean_v_name}'")
                 except Exception as ex_vocal_scan:
                     logger.debug(f"Notice auto-detecting vocal audio track: {ex_vocal_scan}")
+
+            # -------------------------------------------------------------------------
+            # AUTOMATIC TRACK SANITIZATION (PURGE ORPHAN TEMPLATE TRACKS)
+            # -------------------------------------------------------------------------
+            if not is_test_env:
+                try:
+                    assigned_names = [f"[{t['role']}] {t['name']}" for t in created_tracks]
+                    sanitize_code = f"""
+assigned_names = set({repr(assigned_names)})
+
+# Group & Orphan Analysis
+groups_to_delete = []
+tracks_to_delete = []
+
+for i, t in enumerate(song.tracks):
+    if getattr(t, 'is_foldable', False):
+        assigned_children = []
+        for c in song.tracks:
+            if getattr(c, 'group_track', None) == t and c.name in assigned_names:
+                assigned_children.append(c)
+        if not assigned_children:
+            groups_to_delete.append(i)
+    else:
+        # Leaf track
+        if t.name.startswith("[BUS]") or getattr(t, 'is_return_track', False):
+            continue
+        gt = getattr(t, 'group_track', None)
+        gt_idx = None
+        if gt:
+            for g_i, cand_g in enumerate(song.tracks):
+                if cand_g == gt:
+                    gt_idx = g_i
+                    break
+        if gt_idx in groups_to_delete:
+            continue
+        if t.name not in assigned_names:
+            tracks_to_delete.append(i)
+
+# Perform deletions in reverse order
+all_to_delete = sorted(set(groups_to_delete + tracks_to_delete), reverse=True)
+deleted_log = []
+for idx in all_to_delete:
+    t_name = song.tracks[idx].name
+    try:
+        song.delete_track(idx)
+        deleted_log.append({{'idx': idx, 'name': t_name, 'status': 'deleted'}})
+    except Exception as e:
+        deleted_log.append({{'idx': idx, 'name': t_name, 'status': 'error', 'err': str(e)}})
+
+# Re-map Live indices for created_tracks
+live_map = {{}}
+for i, t in enumerate(song.tracks):
+    live_map[t.name] = i
+
+result = {{'deleted': deleted_log, 'live_map': live_map}}
+"""
+                    san_res = conn.send_command("execute_code", {"code": sanitize_code})
+                    res_data = san_res.get("result", san_res) if isinstance(san_res, dict) else {}
+                    live_map = res_data.get("live_map", {})
+                    if live_map:
+                        for trk in created_tracks:
+                            t_lbl = f"[{trk['role']}] {trk['name']}"
+                            if t_lbl in live_map:
+                                trk["index"] = live_map[t_lbl]
+                    deleted_items = res_data.get("deleted", [])
+                    if deleted_items:
+                        logger.info(f"Phase 1 sanitization purged {len(deleted_items)} orphan tracks/groups: {[d.get('name') for d in deleted_items]}")
+                except Exception as ex_san:
+                    logger.debug(f"Phase 1 track sanitization notice: {ex_san}")
         else:
             for i, r_item in enumerate(roles):
                 name = r_item[0]

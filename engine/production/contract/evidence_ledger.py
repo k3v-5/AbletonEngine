@@ -113,8 +113,9 @@ class EvidenceLedger:
                     if not matched_cp and conn and hasattr(conn, "send_command"):
                         try:
                             heal_res = conn.send_command("create_cue_point", {"time": target_beat, "name": ob.target_entity})
-                            if isinstance(heal_res, dict) and heal_res.get("name"):
-                                matched_cp = heal_res
+                            res_dict = heal_res.get("result", heal_res) if isinstance(heal_res, dict) else {}
+                            if isinstance(res_dict, dict) and (res_dict.get("name") or heal_res.get("status") == "success"):
+                                matched_cp = res_dict or heal_res
                         except Exception:
                             pass
 

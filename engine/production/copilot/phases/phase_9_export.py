@@ -295,12 +295,13 @@ class Phase9ExportHandler(BasePhaseHandler):
                 from engine.mix.render_manager import RenderManager
                 rm = RenderManager()
                 bpm = float(session.data.get("bpm", 120.0))
+                tot_bars = int(session.data.get("total_bars", 64))
                 target_lufs_val = getattr(profile, "target_lufs", float(session.data.get("target_lufs", -9.0)))
                 rendered_wav = rm.render_analysis_target(
                     mode="MASTER",
                     target=None,
                     start_bar=0,
-                    end_bar=32,
+                    end_bar=tot_bars,
                     tempo=bpm,
                     target_lufs=target_lufs_val
                 )

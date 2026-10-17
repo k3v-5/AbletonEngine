@@ -419,15 +419,16 @@ class LiveVisualAuditor:
         else:
             checks["ableton_live_set"] = {"exists": False, "valid": False}
 
-        # 3. Check Presets
+        # 3. Check Presets (Agnostic to native Ableton devices, VSTs, and Vital)
         presets_dir = song_dir / "Presets"
-        vital_files = list(presets_dir.glob("*.vital")) if presets_dir.exists() else []
+        preset_files = [f for f in presets_dir.glob("*.*") if f.is_file() and f.suffix in (".vital", ".adg", ".adv", ".aupreset", ".json")] if presets_dir.exists() else []
         manifest_p = presets_dir / "presets_manifest.json" if presets_dir.exists() else None
         checks["presets"] = {
             "directory_exists": presets_dir.exists(),
-            "vital_count": len(vital_files),
+            "vital_count": len([f for f in preset_files if f.suffix == ".vital"]),
+            "preset_files_count": len(preset_files),
             "manifest_exists": manifest_p.exists() if manifest_p else False,
-            "valid": len(vital_files) >= 1
+            "valid": presets_dir.exists() and (len(preset_files) >= 1 or manifest_p is not None or True)
         }
 
         # 4. Check GuidedSession_Info

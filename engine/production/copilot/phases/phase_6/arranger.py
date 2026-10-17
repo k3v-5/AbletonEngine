@@ -5,6 +5,7 @@ Deploys MIDI notes and audio clips across sections in Live's arrangement timelin
 handles motif auto-tiling, structural silences, kick/drums decoupling, and octave transposition.
 """
 import os
+import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Callable
 from engine.music.modular_generator import generate_modular_section_notes
@@ -160,8 +161,10 @@ class Phase6Arranger:
                     "clip_index": s_idx,
                     "destination_time": float(current_beat)
                 })
+                time.sleep(0.01)
             elif s_idx == 0:
                 conn.send_command("create_clip", {"track_index": t_idx, "clip_index": 0, "length": s_beats})
+                time.sleep(0.01)
 
         try:
             _do_deploy()

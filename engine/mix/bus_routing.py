@@ -149,13 +149,19 @@ result = {
                 code_get_trks = """
 t_list = []
 for i, t in enumerate(song.tracks):
-    if not t.name.startswith("[BUS]") and not t.name.startswith("[RETURN]") and getattr(t, 'has_audio_output', False):
+    if not t.name.startswith("[BUS]") and not t.name.startswith("[RETURN]") and not getattr(t, 'is_foldable', False):
         t_list.append({'index': i, 'name': t.name, 'role': t.name})
 return_val = t_list
 result = t_list
 """
                 res_get = conn.send_command("execute_code", {"code": code_get_trks})
-                live_trks = res_get.get("return_val", res_get.get("result", [])) if isinstance(res_get, dict) else []
+                inner = res_get.get("result", {}) if isinstance(res_get, dict) else {}
+                if isinstance(inner, dict):
+                    live_trks = inner.get("return_val", inner.get("result", []))
+                elif isinstance(inner, list):
+                    live_trks = inner
+                else:
+                    live_trks = []
                 if isinstance(live_trks, list) and live_trks:
                     effective_tracks = live_trks
             except Exception as ex_gt:
@@ -208,6 +214,34 @@ existing_bus.mixer_device.volume.value = 0.85
             code_route = f"""
 tracks_spec = {repr(effective_tracks)}
 routed_results = []
+
+# Pass A: Group-level Submix Routing (Foldable Parent Groups -> Corresponding Submix Buses)
+for g in song.tracks:
+    if getattr(g, 'is_foldable', False) and not g.name.startswith("[BUS]"):
+        g_name = g.name.lower()
+        target_g_bus = None
+        if any(w in g_name for w in ("drum", "perc", "beat", "kit")):
+            target_g_bus = "[BUS] DRUMS BUS"
+        elif any(w in g_name for w in ("synth", "inst", "lead", "key", "chord", "guitar", "brass", "string")):
+            target_g_bus = "[BUS] SYNTHS BUS"
+        elif any(w in g_name for w in ("vocal", "vox", "voice", "chop")):
+            target_g_bus = "[BUS] VOCALS BUS"
+        elif any(w in g_name for w in ("fx", "effect", "foley", "riser")):
+            target_g_bus = "[BUS] FX BUS"
+        elif any(w in g_name for w in ("bass", "808", "sub")):
+            target_g_bus = "[BUS] BASS BUS"
+
+        if target_g_bus:
+            for out_type in getattr(g, 'available_output_routing_types', []):
+                if target_g_bus.lower() in getattr(out_type, 'display_name', '').lower():
+                    try:
+                        g.output_routing_type = out_type
+                        routed_results.append({{'group': g.name, 'target_bus': target_g_bus, 'type': 'group_bus'}})
+                    except Exception:
+                        pass
+                    break
+
+# Pass B: Track-level Submix Routing (Individual Audio/Instrument Tracks -> Target Submix Bus)
 for idx, spec in enumerate(tracks_spec):
     bus_name = spec.get('output_bus')
     if not bus_name:
@@ -242,21 +276,40 @@ for idx, spec in enumerate(tracks_spec):
                 trk = cand
 
     if trk and not trk.name.startswith("[BUS]"):
+        target_assigned = False
         for out_type in getattr(trk, 'available_output_routing_types', []):
-            if target_bus in getattr(out_type, 'display_name', ''):
+            if target_bus.lower() in getattr(out_type, 'display_name', '').lower():
                 try:
                     trk.output_routing_type = out_type
-                    routed_results.append({{'track': trk.name, 'target_bus': target_bus}})
+                    routed_results.append({{'track': trk.name, 'target_bus': target_bus, 'type': 'direct'}})
+                    target_assigned = True
                 except Exception:
                     pass
                 break
 
+        # If direct track routing is restricted (e.g. grouped MIDI track before instrument load),
+        # ensure parent group track routes to target_bus
+        if not target_assigned and getattr(trk, 'is_grouped', False):
+            p_group = getattr(trk, 'group_track', None)
+            if p_group:
+                for out_type in getattr(p_group, 'available_output_routing_types', []):
+                    if target_bus.lower() in getattr(out_type, 'display_name', '').lower():
+                        try:
+                            p_group.output_routing_type = out_type
+                            routed_results.append({{'track': trk.name, 'parent_group': p_group.name, 'target_bus': target_bus, 'type': 'parent_group_bus'}})
+                        except Exception:
+                            pass
+                        break
+
 bus_indices = {{t.name: i for i, t in enumerate(song.tracks) if t.name.startswith("[BUS]")}}
 return_val = {{'routed': routed_results, 'buses': bus_indices}}
+result = return_val
 """
             try:
                 res_route = conn.send_command("execute_code", {"code": code_route})
-                bus_indices = res_route.get("return_val", {}).get("buses", {}) if isinstance(res_route, dict) else {}
+                inner_r = res_route.get("result", res_route) if isinstance(res_route, dict) else {}
+                r_val = inner_r.get("return_val", inner_r.get("result", {})) if isinstance(inner_r, dict) else {}
+                bus_indices = r_val.get("buses", {}) if isinstance(r_val, dict) else {}
             except Exception as ex_route:
                 logger.debug(f"Submix bus audio routing notice: {ex_route}")
                 bus_indices = {}
@@ -270,9 +323,11 @@ return_val = {{'routed': routed_results, 'buses': bus_indices}}
                         code_check = f"""
 b = song.tracks[{b_idx}] if {b_idx} < len(song.tracks) else None
 return_val = len(b.devices) > 0 if b else False
+result = return_val
 """
                         chk = conn.send_command("execute_code", {"code": code_check})
-                        has_devs = chk.get("return_val", False) if isinstance(chk, dict) else False
+                        c_inner = chk.get("result", chk) if isinstance(chk, dict) else {}
+                        has_devs = c_inner.get("return_val", c_inner.get("result", False)) if isinstance(c_inner, dict) else False
                         if not has_devs:
                             conn.send_command("load_browser_item", {"track_index": b_idx, "item_uri": "query:AudioFx#Glue%20Compressor"})
                             conn.send_command("load_browser_item", {"track_index": b_idx, "item_uri": "query:AudioFx#EQ%20Eight"})

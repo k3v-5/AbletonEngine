@@ -40,25 +40,33 @@ class AbletonLiveConnection:
         logger.info(f"Connected to Ableton Live on {self.host}:{self.port}")
 
     def send_command(self, cmd_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        if not self.sock:
-            self.connect()
-        payload = json.dumps({"type": cmd_type, "params": params or {}}) + "\n"
-        self.sock.sendall(payload.encode("utf-8"))
-        buf = ""
-        while True:
-            chunk = self.sock.recv(65536).decode("utf-8")
-            if not chunk:
-                break
-            buf += chunk
+        for attempt in range(2):
             try:
-                return json.loads(buf.strip())
-            except ValueError:
-                continue
-        try:
-            return json.loads(buf.strip())
-        except Exception as e:
-            logger.error(f"Error parsing response for {cmd_type}: {e}, raw: {buf[:200]}")
-            return {"status": "error", "message": str(e)}
+                if not self.sock:
+                    self.connect()
+                payload = json.dumps({"type": cmd_type, "params": params or {}}) + "\n"
+                self.sock.sendall(payload.encode("utf-8"))
+                buf = ""
+                while True:
+                    chunk = self.sock.recv(65536).decode("utf-8")
+                    if not chunk:
+                        break
+                    buf += chunk
+                    try:
+                        return json.loads(buf.strip())
+                    except ValueError:
+                        continue
+                try:
+                    return json.loads(buf.strip())
+                except Exception as e:
+                    logger.error(f"Error parsing response for {cmd_type}: {e}, raw: {buf[:200]}")
+                    return {"status": "error", "message": str(e)}
+            except (socket.error, ConnectionResetError, BrokenPipeError, TimeoutError) as ex:
+                self.close()
+                if attempt == 0:
+                    time.sleep(0.2)
+                    continue
+                raise ex
 
     def close(self):
         if self.sock:
