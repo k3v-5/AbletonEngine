@@ -345,3 +345,112 @@ res = routing_report
             kick_track_index=source_track_index,
             **kwargs
         )
+
+    @classmethod
+    def auto_route_project_sidechain(
+        cls,
+        conn: Any,
+        tracks: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
+        """
+        Scans all tracks in Ableton Live, identifies the Kick/Drum track,
+        finds Bass and Synth tracks with Compressor devices, and physically
+        routes the Sidechain Audio From dropdown to the Kick/Drum track with S/C enabled.
+        """
+        if not conn or not hasattr(conn, "send_command"):
+            return {"status": "SKIPPED", "reason": "No active Live connection"}
+
+        code = """
+routed_sidechains = []
+# 1. Locate primary Kick / Drum source track
+drum_track = None
+for t in song.tracks:
+    if t.name.startswith("[BUS]") or t.name.startswith("[RETURN]"):
+        continue
+    t_low = t.name.lower()
+    if any(k in t_low for k in ['drum', 'percussion', 'kick', 'dembow', 'beat', 'ritmo']):
+        drum_track = t
+        break
+
+# Fallback: track 0 if audio output exists
+if not drum_track and len(song.tracks) > 0:
+    for t in song.tracks:
+        if not t.name.startswith("[BUS]") and getattr(t, 'has_audio_output', False):
+            drum_track = t
+            break
+
+if drum_track:
+    # 2. Iterate through candidate target tracks (Bass, 808, Sub, Synths, Buses)
+    for t in song.tracks:
+        if t == drum_track or t.name.startswith("[RETURN]"):
+            continue
+        
+        t_low = t.name.lower()
+        is_bass = any(k in t_low for k in ['bass', '808', 'sub', 'bajo'])
+        
+        for dev in t.devices:
+            dev_name = dev.name.lower()
+            dev_class = getattr(dev, 'class_name', '').lower()
+            is_comp = 'compressor' in dev_name or 'compressor' in dev_class
+            
+            if is_comp and hasattr(dev, 'available_input_routing_types'):
+                # Match drum track in input routing types
+                for rt in dev.available_input_routing_types:
+                    rt_name = getattr(rt, 'display_name', '')
+                    if drum_track.name in rt_name or rt_name in drum_track.name:
+                        try:
+                            dev.input_routing_type = rt
+                        except Exception:
+                            pass
+                        
+                        # Match Post FX in input routing channels
+                        if hasattr(dev, 'available_input_routing_channels'):
+                            for ch in dev.available_input_routing_channels:
+                                if 'post fx' in getattr(ch, 'display_name', '').lower():
+                                    try:
+                                        dev.input_routing_channel = ch
+                                    except Exception:
+                                        pass
+                                    break
+                        
+                        # Engage S/C On and calibrate ducking parameters
+                        for p in getattr(dev, 'parameters', []):
+                            pn = p.name.lower()
+                            try:
+                                if 's/c on' in pn or 'sidechain' in pn:
+                                    p.value = 1.0
+                                elif pn == 'threshold':
+                                    p.value = 0.55
+                                elif pn == 'ratio':
+                                    p.value = 0.75
+                                elif pn == 'attack':
+                                    p.value = 0.0
+                                elif pn == 'release':
+                                    p.value = 0.16
+                            except Exception:
+                                pass
+                                
+                        routed_sidechains.append({
+                            'destination_track': t.name,
+                            'source_track': drum_track.name,
+                            'device': dev.name,
+                            'is_bass': is_bass
+                        })
+                        break
+
+return_val = {
+    'status': 'SUCCESS',
+    'drum_track': drum_track.name if drum_track else None,
+    'sidechains_count': len(routed_sidechains),
+    'routed_sidechains': routed_sidechains
+}
+result = return_val
+"""
+        try:
+            res = conn.send_command("execute_code", {"code": code})
+            ret = res.get("return_val", res.get("result", {})) if isinstance(res, dict) else {}
+            logger.info(f"Auto-routed {ret.get('sidechains_count', 0)} physical sidechain connections in Live.")
+            return ret
+        except Exception as ex:
+            logger.warning(f"Notice during auto_route_project_sidechain: {ex}")
+            return {"status": "ERROR", "error": str(ex)}

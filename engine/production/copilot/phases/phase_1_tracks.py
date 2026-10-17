@@ -43,14 +43,14 @@ class Phase1TracksHandler(BasePhaseHandler):
             )
 
         return {
-            "current_step": "PASO 1 DE 7: CONFIGURACIÓN DE PISTAS Y ROLES ACÚSTICOS",
+            "current_step": "PASO 1 DE 9: CONFIGURACIÓN DE PISTAS Y ROLES ACÚSTICOS",
             "action_taken": "Iniciando sesión guiada de producción en Ableton Live (Pre-flight cleaner activo).",
             "question": (
                 "👋 **Bienvenido a la Producción Guiada por el Copilot.**\n\n" + get_learned_context_summary() + "\n\n"
                 + design_density_str +
                 f"🎵 **Compás Métrico y Tempo:** Compás configurado: `{sig_str}` | Tempo: `{bpm_val:.1f} BPM`. (Puedes confirmar o especificar cambios de métrica ej: `4/4`, `3/4`, `6/8`, `7/8`).\n\n"
                 "🧹 **Pre-flight Cleaner Activo:** Al confirmar este paso, el motor inspecciona y limpia transportes activos, cue points anteriores, clips y dispositivos huérfanos para iniciar siempre desde un punto idéntico y reproducible.\n\n"
-                "**Paso 1 de 7: Catálogo de Tipos de Instrumentos y Asignación de Roles**\n\n"
+                "**Paso 1 de 9: Catálogo de Tipos de Instrumentos y Asignación de Roles**\n\n"
                 "El motor prohíbe el uso de plantillas estándar fijas. Ofrece un catálogo completo de 21 tipos de instrumentos según su función acústica y espectral (diseñado para Rock, Trap, Reggaeton, Pop y géneros híbridos):\n\n"
                 "• **DRUMS** (20 Hz - 18 kHz): Ancla rítmica, cajas, platos y percusión base en el plano estéreo.\n"
                 "• **KICK** (30 Hz - 120 Hz): Bombo dedicado y aislado para pegada subgrave contundente y disparador limpio de sidechain.\n"
@@ -95,7 +95,7 @@ class Phase1TracksHandler(BasePhaseHandler):
     
     def _handle_phase_1(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         # Pre-flight Session Cleanup to start every production from an identical clean baseline
-        clean_report = session.preflight_clean_session(conn)
+        clean_report = session.preflight_clean_session(conn) if hasattr(session, "preflight_clean_session") else {}
         session.data["preflight_clean"] = clean_report
     
         text = _normalize_text(user_input)
@@ -148,6 +148,9 @@ class Phase1TracksHandler(BasePhaseHandler):
             parsed_json = None
 
         if parsed_json:
+            json_dict_tracks = [item for item in parsed_json if isinstance(item, dict)]
+            if json_dict_tracks and not session.data.get("designed_tracks"):
+                session.data["designed_tracks"] = json_dict_tracks
             for item in parsed_json:
                 if isinstance(item, dict):
                     raw_name = str(item.get("name", "")).strip()
@@ -276,6 +279,36 @@ class Phase1TracksHandler(BasePhaseHandler):
                         roles.append((n, r, a))
                         seen_r.add(k)
 
+        # Dynamic track creation from Phase 0 design (dismantling fixed 5-track lock)
+        if not roles and session.data.get("designed_tracks"):
+            d_tracks = session.data.get("designed_tracks")
+            for item in d_tracks:
+                if isinstance(item, dict):
+                    raw_name = str(item.get("name", "")).strip()
+                    raw_role = str(item.get("role", "")).strip()
+                    raw_type = str(item.get("type", "")).strip().upper()
+                    c_role = RoleTrackOrchestrator.normalize_role(raw_role) if raw_role else RoleTrackOrchestrator.normalize_role(raw_name)
+                    c_name = raw_name or c_role.title()
+                    if raw_type == "MIDI":
+                        is_audio = False
+                        is_fx_audio = False
+                    elif raw_type == "AUDIO":
+                        is_audio = True
+                        is_fx_audio = False
+                    elif raw_type == "BUS":
+                        is_audio = True
+                        is_fx_audio = True
+                    else:
+                        is_audio = (c_role == "VOCALS") or ("audio" in c_name.lower())
+                        is_fx_audio = ("bus" in c_name.lower()) or (c_role == "FX" and is_audio)
+                    roles.append((c_name, c_role, is_audio, is_fx_audio))
+                elif isinstance(item, str) and item.strip():
+                    c_name = item.strip()
+                    c_role = RoleTrackOrchestrator.normalize_role(c_name)
+                    is_audio = (c_role == "VOCALS") or ("audio" in c_name.lower())
+                    is_fx_audio = ("bus" in c_name.lower()) or (c_role == "FX" and is_audio)
+                    roles.append((c_name, c_role, is_audio, is_fx_audio))
+
         if not roles:
             expected_structure_guide = (
                 "🚫 **SELECCIÓN EXPLÍCITA DE INSTRUMENTOS REQUERIDA (Atajo 'Opción A' deshabilitado):**\n\n"
@@ -313,7 +346,7 @@ class Phase1TracksHandler(BasePhaseHandler):
             return {
                 "status": "SELECTION_REQUIRED",
                 "phase": "PHASE_1_TRACKS",
-                "current_step": "PASO 1 DE 7: SELECCIÓN DE INSTRUMENTOS REQUERIDA",
+                "current_step": "PASO 1 DE 9: SELECCIÓN DE INSTRUMENTOS REQUERIDA",
                 "action_taken": "El motor prohíbe atajos genéricos ('Opción A') y plantillas fijas. Se requiere selección explícita del catálogo.",
                 "question": expected_structure_guide,
                 "instructions_for_ai": "Envía la dotación instrumental separada por comas (ej: 'Batería, Bombo, Bajo, Teclado, Guitarras, Sintes, Cuerdas'). El atajo 'Opción A' está deshabilitado.",
@@ -402,9 +435,11 @@ class Phase1TracksHandler(BasePhaseHandler):
                     track_entry["is_fx_audio"] = True
                 created_tracks.append(track_entry)
     
-            # Auto-detect existing vocal audio tracks in Live (or audio tracks within Vocals group)
+            # Respect Producer Sovereignty: only auto-adopt an existing vocal template track
+            # if explicitly enabled via session.data["auto_adopt_template_vocal"] (never force onto instrumental designs)
             has_explicit_vocal = any(r == "VOCALS" for _, r, *_ in roles)
-            if not has_explicit_vocal:
+            should_auto_adopt_vocal = bool(session.data.get("auto_adopt_template_vocal", False))
+            if not has_explicit_vocal and should_auto_adopt_vocal:
                 try:
                     vocal_cand_idx = None
                     vocal_cand_name = None
@@ -446,7 +481,21 @@ class Phase1TracksHandler(BasePhaseHandler):
                 created_tracks.append(track_entry)
     
         # Query and attach available instrument sources from catalog for each track
+        # and inherit custom modeled presets & routing from Phase 0 design
+        designed_tracks = session.data.get("designed_tracks", [])
         for trk in created_tracks:
+            t_name = str(trk.get("name", "")).strip().lower()
+            t_role = str(trk.get("role", "")).strip().lower()
+            for dt in designed_tracks:
+                if isinstance(dt, dict):
+                    dt_name = str(dt.get("name", "")).strip().lower()
+                    dt_role = str(dt.get("role", "")).strip().lower()
+                    if (dt_name and (dt_name == t_name or dt_name in t_name or t_name in dt_name)) or (not dt_name and dt_role and dt_role == t_role):
+                        for k in ("preset_path", "preset_name", "synced_user_path", "output_bus", "instrument", "panning"):
+                            if k in dt and k not in trk:
+                                trk[k] = dt[k]
+                        break
+
             r = trk.get("role", "")
             try:
                 sources = LiveBrowserCatalogEngine.get_available_sources_for_role(r, conn=conn)
@@ -473,11 +522,37 @@ class Phase1TracksHandler(BasePhaseHandler):
             session.data["submix_buses"] = BusRoutingManager.setup_submix_buses(conn, created_tracks)
         except Exception as e_found:
             logger.debug(f"Suite foundation notice: {e_found}")
-    
+
+        # Apply conscious stereo panning from design phase to Live 12 tracks
+        designed_pans = session.data.get("designed_panning", {})
+        for trk in created_tracks:
+            t_idx = trk.get("index")
+            t_nm = trk.get("name")
+            t_pan = designed_pans.get(t_nm)
+            if t_pan is not None and conn is not None and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("set_track_panning", {"track_index": t_idx, "panning": float(t_pan)})
+                    trk["panning"] = float(t_pan)
+                except Exception as ex_p:
+                    logger.debug(f"Panning sync notice for track {t_idx}: {ex_p}")
+
+        # Physical tempo verification in Live 12 (Anti-120 BPM Freeze check)
+        target_bpm = float(session.data.get("bpm", 120.0))
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                s_info = conn.send_command("get_session_info")
+                live_bpm = s_info.get("tempo", s_info.get("result", {}).get("tempo")) if isinstance(s_info, dict) else None
+                if live_bpm is not None and abs(float(live_bpm) - target_bpm) > 0.05:
+                    logger.warning(f"Anti-120 BPM Freeze: Live tempo is {live_bpm}, target is {target_bpm}. Re-asserting...")
+                    conn.send_command("set_tempo", {"tempo": target_bpm})
+                    conn.send_command("execute_code", params={"code": f"song.tempo = {target_bpm}"})
+            except Exception as ex_bpm:
+                logger.debug(f"Tempo assertion notice: {ex_bpm}")
+
         session.data["current_phase"] = "PHASE_2_SECTIONS"
         session.data["phase_index"] = 2
         session._save_state()
-    
+
         return session._prompt_phase_2(created_tracks)
     
     # -------------------------------------------------------------------------
@@ -499,27 +574,76 @@ class Phase1TracksHandler(BasePhaseHandler):
             "E": 4, "F": 5, "F#": 6, "GB": 6, "G": 7, "G#": 8,
             "AB": 8, "A": 9, "A#": 10, "BB": 10, "B": 11
         }
+        def normalize_live12_scale(sc: Optional[str]) -> Optional[str]:
+            if not sc:
+                return None
+            s_low = sc.strip().lower()
+            if "dorian" in s_low or "dórico" in s_low or "dorico" in s_low:
+                return "Dorian"
+            elif "phrygian" in s_low or "frigio" in s_low:
+                return "Phrygian"
+            elif "mixolydian" in s_low or "mixolidio" in s_low:
+                return "Mixolydian"
+            elif "lydian" in s_low or "lidio" in s_low:
+                return "Lydian"
+            elif "locrian" in s_low or "locrio" in s_low:
+                return "Locrian"
+            elif "harmonic" in s_low and ("min" in s_low or "menor" in s_low):
+                return "Harmonic Minor"
+            elif "melodic" in s_low and ("min" in s_low or "menor" in s_low):
+                return "Melodic Minor"
+            elif "blues" in s_low:
+                return "Blues"
+            elif "pentatonic" in s_low and ("min" in s_low or "menor" in s_low):
+                return "Minor Pentatonic"
+            elif "pentatonic" in s_low and ("maj" in s_low or "mayor" in s_low):
+                return "Major Pentatonic"
+            elif any(w in s_low for w in ["min", "menor", "dark", "natural_minor"]):
+                return "Minor"
+            elif any(w in s_low for w in ["maj", "mayor"]):
+                return "Major"
+            else:
+                return sc.strip().title()
+
         root_int = NOTE_TO_ROOT.get(key.strip().upper(), 5) if key else None
-        scale_clean = ("Minor" if any(w in scale.lower() for w in ["min", "menor", "dark", "natural_minor"]) else "Major") if scale else None
+        scale_clean = normalize_live12_scale(scale)
 
         code = f"""
 tuned_devices = []
-effective_root = getattr(song, 'root_note', 5)
-effective_scale = getattr(song, 'scale_name', 'Minor')
+effective_root = 5
+try:
+    effective_root = song.root_note
+except Exception:
+    pass
+
+effective_scale = 'Minor'
+try:
+    effective_scale = song.scale_name
+except Exception:
+    pass
 
 set_root = {repr(root_int)}
 set_scale = {repr(scale_clean)}
 
 if set_root is not None and hasattr(song, 'root_note'):
-    song.root_note = set_root
-    effective_root = set_root
+    try:
+        song.root_note = set_root
+        effective_root = set_root
+    except Exception:
+        pass
 if set_scale is not None and hasattr(song, 'scale_name'):
-    song.scale_name = set_scale
-    effective_scale = set_scale
+    try:
+        song.scale_name = set_scale
+        effective_scale = set_scale
+    except Exception:
+        pass
 
 at_key_lut = {{0: 0.05, 1: 0.14, 2: 0.23, 3: 0.32, 4: 0.41, 5: 0.48, 6: 0.58, 7: 0.67, 8: 0.76, 9: 0.85, 10: 0.93, 11: 0.98}}
 at_key_val = at_key_lut.get(effective_root, 0.48)
-at_scale_val = 0.05 if 'min' in str(effective_scale).lower() else 0.00
+scale_str = str(effective_scale).lower()
+is_minor_scale = ('min' in scale_str or 'dorian' in scale_str or 'phrygian' in scale_str or 'locrian' in scale_str)
+at_scale_val = 0.05 if is_minor_scale else 0.00
+
 
 for t_idx, t in enumerate(song.tracks):
     for d_idx, dev in enumerate(t.devices):

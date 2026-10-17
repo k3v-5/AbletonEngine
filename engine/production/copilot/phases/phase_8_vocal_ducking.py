@@ -596,13 +596,17 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
             except Exception:
                 pass
         try:
+            session_key = session.data.get("key")
+            explicit_mud_freq = session.data.get("mud_box_freq_hz")
             res_clean = ResonanceDetector.clean_low_mid_resonances(
                 conn=conn,
                 tracks=tracks,
-                target_center_freq=441.4,
-                cut_db=-3.5,
-                q=12.0,
-                master_track_index=m_idx
+                target_center_freq=float(explicit_mud_freq) if explicit_mud_freq else None,
+                cut_db=-2.5,
+                q=6.0,
+                master_track_index=m_idx,
+                key=session_key,
+                respect_sovereign_eq=True
             )
             session.data["low_mid_resonances_clean"] = res_clean
         except Exception as ex_res:
@@ -873,10 +877,23 @@ vol.value = max(0.05, min(1.0, cur_v * {linear_m}))
         v_effects = vocal_trk_entry.get("insert_effects", [])
         expected_fx_len = len(ROLE_INSERT_EFFECTS.get("VOCALS", []))
         if len(v_effects) >= expected_fx_len:
-            session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            all_trks = session.data.get("tracks", [])
+            if session.data.get("current_fx_track_ptr", 0) < len(all_trks):
+                next_fx_prompt = session._prompt_current_fx_device()
+                return {
+                    "status": "DUAL_LUFS_AUDITED",
+                    "passed": True,
+                    "current_step": next_fx_prompt.get("current_step", "FASE 6 (INSERT EFFECTS)"),
+                    "action_taken": f"Comprobación ITU-R BS.1770-5 certificada ({ch_rep.integrated_lufs:.1f} LUFS / Master {m_rep.integrated_lufs:.1f} LUFS). Avanzando a la siguiente pista de efectos.",
+                    "question": next_fx_prompt.get("question", ""),
+                    "instructions_for_ai": next_fx_prompt.get("instructions_for_ai", ""),
+                    "dual_lufs_audit": dual_res.to_dict(),
+                    "phase": "PHASE_5_INSERT_EFFECTS"
+                }
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
             session._save_state()
-            comp_prompt = session._prompt_phase_6()
+            auto_prompt = session._prompt_phase_7()
             q_text = (
                 f"📊 **Auditoría de Sonoridad ITU-R BS.1770-5 en Dos Etapas (Canal y Master):**\n\n"
                 f"{dual_res.summary_table}\n\n"
@@ -885,22 +902,22 @@ vol.value = max(0.05, min(1.0, cur_v * {linear_m}))
                 f"• **Master Bus:** **{m_rep.integrated_lufs:.1f} LUFS** (Target: `{m_rep.target_lufs:.1f} LUFS`)\n"
                 f"{calib_txt}\n\n"
                 f"💡 **Estado Global de la Compuerta:** {dual_res.certificate}\n\n"
-                + comp_prompt.get("question", "")
+                + auto_prompt.get("question", "")
             )
             return {
                 "status": "DUAL_LUFS_AUDITED",
                 "passed": True,
-                "current_step": "PASO 6 DE 7: COMPOSICIÓN ARMÓNICA Y MELÓDICA MODULAR",
-                "action_taken": f"Comprobación ITU-R BS.1770-5 certificada ({ch_rep.integrated_lufs:.1f} LUFS / Master {m_rep.integrated_lufs:.1f} LUFS). Efectos vocales verificados. Avanzando a composición.",
+                "current_step": "FASE 7: AUTOMATIZACIÓN MACRO Y MICRO-MOVIMIENTO",
+                "action_taken": f"Comprobación ITU-R BS.1770-5 certificada ({ch_rep.integrated_lufs:.1f} LUFS / Master {m_rep.integrated_lufs:.1f} LUFS). Efectos vocales verificados. Avanzando a automatización.",
                 "question": q_text,
-                "instructions_for_ai": comp_prompt.get("instructions_for_ai", ""),
+                "instructions_for_ai": auto_prompt.get("instructions_for_ai", ""),
                 "dual_lufs_audit": dual_res.to_dict(),
-                "phase": "PHASE_6_COMPOSITION"
+                "phase": "PHASE_7_AUTOMATION"
             }
 
         vocal_track_ptr = session.data["tracks"].index(vocal_trk_entry)
         session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-        session.data["phase_index"] = 5
+        session.data["phase_index"] = 6
         session.data["current_fx_track_ptr"] = vocal_track_ptr
         session.data["current_fx_dev_ptr"] = 0
         session._save_state()

@@ -14,12 +14,15 @@ class Phase6Prompts:
         tracks = session.data.get("tracks", [])
         sections = session.data.get("sections", [])
         if trk_idx >= len(tracks):
-            return session._prompt_phase_7()
+            session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+            session.data["phase_index"] = 5
+            session.data["current_param_ptr"] = 0
+            session._save_state()
+            return session._prompt_current_track_params()
 
         cur_trk = tracks[trk_idx]
         cur_trk_is_aud = bool(
             cur_trk.get("is_audio", False)
-            or str(cur_trk.get("role", "")).upper() == "VOCALS"
             or cur_trk.get("live_recording_mode", False)
         )
         sec_names = [s.get("name", f"Sección {i+1}") for i, s in enumerate(sections)]
@@ -28,7 +31,7 @@ class Phase6Prompts:
         if cur_trk_is_aud:
             return {
                 "status": "AWAITING_AUDIO_TRACK_CONFIRMATION",
-                "current_step": f"PASO 6 (POR PISTA {trk_idx + 1}/{len(tracks)}): PREPARACIÓN DE CANAL AUDIO '{cur_trk.get('name')}'",
+                "current_step": f"PASO 4 (POR PISTA {trk_idx + 1}/{len(tracks)}): PREPARACIÓN DE CANAL AUDIO '{cur_trk.get('name')}'",
                 "action_taken": f"Modo interactivo pista por pista activo. Pista de Audio/Grabación/FX: {cur_trk.get('name')} (Rol: {cur_trk.get('role')}).",
                 "question": (
                     f"🎙️ **Canal de Audio / Grabación / Ruteo FX {trk_idx + 1} de {len(tracks)}: '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
@@ -81,10 +84,10 @@ class Phase6Prompts:
 
         return {
             "status": "AWAITING_TRACK_COMPOSITION",
-            "current_step": f"PASO 6 (POR PISTA {trk_idx + 1}/{len(tracks)}): COMPOSICIÓN PARA '{cur_trk.get('name')}'",
+            "current_step": f"PASO 4 (POR PISTA {trk_idx + 1}/{len(tracks)}): COMPOSICIÓN PARA '{cur_trk.get('name')}'",
             "action_taken": f"Modo interactivo pista por pista activo. Pista actual: {cur_trk.get('name')} (Rol: {cur_trk.get('role')}).",
             "question": (
-                f"🎼 **Paso 6: Componiendo Pista {trk_idx + 1} de {len(tracks)}: '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
+                f"🎼 **Paso 4: Componiendo Pista {trk_idx + 1} de {len(tracks)}: '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
                 f"• **Secciones del Arreglo:** {sec_str}\n"
                 f"• **Rol Musical:** `{cur_trk.get('role')}`\n"
                 f"• **Instrumento:** {cur_trk.get('instrument', cur_trk.get('name'))}\n\n"
@@ -109,19 +112,22 @@ class Phase6Prompts:
         tracks = session.data.get("tracks", [])
         sections = session.data.get("sections", [])
         if trk_idx >= len(tracks):
-            return session._prompt_phase_7()
+            session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+            session.data["phase_index"] = 5
+            session.data["current_param_ptr"] = 0
+            session._save_state()
+            return session._prompt_current_track_params()
 
         cur_trk = tracks[trk_idx]
         cur_trk_is_aud = bool(
             cur_trk.get("is_audio", False)
-            or str(cur_trk.get("role", "")).upper() == "VOCALS"
             or cur_trk.get("live_recording_mode", False)
         )
 
         if cur_trk_is_aud:
             return {
                 "status": "AWAITING_AUDIO_TRACK_CONFIRMATION",
-                "current_step": f"PASO 6 (PISTA {trk_idx + 1}/{len(tracks)}): CANAL AUDIO '{cur_trk.get('name')}'",
+                "current_step": f"PASO 4 (PISTA {trk_idx + 1}/{len(tracks)}): CANAL AUDIO '{cur_trk.get('name')}'",
                 "action_taken": f"Modo Clip por Clip. Canal de Audio/Grabación/FX: {cur_trk.get('name')} (Rol: {cur_trk.get('role')}).",
                 "question": (
                     f"🎙️ **Canal de Audio / Grabación / Ruteo FX {trk_idx + 1} de {len(tracks)}: '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
@@ -194,7 +200,7 @@ class Phase6Prompts:
 
         return {
             "status": "AWAITING_CLIP_COMPOSITION",
-            "current_step": f"PASO 6 (CLIP {sec_idx + 1}/{len(sections)} - PISTA {trk_idx + 1}/{len(tracks)}): '{cur_trk.get('name')}' EN '{cur_sec.get('name')}'",
+            "current_step": f"PASO 4 (CLIP {sec_idx + 1}/{len(sections)} - PISTA {trk_idx + 1}/{len(tracks)}): '{cur_trk.get('name')}' EN '{cur_sec.get('name')}'",
             "action_taken": f"Modo Clip por Clip activo. Solicitando notas para Clip #{sec_idx + 1} ({cur_sec.get('name')}, {s_bars} compases).",
             "question": (
                 f"🎼 **Componiendo Clip #{sec_idx + 1} de {len(sections)} — Pista {trk_idx + 1}/{len(tracks)}: '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
@@ -209,12 +215,12 @@ class Phase6Prompts:
                 f"• **Ventana Temporal del Clip:** `start_time` relativo de `0.0` a `{s_beats}` (o motivo de 16 tiempos con auto-tiling)\n\n"
                 f"⚠️ **Regla de Oro (Cero Relleno Procedural):**\n"
                 f"Define las notas MIDI explícitas (`pitch`, `start_time`, `duration`, `velocity`) **únicamente para este bloque de {s_bars} compases en {key} {scale}**.\n\n"
-                "Puedes enviar una lista JSON `[{\"pitch\": X, \"start_time\": Y, ...}]` o un objeto `{\"notes\": [...]}`.\n"
+                "Puedes enviar una lista JSON `[{\"pitch\": X, \"start_time\": Y, ...}]` o un objeto `{\"notes\": [...]}` (o el JSON completo de todas las pistas y secciones).\n"
                 "Si este canal debe permanecer en silencio durante esta sección, envía `[]` o escribe 'Silencio'.\n"
                 "*(Escribe 'Modo: Por Pista' si deseas alternar a composición pista completa).* "
                 f"{drum_spec_block}"
             ),
-            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para el clip '{cur_sec.get('name')}' ({s_bars} compases) de '{cur_trk.get('name')}' en {key} {scale}. Puedes incluir micro-timing explícito.",
+            "instructions_for_ai": f"Define y envía las notas MIDI explícitas para el clip '{cur_sec.get('name')}' ({s_bars} compases) de '{cur_trk.get('name')}' en {key} {scale} (o el JSON completo de toda la composición). Puedes incluir micro-timing explícito.",
             "phase": "PHASE_6_COMPOSITION",
             "track_index": trk_idx,
             "section_index": sec_idx,
@@ -244,13 +250,7 @@ class Phase6Prompts:
         pocket_style = session.data.get("pocket_style", "ukg_2step" if "garage" in str(session.data.get("genre", "")).lower() else "atlanta_trap")
         swing_pct = session.data.get("swing_percentage", 60.0 if pocket_style == "ukg_2step" else 55.0)
 
-        pref_mode = "monolithic"
-        try:
-            from engine.memory.user_learning import get_user_preferences
-            prefs = get_user_preferences()
-            pref_mode = prefs.get("composition", {}).get("mode", "by_clip")
-        except Exception:
-            pass
+        pref_mode = session.data.get("composition_mode_preference", "monolithic")
 
         if pref_mode in ("by_clip", "clip_by_clip", "clip"):
             session.data["composition_session"] = {
@@ -273,14 +273,17 @@ class Phase6Prompts:
             session._save_state()
             return prompt_by_track_fn(session, 0)
 
-        track_lines = [f"• Pista {t.get('index')}: **{t.get('name')}** (Rol: `{t.get('role')}`)" for t in tracks]
+        track_lines = [
+            f"• Pista {t.get('index')}: **{t.get('original_name') or t.get('name')}** → `{t.get('instrument', t.get('name'))}` (Rol: `{t.get('role')}`)"
+            for t in tracks
+        ]
         sec_lines = [f"• Sección {i}: **{s.get('name')}** ({s.get('bars')} compases, inicio: c.{s.get('start_bar', i*8)})" for i, s in enumerate(sections)]
 
         return {
-            "current_step": "PASO 6 DE 7: COMPOSICIÓN MODULAR DE NOTAS Y DESPLIEGUE EN ARRANGEMENT",
-            "action_taken": "Todos los instrumentos y efectos de inserción fueron configurados y afinados físicamente en Live.",
+            "current_step": "PASO 4 DE 9: COMPOSICIÓN DE NOTAS MIDI Y DESPLIEGUE EN ARRANGEMENT (ANTES DEL ESCULPIDO DE SÍNTESIS)",
+            "action_taken": "Todos los instrumentos fueron cargados en Live. Ahora componemos las notas MIDI reales ANTES de esculpir síntesis y efectos de inserción.",
             "question": (
-                "🎼 **Paso 6 de 7: Composición de Notas MIDI y Despliegue en Arrangement**\n\n"
+                "🎼 **Paso 4 de 9: Composición de Notas MIDI y Despliegue en Arrangement (Flujo Studio-First)**\n\n"
                 "**Dotación Instrumental en Live:**\n"
                 + "\n".join(track_lines) + "\n\n"
                 f"**Estructura del Arreglo ({total_bars} compases totales):**\n"
@@ -289,17 +292,15 @@ class Phase6Prompts:
                 f"• Pocket actual: `{pocket_style}` | Swing: `{swing_pct}%`\n"
                 f"• Opciones de pocket: `ukg_2step`, `mpc_60`, `dilla_drunk`, `reggaeton_dembow`, `lofi_sp1200`, `atlanta_trap`\n"
                 "• Micro-timing soberano: Puedes suministrar notas con micro-timing milimétrico explícito (ej: `0.28`, `0.53`) sin cuantización forzada.\n\n"
-                "🧠 **Decisión Técnica Requerida:**\n"
-                "⚠️ **Regla de Oro del Motor (Cero Auto-Relleno Procedural):**\n"
-                "El motor prohíbe terminantemente autocompletar con notas genéricas o sugerir 'Siguiente' para inventar patrones.\n"
-                "La IA debe definir explícitamente las notas MIDI (`pitch`, `start_time`, `duration`, `velocity`) para cada instrumento y sección.\n\n"
+                "🧠 **Arquitectura Agnóstica + Arnés de Calidad Musical:**\n"
+                "1. **Cero Auto-Relleno Procedural:** La IA define soberanamente todas las notas MIDI (`pitch`, `start_time`, `duration`, `velocity`) para cada pista y sección.\n"
+                "2. **Identificación Exacta por Pista:** Si tienes dos pistas del mismo rol (ej. dos `BASS` o dos `SYNTH`), usa su índice (`0`, `1`...) o su nombre original (`04_Sub_808`, `05_Jazz_Upright_Bass`) en el JSON.\n"
+                "3. **Esculpido Consciente de Notas (Siguiente Paso):** Una vez inyectadas tus notas en el Arrangement, pasarás al Paso 5 (`PHASE_4_PARAM_SCULPTING`) y Paso 6 (`PHASE_5_INSERT_EFFECTS`) escuchando el fraseo y registro real de cada pista.\n\n"
                 "🧠 **Modalidades de Envío de Notas:**\n"
-                "• **Inyección Estructurada Completa (Recomendada)**: Envía un payload JSON con la clave `composition` o `tracks` detallando notas por pista y sección.\n"
-                "• **Composición Modular Por Sección**: Escribe 'Por Sección' para definir notas bloque a bloque.\n"
-                "• **Composición Modular Por Pista**: Escribe 'Por Pista' para definir notas pista por pista.\n"
-                "• **Composición Combinada**: Escribe 'Combinado' para pista y sección específica.\n\n"
+                "• **Inyección Estructurada Completa (Recomendada)**: Envía un payload JSON (o ruta `.json`) con la clave `composition` o `tracks` detallando notas por pista y sección.\n"
+                "• **Composición Modular Por Clip / Sección / Pista**: Escribe 'Por Clip', 'Por Sección' o 'Por Pista' para avanzar bloque por bloque.\n\n"
                 "*Envía el JSON con la tonalidad, escala y notas de tu composición o indica tu modalidad modular para comenzar.*"
             ),
-            "instructions_for_ai": "Genera y envía las notas MIDI explícitas para cada pista y sección activa. El motor no autocompletará notas. Puedes incluir micro-timing explícito o especificar 'Groove: [estilo]'.",
+            "instructions_for_ai": "Genera y envía las notas MIDI explícitas para cada pista y sección activa. El motor no autocompletará notas ni mutará tus patrones.",
             "phase": "PHASE_6_COMPOSITION"
         }

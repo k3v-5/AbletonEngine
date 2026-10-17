@@ -66,21 +66,34 @@ class AdvancedProductionExecutor:
             if config.sub_dragging_ms != 0.0 and any(k in r_up for k in ("BASS", "SUB", "808")):
                 start_t += (config.sub_dragging_ms * beats_per_ms)
 
-            # 3. Hi-Hat hardware swing
-            if config.hihat_swing_pct != 50.0 and r_up in ("DRUMS", "PERCUSSION"):
-                if pitch in (42, 44, 46, 86, 87):  # Closed/pedal/open hat, shaker
-                    # If on an offbeat 16th note (step 1, 3 in an 8th-note beat)
+            # 3. Hi-Hat & Percussion hardware swing (supports both 16th-note and 8th-note pockets)
+            if config.hihat_swing_pct != 50.0 and r_up in ("DRUMS", "PERCUSSION", "HATS"):
+                if pitch in (42, 44, 46, 86, 87, 80, 81):  # Closed/pedal/open hat, shakers, auxiliary percs
                     pos_in_beat = start_t % 1.0
+                    # 16th-note offbeats (e.g. 0.25, 0.75)
                     if 0.20 <= pos_in_beat <= 0.30 or 0.70 <= pos_in_beat <= 0.80:
                         swing_offset_beats = ((config.hihat_swing_pct - 50.0) / 100.0) * 0.25
                         start_t += swing_offset_beats
+                    # 8th-note offbeats (e.g. 0.50) in classic Funk, French Pump, MPC 60, Boom Bap
+                    elif 0.45 <= pos_in_beat <= 0.55:
+                        swing_offset_beats = ((config.hihat_swing_pct - 50.0) / 100.0) * 0.35
+                        start_t += swing_offset_beats
 
-            # 4. Velocity jitter
-            if config.humanize_velocity_jitter > 0:
+            # 4. Strict Acoustic Tesitura Clamping for Brass/Trumpets (G3 to C6, MIDI 55-84)
+            if any(k in r_up for k in ("BRASS", "TRUMPET", "HORN")):
+                while pitch < 55:
+                    pitch += 12
+                while pitch > 84:
+                    pitch -= 12
+
+            # 5. Velocity jitter
+            jitter_amount = getattr(config, "humanize_velocity_jitter", 0)
+            if jitter_amount > 0:
                 import random
-                jitter = int(random.gauss(0, config.humanize_velocity_jitter))
+                jitter = int(random.gauss(0, jitter_amount))
                 vel = max(1, min(127, vel + jitter))
 
+            n_copy["pitch"] = pitch
             n_copy["start_time"] = round(max(0.0, start_t), 4)
             n_copy["velocity"] = vel
             processed.append(n_copy)

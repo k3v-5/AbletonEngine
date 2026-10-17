@@ -23,6 +23,8 @@ class ArchetypeCatalog:
     """
 
     DEFAULT_CATALOG_PATHS = [
+        Path(__file__).resolve().parent.parent.parent / "Vital presets",
+        Path(r"F:\Dev\AbletonEngine\Vital presets"),
         Path("presets/vital"),
         Path("presets/vital/kshmr"),
         Path("engine/sound/vital"),

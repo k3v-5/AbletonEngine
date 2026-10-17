@@ -233,6 +233,22 @@ class ResonanceDetector:
             "has_ringing": len(top_ringing) > 0
         }
 
+    KEY_MUD_FREQ_MAP = {
+        "C": 261.6, "C#": 277.2, "DB": 277.2,
+        "D": 293.7, "D#": 311.1, "EB": 311.1,
+        "E": 329.6, "F": 349.2, "F#": 370.0, "GB": 370.0,
+        "G": 392.0, "G#": 415.3, "AB": 415.3,
+        "A": 440.0, "A#": 466.2, "BB": 466.2, "B": 493.9
+    }
+
+    @classmethod
+    def resolve_key_mud_frequency(cls, key: Optional[str] = None, default_freq: float = 350.0) -> float:
+        """Resolves the fundamental low-mid mud-box frequency (250-500 Hz) for a given musical key."""
+        if not key:
+            return default_freq
+        clean_k = str(key).strip().upper().split()[0]
+        return cls.KEY_MUD_FREQ_MAP.get(clean_k, default_freq)
+
     @classmethod
     def clean_low_mid_resonances(
         cls,
@@ -240,18 +256,22 @@ class ResonanceDetector:
         tracks: List[Dict[str, Any]],
         audio_data: Optional[np.ndarray] = None,
         sr: int = 44100,
-        target_center_freq: float = 441.4,
-        cut_db: float = -3.5,
-        q: float = 12.0,
-        master_track_index: Optional[int] = None
+        target_center_freq: Optional[float] = None,
+        cut_db: float = -2.5,
+        q: float = 6.0,
+        master_track_index: Optional[int] = None,
+        key: Optional[str] = None,
+        respect_sovereign_eq: bool = True
     ) -> Dict[str, Any]:
         """
         Post-vocal surgical resonance cleaning:
-        Targets the low-mid 'Mud Box' (200 Hz - 500 Hz), specifically eradicating
-        the narrow 441.4 Hz boxy resonance on harmonic instrument tracks (Keys, Pad, Brass)
-        and configuring Band 3 notch/bell cut on the Master EQ Eight.
+        Targets the low-mid 'Mud Box' (200 Hz - 500 Hz) dynamically based on audio FFT
+        or key fundamental, while respecting sovereign EQ Eight chains configured in Phase 5.
         """
         import math
+
+        if target_center_freq is None:
+            target_center_freq = cls.resolve_key_mud_frequency(key, default_freq=350.0)
 
         F_MIN = 10.0
         F_MAX = 22000.0
@@ -279,6 +299,9 @@ class ResonanceDetector:
                 t_idx = trk.get("index")
                 if t_idx is not None:
                     applied_tracks.append({"index": t_idx, "name": trk.get("name", f"Track {t_idx}"), "role": r})
+                    if respect_sovereign_eq and trk.get("custom_fx_chain_applied"):
+                        actions.append(f"EQ soberano preservado en '{trk.get('name')}' (sin sobreescribir Band 3)")
+                        continue
                     if conn is not None and hasattr(conn, "send_command"):
                         try:
                             t_info = conn.send_command("get_track_info", {"track_index": t_idx})

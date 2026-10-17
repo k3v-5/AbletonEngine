@@ -131,30 +131,78 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             "name": "Delay",
             "uri": "query:AudioFx#Delay",
             "params": [
-                {"id": "Dry/Wet", "name": "Dry/Wet (Mezcla de Delay)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de eco rítmico frente a la señal directa.", "default": 0.25},
+                {"id": "Dry/Wet", "name": "Dry/Wet (Mezcla de Delay)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Balance de eco rítmico frente a la señal directa.", "default": 0.22},
                 {"id": "Feedback", "name": "Feedback (Repeticiones)", "range": "0.0 a 1.0 (0% a 95%)", "behavior": "Cantidad de repeticiones en el tiempo; valores altos extienden la cola melódica.", "default": 0.30},
                 {"id": "Sync", "name": "Sincronización Rítmica", "range": "0.0 (Tiempo ms) o 1.0 (Sincronizado a compás)", "behavior": "Sincroniza las repeticiones a subdivisiones métricas del tempo.", "default": 1.0}
             ]
         },
         {
-            "name": "OTT",
-            "uri": "query:Plugins#VST3:Xfer%20Records:OTT",
+            "name": "Glue Compressor",
+            "uri": "query:AudioFx#Glue%20Compressor",
             "params": [
-                {"id": "Depth", "name": "Depth (Profundidad Multibanda)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Cantidad de compresión ascendente/descendente sobre las tres bandas espectrales.", "default": 0.25},
-                {"id": "Time", "name": "Time (Velocidad dinámica)", "range": "0.0 a 1.0 (10% a 1000%)", "behavior": "Escala de constantes de tiempo de ataque y relajación de la compresión.", "default": 0.50},
-                {"id": "Upwd Strgth", "name": "Upward Strength (Dinámica Ascendente)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Compresión ascendente que levanta detalles y armónicos débiles bajo el umbral.", "default": 1.0},
-                {"id": "Dnwd Strgth", "name": "Downward Strength (Dinámica Descendente)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Compresión descendente estándar para aplastar picos transientes.", "default": 1.0},
-                {"id": "In Gain", "name": "Input Gain (Ganancia de Entrada)", "range": "-24 dB a +24 dB", "behavior": "Calibración del nivel de entrada para forzar el umbral multibanda.", "default": 0.50},
-                {"id": "Out Gain", "name": "Output Gain (Ganancia de Salida)", "range": "-24 dB a +24 dB", "behavior": "Compensación de volumen limpio post-compresión.", "default": 0.50}
+                {"id": "Threshold", "name": "Threshold (Umbral)", "range": "-40.0 dB a 0.0 dB", "behavior": "Control dinámico suave para asentar el lead en la mezcla.", "default": -14.0},
+                {"id": "Ratio", "name": "Ratio", "range": "1.0 (2:1) o 2.0 (4:1)", "behavior": "Proporción de compresión.", "default": 1.0},
+                {"id": "Attack", "name": "Attack", "range": "0.0 a 1.0", "behavior": "Ataque medio para preservar articulación.", "default": 0.50},
+                {"id": "Release", "name": "Release", "range": "0.0 a 1.0", "behavior": "Recuperación orgánica.", "default": 0.35},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance de compresión.", "default": 0.80}
+            ]
+        }
+    ],
+    "SYNTH": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Filtro pasa-altos en 120-150 Hz para despejar el subgrave.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia de Corte Synth", "range": "0.0 a 1.0 (80 Hz a 300 Hz)", "behavior": "Corte de graves para proteger el 808 y bombo.", "default": 0.32},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Control de Medios)", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Limpieza en 350-450 Hz.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia de Limpieza", "range": "0.0 a 1.0", "behavior": "Claridad espectral.", "default": 0.44}
             ]
         },
         {
-            "name": "Pro-DS",
-            "uri": "query:Plugins#VST3:FabFilter:Pro-DS",
+            "name": "Chorus-Ensemble",
+            "uri": "query:AudioFx#Chorus-Ensemble",
             "params": [
-                {"id": "Threshold", "name": "Threshold (Umbral de Detección)", "range": "-60 dB a 0 dB", "behavior": "Umbral de activación para sibilancias y asperezas agudas del sintetizador.", "default": -20.0},
-                {"id": "Range", "name": "Range (Atenuación Máxima)", "range": "-40 dB a 0 dB", "behavior": "Reducción de ganancia máxima en la banda de aspereza (5-9 kHz).", "default": -6.0},
-                {"id": "HP Frequency", "name": "HP Frequency (Banda de Detección)", "range": "2 kHz a 20 kHz", "behavior": "Filtro pasa-altos del detector para aislar asperezas.", "default": 0.55}
+                {"id": "Amount", "name": "Amount (Profundidad)", "range": "0.0 a 1.0", "behavior": "Dimensión estéreo analógica.", "default": 0.35},
+                {"id": "Rate", "name": "Rate (Velocidad)", "range": "0.0 a 1.0", "behavior": "Movimiento lento del LFO.", "default": 0.22}
+            ]
+        },
+        {
+            "name": "Delay",
+            "uri": "query:AudioFx#Delay",
+            "params": [
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Espacio rítmico.", "default": 0.20},
+                {"id": "Feedback", "name": "Feedback", "range": "0.0 a 1.0", "behavior": "Cola de repeticiones.", "default": 0.28}
+            ]
+        }
+    ],
+    "PIANO": [
+        {
+            "name": "EQ Eight",
+            "uri": "query:AudioFx#EQ%20Eight",
+            "params": [
+                {"id": "Band 1 On", "name": "Banda 1 High-Pass", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Filtro pasa-altos en 100-125 Hz para liberar el subgrave.", "default": 1.0},
+                {"id": "1 Frequency A", "name": "Frecuencia de Corte Graves", "range": "0.0 a 1.0", "behavior": "Limpia resonancia de tabla armónica inferior.", "default": 0.28},
+                {"id": "Band 2 On", "name": "Banda 2 Bell (Mud Cut)", "range": "0.0 (Off) o 1.0 (On)", "behavior": "Atenuación suave en 320-400 Hz.", "default": 1.0},
+                {"id": "2 Frequency A", "name": "Frecuencia de Limpieza Barro", "range": "0.0 a 1.0", "behavior": "Claridad de acordes.", "default": 0.42}
+            ]
+        },
+        {
+            "name": "Glue Compressor",
+            "uri": "query:AudioFx#Glue%20Compressor",
+            "params": [
+                {"id": "Threshold", "name": "Threshold", "range": "-40.0 dB a 0.0 dB", "behavior": "Control dinámico transparente para martillos de piano.", "default": -14.0},
+                {"id": "Ratio", "name": "Ratio", "range": "1.0 (2:1) o 2.0 (4:1)", "behavior": "Compresión suave.", "default": 1.0},
+                {"id": "Attack", "name": "Attack", "range": "0.0 a 1.0", "behavior": "Ataque lento para respetar el golpe acústico.", "default": 0.65},
+                {"id": "Release", "name": "Release", "range": "0.0 a 1.0", "behavior": "Relajación natural.", "default": 0.30}
+            ]
+        },
+        {
+            "name": "ValhallaVintageVerb",
+            "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
+            "params": [
+                {"id": "Mix", "name": "Mix", "range": "0.0 a 1.0", "behavior": "Espacio acústico de sala.", "default": 0.16},
+                {"id": "Decay", "name": "Decay", "range": "0.0 a 1.0", "behavior": "Cola natural de cuarto.", "default": 0.22}
             ]
         }
     ],
@@ -255,36 +303,19 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             ]
         },
         {
+            "name": "Chorus-Ensemble",
+            "uri": "query:AudioFx#Chorus-Ensemble",
+            "params": [
+                {"id": "Amount", "name": "Amount (Profundidad Estéreo)", "range": "0.0 a 1.0", "behavior": "Ensanchamiento y movimiento orgánico del pad.", "default": 0.35},
+                {"id": "Rate", "name": "Rate (Velocidad LFO)", "range": "0.0 a 1.0", "behavior": "Modulación lenta y sedosa.", "default": 0.20}
+            ]
+        },
+        {
             "name": "ValhallaVintageVerb",
             "uri": "query:Plugins#VST3:Valhalla%20DSP:ValhallaVintageVerb",
             "params": [
-                {"id": "Mix", "name": "Mix (Ambiente estéreo)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Profundidad ambiental para texturas de fondo.", "default": 0.30},
+                {"id": "Mix", "name": "Mix (Ambiente estéreo)", "range": "0.0 a 1.0 (0% a 100%)", "behavior": "Profundidad ambiental para texturas de fondo.", "default": 0.28},
                 {"id": "Decay", "name": "Decay (Sostenimiento largo)", "range": "0.0 a 1.0 (0.2 s a 70 s)", "behavior": "Cola extendida para colchón armónico.", "default": 0.35}
-            ]
-        },
-        {
-            "name": "Tape MELLO-FI",
-            "uri": "query:Plugins#VST3:Arturia:Tape%20MELLO-FI",
-            "params": [
-                {"id": "Wow", "name": "Wow (Fluctuación Lenta)", "range": "0.0 a 1.0", "behavior": "Deriva lenta de pitch para atmósfera vintage bedroom/lo-fi.", "default": 0.28},
-                {"id": "Flutter", "name": "Flutter (Fluctuación Rápida)", "range": "0.0 a 1.0", "behavior": "Vibración rápida de tono de cabezal analógico.", "default": 0.18},
-                {"id": "Drive", "name": "Drive (Saturación de Cinta)", "range": "0.0 a 1.0", "behavior": "Calidez analógica saturada que suaviza transientes digitales.", "default": 0.35}
-            ]
-        },
-        {
-            "name": "Redux",
-            "uri": "query:AudioFx#Redux",
-            "params": [
-                {"id": "Bit Depth", "name": "Bit Depth (Resolución)", "range": "1 a 16 bits", "behavior": "Degradación digital vintage para estética lo-fi / bedroom pop.", "default": 12.0},
-                {"id": "Downsample", "name": "Downsample (Frecuencia de Muestreo)", "range": "1.0 a 32.0", "behavior": "Aliasing musical para añadir textura y aspereza orgánica.", "default": 2.0}
-            ]
-        },
-        {
-            "name": "Vinyl Distortion",
-            "uri": "query:AudioFx#Vinyl%20Distortion",
-            "params": [
-                {"id": "Crackle Density", "name": "Crackle Density (Fritura de Vinilo)", "range": "0.0 a 1.0", "behavior": "Polvo y crujido de disco de vinilo a -24 dBFS.", "default": 0.20},
-                {"id": "Crackle Volume", "name": "Crackle Volume", "range": "0.0 a 1.0", "behavior": "Nivel de ruido atmosférico de fondo.", "default": 0.15}
             ]
         }
     ],

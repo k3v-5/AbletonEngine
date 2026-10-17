@@ -844,21 +844,32 @@ class DedicatedPluginConfigurator:
         vital_engine = VitalSoundEngine()
         ai_text = str(ai_input or "").lower()
 
-        # Deep semantic extraction of the AI's sound design intent
-        v_role, directives = cls._extract_vital_sound_design(ai_text, role, trk.get("name", ""))
-        is_bass = directives.get("is_bass", False)
+        # Check if a custom modeled preset was already created during Phase 0-B (VitalModelingSession)
+        existing_modeled_path = trk.get("preset_path") or trk.get("vital_preset_path")
+        if existing_modeled_path and Path(existing_modeled_path).exists():
+            preset_path = Path(existing_modeled_path)
+            patch_name = trk.get("preset_name") or preset_path.stem
+            v_role = role
+            directives = {}
+            is_bass = any(k in role.upper() for k in ("BASS", "808", "SUB"))
+            presets_dir = preset_path.parent
+            logger.info(f"Preserving Phase 0-B modeled Vital preset for track '{trk.get('name')}': {preset_path}")
+        else:
+            # Deep semantic extraction of the AI's sound design intent
+            v_role, directives = cls._extract_vital_sound_design(ai_text, role, trk.get("name", ""))
+            is_bass = directives.get("is_bass", False)
 
-        patch_name = f"Vital_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
+            patch_name = f"Vital_{role}_{trk.get('name', 'Track').replace(' ', '_')}"
 
-        # VitalSoundEngine compiles preset while enforcing anti-silence and anti-corruption invariants
-        presets_dir = Path("Presets")
-        presets_dir.mkdir(parents=True, exist_ok=True)
-        preset_path = vital_engine.create_preset(
-            preset_name=patch_name,
-            role=v_role,
-            directives=directives,
-            output_dir=presets_dir
-        )
+            # VitalSoundEngine compiles preset while enforcing anti-silence and anti-corruption invariants
+            presets_dir = Path("Presets")
+            presets_dir.mkdir(parents=True, exist_ok=True)
+            preset_path = vital_engine.create_preset(
+                preset_name=patch_name,
+                role=v_role,
+                directives=directives,
+                output_dir=presets_dir
+            )
 
         # Update or create Presets/presets_manifest.json
         manifest_path = presets_dir / "presets_manifest.json"
@@ -919,8 +930,8 @@ class DedicatedPluginConfigurator:
             "ARCHETYPE": v_role
         }
 
-        # Dispatch basic macro controls to Live if device is present
-        if conn is not None and hasattr(conn, "send_command"):
+        # Dispatch basic macro controls to Live if device is present (only when not using custom modeled preset)
+        if not existing_modeled_path and conn is not None and hasattr(conn, "send_command"):
             dev_idx = cls._find_device_index(conn, t_idx, ["vital"])
             if dev_idx is not None:
                 code_vital = f"""

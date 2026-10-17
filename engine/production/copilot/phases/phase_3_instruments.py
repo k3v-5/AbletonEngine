@@ -29,11 +29,10 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         ptr = session.data.get("current_track_ptr", 0)
     
         if ptr >= len(tracks):
-            session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+            session.data["current_phase"] = "PHASE_6_COMPOSITION"
             session.data["phase_index"] = 4
-            session.data["current_param_ptr"] = 0
             session._save_state()
-            return session._prompt_current_track_params()
+            return session._prompt_phase_6()
     
         trk = tracks[ptr]
         t_idx = trk["index"]
@@ -60,10 +59,10 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
             options_block = "\n".join(opts_text)
     
             return {
-                "current_step": f"PASO 3 DE 7: CONFIGURACIÓN DE PISTA DE EFECTO DE AUDIO (PISTA {ptr + 1} DE {len(tracks)})",
+                "current_step": f"PASO 3 DE 9: CONFIGURACIÓN DE PISTA DE EFECTO DE AUDIO (PISTA {ptr + 1} DE {len(tracks)})",
                 "action_taken": f"Configurando bus de efecto de audio Pista {t_idx}: {t_name} ({role}).",
                 "question": (
-                    f"🎛️ **Paso 3 de 7: Efecto de Audio y Ruteo de Entrada para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                    f"🎛️ **Paso 3 de 9: Efecto de Audio y Ruteo de Entrada para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
                     f"Esta pista funcionará como **canal de efecto de audio / bus de retorno** en Ableton Live.\n\n"
                     f"**Efectos de Audio Disponibles:**\n"
                     f"{options_block}\n\n"
@@ -94,10 +93,10 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
     
             options_block = "\n".join(opts_text)
             return {
-                "current_step": f"PASO 3 DE 7: ASIGNACIÓN DE MODO VOCAL (PISTA {ptr + 1} DE {len(tracks)})",
+                "current_step": f"PASO 3 DE 9: ASIGNACIÓN DE MODO VOCAL (PISTA {ptr + 1} DE {len(tracks)})",
                 "action_taken": f"Configurando canal vocal Pista {t_idx}: {t_name} ({role}).",
                 "question": (
-                    f"🎙️ **Paso 3 de 7: Configuración de Voz / Grabación para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                    f"🎙️ **Paso 3 de 9: Configuración de Voz / Grabación para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
                     f"¿Cómo deseas producir la voz en esta pista?\n\n"
                     f"{options_block}\n\n"
                     f"• *Responde 'Opción 1' o 'Grabar voz' para armar la pista para tu micrófono y trocear la grabación.*\n"
@@ -123,10 +122,10 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
     
             sub_block = "\n".join(sub_opts_text)
             return {
-                "current_step": f"PASO 3 DE 7: SUB-SELECCIÓN DE PRESETS ({pending_plugin}) (PISTA {ptr + 1} DE {len(tracks)})",
+                "current_step": f"PASO 3 DE 9: SUB-SELECCIÓN DE PRESETS ({pending_plugin}) (PISTA {ptr + 1} DE {len(tracks)})",
                 "action_taken": f"Seleccionando preset o versión limpia de {pending_plugin} para Pista {t_idx}: {t_name} ({role}).",
                 "question": (
-                    f"🎹 **Paso 3 de 7 (Sub-nivel): Presets de {pending_plugin} para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                    f"🎹 **Paso 3 de 9 (Sub-nivel): Presets de {pending_plugin} para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
                     f"Has seleccionado **{pending_plugin}**. Elige un preset específico de tu librería o la opción limpia/default:\n\n"
                     f"{sub_block}\n\n"
                     f"• *Responde con el número de opción o nombre del preset (ej: 'Opción 1', 'Opción {len(sub_options)}').*\n"
@@ -190,10 +189,10 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         options_block = "\n".join(opts_text)
     
         return {
-            "current_step": f"PASO 3 DE 7: CARGA DE INSTRUMENTO / KIT (PISTA {ptr + 1} DE {len(tracks)})",
+            "current_step": f"PASO 3 DE 9: CARGA DE INSTRUMENTO / KIT (PISTA {ptr + 1} DE {len(tracks)})",
             "action_taken": f"Seleccionando fuente sonora física para Pista {t_idx}: {t_name} ({role}).",
             "question": (
-                f"🎹 **Paso 3 de 7: Instrumento / Kit para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                f"🎹 **Paso 3 de 9: Instrumento / Kit para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
                 f"¿Qué generador sonoro o kit deseas cargar en esta pista?\n\n"
                 f"*Instrumentos y plugins verificados (prioridad a sintetizadores de terceros, nativos al final):*\n"
                 f"{options_block}\n\n"
@@ -217,14 +216,13 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         ptr = session.data.get("current_track_ptr", 0)
     
         if ptr >= len(tracks):
-            session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+            session.data["current_phase"] = "PHASE_6_COMPOSITION"
             session.data["phase_index"] = 4
-            session.data["current_param_ptr"] = 0
             session._save_state()
-            return session._prompt_current_track_params()
+            return session._prompt_phase_6()
     
         trk = tracks[ptr]
-        t_idx = session._resolve_live_track_index(conn, trk)
+        t_idx = session._resolve_live_track_index(conn, trk) if hasattr(session, "_resolve_live_track_index") else ptr
         role = trk["role"]
         t_name = trk.get("name", "")
         u_clean = _normalize_text(user_input)
@@ -359,14 +357,13 @@ else:
             if session.data["current_track_ptr"] < len(tracks):
                 return session._prompt_current_track_instrument()
             else:
-                session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+                session.data["current_phase"] = "PHASE_6_COMPOSITION"
                 session.data["phase_index"] = 4
-                session.data["current_param_ptr"] = 0
                 session._save_state()
-                return session._prompt_current_track_params()
+                return session._prompt_phase_6()
     
         # Audio Track / Vocal Take Loading Branch
-        if is_audio and role == "VOCALS":
+        if is_audio and role == "VOCALS" and not wants_chopping and "simpler" not in u_clean:
             p_samples = get_personal_samples("vocal")
             v_samples = [s for s in p_samples if "vocal" in str(s.get("folder", "")).lower() or "vocales" in str(s.get("folder", "")).lower() or any(k in str(s.get("name", "")).lower() for k in ["duki", "vocal", "vox", "kanye", "bts"])]
     
@@ -484,11 +481,10 @@ for slot in t.clip_slots:
                     BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
                 except Exception as ex_bus_route:
                     logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
-                session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+                session.data["current_phase"] = "PHASE_6_COMPOSITION"
                 session.data["phase_index"] = 4
-                session.data["current_param_ptr"] = 0
                 session._save_state()
-                return session._prompt_current_track_params()
+                return session._prompt_phase_6()
     
         is_chopping = False
         chosen_sample = None
@@ -532,8 +528,26 @@ for slot in t.clip_slots:
                             break
     
             if not selected_sub_opt:
-                selected_sub_opt = sub_options[-1] if sub_options else None
-    
+                # Prohibit silent fallback of presets!
+                avail_sub_lines = [f"• `{getattr(s, 'name', str(s))}`" for s in sub_options]
+                avail_sub_str = "\n".join(avail_sub_lines) if avail_sub_lines else "No hay presets registrados para este plugin."
+                return {
+                    "status": "ERROR",
+                    "error_code": "PRESET_LOAD_FAILED",
+                    "current_step": f"PASO 3 DE 7: ERROR - PRESET NO ENCONTRADO EN {pending_plugin.upper()}",
+                    "action_taken": f"FALLO: No se encontró el preset '{user_input}' en '{pending_plugin}'. Se prohíbe el reemplazo silencioso.",
+                    "question": (
+                        f"❌ **Error: El preset '{user_input}' no existe en la biblioteca de '{pending_plugin}' para la Pista {t_idx} ({trk['name']})**\n\n"
+                        f"Queda prohibido el fallback silencioso de instrumentos y presets. Opciones disponibles en tu biblioteca para `{pending_plugin}`:\n"
+                        f"{avail_sub_str}\n\n"
+                        f"Por favor, selecciona una de las opciones disponibles o escribe 'volver' para cambiar de instrumento."
+                    ),
+                    "instructions_for_ai": "Selecciona uno de los presets disponibles en la biblioteca o escribe 'volver'.",
+                    "retry_required": True,
+                    "phase": "PHASE_3_INSTRUMENTS",
+                    "available_catalog": [s.to_dict() if hasattr(s, "to_dict") else str(s) for s in sub_options]
+                }
+
             trk.pop("pending_plugin_subselection", None)
             target_uri = selected_sub_opt.uri if selected_sub_opt else f"query:Plugins#VST3:{pending_plugin.replace(' ', '%20')}"
             display_name = selected_sub_opt.name if selected_sub_opt else pending_plugin
@@ -585,11 +599,10 @@ if rack and getattr(rack, 'can_have_chains', False):
                     BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
                 except Exception as ex_bus_route:
                     logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
-                session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+                session.data["current_phase"] = "PHASE_6_COMPOSITION"
                 session.data["phase_index"] = 4
-                session.data["current_param_ptr"] = 0
                 session._save_state()
-                return session._prompt_current_track_params()
+                return session._prompt_phase_6()
 
         # Dynamic Drum Kit Lookup across all 159 Live kits (strictly restricted to DRUMS / PERCUSSION roles)
         drum_match = None
@@ -597,6 +610,26 @@ if rack and getattr(rack, 'can_have_chains', False):
             drum_match = LiveBrowserCatalogEngine.find_drum_kit_uri(user_input)
             if drum_match:
                 target_uri, display_name = drum_match
+
+        native_fallbacks = {
+            "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
+            "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
+            "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
+            "PIANO": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
+            "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
+            "SUB": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
+            "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
+            "KICK": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
+            "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "SYNTH": ("query:Synths#Drift:FileId_65890", "Drift Classic Lead (.adv)"),
+            "COUNTER_LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "ARPS": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
+            "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
+            "BRASS": ("query:Sounds#Brass:FileId_4610", "Brass Ensemble (.adg)"),
+            "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
+            "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
+        }
 
         if not locals().get("target_uri"):
             options = LiveBrowserCatalogEngine.get_available_sources_for_role(lookup_role, filter_installed=True)
@@ -607,7 +640,7 @@ if rack and getattr(rack, 'can_have_chains', False):
             # Detect Chopping Mode request (Autonomous Synthesis & Transformation)
             is_chopping = False
             chop_idx = (min(7, len(options)) if options else 2) + 1
-            if any(w in u_clean for w in ["chopping", "chop", "cortar", "rebanar", "autonomo", "autónomo"]) or u_clean == str(chop_idx) or f"opcion {chop_idx}" in u_clean or f"opción {chop_idx}" in u_clean:
+            if any(w in u_clean for w in ["chopping", "chop", "cortar", "rebanar", "autonomo", "autónomo", "simpler"]) or u_clean == str(chop_idx) or f"opcion {chop_idx}" in u_clean or f"opción {chop_idx}" in u_clean:
                 is_chopping = True
 
             if is_chopping:
@@ -636,33 +669,26 @@ if rack and getattr(rack, 'can_have_chains', False):
                 target_uri = "query:Synths#Simpler"
                 display_name = f"Simpler (Chopping Autónomo: {role})"
                 trk["chopping_mode"] = True
+                trk["is_audio"] = False
                 trk["sample_path"] = gen_path
                 trk["sample_name"] = f"Genesis_Chop_{role}"
                 trk["slice_mode"] = "Slicing"
             else:
                 if "nativo" in u_clean or "preset nativo" in u_clean or "seguro" in u_clean or "core library" in u_clean:
-                    for opt in options:
-                        if "native" in opt.id.lower() or "native" in str(getattr(opt, "category", "")).lower():
-                            selected_opt = opt
-                            break
-                    if not selected_opt:
-                        native_fallbacks = {
-                            "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
-                            "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
-                            "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
-                            "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
-                            "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
-                            "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-                            "COUNTER_LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-                            "ARPS": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-                            "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
-                            "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
-                            "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
-                            "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
-                        }
-                        fb_uri, fb_name = native_fallbacks.get(lookup_role, native_fallbacks.get(role, ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)")))
+                    # Prefer role-specific native fallback so distinct roles get authentic acoustic/synth timbres
+                    if lookup_role in native_fallbacks or role in native_fallbacks:
+                        fb_uri, fb_name = native_fallbacks.get(lookup_role, native_fallbacks.get(role))
                         target_uri = fb_uri
                         display_name = fb_name
+                    else:
+                        for opt in options:
+                            if "native" in opt.id.lower() or "native" in str(getattr(opt, "category", "")).lower():
+                                selected_opt = opt
+                                break
+                        if not selected_opt:
+                            fb_uri, fb_name = native_fallbacks.get("PAD")
+                            target_uri = fb_uri
+                            display_name = fb_name
     
                 if not selected_opt and not locals().get("target_uri"):
                     # 1. Direct number/option index match (e.g. "opcion 1", "1", "opcion 2")
@@ -699,22 +725,31 @@ if rack and getattr(rack, 'can_have_chains', False):
                                 selected_opt = opt
                                 break
                     if not selected_opt:
-                        native_opts = [o for o in options if "native" in o.id.lower() or "native" in str(getattr(o, "category", "")).lower()]
-                        selected_opt = native_opts[0] if native_opts else (options[0] if options else None)
+                        # Instrument or preset not found in library! Silent fallback is strictly prohibited.
+                        avail_sources = options or []
+                        return self._build_instrument_failed_error(
+                            track_name=trk['name'],
+                            track_index=t_idx,
+                            instrument_name=user_input,
+                            role=role,
+                            load_error=f"El instrumento o preset '{user_input}' no fue encontrado en la biblioteca.",
+                            available_sources=avail_sources
+                        )
     
                 # Check if user selected Analog Lab V, Omnisphere, Decent Sampler or Surge XT (Multi-preset parent plugin)
                 opt_name_low = selected_opt.name.lower() if selected_opt else ""
-                is_analog_lab = "analog lab" in opt_name_low or "analog lab" in u_clean
-                is_omnisphere = "omnisphere" in opt_name_low or "omnisphere" in u_clean
-                is_decent_parent = ("decent sampler" in opt_name_low or "decent sampler" in u_clean or u_clean == "decent") and not ("(" in opt_name_low and ")" in opt_name_low)
-                is_surge_parent = ("surge" in opt_name_low or "surge" in u_clean) and "effects" not in opt_name_low and "effects" not in u_clean and not ("(" in opt_name_low and ")" in opt_name_low)
+                has_explicit_preset_in_input = ("(" in user_input and ")" in user_input) or (":" in user_input)
+                is_analog_lab = ("analog lab" in opt_name_low or "analog lab" in u_clean) and not has_explicit_preset_in_input
+                is_omnisphere = ("omnisphere" in opt_name_low or "omnisphere" in u_clean) and not has_explicit_preset_in_input
+                is_decent_parent = ("decent sampler" in opt_name_low or "decent sampler" in u_clean or u_clean == "decent") and not ("(" in opt_name_low and ")" in opt_name_low) and not has_explicit_preset_in_input
+                is_surge_parent = ("surge" in opt_name_low or "surge" in u_clean) and "effects" not in opt_name_low and "effects" not in u_clean and not ("(" in opt_name_low and ")" in opt_name_low) and not has_explicit_preset_in_input
     
                 if is_analog_lab or is_omnisphere or is_decent_parent or is_surge_parent:
                     plug_label = "Analog Lab V" if is_analog_lab else ("Omnisphere" if is_omnisphere else ("Decent Sampler" if is_decent_parent else "Surge XT"))
+                    sub_opts = LiveBrowserCatalogEngine.get_plugin_presets_for_role(plug_label, role)
                     clean_keywords = ["default", "limpio", "clean", "crudo", "vst base", "plugin limpio", "sin preset"]
-                    if any(w in u_clean for w in clean_keywords):
-                        # User explicitly asked for clean default directly in Level 1 prompt
-                        sub_opts = LiveBrowserCatalogEngine.get_plugin_presets_for_role(plug_label, role)
+                    if any(w in u_clean for w in clean_keywords) or len(sub_opts) <= 1:
+                        # User asked for clean default or no custom .adg racks exist for this role
                         clean_opt = sub_opts[-1] if sub_opts else None
                         if clean_opt:
                             target_uri = clean_opt.uri
@@ -737,17 +772,47 @@ if rack and getattr(rack, 'can_have_chains', False):
                         return session._prompt_current_track_instrument()
     
                 if not locals().get("target_uri"):
-                    target_uri = selected_opt.uri if selected_opt else (
-                        "query:Drums#FileId_5422" if role == "DRUMS" else "query:Sounds#Piano%20&%20Keys:FileId_4867"
-                    )
-                    display_name = selected_opt.name if selected_opt else f"{role} Instrument"
+                    if not selected_opt:
+                        avail_sources = options or []
+                        return self._build_instrument_failed_error(
+                            track_name=trk['name'],
+                            track_index=t_idx,
+                            instrument_name=user_input,
+                            role=role,
+                            load_error=f"No se pudo resolver el instrumento para la pista {trk['name']}.",
+                            available_sources=avail_sources
+                        )
+                    target_uri = selected_opt.uri
+                    display_name = selected_opt.name
                     if selected_opt and getattr(selected_opt, "blueprint", None):
                         trk["blueprint"] = selected_opt.blueprint
+
+        # Timbral Diversity & Role Coherence Harness:
+        # Prevent generic lead synths (e.g. 'Drift Classic Lead') from cloning across incompatible roles (KEYS, BASS, STRINGS, GUITAR)
+        if locals().get("display_name") and not is_audio and not is_fx_audio:
+            disp_low = str(display_name).lower()
+            prev_same_inst = [
+                t for t in tracks[:ptr]
+                if str(t.get("instrument", "")).lower() == disp_low
+            ]
+            is_generic_lead_on_non_lead = (
+                ("drift classic lead" in disp_low or "agenda lead" in disp_low)
+                and role.upper() not in ("LEAD", "SYNTH", "COUNTER_LEAD", "ARPS")
+            )
+            if is_generic_lead_on_non_lead or (len(prev_same_inst) >= 1 and any(t.get("role") != role for t in prev_same_inst) and ("drift classic lead" in disp_low or "agenda lead" in disp_low)):
+                if role.upper() in native_fallbacks:
+                    fb_uri, fb_name = native_fallbacks[role.upper()]
+                    logger.info(
+                        f"[TimbralCoherenceHarness] Preventing generic duplicate '{display_name}' on Track {t_idx} "
+                        f"('{t_name}', Role: {role}) -> assigning role-authentic '{fb_name}'."
+                    )
+                    target_uri = fb_uri
+                    display_name = fb_name
     
         is_verified = False
         load_error = None
 
-        if trk.get("is_audio") or role == "VOCALS":
+        if trk.get("is_audio") and not trk.get("chopping_mode"):
             logger.info(f"Track {t_idx} is an audio track ({role}). Bypassing instrument loader to prevent Live track spawning.")
             if conn is not None and hasattr(conn, "send_command"):
                 try:
@@ -760,7 +825,7 @@ if rack and getattr(rack, 'can_have_chains', False):
             target_uri = "query:AudioFx#EQ%20Eight"
             dev_idx = 0
 
-        if conn is not None and hasattr(conn, "send_command") and not trk.get("is_audio") and role != "VOCALS":
+        if conn is not None and hasattr(conn, "send_command") and not (trk.get("is_audio") and not trk.get("chopping_mode")):
             try:
                 try:
                     res = conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": target_uri})
@@ -794,33 +859,10 @@ if rack and getattr(rack, 'can_have_chains', False):
                     except Exception as vst_ex:
                         logger.warning(f"Clean VST fallback exception: {vst_ex}")
 
-                # Autonomous Native Fallback if third-party VST failed to load in Live
+                # Silent fallback prohibited: if instrument failed to load, report failure and list library options
                 if not is_verified:
-                    logger.warning(f"Instrument '{display_name}' ({target_uri}) failed physical verification on Track {t_idx}. Initiating native fallback...")
-                    native_fallbacks = {
-                        "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
-                        "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
-                        "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
-                        "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
-                        "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
-                        "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-                        "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
-                        "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
-                        "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
-                        "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
-                    }
-                    fb_uri, fb_name = native_fallbacks.get(lookup_role, native_fallbacks.get(role, ("query:Synths#Simpler", "Ableton Simpler")))
-                    try:
-                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": fb_uri})
-                        fb_verified, fb_idx, fb_dev = RoleTrackOrchestrator.verify_instrument_loaded(conn, t_idx, fb_name)
-                        if fb_verified:
-                            is_verified = True
-                            display_name = fb_name
-                            target_uri = fb_uri
-                            dev_idx = fb_idx
-                            logger.info(f"Track {t_idx} recovered with native fallback '{fb_name}'.")
-                    except Exception as fb_e:
-                        logger.error(f"Native recovery attempt error: {fb_e}")
+                    logger.error(f"Instrument '{display_name}' ({target_uri}) failed physical verification on Track {t_idx}. Prohibiting silent fallback.")
+                    load_error = f"No se pudo cargar ni verificar el instrumento '{display_name}'. Se prohíbe el reemplazo silencioso no autorizado."
     
                 if role == "DRUMS" and is_verified and dev_idx is not None:
                     try:
@@ -918,9 +960,20 @@ for p in d.parameters:
                         logger.warning(f"Notice on autogenous foley generation in Phase 3: {f_err}")
 
                 if is_verified:
+                    if not trk.get("original_name"):
+                        trk["original_name"] = t_name
+                    sovereign_clean = re.sub(r"^\[[A-Za-z0-9_]+\]\s*", "", str(t_name)).strip()
+                    is_generic_role_name = (
+                        not sovereign_clean
+                        or sovereign_clean.upper() == str(role).upper()
+                        or sovereign_clean.lower() in ("track", "pista", "midi", "audio")
+                    )
                     if is_chopping and chosen_sample:
                         s_short = chosen_sample['name'][:16]
-                        conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] Chop: {s_short}"})
+                        live_label = f"[{role}] {sovereign_clean} (Chop: {s_short})" if not is_generic_role_name else f"[{role}] Chop: {s_short}"
+                        conn.send_command("set_track_name", {"track_index": t_idx, "name": live_label})
+                    elif not is_generic_role_name:
+                        conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] {sovereign_clean}"})
                     else:
                         conn.send_command("set_track_name", {"track_index": t_idx, "name": f"[{role}] {display_name}"})
                 else:
@@ -934,22 +987,20 @@ for p in d.parameters:
     
         if not is_verified:
             logger.error(f"Track {t_idx} verification failed: {load_error}")
-            return {
-                "status": "LOAD_FAILED",
-                "current_step": f"PASO 3 DE 7: ERROR DE CARGA EN PISTA {t_idx} ({trk['name']})",
-                "action_taken": f"FALLO DE VERIFICACIÓN: {load_error}. La pista no tiene generador sonoro válido.",
-                "question": (
-                    f"⚠️ **Alerta del Copilot:** No se pudo cargar o verificar '{display_name}' en la Pista {t_idx}.\n\n"
-                    f"*Motivo:* {load_error}\n\n"
-                    f"1. **Reintentar carga** de {display_name}.\n"
-                    f"2. **Cargar preset nativo seguro** de Live Core Library ({role}).\n"
-                    f"*Responde indicando cómo deseas proceder.*"
-                ),
-                "instructions_for_ai": "Elige reintentar o una opción alternativa para no dejar la pista vacía.",
-                "retry_required": True,
-                "phase": "PHASE_3_INSTRUMENTS"
-            }
-    
+            avail_sources = []
+            try:
+                avail_sources = LiveBrowserCatalogEngine.get_available_sources_for_role(lookup_role, conn=conn)
+            except Exception:
+                pass
+            return self._build_instrument_failed_error(
+                track_name=trk['name'],
+                track_index=t_idx,
+                instrument_name=display_name,
+                role=role,
+                load_error=load_error,
+                available_sources=avail_sources
+            )
+
         trk["instrument"] = display_name
         trk["item_uri"] = target_uri
 
@@ -962,7 +1013,7 @@ for p in d.parameters:
 
         session.data["current_track_ptr"] = ptr + 1
         session._save_state()
-    
+
         if session.data["current_track_ptr"] < len(tracks):
             return session._prompt_current_track_instrument()
         else:
@@ -971,11 +1022,101 @@ for p in d.parameters:
                 BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
             except Exception as ex_bus_route:
                 logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
-            session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+            timbral_audit = self.audit_timbral_coherence(tracks)
+            session.data["timbral_coherence_audit"] = timbral_audit
+            session.data["current_phase"] = "PHASE_6_COMPOSITION"
             session.data["phase_index"] = 4
-            session.data["current_param_ptr"] = 0
             session._save_state()
-            return session._prompt_current_track_params()
+            p6_prompt = session._prompt_phase_6()
+            if isinstance(p6_prompt, dict):
+                p6_prompt["timbral_coherence_audit"] = timbral_audit
+                if timbral_audit.get("warnings"):
+                    warn_md = "\n".join([f"  • ⚠️ {w}" for w in timbral_audit["warnings"]])
+                    p6_prompt["question"] = (
+                        f"🛡️ **Auditoría del Arnés de Coherencia Tímbrica (Fase 3):**\n{warn_md}\n\n"
+                        + p6_prompt.get("question", "")
+                    )
+            return p6_prompt
+
+    @staticmethod
+    def audit_timbral_coherence(tracks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Timbral Diversity & Role Coherence Harness:
+        Audits the loaded instruments across tracks to detect:
+        1. Duplicate identical presets across multiple tracks (>50% concentration on the same preset/device).
+        2. Role-to-timbre mismatches (e.g., asynth/bass loaded on DRUMS or a drum kit loaded on KEYS/PAD).
+        """
+        warnings: List[str] = []
+        inst_counts: Dict[str, int] = {}
+        active_midi_count = 0
+
+        for t in tracks:
+            role = str(t.get("role", "OTHER")).upper()
+            is_aud = bool(t.get("is_audio", False))
+            if is_aud:
+                continue
+            active_midi_count += 1
+            inst_name = str(t.get("instrument", t.get("instrument_name", ""))).strip()
+            t_orig = str(t.get("original_name", t.get("name", ""))).strip()
+            if inst_name:
+                inst_counts[inst_name.lower()] = inst_counts.get(inst_name.lower(), 0) + 1
+
+            inst_l = inst_name.lower()
+            orig_l = t_orig.lower()
+            # Role coherence checks
+            if ("sax" in orig_l or "brass" in orig_l or "horn" in orig_l) and any(w in inst_l for w in ["basic shapes", "init", "808"]):
+                warnings.append(
+                    f"Pista '{t_orig}' ({role}) tiene cargado un timbre sintético básico ('{inst_name}') en lugar de un instrumento de viento/metal o sample expresivo."
+                )
+            if role in ("KEYS", "PIANO") and "808" in inst_l:
+                warnings.append(
+                    f"Pista '{t_orig}' ({role}) tiene cargado un dispositivo de sub-bajo ('{inst_name}')."
+                )
+
+        if active_midi_count >= 3:
+            for inst_k, cnt in inst_counts.items():
+                if cnt > max(2, int(active_midi_count * 0.5)):
+                    warnings.append(
+                        f"Concentración tímbrica excesiva: '{inst_k}' se repite en {cnt} de {active_midi_count} pistas MIDI."
+                    )
+
+        return {
+            "passed": len(warnings) == 0,
+            "warnings": warnings,
+            "instrument_distribution": inst_counts,
+            "active_midi_tracks": active_midi_count,
+        }
+
+    @classmethod
+    def _build_instrument_failed_error(
+        cls,
+        track_name: str,
+        track_index: int,
+        instrument_name: str,
+        role: str = "SYNTH",
+        load_error: str = "Plugin timeout or device not found",
+        available_sources: Optional[List[Any]] = None
+    ) -> Dict[str, Any]:
+        avail = available_sources or []
+        avail_lines = [f"• `{getattr(s, 'name', str(s))}` ({getattr(s, 'category', 'vst3')})" for s in avail[:8]]
+        avail_str = "\n".join(avail_lines) if avail_lines else "Catálogo disponible: Vital, Analog Lab V, Pigments, Serum, Decent Sampler, Drift."
+        return {
+            "status": "ERROR",
+            "error_code": "INSTRUMENT_LOAD_FAILED",
+            "current_step": f"PASO 3 DE 7: ERROR DE CARGA EN PISTA {track_index} ({track_name})",
+            "action_taken": f"FALLO DE VERIFICACIÓN: {load_error}. Se prohíbe el fallback silencioso.",
+            "question": (
+                f"❌ **Error de Carga: Instrumento '{instrument_name}' no verificado en la Pista {track_index} ({track_name})**\n\n"
+                f"*Motivo:* {load_error}\n\n"
+                f"Queda prohibido el reemplazo silencioso de instrumentos. Opciones disponibles en tu librería para [{role}]:\n"
+                f"{avail_str}\n\n"
+                f"Por favor indica qué opción cargar o reintenta con otro instrumento."
+            ),
+            "instructions_for_ai": "Selecciona uno de los instrumentos disponibles en la librería o proporciona un nuevo plugin/preset.",
+            "retry_required": True,
+            "phase": "PHASE_3_INSTRUMENTS",
+            "available_catalog": [s.to_dict() if hasattr(s, "to_dict") else str(s) for s in avail]
+        }
     
     # -------------------------------------------------------------------------
     # FASE 4: ESCULPIDO POR CUADRANTES DE SÍNTESIS Y GAIN STAGING

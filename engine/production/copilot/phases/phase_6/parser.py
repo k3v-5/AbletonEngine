@@ -138,14 +138,42 @@ class Phase6Parser:
         # Single track 'notes' list or 'sections' dict
         if "notes" in data and isinstance(data["notes"], list):
             custom_map[("current", "all")] = _norm_notes(data["notes"])
-        if "sections" in data and isinstance(data["sections"], dict):
-            for s_k, n_list in data["sections"].items():
-                if isinstance(n_list, list):
+        if "sections" in data:
+            if isinstance(data["sections"], dict):
+                for s_k, sec_val in data["sections"].items():
                     try:
                         s_idx = int(s_k)
                     except ValueError:
                         s_idx = str(s_k).lower()
-                    custom_map[("current", s_idx)] = _norm_notes(n_list)
+                    if isinstance(sec_val, list):
+                        custom_map[("current", s_idx)] = _norm_notes(sec_val)
+                    elif isinstance(sec_val, dict):
+                        trk_dict = sec_val.get("tracks", sec_val) if isinstance(sec_val.get("tracks"), dict) else sec_val
+                        for t_k, t_val in trk_dict.items():
+                            n_list = t_val.get("notes", []) if isinstance(t_val, dict) else t_val
+                            if isinstance(n_list, list):
+                                normed_n = _norm_notes(n_list)
+                                custom_map[(t_k, s_idx)] = normed_n
+                                if isinstance(t_k, str):
+                                    custom_map[(t_k.lower(), s_idx)] = normed_n
+            elif isinstance(data["sections"], list):
+                for s_pos, sec_item in enumerate(data["sections"]):
+                    if not isinstance(sec_item, dict):
+                        continue
+                    s_raw = sec_item.get("name", sec_item.get("section", sec_item.get("index", s_pos)))
+                    try:
+                        s_idx = int(s_raw)
+                    except ValueError:
+                        s_idx = str(s_raw).lower()
+                    trk_dict = sec_item.get("tracks", {})
+                    if isinstance(trk_dict, dict):
+                        for t_k, t_val in trk_dict.items():
+                            n_list = t_val.get("notes", []) if isinstance(t_val, dict) else t_val
+                            if isinstance(n_list, list):
+                                normed_n = _norm_notes(n_list)
+                                custom_map[(t_k, s_idx)] = normed_n
+                                if isinstance(t_k, str):
+                                    custom_map[(t_k.lower(), s_idx)] = normed_n
 
         # Direct section keys at root level (e.g. {"Intro": [...], "Verse 1": [...]})
         for s_k, n_list in data.items():
@@ -230,6 +258,18 @@ class Phase6Parser:
                 if not isinstance(trk_item, dict):
                     continue
                 t_ident = trk_item.get("index", trk_item.get("track_index", trk_item.get("name", trk_item.get("role"))))
+                t_name_explicit = trk_item.get("name")
+                if "sections" in trk_item and isinstance(trk_item["sections"], dict):
+                    for s_k, n_list in trk_item["sections"].items():
+                        if isinstance(n_list, list):
+                            try:
+                                s_idx = int(s_k)
+                            except ValueError:
+                                s_idx = str(s_k).lower()
+                            normed_n = _norm_notes(n_list)
+                            custom_map[(t_ident, s_idx)] = normed_n
+                            if t_name_explicit:
+                                custom_map[(str(t_name_explicit).lower(), s_idx)] = normed_n
                 if "clips" in trk_item and isinstance(trk_item["clips"], list):
                     for c_idx, clip in enumerate(trk_item["clips"]):
                         if isinstance(clip, dict):
@@ -238,9 +278,15 @@ class Phase6Parser:
                                 s_idx = int(s_idx)
                             except ValueError:
                                 s_idx = str(s_idx).lower()
-                            custom_map[(t_ident, s_idx)] = _norm_notes(clip.get("notes", []))
+                            normed_n = _norm_notes(clip.get("notes", []))
+                            custom_map[(t_ident, s_idx)] = normed_n
+                            if t_name_explicit:
+                                custom_map[(str(t_name_explicit).lower(), s_idx)] = normed_n
                 elif "notes" in trk_item and isinstance(trk_item["notes"], list):
-                    custom_map[(t_ident, "all")] = _norm_notes(trk_item["notes"])
+                    normed_n = _norm_notes(trk_item["notes"])
+                    custom_map[(t_ident, "all")] = normed_n
+                    if t_name_explicit:
+                        custom_map[(str(t_name_explicit).lower(), "all")] = normed_n
 
         # 3. 'roles' dict
         roles = data.get("roles")
@@ -280,6 +326,37 @@ class Phase6Parser:
         return meta, custom_map, len(custom_map) > 0
 
     @staticmethod
+    def _clean_track_ident(raw: Any) -> str:
+        s = str(raw or "").strip()
+        s = re.sub(r"^\[[^\]]+\]\s*", "", s)
+        s = re.sub(r"^\d+[\s_\-\.]*", "", s)
+        s = re.sub(r"\.(adg|adv|als|vst3|vst|wav|aif)$", "", s, flags=re.IGNORECASE)
+        s = re.sub(r"[\s_\-]+", " ", s).strip().lower()
+        return s
+
+    @staticmethod
+    def _tile_notes_to_beats(base_notes: List[Dict[str, Any]], s_beats: float) -> List[Dict[str, Any]]:
+        if not base_notes:
+            return []
+        max_reach = max(n["start_time"] + n["duration"] for n in base_notes)
+        if max_reach > 0 and s_beats > max_reach:
+            pattern_len = 16.0 if max_reach <= 16.0 else max_reach
+            tiled = []
+            offset = 0.0
+            while offset < s_beats:
+                for n in base_notes:
+                    n_st = n["start_time"] + offset
+                    if n_st < s_beats:
+                        n_copy = dict(n)
+                        n_copy["start_time"] = round(n_st, 4)
+                        n_dur = min(n["duration"], s_beats - n_st)
+                        n_copy["duration"] = round(n_dur, 4)
+                        tiled.append(n_copy)
+                offset += pattern_len
+            return tiled
+        return list(base_notes)
+
+    @staticmethod
     def find_custom_notes_for_track_section(
         session: Any,
         custom_map: Dict[Tuple[Any, Any], List[Dict[str, Any]]],
@@ -288,110 +365,98 @@ class Phase6Parser:
         s_name: str,
         s_beats: float
     ) -> Optional[List[Dict[str, Any]]]:
-        """Resolves custom AI notes matching track and section by ID, alias, or case-insensitive name."""
+        """
+        Resolves custom AI notes matching track and section.
+        Strictly prioritizes exact track index, original_name, and normalized track name
+        BEFORE falling back to generic role aliases so multiple tracks sharing a role family
+        never collide or overwrite each other's notes.
+        """
         t_idx = trk.get("index")
-        t_name = str(trk.get("name", "")).lower()
+        t_name = str(trk.get("name", "")).lower().strip()
+        t_orig = str(trk.get("original_name", "")).lower().strip()
+        t_clean = Phase6Parser._clean_track_ident(t_name)
+        t_orig_clean = Phase6Parser._clean_track_ident(t_orig)
         t_role = str(trk.get("role", "")).upper()
-        s_name_lower = str(s_name).lower()
+        s_name_lower = str(s_name).lower().strip()
+        s_name_clean = Phase6Parser._clean_track_ident(s_name)
 
-        # Bidirectional role aliases resolution
+        # Candidate track identifiers (specific to this track)
+        specific_idents = []
+        for cand in [t_idx, str(t_idx), t_orig, t_orig_clean, t_name, t_clean]:
+            if cand is not None and cand != "" and cand not in specific_idents:
+                specific_idents.append(cand)
+
+        sec_targets = [s_idx, str(s_idx), s_name_lower, s_name_clean]
+
+        # PASS 1A: Exact key match on specific track identifiers + section
+        for ident in specific_idents:
+            for st in sec_targets:
+                if (ident, st) in custom_map:
+                    return list(custom_map[(ident, st)])
+
+        # PASS 1B: Normalized cross-map match on specific track identifiers + section
+        for (map_ident, map_sec), notes_val in custom_map.items():
+            map_sec_str = str(map_sec).lower().strip()
+            map_sec_clean = Phase6Parser._clean_track_ident(map_sec)
+            if map_sec_str in [str(s_idx), s_name_lower] or (map_sec_clean and map_sec_clean == s_name_clean):
+                # Check if map_ident is integer track index
+                if str(map_ident).strip().isdigit() and int(str(map_ident).strip()) == t_idx:
+                    return list(notes_val)
+                map_ident_clean = Phase6Parser._clean_track_ident(map_ident)
+                if map_ident_clean and len(map_ident_clean) >= 3:
+                    for cand_clean in [t_orig_clean, t_clean]:
+                        if cand_clean and (map_ident_clean == cand_clean or map_ident_clean in cand_clean or cand_clean in map_ident_clean):
+                            return list(notes_val)
+
+        # PASS 2: Bidirectional role aliases resolution (only if no track-specific match found)
         role_aliases = RoleTrackOrchestrator.get_role_aliases(t_role)
-        norm_name_role = RoleTrackOrchestrator.normalize_role(trk.get("name", ""))
+        norm_name_role = RoleTrackOrchestrator.normalize_role(trk.get("original_name") or trk.get("name", ""))
         for r_extra in RoleTrackOrchestrator.get_role_aliases(norm_name_role):
             if r_extra not in role_aliases:
                 role_aliases.append(r_extra)
 
-        keys_to_check = [
-            (t_idx, s_idx),
-            (str(t_idx), s_idx),
-            (str(t_idx), str(s_idx)),
-            (t_name, s_idx),
-            (t_name, str(s_idx)),
-            (t_idx, s_name_lower),
-            (str(t_idx), s_name_lower),
-            (t_name, s_name_lower),
-        ]
+        role_keys = []
         for alias in role_aliases:
-            keys_to_check.extend([
-                (alias, s_idx),
-                (alias, str(s_idx)),
-                (alias, s_name_lower),
-                (alias.lower(), s_idx),
-                (alias.lower(), str(s_idx)),
-                (alias.lower(), s_name_lower),
-            ])
-
-        for k in keys_to_check:
+            for st in sec_targets:
+                role_keys.append((alias, st))
+                role_keys.append((alias.lower(), st))
+        for k in role_keys:
             if k in custom_map:
                 return list(custom_map[k])
 
-        # Cross-map lookup across custom_map keys for matching section
         for (map_ident, map_sec), notes_val in custom_map.items():
-            if str(map_sec).lower() in [str(s_idx), str(s_name_lower)]:
+            map_sec_str = str(map_sec).lower().strip()
+            if map_sec_str in [str(s_idx), s_name_lower]:
                 map_ident_str = str(map_ident).strip().upper()
-                if map_ident_str in role_aliases or map_ident_str.lower() in t_name or t_name in map_ident_str.lower():
+                if map_ident_str in role_aliases:
                     return list(notes_val)
 
-        # Check fallback to "all"
-        all_keys = [
-            (t_idx, "all"),
-            (str(t_idx), "all"),
-            (t_name, "all"),
-        ]
-        for alias in role_aliases:
-            all_keys.extend([
-                (alias, "all"),
-                (alias.lower(), "all"),
-            ])
-        for k in all_keys:
-            if k in custom_map:
-                base_notes = custom_map[k]
-                if not base_notes:
-                    return []
-                max_reach = max(n["start_time"] + n["duration"] for n in base_notes)
-                if max_reach > 0 and s_beats > max_reach:
-                    pattern_len = 16.0 if max_reach <= 16.0 else max_reach
-                    tiled = []
-                    offset = 0.0
-                    while offset < s_beats:
-                        for n in base_notes:
-                            n_st = n["start_time"] + offset
-                            if n_st < s_beats:
-                                n_copy = dict(n)
-                                n_copy["start_time"] = round(n_st, 4)
-                                n_dur = min(n["duration"], s_beats - n_st)
-                                n_copy["duration"] = round(n_dur, 4)
-                                tiled.append(n_copy)
-                        offset += pattern_len
-                    return tiled
-                else:
-                    return list(base_notes)
+        # PASS 3A: Specific track fallback to "all"
+        for ident in specific_idents:
+            if (ident, "all") in custom_map:
+                return Phase6Parser._tile_notes_to_beats(custom_map[(ident, "all")], s_beats)
 
-        # Cross-map fallback for "all"
+        for (map_ident, map_sec), notes_val in custom_map.items():
+            if str(map_sec).lower() == "all":
+                if str(map_ident).strip().isdigit() and int(str(map_ident).strip()) == t_idx:
+                    return Phase6Parser._tile_notes_to_beats(notes_val, s_beats)
+                map_ident_clean = Phase6Parser._clean_track_ident(map_ident)
+                if map_ident_clean and len(map_ident_clean) >= 3:
+                    for cand_clean in [t_orig_clean, t_clean]:
+                        if cand_clean and (map_ident_clean == cand_clean or map_ident_clean in cand_clean or cand_clean in map_ident_clean):
+                            return Phase6Parser._tile_notes_to_beats(notes_val, s_beats)
+
+        # PASS 3B: Role alias fallback to "all"
+        for alias in role_aliases:
+            for k in [(alias, "all"), (alias.lower(), "all")]:
+                if k in custom_map:
+                    return Phase6Parser._tile_notes_to_beats(custom_map[k], s_beats)
+
         for (map_ident, map_sec), notes_val in custom_map.items():
             if str(map_sec).lower() == "all":
                 map_ident_str = str(map_ident).strip().upper()
-                if map_ident_str in role_aliases or map_ident_str.lower() in t_name or t_name in map_ident_str.lower():
-                    base_notes = notes_val
-                    if not base_notes:
-                        return []
-                    max_reach = max(n["start_time"] + n["duration"] for n in base_notes)
-                    if max_reach > 0 and s_beats > max_reach:
-                        pattern_len = 16.0 if max_reach <= 16.0 else max_reach
-                        tiled = []
-                        offset = 0.0
-                        while offset < s_beats:
-                            for n in base_notes:
-                                n_st = n["start_time"] + offset
-                                if n_st < s_beats:
-                                    n_copy = dict(n)
-                                    n_copy["start_time"] = round(n_st, 4)
-                                    n_dur = min(n["duration"], s_beats - n_st)
-                                    n_copy["duration"] = round(n_dur, 4)
-                                    tiled.append(n_copy)
-                            offset += pattern_len
-                        return tiled
-                    else:
-                        return list(base_notes)
+                if map_ident_str in role_aliases:
+                    return Phase6Parser._tile_notes_to_beats(notes_val, s_beats)
 
         return None
+

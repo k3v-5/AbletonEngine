@@ -77,10 +77,10 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 )
 
         return {
-            "current_step": "PASO 7 DE 8: AUTOMATIZACIONES DINÁMICAS DE PISTAS Y TRANSICIONES",
+            "current_step": "PASO 7 DE 9: AUTOMATIZACIONES DINÁMICAS DE PISTAS Y TRANSICIONES",
             "action_taken": f"Clips modulares desplegados en Arrangement. Se identificaron {len(cands)} curvas de transición y movimiento.",
             "question": (
-                "🎚️ **Paso 7 de 8: Automatizaciones Dinámicas de Pistas y Transiciones en Arrangement**\n\n"
+                "🎚️ **Paso 7 de 9: Automatizaciones Dinámicas de Pistas y Transiciones en Arrangement**\n\n"
                 f"El motor calculó **{len(cands)} curvas de automatización vectorial** en las transiciones de compás:\n"
                 f"{cand_preview}\n\n"
                 "**Rangos y Funciones de Automatización Calculados:**\n"
@@ -96,16 +96,17 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 "🧠 **Decisión Técnica Requerida (Automatizaciones Obligatorias):**\n"
                 "Las automatizaciones en transiciones, pre-drops y caídas son obligatorias para garantizar dinámica profesional.\n"
                 "Decide cómo deseas estructurar e inyectar estas curvas en Arrangement:\n\n"
+                "• **JSON Soberano a Medida**: Envía `{{\"automations\": [{{\"track\": \"...\", \"device\": \"...\", \"parameter\": \"...\", \"points\": [{{\"time\": 0.0, \"value\": 0.5}}]}}]}}` para aplicar tus propias curvas sin imposiciones de género.\n"
                 "• **Opción A (Modo Express / Paquete Completo)**: Inyectar todo el lote de automatizaciones calculadas evaluando su impacto real.\n"
                 "• **Opción B (Modo Quirúrgico Clip por Clip)**: Configurar interactivamente las curvas clip por clip (2, 3, 4 o N puntos).\n"
                 "• **Opción C (Curvas Bruscas Dubstep & Cortes de Impacto)**: Aplicar cambios abruptos, cortes a 0ms, silencios sísmicos de pre-drop y saltos angulares de tensión.\n"
                 "• **Opción D (Revisar Automatizaciones Actuales)**: Ver informe de las curvas calculadas y su impacto en cada pista.\n"
-                "• **Opción E (Regresar a Composición)**: Volver a Paso 6 para reforzar notas o capas.\n"
-                "• **Opción F (Tape Stop Pre-Drop en Sintes / Fills Limpios)**: Inyecta desaceleración analógica (-24st) en sintes/buses musicales antes del drop, manteniendo redobles limpios en primer plano (Opción A).\n"
+                "• **Opción E (Regresar a Composición)**: Volver a Paso 4 (Fase 6: Composición) para reforzar notas o capas.\n"
+                "• **Opción F (Tape Stop Pre-Drop en Sintes / Fills Limpios)**: Inyecta desaceleración analógica (-24st) en sintes/buses musicales antes del drop, manteniendo redobles limpios en primer plano.\n"
                 "• **Opción G (Apertura Sub-a-Estéreo & Filtro Underwater Pre-Drop)**: Genera ensanchamiento estéreo en drops, colapso acústico subacuático pre-drop y cama foley subliminal.\n\n"
                 "*(La opción de bypass está deshabilitada: el movimiento en transiciones es 100% obligatorio)*"
             ),
-            "instructions_for_ai": "Elige Opción A (Lote Express), Opción B (Quirúrgico), Opción C (Dubstep/Brusco), Opción F (Tape Stop Pre-Drop), Opción G (Underwater / Sub-to-Stereo) u Opción D (Revisar). El bypass está deshabilitado.",
+            "instructions_for_ai": "Envía un JSON soberano {\"automations\": [...]} con tus curvas a medida, o elige Opción A (Lote Express), Opción B (Quirúrgico), Opción C (Dubstep/Brusco), Opción F (Tape Stop Pre-Drop), Opción G (Underwater / Sub-to-Stereo) u Opción D (Revisar). El bypass está deshabilitado.",
             "phase": "PHASE_7_AUTOMATION",
             "automation_candidates_count": len(cands)
         }
@@ -583,12 +584,112 @@ class Phase7AutomationHandler(BasePhaseHandler):
         return prompt
 
     def _handle_phase_7(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        import json
         text = _normalize_text(user_input)
+
+        # 0. Sovereign Custom Automation JSON Parser (Producer Sovereignty)
+        if ("{" in user_input and "}" in user_input) or (user_input.strip().startswith("[") and user_input.strip().endswith("]")):
+            try:
+                stripped = user_input.strip()
+                if stripped.startswith("["):
+                    j_str = stripped
+                else:
+                    j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
+                parsed_payload = json.loads(j_str)
+                raw_autos = None
+                if isinstance(parsed_payload, dict):
+                    raw_autos = parsed_payload.get("automations") or parsed_payload.get("curves")
+                elif isinstance(parsed_payload, list):
+                    raw_autos = parsed_payload
+
+                if isinstance(raw_autos, list) and len(raw_autos) > 0:
+                    tracks = session.data.get("tracks", [])
+                    sovereign_cands = []
+                    for item in raw_autos:
+                        if not isinstance(item, dict):
+                            continue
+                        t_ref = str(item.get("track") or item.get("track_name") or "").strip()
+                        matched_trk = None
+                        for trk in tracks:
+                            tn = str(trk.get("name", "")).strip()
+                            tr = str(trk.get("role", "")).strip()
+                            if t_ref and (t_ref.lower() == tn.lower() or t_ref.lower() in tn.lower() or tn.lower() in t_ref.lower() or t_ref.lower() == tr.lower()):
+                                matched_trk = trk
+                                break
+                        if matched_trk is None and item.get("track_index") is not None:
+                            req_idx = int(item.get("track_index"))
+                            matched_trk = next((t for t in tracks if t.get("index") == req_idx), None)
+                        if matched_trk is None and tracks:
+                            matched_trk = tracks[0]
+
+                        t_idx = session._resolve_live_track_index(conn, matched_trk) if matched_trk else int(item.get("track_index", 0))
+                        t_name = matched_trk.get("name", t_ref or f"Track {t_idx}") if matched_trk else (t_ref or f"Track {t_idx}")
+                        dev_name = str(item.get("device") or item.get("device_name") or "EQ Eight").strip()
+                        param_name = str(item.get("parameter") or item.get("parameter_name") or "1 Frequency A").strip()
+                        raw_pts = item.get("points", [])
+                        norm_pts = []
+                        start_val = float(item.get("start_value", 0.35))
+                        end_val = float(item.get("end_value", 0.75))
+                        start_beat = float(item.get("start_beat", 0.0))
+                        end_beat = float(item.get("end_beat", 32.0))
+                        if isinstance(raw_pts, list) and len(raw_pts) > 0:
+                            for pt in raw_pts:
+                                if isinstance(pt, dict):
+                                    norm_pts.append({
+                                        "time": float(pt.get("time", pt.get("beat", 0.0))),
+                                        "value": float(pt.get("value", 0.5))
+                                    })
+                                elif isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                                    norm_pts.append({"time": float(pt[0]), "value": float(pt[1])})
+                            if norm_pts:
+                                start_beat = norm_pts[0]["time"]
+                                end_beat = norm_pts[-1]["time"]
+                                start_val = norm_pts[0]["value"]
+                                end_val = norm_pts[-1]["value"]
+
+                        sovereign_cands.append({
+                            "track_index": t_idx,
+                            "track_name": t_name,
+                            "device_name": dev_name,
+                            "parameter_name": f"{dev_name} - {param_name}" if dev_name.lower() not in param_name.lower() else param_name,
+                            "raw_parameter_name": param_name,
+                            "start_beat": start_beat,
+                            "end_beat": end_beat,
+                            "start_value": start_val,
+                            "end_value": end_val,
+                            "points": norm_pts,
+                            "curve": str(item.get("curve", "linear")),
+                            "section_from": str(item.get("section_from", "Sovereign")),
+                            "section_to": str(item.get("section_to", "Timeline")),
+                            "musical_purpose": str(item.get("musical_purpose") or item.get("purpose") or f"Sovereign {param_name} envelope on {t_name}")
+                        })
+
+                    if sovereign_cands:
+                        if conn is not None and hasattr(conn, "send_command"):
+                            try:
+                                ProductionRecipeEngine.apply_section_automations(conn, sovereign_cands)
+                            except Exception as ex_sov_auto:
+                                logger.debug(f"Notice applying sovereign section automations: {ex_sov_auto}")
+                            try:
+                                from engine.mix.bus_routing import BusRoutingManager
+                                BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
+                            except Exception as ex_bus_sov:
+                                logger.debug(f"Submix bus refresh notice in Phase 7 sovereign mode: {ex_bus_sov}")
+
+                        session.data["automations"] = sovereign_cands
+                        session.data["automation_style"] = "sovereign_custom"
+                        session.data["current_phase"] = "PHASE_8_VOCAL_DUCKING"
+                        session.data["phase_index"] = 8
+                        session._save_state()
+                        return session._prompt_phase_8_vocal_ducking(sovereign_cands)
+            except Exception as ex_json_auto:
+                logger.debug(f"Phase 7 JSON parse notice: {ex_json_auto}")
 
         # 1. Backward step-reversal to Phase 6 (Opción E o 'regresar')
         if any(w in text for w in ["opcion e", "boton e", "regresar", "volver", "revers", "ajustar clip"]) and "bypass" not in text and "omitir" not in text:
             session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            session.data["phase_index"] = 4
+            session.data["return_to_phase_7_after_composition"] = True
             session._save_state()
             return session._prompt_phase_6()
 
@@ -608,14 +709,14 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 lines.append("\n**Curvas Disponibles / Calculadas para Transiciones:**")
                 for c in cands:
                     lines.append(f"  • ⏳ **[{c.get('track_name')}]** `{c.get('parameter_name')}`: {c.get('musical_purpose')} ({c.get('section_from')} ➔ {c.get('section_to')})")
-            lines.append("\nElige **Opción A** para inyectarlas todas, **Opción B** para configurar quirúrgicamente o **Opción C** para estilo brusco dubstep.")
+            lines.append("\nElige **Opción A** para inyectarlas todas, **Opción B** para configurar quirúrgicamente, **Opción C** para estilo brusco dubstep, o envía un JSON soberano `{\"automations\": [...]}`.")
             return {
                 "status": "AUTOMATION_REVIEW",
                 "phase": "PHASE_7_AUTOMATION",
-                "current_step": "PASO 7: REVISIÓN DE AUTOMATIZACIONES",
+                "current_step": "PASO 7 DE 9: REVISIÓN DE AUTOMATIZACIONES",
                 "action_taken": "Mostrando inventario completo de curvas y su impacto musical.",
                 "question": "\n".join(lines),
-                "instructions_for_ai": "Elige Opción A (Lote Express), Opción B (Quirúrgico) u Opción C (Dubstep/Brusco)."
+                "instructions_for_ai": "Elige Opción A (Lote Express), Opción B (Quirúrgico), Opción C (Dubstep/Brusco) o envía un JSON soberano {\"automations\": [...]}."
             }
 
         # 3. Dubstep / Abrupt Stepped Curves (Opción C)
@@ -777,19 +878,20 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 return {
                     "status": "AUTOMATION_REQUIRED",
                     "phase": "PHASE_7_AUTOMATION",
-                    "current_step": "PASO 7 DE 8: AUTOMATIZACIONES OBLIGATORIAS",
+                    "current_step": "PASO 7 DE 9: AUTOMATIZACIONES OBLIGATORIAS",
                     "action_taken": "El motor prohíbe el bypass en automatizaciones. Se requiere dar movimiento a las transiciones.",
                     "question": (
                         "⛔ **LAS AUTOMATIZACIONES SON ESTRICTAMENTE OBLIGATORIAS:**\n\n"
                         "Las transiciones entre secciones, pre-drops y buildups requieren modulación acústica activa.\n"
                         "No se permite avanzar con una mezcla estática sin automatizaciones.\n\n"
                         "Selecciona una opción válida:\n"
+                        "• **JSON Soberano**: Envía `{\"automations\": [...]}` con tus curvas a medida.\n"
                         "• **Opción A (Lote Express)**: Inyecta todas las automatizaciones calculadas evaluando su impacto.\n"
                         "• **Opción B (Quirúrgico por Clip)**: Configura las curvas clip por clip.\n"
                         "• **Opción C (Brusco / Dubstep)**: Inyecta cortes a 0ms, silencios de pre-drop y modulación agresiva.\n"
                         "• **Opción D (Revisar)**: Ver las curvas calculadas y su impacto en cada pista.\n"
                     ),
-                    "instructions_for_ai": "Selecciona Opción A (Lote), Opción B (Quirúrgico) u Opción C (Dubstep). El bypass está deshabilitado."
+                    "instructions_for_ai": "Selecciona Opción A (Lote), Opción B (Quirúrgico), Opción C (Dubstep) o envía un JSON soberano {\"automations\": [...]}. El bypass está deshabilitado."
                 }
 
         # 5. Surgical Mode

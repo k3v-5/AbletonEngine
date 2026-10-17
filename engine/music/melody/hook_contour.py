@@ -227,8 +227,32 @@ class HookContourEngine:
         if oct4_base > 71:
             oct4_base -= 12 # Keep root in 60-71 range
 
-        # Scale degrees relative to root: 1, 2, b3/3, 4, 5, b6/6, b7/7
-        scale_intervals = [0, 2, 3 if "minor" in scale.lower() else 4, 5, 7, 8 if "minor" in scale.lower() else 9, 10 if "minor" in scale.lower() else 11]
+        # Modal scale intervals relative to root
+        scale_l = scale.lower()
+        if "dorian" in scale_l:
+            scale_intervals = [0, 2, 3, 5, 7, 9, 10]
+        elif "phrygian" in scale_l:
+            scale_intervals = [0, 1, 3, 5, 7, 8, 10]
+        elif "lydian" in scale_l:
+            scale_intervals = [0, 2, 4, 6, 7, 9, 11]
+        elif "mixolydian" in scale_l:
+            scale_intervals = [0, 2, 4, 5, 7, 9, 10]
+        elif "locrian" in scale_l:
+            scale_intervals = [0, 1, 3, 5, 6, 8, 10]
+        elif "harmonic" in scale_l and ("min" in scale_l or "menor" in scale_l):
+            scale_intervals = [0, 2, 3, 5, 7, 8, 11]
+        elif "melodic" in scale_l and ("min" in scale_l or "menor" in scale_l):
+            scale_intervals = [0, 2, 3, 5, 7, 9, 11]
+        elif "blues" in scale_l:
+            scale_intervals = [0, 3, 5, 6, 7, 10]
+        elif "pentatonic" in scale_l and ("min" in scale_l or "menor" in scale_l):
+            scale_intervals = [0, 3, 5, 7, 10]
+        elif "pentatonic" in scale_l and ("maj" in scale_l or "mayor" in scale_l):
+            scale_intervals = [0, 2, 4, 7, 9]
+        elif any(k in scale_l for k in ["minor", "menor", "dark"]):
+            scale_intervals = [0, 2, 3, 5, 7, 8, 10]
+        else:
+            scale_intervals = [0, 2, 4, 5, 7, 9, 11]
         pool = []
         for oct_shift in [0, 12]:
             for iv in scale_intervals:

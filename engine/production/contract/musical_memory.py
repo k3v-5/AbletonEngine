@@ -143,6 +143,61 @@ class MusicalMemory:
         return mem
 
     @classmethod
+    def scaffold_from_session(cls, song_id: str, session_data: Dict[str, Any]) -> MusicalMemory:
+        """Scaffolds narrative memory dynamically from the active session's tracks, sections, and style."""
+        design = session_data.get("design", {}) if isinstance(session_data.get("design"), dict) else {}
+        genre = str(session_data.get("genre") or design.get("genre") or "contemporary")
+        artist = str(design.get("artist") or session_data.get("artist") or "Sovereign Producer")
+        if "tyler" in artist.lower() or "neo-soul" in genre.lower():
+            return cls.scaffold_for_neo_soul(song_id=song_id)
+
+        mem = cls(song_id=song_id)
+        tracks = session_data.get("tracks", [])
+        sections = session_data.get("sections", [])
+        sec_names = [str(s.get("name", f"Section {i+1}")) for i, s in enumerate(sections)] if sections else ["Intro", "Main Groove", "Bridge", "Climax", "Outro"]
+        intro_sec = sec_names[0]
+        mid_sec = sec_names[len(sec_names) // 2] if len(sec_names) > 2 else "Bridge"
+        climax_sec = sec_names[-2] if len(sec_names) >= 2 else sec_names[-1]
+
+        rhythm_names = [t.get("name", "Drums") for t in tracks if str(t.get("role", "")).upper() in ("DRUMS", "KICK", "BASS", "808_BASS")] or ["Rhythm Section"]
+        harm_names = [t.get("name", "Harmonic Bed") for t in tracks if str(t.get("role", "")).upper() in ("KEYS", "PAD", "LEAD", "SYNTH", "GUITAR", "STRINGS")] or ["Harmonic Bed"]
+
+        mem.record_milestone(
+            milestone_id="ARRANGEMENT_ESTABLISHMENT",
+            element=", ".join(rhythm_names[:2]),
+            section=intro_sec,
+            action="GROOVE_ANCHOR",
+            what_happened_before=f"Inicio del arreglo en estilo {genre} ({artist}).",
+            what_it_means_now="Establece el pulso rítmico y la firma tímbrica soberana del tema.",
+            what_could_happen_next=f"Evolución armónica y de tensión hacia {mid_sec}.",
+            interdependent_reactions=[f"{h} establece el color modal" for h in harm_names[:2]],
+            artistic_intent=f"Identidad sonora inmediata fiel a la estética {genre}."
+        )
+        mem.record_milestone(
+            milestone_id="DYNAMIC_CONTRAST_VALLEY",
+            element="Rhythm & Low-End",
+            section=mid_sec,
+            action="DYNAMIC_BREATH",
+            what_happened_before="Densidad rítmica sostenida en las secciones previas.",
+            what_it_means_now="Apertura de espacio espectral para renovar la atención del oyente.",
+            what_could_happen_next=f"Reingreso de impacto completo en {climax_sec}.",
+            interdependent_reactions=[f"{h} toma el primer plano" for h in harm_names[:2]],
+            artistic_intent="Contraste dinámico orgánico antes del clímax."
+        )
+        mem.record_milestone(
+            milestone_id="CLIMAX_CONVERGENCE",
+            element="Full Ensemble",
+            section=climax_sec,
+            action="CLIMAX_CONVERGENCE",
+            what_happened_before=f"Tensión acumulada tras {mid_sec}.",
+            what_it_means_now="Convergencia total de capas rítmicas y armónicas con máxima cohesión.",
+            what_could_happen_next="Resolución progresiva hacia el cierre de la obra.",
+            interdependent_reactions=[f"Cohesión entre {', '.join(rhythm_names[:2])} y {', '.join(harm_names[:2])}"],
+            artistic_intent="Clímax musical soberano sin plantillas genéricas."
+        )
+        return mem
+
+    @classmethod
     def scaffold_for_neo_soul(cls, song_id: str = "tyler_neo_soul") -> MusicalMemory:
         """Scaffolds the narrative memory for the current neo-soul / Tyler production arc."""
         mem = cls(song_id=song_id)

@@ -45,19 +45,46 @@ class LiveTrackResolver:
             )
 
             if not is_foldable and not is_unrelated_template:
-                # Exact name or role tag match on current index
-                if (t_name and t_name.lower() == live_name.lower()) or (t_role and f"[{t_role.lower()}]" in live_name.lower()):
+                # Exact name or sovereign substring match on current index
+                if t_name and (t_name.lower() == live_name.lower() or (len(t_name) >= 3 and t_name.lower() in live_name.lower())):
                     return t_idx
-                # Substring match if name is sufficiently distinctive
-                if t_name and len(t_name) >= 3 and t_name.lower() in live_name.lower():
-                    return t_idx
+                # Role tag match on current index only if t_name is generic or matches role
+                if t_role and f"[{t_role.lower()}]" in live_name.lower():
+                    if not t_name or t_name.lower() == t_role.lower():
+                        return t_idx
 
             # 2. Index drifted or occupied by another track: scan all session tracks dynamically
             s_info = conn.send_command("get_session_info", {})
             res_s = s_info.get("result", s_info) if isinstance(s_info, dict) else {}
             t_count = int(res_s.get("track_count", 0))
 
-            # Candidates pass 1: Exact name or role bracket tag
+            # Candidates pass 1: Strictly exact name, "[ROLE] Name", or distinctive sovereign substring match
+            if t_name:
+                for cand_idx in range(t_count):
+                    try:
+                        c_ti = conn.send_command("get_track_info", {"track_index": cand_idx})
+                        c_res = c_ti.get("result", c_ti) if isinstance(c_ti, dict) else {}
+                        if c_res.get("is_foldable", False):
+                            continue
+                        c_name = str(c_res.get("name", "")).strip()
+                        if any(ign in c_name.lower() for ign in ["reference", "guia", "guía", "plantilla"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"]):
+                            continue
+                        c_low = c_name.lower()
+                        t_low = t_name.lower()
+                        if c_low == t_low or (t_role and c_low == f"[{t_role.lower()}] {t_low}"):
+                            trk["index"] = cand_idx
+                            return cand_idx
+                        if len(t_low) >= 3 and (c_low.endswith(t_low) or t_low in c_low):
+                            trk["index"] = cand_idx
+                            return cand_idx
+                    except Exception:
+                        continue
+
+            # If current index has matching role bracket tag (even after Phase 3 preset rename), prefer current index over scanning from 0
+            if not is_foldable and not is_unrelated_template and t_role and f"[{t_role.lower()}]" in live_name.lower():
+                return t_idx
+
+            # Candidates pass 2: Role bracket tag and normalized role fallback (only when sovereign name was not found)
             for cand_idx in range(t_count):
                 try:
                     c_ti = conn.send_command("get_track_info", {"track_index": cand_idx})
@@ -67,27 +94,10 @@ class LiveTrackResolver:
                     c_name = str(c_res.get("name", "")).strip()
                     if any(ign in c_name.lower() for ign in ["reference", "guia", "guía", "plantilla"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"]):
                         continue
-                    # Check exact name
-                    if t_name and c_name.lower() == t_name.lower():
-                        trk["index"] = cand_idx
-                        return cand_idx
-                    # Check bracketed role
+
                     if t_role and f"[{t_role.lower()}]" in c_name.lower():
                         trk["index"] = cand_idx
                         return cand_idx
-                except Exception:
-                    continue
-
-            # Candidates pass 2: Normalized role and prefix/substring match
-            for cand_idx in range(t_count):
-                try:
-                    c_ti = conn.send_command("get_track_info", {"track_index": cand_idx})
-                    c_res = c_ti.get("result", c_ti) if isinstance(c_ti, dict) else {}
-                    if c_res.get("is_foldable", False):
-                        continue
-                    c_name = str(c_res.get("name", "")).strip()
-                    if any(ign in c_name.lower() for ign in ["reference", "guia", "guía", "plantilla"]) and not any(ign in t_name.lower() for ign in ["reference", "guia", "guía"]):
-                        continue
 
                     # If candidate track already has an explicit bracket role tag like [DRUMS] that conflicts with t_role, skip!
                     import re
@@ -99,9 +109,6 @@ class LiveTrackResolver:
 
                     norm_c_role = RoleTrackOrchestrator.normalize_role(c_name)
                     if t_role and norm_c_role and norm_c_role == t_role:
-                        trk["index"] = cand_idx
-                        return cand_idx
-                    if t_name and len(t_name) >= 3 and (c_name.lower().startswith(t_name.lower()) or t_name.lower() in c_name.lower()):
                         trk["index"] = cand_idx
                         return cand_idx
                 except Exception:

@@ -151,12 +151,13 @@ class SongContract:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     PHASE_ORDER = [
+        "PHASE_0_DESIGN",
         "PHASE_1_TRACKS",
         "PHASE_2_SECTIONS",
         "PHASE_3_INSTRUMENTS",
+        "PHASE_6_COMPOSITION",
         "PHASE_4_PARAM_SCULPTING",
         "PHASE_5_INSERT_EFFECTS",
-        "PHASE_6_COMPOSITION",
         "PHASE_7_AUTOMATION",
         "PHASE_8_VOCAL_DUCKING",
         "PHASE_9_MIX_MASTER",
@@ -298,17 +299,24 @@ class SongContract:
     def scaffold_from_session_state(cls, session_data: Dict[str, Any]) -> SongContract:
         """
         Creates or reconstructs a full SongContract dynamically from existing session state.
-        Ensures 100% backward compatibility with active projects.
+        Ensures 100% producer sovereignty and genre agnosticism.
         """
-        genre = session_data.get("genre", "rap/neo-soul")
-        key = session_data.get("key", "F#")
-        scale = session_data.get("scale", "minor")
-        bpm = float(session_data.get("bpm", 90.0))
-        s_id = f"song_{session_data.get('bpm', 90)}_{key}"
+        design = session_data.get("design", {}) if isinstance(session_data.get("design"), dict) else {}
+        genre = str(session_data.get("genre") or design.get("genre") or "contemporary")
+        key = str(session_data.get("key") or design.get("key") or "A")
+        scale = str(session_data.get("scale") or design.get("scale") or "minor")
+        bpm = float(session_data.get("bpm") or design.get("bpm") or 90.0)
+        artist = str(
+            design.get("artist")
+            or session_data.get("artist")
+            or ("Tyler, The Creator" if "tyler" in str(session_data.get("history", "")).lower() else "Sovereign Producer")
+        )
+        target_lufs = float(session_data.get("target_lufs") or design.get("target_lufs") or -14.0)
+        s_id = f"song_{int(bpm)}_{key}"
 
         intent_mem = SongIntentMemory.create_for_style(
             genre=genre,
-            artist="Tyler, The Creator" if "tyler" in str(session_data.get("history", "")).lower() else "Contemporary Artist",
+            artist=artist,
             key=key,
             scale=scale,
             bpm=bpm
@@ -317,7 +325,7 @@ class SongContract:
             song_id=s_id,
             title=f"{genre.upper()} in {key} {scale}",
             intent_memory=intent_mem,
-            musical_memory=MusicalMemory.scaffold_for_neo_soul(song_id=s_id)
+            musical_memory=MusicalMemory.scaffold_from_session(song_id=s_id, session_data=session_data)
         )
 
         # 1. Identity Obligations
@@ -372,16 +380,18 @@ class SongContract:
                     intent={"role": t_role}
                 )
 
-            # Composition / Clips in arrangement obligation
-            contract.register_obligation(
-                id=f"COMPOSITION_{t_idx}_{t_role}",
-                title=f"Arrangement Composition ({t_name})",
-                category=ObligationCategory.PRODUCTION,
-                due_phase="PHASE_6_COMPOSITION",
-                is_critical=True,
-                target_entity=f"Track {t_idx} ({t_name})",
-                intent={"role": t_role, "is_audio": is_audio}
-            )
+            # Composition / Clips in arrangement obligation (only for instrument/audio tracks that are NOT buses/aux/returns)
+            is_bus_or_aux = bool(trk.get("is_fx_audio") or trk.get("type") == "BUS" or "bus" in t_name.lower() or (is_audio and t_role in ("FX", "RETURN", "BUS")))
+            if not is_bus_or_aux:
+                contract.register_obligation(
+                    id=f"COMPOSITION_{t_idx}_{t_role}",
+                    title=f"Arrangement Composition ({t_name})",
+                    category=ObligationCategory.PRODUCTION,
+                    due_phase="PHASE_6_COMPOSITION",
+                    is_critical=True,
+                    target_entity=f"Track {t_idx} ({t_name})",
+                    intent={"role": t_role, "is_audio": is_audio}
+                )
 
         # 3. Structure & Cue Points Obligations
         sections = session_data.get("sections", [])
@@ -409,12 +419,12 @@ class SongContract:
         )
         contract.register_obligation(
             id="ACOUSTIC_LOUDNESS_BS1770",
-            title="BS.1770-5 Integrated Loudness (-14 LUFS +-1.0 dB)",
+            title=f"BS.1770-5 Integrated Loudness ({target_lufs:.1f} LUFS +-1.0 dB)",
             category=ObligationCategory.MIX,
             due_phase="PHASE_9_MIX_MASTER",
             is_critical=True,
             target_entity="Audio Output",
-            intent={"target_lufs": -14.0, "tolerance_db": 1.0, "max_true_peak_dbtp": -1.0}
+            intent={"target_lufs": target_lufs, "tolerance_db": 1.0, "max_true_peak_dbtp": -1.0}
         )
 
         return contract

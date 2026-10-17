@@ -297,40 +297,41 @@ def handle_session_tweaks(session: Any, conn: Any, text: str, tracks: List[Dict[
         if not target_trk and tracks:
             target_trk = tracks[0]
 
-        t_idx = target_trk["index"]
-        if "fade" in text:
-            pts = [
-                {"time": 0.0, "value": 0.85},
-                {"time": 32.0, "value": 0.0}
-            ]
-            param = "Volume"
-            dev_idx = None
-        elif "reverb" in text or "washout" in text:
-            pts = ArrangementAutomationWeaver.generate_reverb_washout(
-                start_bar=28.0, duration_bars=4.0
-            )
-            param = "Dry/Wet"
-            dev_idx = 1
-        else:
-            pts = ArrangementAutomationWeaver.generate_filter_sweep(
-                start_bar=24.0, duration_bars=8.0, direction="up"
-            )
-            param = "Frequency"
-            dev_idx = 0
+        if target_trk:
+            t_idx = target_trk["index"]
+            if "fade" in text:
+                pts = [
+                    {"time": 0.0, "value": 0.85},
+                    {"time": 32.0, "value": 0.0}
+                ]
+                param = "Volume"
+                dev_idx = None
+            elif "reverb" in text or "washout" in text:
+                pts = ArrangementAutomationWeaver.generate_reverb_washout(
+                    start_bar=28.0, duration_bars=4.0
+                )
+                param = "Dry/Wet"
+                dev_idx = 1
+            else:
+                pts = ArrangementAutomationWeaver.generate_filter_sweep(
+                    start_bar=24.0, duration_bars=8.0, direction="up"
+                )
+                param = "Frequency"
+                dev_idx = 0
 
-        if conn and hasattr(conn, "send_command"):
-            try:
-                conn.send_command("create_arrangement_automation_envelope", {
-                    "track_index": t_idx,
-                    "device_index": dev_idx,
-                    "parameter": param,
-                    "points": pts
-                })
-                actions.append(f"Automatización de {param} inyectada en {target_trk['name']} ({len(pts)} puntos)")
-            except Exception as ex:
-                actions.append(f"Aviso al automatizar: {ex}")
-        else:
-            actions.append(f"Automatización de {param} inyectada en {target_trk['name']}")
+            if conn and hasattr(conn, "send_command"):
+                try:
+                    conn.send_command("create_arrangement_automation_envelope", {
+                        "track_index": t_idx,
+                        "device_index": dev_idx,
+                        "parameter": param,
+                        "points": pts
+                    })
+                    actions.append(f"Automatización de {param} inyectada en {target_trk['name']} ({len(pts)} puntos)")
+                except Exception as ex:
+                    actions.append(f"Aviso al automatizar: {ex}")
+            else:
+                actions.append(f"Automatización de {param} inyectada en {target_trk['name']}")
 
     # Tempo modification
     bpm_match = re.search(r"(\d{2,3}(?:\.\d+)?)\s*bpm", text)

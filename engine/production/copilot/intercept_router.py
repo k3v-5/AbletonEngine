@@ -272,7 +272,7 @@ class CopilotInterceptRouter:
             return session._handle_dual_lufs_validation(conn, user_input)
 
         # Active state for Awaiting Vocal Workflow Choice (2 Partes)
-        if session.data.get("awaiting_vocal_workflow_choice", False):
+        if session.data.get("awaiting_vocal_workflow_choice", False) and phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER"):
             return session._handle_phase_10(conn, user_input)
 
         # 3. Priority intercept for vocal take processing, slicing, chops, and gain calibration
@@ -283,7 +283,7 @@ class CopilotInterceptRouter:
             ) or any(w in norm_text for w in [
                 "ya grabe", "ya lo grabe", "toma lista", "grabe la voz", "grabo la voz", "voz lista", "procesar voz", "grabar voz"
             ])
-        ) and (phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER") or any(w in norm_text for w in ["grabe", "toma", "chop", "cortar", "rebanar"]))
+        ) and (phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER"))
         if is_vocal_trigger:
             if not session.data.get("panning_evaluated", False):
                 tracks = session.data.get("tracks", [])
@@ -296,7 +296,7 @@ class CopilotInterceptRouter:
             return session._handle_phase_10(conn, user_input)
 
         # 4. Vocal effect chain sculpting & mandatory configuration
-        if any(w in norm_text for w in ["efectos", "cadena", "cadenas", "configurar", "obligando", "obligar", "esculpir", "autotune", "auto-tune"]) and any(w in norm_text for w in ["vocal", "voz"]):
+        if (phase in ("PHASE_10_COMPLETED", "PHASE_9_MIX_MASTER", "PHASE_5_INSERT_EFFECTS")) and any(w in norm_text for w in ["efectos", "cadena", "cadenas", "configurar", "obligando", "obligar", "esculpir", "autotune", "auto-tune"]) and any(w in norm_text for w in ["vocal", "voz"]):
             tracks = session.data.get("tracks", [])
             v_trk = next((t for t in tracks if t.get("role") == "VOCALS" or "vocal" in str(t.get("name", "")).lower()), None)
             if not v_trk:

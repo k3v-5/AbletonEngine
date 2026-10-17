@@ -25,6 +25,8 @@ class MusicalIntent:
     register_max: Optional[int] = None  # Maximum MIDI note boundary
     section_type: Optional[str] = None  # "INTRO", "BUILD", "DROP", "BREAK", "OUTRO"
     variation_amount: float = 0.0       # 0.0 = static loop, 1.0 = heavy periodic evolution
+    custom_notes: Optional[List[Any]] = None  # AI explicit note events (preserves absolute AI sovereignty)
+    drum_pattern: Optional[Dict[str, Any]] = None  # AI explicit drum pattern dictionary
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -47,7 +49,9 @@ class MusicalIntent:
             "register_min": self.register_min,
             "register_max": self.register_max,
             "section_type": self.section_type,
-            "variation_amount": self.variation_amount
+            "variation_amount": self.variation_amount,
+            "custom_notes": self.custom_notes,
+            "drum_pattern": self.drum_pattern
         }
 
     @classmethod
@@ -72,5 +76,7 @@ class MusicalIntent:
             register_min=data.get("register_min"),
             register_max=data.get("register_max"),
             section_type=data.get("section_type"),
-            variation_amount=float(data.get("variation_amount", 0.0))
+            variation_amount=float(data.get("variation_amount", 0.0)),
+            custom_notes=data.get("custom_notes") or data.get("notes") or data.get("midi_notes") or data.get("note_events") or data.get("pattern_notes"),
+            drum_pattern=data.get("drum_pattern") or data.get("drums") or data.get("drums_pattern") or data.get("drum_notes")
         )

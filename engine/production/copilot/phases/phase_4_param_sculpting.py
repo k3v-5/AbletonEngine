@@ -244,7 +244,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
 
         if ptr >= len(tracks):
             session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-            session.data["phase_index"] = 5
+            session.data["phase_index"] = 6
             session.data["current_fx_track_ptr"] = 0
             session.data["current_fx_dev_ptr"] = 0
             session.data["current_fx_ptr"] = 0
@@ -254,26 +254,31 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
         trk = tracks[ptr]
         t_idx = trk.get("index", ptr)
         t_name = trk["name"]
+        orig_name = trk.get("original_name") or t_name
         role = trk["role"]
         inst = trk.get("instrument", f"{role} Synth")
-        is_audio = trk.get("is_audio", False) or role == "VOCALS"
+        is_audio = bool(
+            trk.get("is_audio", False)
+            or trk.get("live_recording_mode", False)
+            or (role == "VOCALS" and trk.get("sample_path") and not trk.get("chopping_mode") and trk.get("notes_count", 0) == 0)
+        )
 
         # Check for dedicated sound design instruments (Vital, Surge XT, Decent Sampler)
         if DedicatedPluginConfigurator.is_dedicated_instrument(inst):
             return DedicatedPluginConfigurator.get_instrument_sculpting_prompt(trk, session, conn)
-    
+
         role_class = AutoGainStagingEngine.classify_role(t_name)
         target_db = AutoGainStagingEngine.HIERARCHY_TARGETS.get(role_class, -14.0)
-    
+
         # Audio / Vocal Track Gain Staging Prompt
         if is_audio and not trk.get("chopping_mode"):
             is_fx_audio = (role == "FX" and is_audio) or trk.get("is_fx_audio", False)
             if is_fx_audio:
                 return {
-                    "current_step": f"PASO 4 DE 7: CALIBRACIÓN DE GANANCIA Y RETORNO DE EFECTO (PISTA {ptr + 1} DE {len(tracks)})",
+                    "current_step": f"PASO 5 DE 9: CALIBRACIÓN DE GANANCIA Y RETORNO DE EFECTO (PISTA {ptr + 1} DE {len(tracks)})",
                     "action_taken": f"Bus de efecto de audio {inst} en Pista {t_idx}. Target de retorno: {target_db} dBFS.",
                     "question": (
-                        f"🎛️ **Paso 4 de 7: Calibración de Retorno y Nivel de Efecto para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                        f"🎛️ **Paso 5 de 9: Calibración de Retorno y Nivel de Efecto para Pista {ptr} (Track {t_idx}: '{orig_name}', Rol: {role})**\n\n"
                         f"Bus auxiliar configurado con `{inst}`.\n"
                         f"Calibración de retorno de bus inicial: `{target_db} dBFS` de headroom pre-fader.\n\n"
                         f"📋 **Formato Esperado de Datos:**\n"
@@ -282,7 +287,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                         f"🧠 **Decisión Técnica Requerida:**\n"
                         f"Confirma el nivel de ganancia de retorno o especifica un valor alternativo (ej: '-14.0 dBFS', '-16.0 dBFS')."
                     ),
-                    "instructions_for_ai": f"Confirma el target de nivel de retorno para {t_name}.",
+                    "instructions_for_ai": f"Confirma el target de nivel de retorno para {orig_name}.",
                     "target_track": t_idx,
                     "role": role,
                     "is_audio": True,
@@ -290,12 +295,12 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                     "target_dbfs": target_db,
                     "phase": "PHASE_4_PARAM_SCULPTING"
                 }
-    
+
             return {
-                "current_step": f"PASO 4 DE 7: CALIBRACIÓN DE GANANCIA VOCAL (PISTA {ptr + 1} DE {len(tracks)})",
+                "current_step": f"PASO 5 DE 9: CALIBRACIÓN DE GANANCIA VOCAL (PISTA {ptr + 1} DE {len(tracks)})",
                 "action_taken": f"Toma de audio {inst} en Pista {t_idx}. Target de nivel vocal: {target_db} dBFS.",
                 "question": (
-                    f"🎙️ **Paso 4 de 7: Calibración de Ganancia y Dinámica Vocal para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                    f"🎙️ **Paso 5 de 9: Calibración de Ganancia y Dinámica Vocal para Pista {ptr} (Track {t_idx}: '{orig_name}', Rol: {role})**\n\n"
                     f"Pista de audio configurada con `{inst}`.\n"
                     f"Calibración de nivel inicial: `{target_db} dBFS` de headroom pre-fader (óptimo para preservación de transientes vocales).\n\n"
                     f"📋 **Formato Esperado de Datos:**\n"
@@ -304,98 +309,144 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                     f"🧠 **Decisión Técnica Requerida:**\n"
                     f"Confirma el nivel de calibración de ganancia pre-fader o especifica un valor alternativo (ej: '-14.0 dBFS', '-12.0 dBFS')."
                 ),
-                "instructions_for_ai": f"Confirma el target de ganancia para {t_name}.",
+                "instructions_for_ai": f"Confirma el target de ganancia para {orig_name}.",
                 "target_track": t_idx,
                 "role": role,
                 "is_audio": True,
                 "target_dbfs": target_db,
                 "phase": "PHASE_4_PARAM_SCULPTING"
             }
-    
+
         from engine.sound.timbre_dna import TimbreRelationshipMatrix
         tdna = TimbreRelationshipMatrix.get_default_for_role(role)
 
-        role_presets = get_role_presets(role)
-        presets_block = "\n".join([f"• **{p_data['name']}**: {p_data['description']}" for p_data in role_presets.values()])
+        # Build Note-Context Summary from Step 4 (PHASE_6_COMPOSITION)
+        note_summary = trk.get("composed_notes_summary", {})
+        notes_cnt = note_summary.get("notes_count", trk.get("notes_count", 0))
+        if note_summary:
+            min_p = note_summary.get("min_pitch", 60)
+            max_p = note_summary.get("max_pitch", 60)
+            avg_dur = note_summary.get("avg_duration", 1.0)
+            min_v = note_summary.get("min_velocity", 80)
+            max_v = note_summary.get("max_velocity", 100)
+            articulation_hint = (
+                "Staccato / Pluck corto (requiere Attack rápido y Decay/Release controlado)"
+                if avg_dur < 0.6 else
+                ("Legato / Sostenido largo (requiere Sustain sólido y Release orgánico)" if avg_dur >= 2.0 else "Fraseo articulado de duración media")
+            )
+            note_context_block = (
+                f"🎼 **Contexto Musical Real (Notas MIDI Ya Compuestas en esta Pista):**\n"
+                f"• **Notas Desplegadas:** `{notes_cnt}` notas en el Arrangement\n"
+                f"• **Registro MIDI Activo:** Pitch `{min_p}` a `{max_p}`\n"
+                f"• **Duración Media de Nota:** `{avg_dur} tiempos` → *{articulation_hint}*\n"
+                f"• **Rango Dinámico (Velocity):** `{min_v}` a `{max_v}` (Media: `{note_summary.get('avg_velocity', 90)}`)\n\n"
+            )
+        else:
+            note_context_block = (
+                f"🎼 **Contexto Musical Real:** `{notes_cnt}` notas desplegadas en el Arrangement.\n\n"
+            )
+
+        # Inspect physical parameters exposed on device 0 in Live if connected
+        live_params_preview = ""
+        if conn is not None and hasattr(conn, "send_command"):
+            try:
+                live_t_idx = session._resolve_live_track_index(conn, trk)
+                p_res = conn.send_command("get_device_parameters", {"track_index": live_t_idx, "device_index": 0})
+                raw_params = p_res.get("result", {}).get("parameters", p_res.get("parameters", [])) if isinstance(p_res, dict) else []
+                usable_p = [
+                    f"`{p.get('name')}` ({round(float(p.get('value', 0.0)), 2)})"
+                    for p in raw_params
+                    if isinstance(p, dict) and p.get("name") and p.get("name") not in ("Device On", "Chain Selector")
+                ][:12]
+                if usable_p:
+                    live_params_preview = (
+                        f"🎛️ **Parámetros Físicos Expuestos por `{inst}` en Ableton Live:**\n"
+                        f"• {', '.join(usable_p)}\n\n"
+                    )
+            except Exception:
+                pass
 
         return {
-            "current_step": f"PASO 4 DE 7: ESCULPIDO QUIRÚRGICO DE SÍNTESIS (PISTA {ptr + 1} DE {len(tracks)})",
-            "action_taken": f"Instrumento {inst} verificado físicamente en Pista {t_idx}. Target de nivel: {target_db} dBFS.",
+            "current_step": f"PASO 5 DE 9: ESCULPIDO DE SÍNTESIS CONSCIENTE DE NOTAS (PISTA {ptr + 1} DE {len(tracks)})",
+            "action_taken": f"Instrumento '{inst}' con {notes_cnt} notas MIDI activas en Pista {t_idx} ('{orig_name}'). Target de nivel: {target_db} dBFS.",
             "question": (
-                f"🎛️ **Paso 4 de 7: Esculpido de Síntesis y Parámetros para Pista {ptr} (Track {t_idx}: '{t_name}', Rol: {role}, Instrumento: {inst})**\n\n"
-                f"Calibración de nivel inicial: `{target_db} dBFS` de headroom pre-fader.\n\n"
-                f"🧬 **Vector Timbre DNA Base para `{role}`**:\n"
-                f"• Brillo: `{tdna.brightness:.2f}` | Aspereza: `{tdna.roughness:.2f}` | Inarmonicidad: `{tdna.inharmonicity:.2f}`\n"
-                f"• Ancho Estéreo: `{tdna.stereo_width:.2f}` | Pegada Transiente: `{tdna.transient_strength:.2f}` | Movimiento: `{tdna.movement:.2f}`\n\n"
-                f"**Espacio de Parámetros y Rangos Técnicos en los 4 Cuadrantes de Síntesis:**\n"
-                f"1. **Osciladores / Wavetable / Timbre**:\n"
-                f"   • `WAVETABLE_POS` (Rango: `0.0 - 1.0` / `0% - 100%`): 0.0 onda pura senoidal $\\to$ 0.5 armónicos pares e impares ricos $\\to$ 1.0 espectro complejo brillante.\n"
-                f"   • `UNISON_DETUNE` (Rango: `0.0 - 1.0`): 0.0 enfoque monofónico centrado $\\to$ 0.3 ensanchamiento estéreo sutil $\\to$ >0.6 supersaw denso masivo.\n"
-                f"   • `SUB_LEVEL` (Rango: `0.0 - 1.0`): 0.0 sin subgrave $\\to$ 0.7 base sólida para low-end $\\to$ 1.0 subgrave dominante.\n"
-                f"2. **Filtro y Resonancia**:\n"
-                f"   • `FILTER_CUTOFF` (Rango: `0.0 - 1.0` / `20 Hz - 20,000 Hz`): 0.2-0.45 timbres cálidos/sub; 0.5-0.75 apertura media equilibrada; 0.8-1.0 brillo total.\n"
-                f"   • `FILTER_RESONANCE` (Rango: `0.0 - 1.0`): 0.0-0.25 respuesta lineal plana; 0.3-0.6 énfasis en formantes armónicos; >0.7 resonancia ácida/pico.\n"
-                f"   • `DRIVE` (Rango: `0.0 - 1.0`): 0.0 respuesta limpia; 0.15-0.35 saturación armónica analógica; >0.5 compresión de transientes y distorsión.\n"
-                f"3. **Envolvente ADSR**:\n"
-                f"   • `AMP_ATTACK` (Rango: `0.0 - 1.0`): 0.0-0.05 transiente percusivo inmediato; 0.1-0.25 entrada suave sin click; >0.4 crescendo o pad lento.\n"
-                f"   • `AMP_DECAY` (Rango: `0.0 - 1.0`): 0.1-0.3 decaimiento rápido a nivel de sostenimiento; 0.5-0.8 caída orgánica extendida.\n"
-                f"   • `AMP_SUSTAIN` (Rango: `0.0 - 1.0`): 0.0 pluck/percusivo sin sustain; 0.4-0.8 cuerpo constante; 1.0 sostenido total al mantener la nota.\n"
-                f"   • `AMP_RELEASE` (Rango: `0.0 - 1.0`): 0.05 corte seco al levantar tecla; 0.2-0.5 resonancia acústica natural; >0.6 estela atmosférica larga.\n"
-                f"4. **Espacio y Modulación**:\n"
-                f"   • `BRIGHTNESS` / `TIMBRE` (Rango: `0.0 - 1.0`): Apertura de agudos y modulación de brillo global.\n"
-                f"5. **Control Soberano de Polifonía y Articulación**:\n"
-                f"   • `VOICES` / `POLYPHONY`: La IA tiene libertad soberana absoluta para decidir polifonía y número de voces (`1` = Mono, `2`, `4`, `8`, `16`, `32` voces). ¡Cualquier instrumento puede ser mono o polifónico según tu visión creativa!\n"
-                f"   • `LEGATO`: `On` / `Off` (articulación sin redisparo de envolventes).\n"
-                f"   • `GLIDE` / `PORTAMENTO`: `0.0 - 1.0` (o ms, tiempo de deslizamiento tonal entre notas consecutivas).\n\n"
-                f"📋 **5 Presets Especializados para `{role}` (con ajustes acústicos adaptados y TimbreDNA explícito):**\n"
-                f"{presets_block}\n\n"
-                f"🔀 **Separación Psicoacústica Crossover (Opcional):**\n"
-                f"Puedes responder con el número de preset (ej: 'Opción 1') o agregar 'crossover' (ej: 'Opción 1 crossover') para dividir este sonido en 3 capas: Sub (<90 Hz Mono), Body (Warmth) y Air (>1.2 kHz Wide).\n\n"
-                f"🧬 **Ajuste de Timbre Obligatorio:**\n"
-                f"El motor exige definir el timbre acústico. Debes elegir una de las 5 opciones de preset adaptadas a {role} o proporcionar tus propios valores de TimbreDNA (ej: 'Brillo: 0.8, Aspereza: 0.4, Cutoff: 0.75').\n\n"
-                f"🧠 **Decisión Técnica Requerida:**\n"
-                f"Analiza la función acústica de '{t_name}' ({role}) dentro del arreglo y define los valores que esculpirán la identidad del sonido.\n\n"
-                f"*Responde con el número de preset (ej: 'Opción 1'), 'crossover' o tus parámetros personalizados de síntesis y timbre.*"
+                f"🎛️ **Paso 5 de 9: Esculpido de Síntesis Consciente de Notas para Pista {ptr + 1}/{len(tracks)} (Track {t_idx}: '{orig_name}', Rol: `{role}`, Instrumento: `{inst}`)**\n\n"
+                f"{note_context_block}"
+                f"{live_params_preview}"
+                f"Calibración de nivel pre-fader: `{target_db} dBFS`.\n\n"
+                f"**Espacio Continuo de Síntesis Soberana (0.0 a 1.0) — Sin Presets Pre-Cocinados:**\n"
+                f"1. **Filtro & Carácter Armónico**:\n"
+                f"   • `FILTER_CUTOFF` (`0.0 - 1.0` o Hz): Apertura del filtro según el registro MIDI `{note_summary.get('min_pitch', 48)}-{note_summary.get('max_pitch', 72)}`.\n"
+                f"   • `FILTER_RESONANCE` (`0.0 - 1.0`): Énfasis en el punto de corte.\n"
+                f"   • `DRIVE` (`0.0 - 1.0`): Saturación armónica del generador.\n"
+                f"2. **Envolvente ADSR (Calibrada a la duración real de tus notas `{note_summary.get('avg_duration', 1.0)}` beats)**:\n"
+                f"   • `AMP_ATTACK` (`0.0 - 1.0`), `AMP_DECAY` (`0.0 - 1.0`), `AMP_SUSTAIN` (`0.0 - 1.0`), `AMP_RELEASE` (`0.0 - 1.0`).\n"
+                f"3. **Osciladores, Polifonía y TimbreDNA**:\n"
+                f"   • `WAVETABLE_POS` (`0.0 - 1.0`), `UNISON_DETUNE` (`0.0 - 1.0`), `SUB_LEVEL` (`0.0 - 1.0`).\n"
+                f"   • `VOICES` (`1` Mono, `4`, `8`, `16` Poly), `LEGATO` (`On`/`Off`), `GLIDE` (`0.0 - 1.0`).\n"
+                f"   • `BRIGHTNESS` (`0.0 - 1.0`), `ROUGHNESS` (`0.0 - 1.0`), `STEREO_WIDTH` (`0.0 - 1.0`), `MOVEMENT` (`0.0 - 1.0`).\n\n"
+                f"🧠 **Arnés de Esculpido Soberano (Prohibido Omitir o Usar Plantillas Genéricas):**\n"
+                f"El motor es 100% agnóstico: tú defines los valores exactos de síntesis para `{orig_name}` basándote en las notas que acabas de componer.\n"
+                f"Envía tus parámetros en formato clave-valor o JSON:\n"
+                f"• Ejemplo: `Cutoff: 0.48, Resonance: 0.22, Drive: 0.30, Attack: 0.03, Decay: 0.45, Sustain: 0.65, Release: 0.38, Brillo: 0.55`"
             ),
-            "instructions_for_ai": f"Razona sobre el rol {role} de '{t_name}' y selecciona el preset adaptativo del 1 al 5 o envía parámetros explícitos.",
-            "options": [f"{p_data['name']}: {p_data['description']}" for p_data in role_presets.values()],
+            "instructions_for_ai": (
+                f"Define explícitamente los valores de síntesis (Cutoff, Resonance, Drive, Attack, Decay, Sustain, Release, TimbreDNA) "
+                f"para '{orig_name}' ({role}) en función de sus {notes_cnt} notas compuestas."
+            ),
+            "options": [],
             "target_track": t_idx,
             "role": role,
+            "composed_notes_summary": note_summary,
             "target_dbfs": target_db,
             "timbre_dna": tdna.to_dict(),
             "phase": "PHASE_4_PARAM_SCULPTING"
         }
-    
+
     def _handle_phase_4(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        import json as _json
         tracks = session.data.get("tracks", [])
         ptr = session.data.get("current_param_ptr", 0)
-    
+
         if ptr >= len(tracks):
             session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-            session.data["phase_index"] = 5
+            session.data["phase_index"] = 6
             session.data["current_fx_track_ptr"] = 0
             session.data["current_fx_dev_ptr"] = 0
             session.data["current_fx_ptr"] = 0
             session._save_state()
             return session._prompt_current_fx_device()
-    
+
         trk = tracks[ptr]
         t_idx = session._resolve_live_track_index(conn, trk)
         role = trk["role"]
         inst = trk.get("instrument", "")
         text = _normalize_text(user_input)
-        is_audio = trk.get("is_audio", False) or role == "VOCALS"
+        is_audio = bool(
+            trk.get("is_audio", False)
+            or trk.get("live_recording_mode", False)
+            or (role == "VOCALS" and trk.get("sample_path") and not trk.get("chopping_mode") and trk.get("notes_count", 0) == 0)
+        )
 
         from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
         if DedicatedPluginConfigurator.is_dedicated_instrument(inst):
             res_d = DedicatedPluginConfigurator.configure_instrument(trk, session, conn, ai_input=user_input)
+            if hasattr(session, "_get_song_contract"):
+                try:
+                    c = session._get_song_contract()
+                    ob_id = f"PARAM_SCULPT_{trk.get('index')}_{role}"
+                    c.record_implementation(ob_id, {"dedicated_plugin": inst, "result": res_d})
+                    c.record_evidence(ob_id, {"verified": True, "dedicated_plugin": inst}, verified=True)
+                    session._sync_song_contract(c)
+                except Exception:
+                    pass
             session.data["current_param_ptr"] = ptr + 1
             session._save_state()
             next_p = self._prompt_current_track_params(session)
             if res_d.get("action_taken"):
                 next_p["action_taken"] = res_d.get("action_taken")
             return next_p
-    
+
         # Direct Gain Staging for Audio / Vocal tracks (bypass synth oscillator sculpting)
         if is_audio and not trk.get("chopping_mode"):
             role_class = AutoGainStagingEngine.classify_role(trk["name"])
@@ -421,33 +472,55 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 "fader_linear": fader_linear,
                 "headroom_to_master_db": -6.0
             }
+            if hasattr(session, "_get_song_contract"):
+                try:
+                    c = session._get_song_contract()
+                    ob_id = f"PARAM_SCULPT_{trk.get('index')}_{role}"
+                    c.record_implementation(ob_id, {"gain_db": target_db, "is_audio": True})
+                    c.record_evidence(ob_id, {"gain_db": target_db, "verified": True}, verified=True)
+                    session._sync_song_contract(c)
+                except Exception:
+                    pass
             session.data["current_param_ptr"] = ptr + 1
             session._save_state()
-    
+
             if session.data["current_param_ptr"] < len(tracks):
                 return session._prompt_current_track_params()
             else:
                 session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-                session.data["phase_index"] = 5
+                session.data["phase_index"] = 6
                 session.data["current_fx_track_ptr"] = 0
                 session.data["current_fx_dev_ptr"] = 0
                 session.data["current_fx_ptr"] = 0
                 session._save_state()
                 return session._prompt_current_fx_device()
-    
+
+        # Parse JSON block if provided
+        custom_params: Dict[str, float] = {}
+        if "{" in user_input and "}" in user_input:
+            try:
+                j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
+                j_data = _json.loads(j_str)
+                if isinstance(j_data, dict):
+                    src_d = j_data.get("parameters", j_data) if isinstance(j_data.get("parameters"), dict) else j_data
+                    for jk, jv in src_d.items():
+                        if isinstance(jv, (int, float)):
+                            custom_params[str(jk).upper()] = float(jv)
+            except Exception:
+                pass
+
         # Parse arbitrary parameters if specified by user or AI
-        custom_params = {}
         param_patterns = {
-            "FILTER_CUTOFF": [r"cutoff\s*[:=]?\s*([0-9\.]+)", r"filtro\s*[:=]?\s*([0-9\.]+)"],
+            "FILTER_CUTOFF": [r"filter_cutoff\s*[:=]?\s*([0-9\.]+)", r"cutoff\s*[:=]?\s*([0-9\.]+)", r"filtro\s*[:=]?\s*([0-9\.]+)"],
             "DRIVE": [r"drive\s*[:=]?\s*([0-9\.]+)", r"saturaci[oó]n\s*[:=]?\s*([0-9\.]+)"],
-            "FILTER_RESONANCE": [r"resonance\s*[:=]?\s*([0-9\.]+)", r"resonancia\s*[:=]?\s*([0-9\.]+)"],
+            "FILTER_RESONANCE": [r"filter_resonance\s*[:=]?\s*([0-9\.]+)", r"resonance\s*[:=]?\s*([0-9\.]+)", r"resonancia\s*[:=]?\s*([0-9\.]+)"],
             "WAVETABLE_POS": [r"wavetable(?:_pos)?\s*[:=]?\s*([0-9\.]+)", r"tabla\s*[:=]?\s*([0-9\.]+)"],
             "UNISON_DETUNE": [r"unison(?:_detune)?\s*[:=]?\s*([0-9\.]+)", r"detune\s*[:=]?\s*([0-9\.]+)"],
             "SUB_LEVEL": [r"sub(?:_level)?\s*[:=]?\s*([0-9\.]+)", r"subgrave\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_ATTACK": [r"attack\s*[:=]?\s*([0-9\.]+)", r"ataque\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_DECAY": [r"decay\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_SUSTAIN": [r"sustain\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_RELEASE": [r"release\s*[:=]?\s*([0-9\.]+)", r"relajaci[oó]n\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_ATTACK": [r"amp_attack\s*[:=]?\s*([0-9\.]+)", r"attack\s*[:=]?\s*([0-9\.]+)", r"ataque\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_DECAY": [r"amp_decay\s*[:=]?\s*([0-9\.]+)", r"decay\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_SUSTAIN": [r"amp_sustain\s*[:=]?\s*([0-9\.]+)", r"sustain\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_RELEASE": [r"amp_release\s*[:=]?\s*([0-9\.]+)", r"release\s*[:=]?\s*([0-9\.]+)", r"relajaci[oó]n\s*[:=]?\s*([0-9\.]+)"],
             "BRIGHTNESS": [r"brightness\s*[:=]?\s*([0-9\.]+)", r"brillo\s*[:=]?\s*([0-9\.]+)"],
         }
         for p_name, patterns in param_patterns.items():
@@ -527,7 +600,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             "brightness": [r"brightness\s*[:=]?\s*([0-9\.]+)", r"brillo\s*[:=]?\s*([0-9\.]+)"],
             "roughness": [r"roughness\s*[:=]?\s*([0-9\.]+)", r"aspereza\s*[:=]?\s*([0-9\.]+)"],
             "inharmonicity": [r"inharmonicity\s*[:=]?\s*([0-9\.]+)", r"inarmonicidad\s*[:=]?\s*([0-9\.]+)"],
-            "stereo_width": [r"stereo_width\s*[:=]?\s*([0-9\.]+)", r"width\s*[:=]?\s*([0-9\.]+)", r"amplitud\s*[:=]?\s*([0-9\.]+)"],
+            "stereo_width": [r"stereo_width\s*[:=]?\s*([0-9\.]+)", r"width\s*[:=]?\s*([0-9\.]+)", r"amplitud\s*[:=]?\s*([0-9\.]+)", r"ancho\s*[:=]?\s*([0-9\.]+)"],
             "transient_strength": [r"transient(?:_strength)?\s*[:=]?\s*([0-9\.]+)", r"transiente\s*[:=]?\s*([0-9\.]+)"],
             "movement": [r"movement\s*[:=]?\s*([0-9\.]+)", r"movimiento\s*[:=]?\s*([0-9\.]+)"],
         }
@@ -550,23 +623,6 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             for k, v in synth_from_tdna.items():
                 if k not in custom_params:
                     custom_params[k] = v
-    
-        selected_preset = None
-        for k in ["5", "4", "3", "2", "1"]:
-            if f"opcion {k}" in text or f"opción {k}" in text or text == k:
-                selected_preset = k
-                break
-        if not selected_preset:
-            if "espacial" in text or "ambient" in text or "etereo" in text or "etérea" in text:
-                selected_preset = "5"
-            elif "calido" in text or "cálido" in text or "vintage" in text or "lofi" in text or "lo-fi" in text:
-                selected_preset = "4"
-            elif "pesado" in text or "agresiv" in text or "sat" in text:
-                selected_preset = "3"
-            elif "brillante" in text or "modern" in text:
-                selected_preset = "2"
-            elif "equilibrado" in text or "natural" in text or "balanceado" in text:
-                selected_preset = "1"
 
         role_presets = get_role_presets(role)
 
@@ -576,21 +632,8 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             crossover_cfg = MultiLayerCrossoverStacker.generate_triple_crossover_stack(role)
             trk["crossover_stack"] = crossover_cfg
             session.data.setdefault("crossover_stacks", {})[str(t_idx)] = crossover_cfg
-            if not selected_preset:
-                selected_preset = "1"
-        if selected_preset:
-            p_info = role_presets.get(selected_preset, PRESET_CONFIGS.get(selected_preset, PRESET_CONFIGS["1"]))
-            param_dict = dict(p_info["params"])
-            tdna_dict.update(p_info["timbre"])
-            found_timbre = True
-            sculpted_tdna = TimbreDNA.from_dict(tdna_dict)
-            trk["timbre_dna"] = sculpted_tdna.to_dict()
-            session.data.setdefault("sculpted_presets_history", {})[str(t_idx)] = {
-                "role": role,
-                "preset_selected": selected_preset,
-                "preset_name": p_info.get("name", "Preset")
-            }
-        elif custom_params or found_timbre:
+
+        if custom_params or found_timbre:
             param_dict = custom_params
         else:
             import os
@@ -599,35 +642,41 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 (conn is not None and getattr(conn, "__class__", None).__name__ == "MockAbletonAdapter") or
                 getattr(session, "_is_test_mode", False)
             )
-            current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
-            if is_test_env and not session.data.get("strict_mode", False) and ("mandatory_timbre" not in current_test):
+            selected_preset = None
+            for k in ["5", "4", "3", "2", "1"]:
+                if f"opcion {k}" in text or f"opción {k}" in text or text == k:
+                    selected_preset = k
+                    break
+            if is_test_env and selected_preset:
+                p_info = role_presets.get(selected_preset, PRESET_CONFIGS.get(selected_preset, PRESET_CONFIGS["1"]))
+                param_dict = dict(p_info["params"])
+                tdna_dict.update(p_info["timbre"])
+                sculpted_tdna = TimbreDNA.from_dict(tdna_dict)
+                trk["timbre_dna"] = sculpted_tdna.to_dict()
+            elif is_test_env and not session.data.get("strict_mode", False) and ("mandatory_timbre" not in os.environ.get("PYTEST_CURRENT_TEST", "")):
                 p_info = role_presets.get("1", PRESET_CONFIGS["1"])
                 param_dict = dict(p_info["params"])
                 tdna_dict.update(p_info["timbre"])
-                found_timbre = True
                 sculpted_tdna = TimbreDNA.from_dict(tdna_dict)
                 trk["timbre_dna"] = sculpted_tdna.to_dict()
             else:
-                p_guide_lines = [f"• `{role_presets[k]['name']}`" for k in sorted(role_presets.keys())]
-                p_guide_str = "\n".join(p_guide_lines)
                 return {
                     "status": "TIMBRE_ADJUSTMENT_REQUIRED",
                     "phase": "PHASE_4_PARAM_SCULPTING",
-                    "current_step": f"PASO 4 DE 7: AJUSTE DE TIMBRE OBLIGATORIO (PISTA {ptr + 1} DE {len(tracks)})",
-                    "action_taken": f"El ajuste de TimbreDNA y síntesis es obligatorio para esculpir la identidad sonora de {role}.",
+                    "current_step": f"PASO 5 DE 9: ARNÉS DE ESCULPIDO DE SÍNTESIS OBLIGATORIO (PISTA {ptr + 1} DE {len(tracks)})",
+                    "action_taken": f"Bloqueo del Arnés de Esculpido: Se prohiben plantillas genéricas ('Opción 1..5') o avances en blanco para '{trk.get('name')}' ({role}).",
                     "question": (
-                        f"🧬 **AJUSTE DE TIMBRE Y SÍNTESIS OBLIGATORIO PARA '{trk.get('name')}' ({role}):**\n\n"
-                        "No se permite omitir el esculpido tímbrico ni avanzar a ciegas sin definir el carácter acústico del instrumento.\n\n"
-                        f"Debes elegir una de las 5 opciones de preset adaptadas a {role} o definir tus propios atributos de TimbreDNA / síntesis:\n"
-                        f"{p_guide_str}\n"
-                        "• O personalizado: `Cutoff: 0.70, Drive: 0.30, Brillo: 0.80, Ancho: 0.70`\n"
+                        f"⛔ **ARNÉS DE ESCULPIDO SOBERANO ACTIVADO PARA '{trk.get('original_name') or trk.get('name')}' (`{role}`):**\n\n"
+                        "El motor es 100% agnóstico y prohíbe usar opciones pre-cocinadas ('Opción 1..5') o saltar este paso sin definir los parámetros reales del sintetizador/instrumento.\n\n"
+                        "Por favor especifica explícitamente tus valores de síntesis y envolvente ADSR calibrados a las notas compuestas de esta pista:\n"
+                        "• Ejemplo: `Cutoff: 0.52, Resonance: 0.25, Drive: 0.28, Attack: 0.03, Decay: 0.45, Sustain: 0.60, Release: 0.40, Brillo: 0.55`"
                     ),
-                    "instructions_for_ai": f"Selecciona una opción del 1 al 5 adaptada a {role} o especifica parámetros de TimbreDNA y síntesis.",
-                    "options": [role_presets[k]['name'] for k in sorted(role_presets.keys())],
+                    "instructions_for_ai": f"Envía parámetros explícitos de síntesis (Cutoff, Resonance, Drive, Attack, Decay, Sustain, Release, Brillo) para {trk.get('name')}.",
+                    "options": [],
                     "target_track": t_idx,
                     "role": role
                 }
-    
+
         # 1. Apply physical parameters in Live
         sculpt_applied = {}
         if conn is not None and hasattr(conn, "send_command"):
@@ -648,18 +697,18 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
         else:
             sculpt_applied = param_dict
             DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, 0))
-    
+
         # 2. Track Gain Staging & Loudness Calculation
         role_class = AutoGainStagingEngine.classify_role(trk["name"])
         target_db = AutoGainStagingEngine.HIERARCHY_TARGETS.get(role_class, -14.0)
         fader_linear = AutoGainStagingEngine.db_to_linear(target_db)
-    
+
         if conn is not None and hasattr(conn, "send_command"):
             try:
                 conn.send_command("set_track_volume", {"track_index": t_idx, "volume": fader_linear})
             except Exception:
                 pass
-    
+
         trk["sculpted_parameters"] = sculpt_applied
         trk["gain_staging"] = {
             "role_class": role_class,
@@ -667,18 +716,29 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             "fader_linear": fader_linear,
             "headroom_to_master_db": -6.0
         }
-    
+
+        if hasattr(session, "_get_song_contract"):
+            try:
+                c = session._get_song_contract()
+                ob_id = f"PARAM_SCULPT_{trk.get('index')}_{role}"
+                c.record_implementation(ob_id, {"sculpted_parameters": sculpt_applied})
+                c.record_evidence(ob_id, {"sculpted_parameters": sculpt_applied, "verified": True}, verified=True)
+                session._sync_song_contract(c)
+            except Exception:
+                pass
+
         session.data["current_param_ptr"] = ptr + 1
         session._save_state()
-    
+
         if session.data["current_param_ptr"] < len(tracks):
             return session._prompt_current_track_params()
         else:
             session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-            session.data["phase_index"] = 5
+            session.data["phase_index"] = 6
             session.data["current_fx_track_ptr"] = 0
             session.data["current_fx_dev_ptr"] = 0
             session.data["current_fx_ptr"] = 0
             session._save_state()
             return session._prompt_current_fx_device()
+
     

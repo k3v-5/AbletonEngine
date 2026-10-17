@@ -406,11 +406,12 @@ class MacroProductionRecipes:
         break_track: int = 14,
         snare_track: int = 13,
         hats_track: int = 16,
-        crash_track: int = 17
+        crash_track: int = 17,
+        total_bars: int = 96
     ) -> Dict[str, Any]:
         """
         All-in-one grand orchestrator:
-        Produces a complete 96-bar (~3 min) commercial song layout with:
+        Produces a complete commercial song layout listening dynamically to requested bar length:
         - Multi-track drum layering (Kick, Snare, Hats, Crash) populated with real sample kits.
         - Automatic physical sidechain compression on bass.
         - Physical arrangement filter sweeps and pre-drop vacuum cuts.
@@ -438,6 +439,7 @@ class MacroProductionRecipes:
             bpm=bpm,
             key=key,
             scale=scale,
-            genre=genre
+            genre=genre,
+            total_bars=total_bars
         )
 

@@ -172,10 +172,10 @@ output = meta
                 i = tm["index"]
                 name = tm["name"]
                 is_group = tm["is_foldable"]
-                # Audit named musical tracks (excluding group headers or empty placeholders)
-                if not is_group and (name.startswith("[") or any(k in name.lower() for k in ["drum", "bass", "synth", "key", "pad", "lead", "candy", "vocal", "808"])):
+                # Audit named musical tracks (strictly excluding submix buses and group headers)
+                if not is_group and not name.startswith("[BUS]") and (name.startswith("[") or any(k in name.lower() for k in ["drum", "bass", "synth", "key", "pad", "lead", "candy", "vocal", "808"])):
                     active_tracks.append(i)
-            target_tracks = active_tracks if active_tracks else [t["index"] for t in track_meta if not t["is_foldable"]]
+            target_tracks = active_tracks if active_tracks else [t["index"] for t in track_meta if not t["is_foldable"] and not t["name"].startswith("[BUS]")]
 
         # 2. Position transport at Drop or provided time (Drop 1 typically beat 128 / bar 33)
         initial_pos = 0.0
@@ -303,21 +303,28 @@ else:
     def apply_auto_calibration(cls, conn: Any, audit_results: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Applies calculated dB trims directly to Live faders to bring all tracks into LUFS compliance.
-        Enforces a strict fader floor (min 0.20 linear / -34 dBFS) to prevent any track from being zeroed.
+        Enforces a studio fader floor (min 0.68 / -6.8 dBFS) to prevent tracks from becoming quiet.
+        Strictly ignores [BUS] tracks so submix groups remain at Unity Gain (0.85).
         """
         adjustments = []
         metrics = audit_results.get("metrics", [])
         for m in metrics:
             t_idx = m["track_index"]
+            name = str(m.get("track_name", ""))
+            if name.startswith("[BUS]"):
+                continue
+
             trim_db = m["suggested_trim_db"]
             cur_fader = m["volume_fader"]
             status = m["status"]
 
             # Only trim tracks that are HOT or LOW and not SILENT
             if abs(trim_db) >= 1.0 and status != "SILENT":
-                # Convert trim dB to fader linear multiplier
-                linear_mult = 10.0 ** (trim_db / 20.0)
-                new_fader = round(max(0.20, min(0.95, cur_fader * linear_mult)), 3)
+                # Studio safe calibration: gently adjust fader in Live's normalized curve
+                # 0.85 = 0 dB, 0.78 = -3.5 dB, 0.72 = -5.5 dB, 0.68 = -6.8 dB.
+                # Never drag a track into the inaudible basement:
+                trim_step = max(-0.08, min(0.05, trim_db * 0.012))
+                new_fader = round(max(0.68, min(0.85, cur_fader + trim_step)), 3)
 
                 if conn and hasattr(conn, "send_command"):
                     try:

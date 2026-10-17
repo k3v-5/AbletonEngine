@@ -143,9 +143,9 @@ class CopilotGuidedSession:
         "PHASE_1_TRACKS",
         "PHASE_2_SECTIONS",
         "PHASE_3_INSTRUMENTS",
+        "PHASE_6_COMPOSITION",
         "PHASE_4_PARAM_SCULPTING",
         "PHASE_5_INSERT_EFFECTS",
-        "PHASE_6_COMPOSITION",
         "PHASE_7_AUTOMATION",
         "PHASE_8_VOCAL_DUCKING",
         "PHASE_9_MIX_MASTER",
@@ -189,6 +189,8 @@ class CopilotGuidedSession:
 
     def reset(self, bpm: Optional[float] = None) -> Dict[str, Any]:
         self.data = self._default_state(bpm=bpm)
+        TransactionGuard.commit_transaction()
+        TransactionGuard._SNAPSHOT_HISTORY.clear()
         self._save_state(action_tag="RESET_SESSION")
         return self.data
 
@@ -940,11 +942,36 @@ class CopilotGuidedSession:
     # SONG CONTRACT & OMISSION AUDIT SUITE
     # -------------------------------------------------------------------------
     def _get_song_contract(self):
-        """Lazily loads or scaffolds the SongContract for the active session."""
-        from engine.production.contract import SongContract
+        """Lazily loads or scaffolds the SongContract for the active session, keeping sections and target_lufs in sync."""
+        from engine.production.contract import SongContract, ObligationCategory
         raw_contract = self.data.get("song_contract")
         if raw_contract and isinstance(raw_contract, dict):
             contract = SongContract.from_dict(raw_contract)
+            dirty = False
+            sections = self.data.get("sections", [])
+            for s_idx, sec in enumerate(sections):
+                sec_name = sec.get("name", f"Section {s_idx + 1}")
+                ob_id = f"SECTION_CUE_{s_idx}_{sec_name.replace(' ', '_').upper()}"
+                if ob_id not in contract.obligations:
+                    contract.register_obligation(
+                        id=ob_id,
+                        title=f"Section Locator: {sec_name} (Bar {sec.get('start_bar', 0)})",
+                        category=ObligationCategory.STRUCTURE,
+                        due_phase="PHASE_2_SECTIONS",
+                        is_critical=True,
+                        target_entity=sec_name,
+                        intent={"bars": sec.get("bars", 8), "start_bar": sec.get("start_bar", 0)}
+                    )
+                    dirty = True
+            target_lufs = self.data.get("target_lufs")
+            if target_lufs is not None and "ACOUSTIC_LOUDNESS_BS1770" in contract.obligations:
+                ob_lufs = contract.obligations["ACOUSTIC_LOUDNESS_BS1770"]
+                if ob_lufs.intent.get("target_lufs") != float(target_lufs):
+                    ob_lufs.intent["target_lufs"] = float(target_lufs)
+                    ob_lufs.title = f"BS.1770-5 Integrated Loudness ({float(target_lufs):.1f} LUFS +-1.0 dB)"
+                    dirty = True
+            if dirty:
+                self.data["song_contract"] = contract.to_dict()
         else:
             contract = SongContract.scaffold_from_session_state(self.data)
             self.data["song_contract"] = contract.to_dict()

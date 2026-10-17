@@ -16,25 +16,46 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger("CopilotStateManager")
 
 
+def _json_serial_fallback(obj: Any) -> Any:
+    """Robust JSON fallback serializer for custom domain objects and dataclasses."""
+    if hasattr(obj, "to_dict") and callable(obj.to_dict):
+        return obj.to_dict()
+    if hasattr(obj, "__dict__"):
+        return obj.__dict__
+    return str(obj)
+
+
 class _StateManagerMeta(type):
     """Metaclass that isolates state files during tests without breaking class attribute lookups."""
+    @property
+    def _base_dir(cls) -> Path:
+        if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
+            return Path(".")
+        env_root = os.environ.get("ABLETON_ENGINE_ROOT")
+        if env_root:
+            return Path(env_root)
+        try:
+            return Path(__file__).resolve().parents[3]
+        except Exception:
+            return Path(".")
+
     @property
     def STATE_FILE(cls) -> Path:
         if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
             return Path("state/test/guided_session_test.json")
-        return Path("state/production/guided_session.json")
+        return cls._base_dir / "state/production/guided_session.json"
 
     @property
     def CHECKPOINTS_DIR(cls) -> Path:
         if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
             return Path("state/test/checkpoints")
-        return Path("state/production/checkpoints")
+        return cls._base_dir / "state/production/checkpoints"
 
     @property
     def JOURNAL_FILE(cls) -> Path:
         if "PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ABLETON_TEST_MODE") == "1":
             return Path("state/test/session_journal.jsonl")
-        return Path("state/production/session_journal.jsonl")
+        return cls._base_dir / "state/production/session_journal.jsonl"
 
 
 class CopilotStateManager(metaclass=_StateManagerMeta):
@@ -106,7 +127,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
 
             tmp_path = target.with_suffix(".tmp")
             with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+                json.dump(data, f, indent=2, default=_json_serial_fallback)
 
             replaced = False
             for _ in range(6):
@@ -120,7 +141,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             if not replaced:
                 try:
                     with open(target, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=2)
+                        json.dump(data, f, indent=2, default=_json_serial_fallback)
                 except Exception:
                     pass
 
@@ -135,7 +156,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
                     "scale": data.get("scale")
                 }
                 with open(cls.JOURNAL_FILE, "a", encoding="utf-8") as jf:
-                    jf.write(json.dumps(entry) + "\n")
+                    jf.write(json.dumps(entry, default=_json_serial_fallback) + "\n")
         except Exception as e:
             logger.warning(f"Could not persist guided session state: {e}")
 
@@ -162,7 +183,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
 
             tmp_ckpt = ckpt_path.with_suffix(".tmp")
             with open(tmp_ckpt, "w", encoding="utf-8") as f:
-                json.dump(ckpt_payload, f, indent=2)
+                json.dump(ckpt_payload, f, indent=2, default=_json_serial_fallback)
 
             replaced_ckpt = False
             for _ in range(6):
@@ -176,7 +197,7 @@ class CopilotStateManager(metaclass=_StateManagerMeta):
             if not replaced_ckpt:
                 try:
                     with open(ckpt_path, "w", encoding="utf-8") as f:
-                        json.dump(ckpt_payload, f, indent=2)
+                        json.dump(ckpt_payload, f, indent=2, default=_json_serial_fallback)
                 except Exception:
                     pass
 

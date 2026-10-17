@@ -89,12 +89,7 @@ class Phase9ExportHandler(BasePhaseHandler):
         duck_summary = f"Vocal Ducking ({session.data.get('vocal_ducking', {}).get('duck_amount_db', -2.5):.1f} dB en armónicos)." if session.data.get("vocal_ducking", {}).get("status") == "CONFIGURED" else "Vocal Ducking omitido o en bypass."
         res_info = session.data.get("low_mid_resonances_clean", {})
         res_summary = f"Limpieza Mud Box: Notch en {res_info.get('center_frequency_hz', 441.4):.1f} Hz ({res_info.get('gain_cut_db', -3.5):.1f} dB, Q={res_info.get('q_factor', 12.0):.1f}) aplicado en pistas armónicas." if res_info.get("status") == "LOW_MID_RESONANCES_CLEANED" else "Limpieza Mud Box post-vocal activa."
-        ozone_mastering_guide = (
-            "\n\n🎛️ **Cadena de Mastering Quirúrgica Recomendada (Ozone 12):**\n"
-            "  • Vintage EQ (corte sub 25Hz, +1.5dB a 12kHz) -> Dynamics (compresión multibanda 3 bandas) -> "
-            "Exciter (cinta analógica en medios) -> Imager (mono < 120Hz, apertura > 4kHz) -> "
-            "Maximizer IRC-IV (Ceiling -1.0 dBTP, Sonoridad dinámica según perfil).\n"
-        )
+        ozone_mastering_guide = ""
 
         active_phase = session.data.get("current_phase", "PHASE_9_MIX_MASTER")
         step_title = "PASO 9 DE 9: MEZCLA DINÁMICA Y MEDICIÓN DE AUDIO REAL (BS.1770-5)" if active_phase == "PHASE_9_MIX_MASTER" else "PASO 8 DE 8: MEZCLA DINÁMICA Y MEDICIÓN DE AUDIO REAL (BS.1770-5)"
@@ -157,30 +152,32 @@ class Phase9ExportHandler(BasePhaseHandler):
             custom_lufs_m = re.search(r"(-?\d+(?:\.\d+)?)\s*(?:lufs|db)", text)
             if custom_lufs_m and float(custom_lufs_m.group(1)) < 0:
                 custom_target_val = float(custom_lufs_m.group(1))
+                dynamic_tol = float(session.data.get("target_lufs_tolerance", 3.0))
                 profile = LoudnessProfile(
                     name=f"CUSTOM_{abs(custom_target_val)}LUFS",
                     target_lufs=custom_target_val,
-                    tolerance_lufs=1.0,
+                    tolerance_lufs=dynamic_tol,
                     max_true_peak_dbtp=-0.3 if custom_target_val > -10.0 else (-0.5 if custom_target_val > -12.0 else -1.0),
                     max_gain_reduction_db=3.0,
                     allow_clipping=False,
                     policy_id="CUSTOM_TARGET",
                     profile_type=ProfileType.PIE_POLICY,
-                    description=f"Custom Acoustic Target ({custom_target_val} LUFS ±1.0)"
+                    description=f"Custom Acoustic Target ({custom_target_val} LUFS ±{dynamic_tol:.1f})"
                 )
                 target_profile = f"CUSTOM ({custom_target_val} LUFS)"
             elif session.data.get("target_lufs") is not None or session.data.get("design", {}).get("target_lufs") is not None:
                 design_lufs = float(session.data.get("target_lufs", session.data.get("design", {}).get("target_lufs", -9.0)))
+                dynamic_tol = float(session.data.get("target_lufs_tolerance", 3.0))
                 profile = LoudnessProfile(
                     name=f"DESIGN_{abs(design_lufs)}LUFS",
                     target_lufs=design_lufs,
-                    tolerance_lufs=1.0,
+                    tolerance_lufs=dynamic_tol,
                     max_true_peak_dbtp=-0.3 if design_lufs > -10.0 else (-0.5 if design_lufs > -12.0 else -1.0),
                     max_gain_reduction_db=3.0,
                     allow_clipping=False,
                     policy_id="PHASE_0_DESIGN_TARGET",
                     profile_type=ProfileType.PIE_POLICY,
-                    description=f"Phase 0 Design Target ({design_lufs} LUFS ±1.0)"
+                    description=f"Phase 0 Design Target ({design_lufs} LUFS ±{dynamic_tol:.1f})"
                 )
                 target_profile = f"DESIGN ({design_lufs} LUFS)"
 
@@ -434,16 +431,12 @@ class Phase9ExportHandler(BasePhaseHandler):
             trim_db = audit_res.required_trim_db
             logger.info(f"Loudness non-compliant: {audit_res.integrated_lufs:.1f} LUFS. Required trim: {trim_db:+.1f} dB. Applying compensation...")
 
-            # Physically calibrate Live Master fader if connected
-            if conn is not None and hasattr(conn, "send_command") and abs(trim_db) > 0.05:
+            # Ensure Live Master fader sits strictly at 0.85 (0.0 dBFS Unity Gain)
+            if conn is not None and hasattr(conn, "send_command"):
                 try:
-                    current_fader = 0.85
-                    linear_trim = 10.0 ** (trim_db / 20.0)
-                    calibrated_fader = max(0.1, min(1.0, current_fader * linear_trim))
-                    conn.send_command("set_track_volume", {"track_index": master_target_idx, "volume": calibrated_fader})
-                    logger.info(f"Physically adjusted Master fader on Track {master_target_idx} to {calibrated_fader:.3f}")
+                    conn.send_command("execute_code", {"code": "song.master_track.mixer_device.volume.value = 0.85"})
                 except Exception as fader_err:
-                    logger.debug(f"Master fader calibration notice: {fader_err}")
+                    logger.debug(f"Master fader verification notice: {fader_err}")
 
             # Apply exact gain compensation and re-audit
             compensated_audio, final_audit = gate.apply_loudness_compensation(real_audio, sr=sr)

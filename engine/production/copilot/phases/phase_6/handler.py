@@ -569,8 +569,15 @@ for trk in song.tracks:
 
         ai_meta, custom_notes_map, has_notes = self.parse_ai_composition(session, user_input)
 
+        # If a full multi-track composition payload is submitted while in modular mode,
+        # delegate directly to monolithic _handle_phase_6 so all tracks and sections are deployed.
+        distinct_track_keys = {str(k[0]).strip().lower() for k in custom_notes_map.keys() if str(k[0]).strip().lower() != "current"}
         is_explicit_key_directive = bool(re.search(r'\bKEY\s+[A-G][#b]?\b', user_input, re.IGNORECASE))
-        if is_explicit_key_directive or any(w in text_norm for w in ["key ", "tonalidad", "dorian", "bpm", "natural_minor", "phrygian"]):
+        if (
+            len(distinct_track_keys) > 1
+            or is_explicit_key_directive
+            or any(w in text_norm for w in ["key ", "tonalidad", "dorian", "bpm", "natural_minor", "phrygian"])
+        ):
             session.data["composition_session"] = {"active": False}
             return self._handle_phase_6(session, conn, user_input)
 
@@ -584,7 +591,7 @@ for trk in song.tracks:
                         return {
                             "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
                             "phase": "PHASE_6_COMPOSITION",
-                            "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{trk.get('name')}')",
+                            "current_step": f"PASO 4: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{trk.get('name')}')",
                             "action_taken": f"Error de gobernanza al desplegar clips en '{trk.get('name')}': {trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
                             "question": (
                                 f"⚠️ **Error de Gobernanza en Pista '{trk.get('name')}' (Rol: `{trk.get('role')}`):**\n\n"
@@ -602,11 +609,7 @@ for trk in song.tracks:
             sec_idx += 1
             session_state["section_index"] = sec_idx
             if sec_idx >= len(sections):
-                session.data["composition_session"] = {"active": False}
-                session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                session.data["phase_index"] = 7
-                session._save_state()
-                return session._prompt_phase_7()
+                return self._transition_to_phase_4_param_sculpting(session)
 
             cur_sec = sections[sec_idx]
             session._save_state()
@@ -627,8 +630,8 @@ for trk in song.tracks:
                 cur_trk = tracks[trk_idx] if trk_idx < len(tracks) else {}
                 cur_trk_is_aud = bool(
                     cur_trk.get("is_audio", False)
-                    or str(cur_trk.get("role", "")).upper() == "VOCALS"
                     or cur_trk.get("live_recording_mode", False)
+                    or (str(cur_trk.get("role", "")).upper() == "VOCALS" and cur_trk.get("sample_path") and not cur_trk.get("chopping_mode"))
                 )
                 if is_stepping and not has_notes and not cur_trk_is_aud:
                     return {
@@ -643,14 +646,15 @@ for trk in song.tracks:
 
                 if (has_notes or cur_trk_is_aud) and trk_idx < len(tracks):
                     self.deploy_single_track_composition(session, conn, cur_trk, custom_notes_map)
-                    cur_trk["notes_count"] = len(custom_notes_map) or sum(len(v) for v in custom_notes_map.values())
+                    if cur_trk.get("notes_count", 0) == 0:
+                        cur_trk["notes_count"] = sum(len(v) for v in custom_notes_map.values())
                     if cur_trk.get("deployment_failed"):
                         session.data["pending_instrument_swap_track"] = cur_trk.get("index")
                         session._save_state()
                         return {
                             "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
                             "phase": "PHASE_6_COMPOSITION",
-                            "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
+                            "current_step": f"PASO 4: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
                             "action_taken": f"Error de gobernanza al desplegar clips en '{cur_trk.get('name')}': {cur_trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
                             "question": (
                                 f"⚠️ **Error de Gobernanza en Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
@@ -681,11 +685,7 @@ for trk in song.tracks:
                             )
                         except Exception as ex_ctrl:
                             logger.debug(f"Notice on creative observation: {ex_ctrl}")
-                    session.data["composition_session"] = {"active": False}
-                    session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                    session.data["phase_index"] = 7
-                    session._save_state()
-                    return session._prompt_phase_7()
+                    return self._transition_to_phase_4_param_sculpting(session)
 
             if is_stepping or has_notes:
                 if has_notes and trk_idx < len(tracks):
@@ -697,7 +697,7 @@ for trk in song.tracks:
                         return {
                             "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
                             "phase": "PHASE_6_COMPOSITION",
-                            "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
+                            "current_step": f"PASO 4: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
                             "action_taken": f"Error de gobernanza al desplegar clips en '{cur_trk.get('name')}': {cur_trk.get('deployment_error')}. Reintento de auto-esculpido fallido.",
                             "question": (
                                 f"⚠️ **Error de Gobernanza en Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
@@ -719,11 +719,7 @@ for trk in song.tracks:
                         omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                         if omission_blk:
                             return omission_blk
-                    session.data["composition_session"] = {"active": False}
-                    session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                    session.data["phase_index"] = 7
-                    session._save_state()
-                    return session._prompt_phase_7()
+                    return self._transition_to_phase_4_param_sculpting(session)
 
                 next_trk = tracks[trk_idx]
                 session._save_state()
@@ -740,15 +736,19 @@ for trk in song.tracks:
             unpopulated = []
             for t in tracks:
                 r = str(t.get("role", "")).upper()
-                is_aud = bool(t.get("is_audio", False) or r == "VOCALS" or t.get("live_recording_mode", False))
+                is_aud = bool(
+                    t.get("is_audio", False)
+                    or t.get("live_recording_mode", False)
+                    or (r == "VOCALS" and t.get("sample_path") and not t.get("chopping_mode"))
+                )
                 if not is_aud and t.get("notes_count", 0) == 0:
-                    unpopulated.append(t["name"])
+                    unpopulated.append(t.get("original_name") or t["name"])
 
             if unpopulated:
                 return {
                     "status": "PHASE_6_GATEKEEPER_BLOCKED",
                     "phase": "PHASE_6_COMPOSITION",
-                    "current_step": "FASE 6: COMPOSICIÓN (BLOQUEADA POR GATEKEEPER)",
+                    "current_step": "PASO 4: COMPOSICIÓN (BLOQUEADA POR GATEKEEPER)",
                     "action_taken": f"Gatekeeper de Completitud activado: {len(unpopulated)} pista(s) sin notas ({', '.join(unpopulated)}).",
                     "question": f"⚠️ Las siguientes pistas de instrumento carecen de notas MIDI: **{', '.join(unpopulated)}**.\nPor favor provee las notas MIDI para continuar.",
                     "instructions_for_ai": "Genera y envía las notas explícitas para las pistas vacías.",
@@ -760,12 +760,8 @@ for trk in song.tracks:
                 omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                 if omission_blk:
                     return omission_blk
-            self.apply_commercial_arrangement_enrichments(session, conn)
-            session.data["composition_session"] = {"active": False}
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
+            Phase6Gatekeepers.audit_composition_quality_harness(session, tracks, sections)
+            return self._transition_to_phase_4_param_sculpting(session)
 
         elif mode in ("BY_CLIP", "COMBINED"):
             trk_idx = session_state.get("track_index", 0)
@@ -775,16 +771,16 @@ for trk in song.tracks:
                     omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                     if omission_blk:
                         return omission_blk
-                self.apply_commercial_arrangement_enrichments(session, conn)
-                session.data["composition_session"] = {"active": False}
-                session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                session.data["phase_index"] = 7
-                session._save_state()
-                return session._prompt_phase_7()
+                Phase6Gatekeepers.audit_composition_quality_harness(session, tracks, sections)
+                return self._transition_to_phase_4_param_sculpting(session)
 
             cur_trk = tracks[trk_idx]
             cur_sec = sections[sec_idx] if sec_idx < len(sections) else sections[0]
-            cur_trk_is_aud = bool(cur_trk.get("is_audio", False) or str(cur_trk.get("role", "")).upper() == "VOCALS" or cur_trk.get("live_recording_mode", False))
+            cur_trk_is_aud = bool(
+                cur_trk.get("is_audio", False)
+                or cur_trk.get("live_recording_mode", False)
+                or (str(cur_trk.get("role", "")).upper() == "VOCALS" and cur_trk.get("sample_path") and not cur_trk.get("chopping_mode"))
+            )
 
             if cur_trk_is_aud:
                 trk_idx += 1
@@ -800,11 +796,7 @@ for trk in song.tracks:
                         omission_blk = session.validate_phase_readiness(conn, "PHASE_6_COMPOSITION")
                         if omission_blk:
                             return omission_blk
-                    session.data["composition_session"] = {"active": False}
-                    session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                    session.data["phase_index"] = 7
-                    session._save_state()
-                    return session._prompt_phase_7()
+                    return self._transition_to_phase_4_param_sculpting(session)
 
             s_bars = int(cur_sec.get("bars", 8))
             s_beats = float(s_bars * 4.0)
@@ -883,7 +875,7 @@ for trk in song.tracks:
                     return {
                         "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
                         "phase": "PHASE_6_COMPOSITION",
-                        "current_step": f"FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
+                        "current_step": f"PASO 4: COMPOSICIÓN (INSTRUMENTO BLOQUEADO: '{cur_trk.get('name')}')",
                         "action_taken": f"Error de gobernanza en '{cur_trk.get('name')}': {ex_clip}. Reintento de auto-esculpido fallido.",
                         "question": (
                             f"⚠️ **Error de Gobernanza en Pista '{cur_trk.get('name')}' (Rol: `{cur_trk.get('role')}`):**\n\n"
@@ -920,16 +912,31 @@ for trk in song.tracks:
                 return self.prompt_by_clip_step(session, trk_idx, sec_idx)
 
             self.enforce_pre_drop_vacuum(session, conn)
-            session.data["composition_session"] = {"active": False}
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
+            Phase6Gatekeepers.audit_composition_quality_harness(session, tracks, sections)
+            return self._transition_to_phase_4_param_sculpting(session)
 
-        session.data["current_phase"] = "PHASE_7_AUTOMATION"
-        session.data["phase_index"] = 7
+        return self._transition_to_phase_4_param_sculpting(session)
+
+    @staticmethod
+    def _transition_to_phase_4_param_sculpting(session: Any) -> Dict[str, Any]:
+        """Transitions from Step 4 (PHASE_6_COMPOSITION) to Step 5 (PHASE_4_PARAM_SCULPTING), or back to Step 7 if returning from Phase 7."""
+        session.data["composition_session"] = {"active": False}
+        if session.data.pop("return_to_phase_7_after_composition", False):
+            tracks = session.data.get("tracks", [])
+            all_sculpted = all(
+                bool(t.get("is_audio") or t.get("role") == "VOCALS" or t.get("sculpted"))
+                for t in tracks
+            )
+            if all_sculpted and tracks:
+                session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                session.data["phase_index"] = 7
+                session._save_state()
+                return session._prompt_phase_7()
+        session.data["current_phase"] = "PHASE_4_PARAM_SCULPTING"
+        session.data["phase_index"] = 5
+        session.data["current_param_ptr"] = 0
         session._save_state()
-        return session._prompt_phase_7()
+        return session._prompt_current_track_params()
 
     def _handle_phase_6(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         session.data["last_composition_prompt"] = str(user_input)
@@ -1037,10 +1044,8 @@ for trk in song.tracks:
                 }
             session.data["pending_instrument_swap_track"] = None
             self.enforce_pre_drop_vacuum(session, conn)
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
+            Phase6Gatekeepers.audit_composition_quality_harness(session, tracks, sections)
+            return self._transition_to_phase_4_param_sculpting(session)
 
         ai_meta, custom_notes_map, has_custom_notes = self.parse_ai_composition(session, user_input)
         if has_custom_notes:
@@ -1213,7 +1218,7 @@ for trk in song.tracks:
             return {
                 "status": "PHASE_6_INSTRUMENT_CHANGE_REQUIRED",
                 "phase": "PHASE_6_COMPOSITION",
-                "current_step": "FASE 6: COMPOSICIÓN (INSTRUMENTO BLOQUEADO POR GOBERNANZA)",
+                "current_step": "PASO 4: COMPOSICIÓN (INSTRUMENTO BLOQUEADO POR GOBERNANZA)",
                 "action_taken": f"Bloqueo de gobernanza: {len(failed_governance_tracks)} pista(s) no pudieron recibir clips ({failed_desc}). Se intentó auto-esculpido pero el instrumento falló.",
                 "question": (
                     f"⚠️ **Error Crítico de Gobernanza en Pista '{first_failed.get('name')}' (Rol: `{first_failed.get('role')}`):**\n\n"
@@ -1260,11 +1265,13 @@ for trk in song.tracks:
             if omission_blk:
                 return omission_blk
 
-        self.apply_commercial_arrangement_enrichments(session, conn)
+        # Gatekeeper 6: Non-Mutating Composition Quality Harness
+        Phase6Gatekeepers.audit_composition_quality_harness(session, tracks, sections)
 
-        session.data["current_phase"] = "PHASE_7_AUTOMATION"
-        session.data["phase_index"] = 7
+        # Only apply procedural arrangement enrichments if explicitly requested
+        if any(w in text_norm for w in ["enriquecer arreglo", "auto fills", "antiphonal", "dialogo antifonal"]):
+            self.apply_commercial_arrangement_enrichments(session, conn)
+
         session.data["composed_summary"] = composed_summary
-        session._save_state()
+        return self._transition_to_phase_4_param_sculpting(session)
 
-        return session._prompt_phase_7()

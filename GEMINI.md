@@ -75,3 +75,32 @@ El sistema ejecutará automáticamente la compuerta de verificación `LiveVisual
 - Comprueba que la Pista 0 contenga el kit de batería (`has_drum_kit: True`) y no esté secuestrada (`track_0_hijacked: False`).
 - Comprueba que la imagen `visual_audit.png` sea válida (no sea un fotograma negro o congelado).
 - **Si el veredicto no es `VERIFIED_SUCCESS`, la producción NO se da por finalizada** y el sistema debe aplicar reparación inmediata o alertar al usuario.
+
+---
+
+## 🎼 7. Ley Inviolable de Evolución Musical y Progresión Formal (Prohibición Estricta de "Loop Tiling")
+
+Queda **ESTRICTAMENTE PROHIBIDO** replicar o copiar el mismo bucle de 4 u 8 compases de forma estática o idéntica a lo largo de las diferentes secciones del arreglo (*loop tiling*). Toda producción musical autónoma o guiada DEBE implementar evolución musical obligatoria con las siguientes reglas:
+
+1. **Contraste de Registro y Tesitura Melódica (Lead / Vocal):**
+   - **Estrofas (Versos):** Registro medio-grave, estilo conversacional y silábico con aire entre frases (espacio para respirar).
+   - **Estribillos (Coros):** Salto obligatorio a registro superior (+1 octava o salto a 3ra/5ta superior), mayor densidad lírica, notas de reposo prolongadas y ganchos memorables (*hooks*).
+   - **Estrofa 2:** NUNCA debe ser una copia de la Estrofa 1. Debe incluir variaciones métricas (doble tempo, síncopas distintas, nuevas notas de paso).
+
+2. **Evolución Armónica y Apertura Espectral (Pads / Armonía):**
+   - **Intro / Estrofas:** Armonía cerrada, voicings compactos, filtro paso-bajo cerrado (sensación íntima/oscura).
+   - **Estribillos:** Voicings abiertos con tensiones armónicas (novenas, onceavas), acordes de compás completo con filtro abierto (+brillo y aire).
+   - **Transiciones / Buildups:** Acordes de paso con tensión armónica antes del drop.
+
+3. **Plucks, Arpegios y Elementos Melódicos Secundarios (Call & Response):**
+   - **PROHIBIDO el uso de notas estáticas monofónicas repetidas indefinidamente** (ej. una sola nota C5 en todas las secciones).
+   - En estrofas deben guardar silencio o reducir su presencia a acentos sutiles.
+   - En estribillos deben convertirse en **contramelodías activas** que dialoguen en *llamada y respuesta* (*call & response*) con la melodía principal.
+
+4. **Dinámica Rítmica y del Sub-bajo 808:**
+   - **Intro:** Silencio total de batería (atmósfera pura). Tease opcional de 808 en los últimos 4 compases.
+   - **Estrofa 1:** Batería minimalista (sin bombo o a medio tiempo en los primeros 8 compases).
+   - **Estribillos (Drops):** Impacto total con bombo y percusión completa.
+   - **Estrofa 2:** Evolución rítmica obligatoria (rolls de hi-hats en tresillos/fusas tipo trap, variaciones sincopadas en el 808).
+   - **Outro:** Deconstrucción progresiva y desvanecimiento espectral (caída de bombos y percusión).
+

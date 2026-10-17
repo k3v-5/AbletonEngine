@@ -1,5 +1,5 @@
 # tests/test_full_song_arranger.py
-import pytest
+# Standalone execution (ZERO PYTEST invariant)
 from engine.arrangement.blueprints.song_arranger import (
     SectionSpec,
     FullSongBlueprint,
@@ -18,7 +18,8 @@ class MockAdapter:
 
 
 def test_blueprint_generation_96_bars():
-    bp = FullSongArrangerEngine.generate_96bar_blueprint(
+    bp = FullSongArrangerEngine.generate_dynamic_blueprint(
+        total_bars=96,
         bpm=138.0,
         key="F",
         scale="minor",
@@ -43,7 +44,7 @@ def test_blueprint_generation_96_bars():
 
 
 def test_section_role_matrix_distribution():
-    bp = FullSongArrangerEngine.generate_96bar_blueprint()
+    bp = FullSongArrangerEngine.generate_dynamic_blueprint(total_bars=96)
     sec_map = {s.name: s for s in bp.sections}
 
     # 1. Intro: No heavy low-end
@@ -91,7 +92,7 @@ def test_section_role_matrix_distribution():
 
 
 def test_cue_points_generation():
-    bp = FullSongArrangerEngine.generate_96bar_blueprint()
+    bp = FullSongArrangerEngine.generate_dynamic_blueprint(total_bars=96)
     assert len(bp.cue_points) == 8
     # Intro starts at beat 0.0
     assert bp.cue_points[0]["time"] == 0.0
@@ -102,7 +103,7 @@ def test_cue_points_generation():
 
 
 def test_clip_placements_and_vacuums():
-    bp = FullSongArrangerEngine.generate_96bar_blueprint()
+    bp = FullSongArrangerEngine.generate_dynamic_blueprint(total_bars=96)
     tracks_map = {
         "kick": 0, "drums": 13, "bass": 6, "piano": 9,
         "lead": 4, "foley": 15, "break": 14, "vocal_chops": 5
@@ -155,3 +156,13 @@ def test_macro_recipes_orchestrate_full_song():
 
     assert res["status"] == "SUCCESS"
     assert res["total_bars"] == 96
+
+
+if __name__ == "__main__":
+    test_blueprint_generation_96_bars()
+    test_section_role_matrix_distribution()
+    test_cue_points_generation()
+    test_clip_placements_and_vacuums()
+    test_orchestrate_full_song_with_mock_adapter()
+    test_macro_recipes_orchestrate_full_song()
+    print("ALL FULL SONG ARRANGER TESTS PASSED (STANDALONE, ZERO PYTEST)!")

@@ -77,29 +77,32 @@ for t in song.tracks:
         unpopulated_midi_tracks = []
         for trk in tracks:
             r = str(trk.get("role", "")).upper()
-            is_aud = bool(trk.get("is_audio", False) or r == "VOCALS")
-            is_live_rec = bool(trk.get("live_recording_mode", False))
-            if is_aud or is_live_rec:
+            is_aud = bool(
+                trk.get("is_audio", False)
+                or trk.get("live_recording_mode", False)
+                or (r == "VOCALS" and trk.get("sample_path") and not trk.get("chopping_mode"))
+            )
+            if is_aud:
                 continue
             notes_cnt = trk.get("notes_count", 0)
             if notes_cnt == 0:
                 logger.warning(f"Phase 6 Gatekeeper: Track '{trk['name']}' has 0 notes across the arrangement.")
-                unpopulated_midi_tracks.append(trk["name"])
+                unpopulated_midi_tracks.append(trk.get("original_name") or trk["name"])
 
         if unpopulated_midi_tracks and not is_explicit_key_directive:
             session._save_state()
             return {
                 "status": "PHASE_6_GATEKEEPER_BLOCKED",
                 "phase": "PHASE_6_COMPOSITION",
-                "current_step": "FASE 6: COMPOSICIÓN (BLOQUEADA POR GATEKEEPER)",
-                "action_taken": f"Gatekeeper de Completitud activado: {len(unpopulated_midi_tracks)} pista(s) sin notas ({', '.join(unpopulated_midi_tracks)}).",
+                "current_step": "PASO 4: COMPOSICIÓN (BLOQUEADA POR ARNÉS DE COMPLETITUD)",
+                "action_taken": f"Gatekeeper de Completitud activado: {len(unpopulated_midi_tracks)} pista(s) MIDI sin notas ({', '.join(unpopulated_midi_tracks)}).",
                 "question": (
-                    f"⚠️ **Gatekeeper de Completitud Activado:**\n\n"
-                    f"Las siguientes pistas de instrumento carecen de notas MIDI: **{', '.join(unpopulated_midi_tracks)}**.\n"
-                    f"El motor prohíbe el autocompletado y relleno procedural. Bloquea la transición a Fase 7 hasta que la IA defina explícitamente las notas MIDI para estas pistas.\n\n"
+                    f"⚠️ **Arnés de Completitud Musical Activado (Cero Pistas Huérfanas):**\n\n"
+                    f"Las siguientes pistas MIDI carecen de notas en el Arrangement: **{', '.join(unpopulated_midi_tracks)}**.\n"
+                    f"El motor prohíbe el autocompletado procedural y bloquea el avance al Paso 5 (Esculpido de Síntesis) hasta que definas explícitamente las notas MIDI para todas las pistas.\n\n"
                     f"Por favor, provee las notas MIDI (`pitch`, `start_time`, `duration`, `velocity`) para las pistas vacías para continuar."
                 ),
-                "instructions_for_ai": "Genera y envía las notas MIDI explícitas para las pistas vacías indicadas antes de continuar a Fase 7. El motor no autocompletará notas.",
+                "instructions_for_ai": "Genera y envía las notas MIDI explícitas para las pistas vacías indicadas antes de continuar al Paso 5 (Esculpido de Síntesis).",
                 "unpopulated_tracks": unpopulated_midi_tracks
             }
         return None
@@ -148,15 +151,71 @@ for t in song.tracks:
             return {
                 "status": "PHASE_6_GATEKEEPER_BLOCKED",
                 "phase": "PHASE_6_COMPOSITION",
-                "current_step": "FASE 6: COMPOSICIÓN (BLOQUEADA POR GATEKEEPER - SINTETIZADOR EN OUTRO)",
+                "current_step": "PASO 4: COMPOSICIÓN (BLOQUEADA POR GATEKEEPER - SINTETIZADOR EN OUTRO)",
                 "action_taken": f"Gatekeeper de Outro activado: el sintetizador no se debe silenciar en el outro ({', '.join(silenced_synths_in_outro)}).",
                 "question": (
                     f"⚠️ **Gatekeeper de Outro Activado (Sintetizador no debe silenciarse):**\n\n"
                     f"Las siguientes pistas de sintetizador carecen de notas en la sección Outro: **{', '.join(silenced_synths_in_outro)}**.\n"
                     f"La regla de producción exige terminantemente que el sintetizador no se silencie en el Outro para mantener drones armónicos sostenidos que alimenten el colapso y la saturación final.\n\n"
-                    f"Por favor, provee las notas MIDI para el sintetizador en la sección Outro para continuar a Fase 7."
+                    f"Por favor, provee las notas MIDI para el sintetizador en la sección Outro para continuar al Paso 5 (Esculpido de Síntesis)."
                 ),
                 "instructions_for_ai": "Genera y envía las notas MIDI explícitas (drones armónicos sostenidos) para el sintetizador en el Outro. El motor prohíbe silenciar el sintetizador en el outro.",
                 "silenced_synth_tracks": silenced_synths_in_outro
             }
         return None
+
+    @staticmethod
+    def audit_composition_quality_harness(
+        session: Any,
+        tracks: List[Dict[str, Any]],
+        sections: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Non-mutating Composition Quality Harness:
+        Audits velocity dynamics, section density contrast, and same-role track differentiation
+        without injecting unsolicited procedural notes.
+        """
+        warnings: List[str] = []
+        track_metrics: Dict[str, Any] = {}
+        role_fingerprints: Dict[str, List[Tuple[str, Any]]] = {}
+
+        for trk in tracks:
+            t_label = trk.get("original_name") or trk.get("name", f"Track {trk.get('index')}")
+            role = str(trk.get("role", "OTHER")).upper()
+            summary = trk.get("composed_notes_summary", {})
+            sec_notes = trk.get("section_notes", {})
+            if not summary:
+                continue
+
+            track_metrics[t_label] = summary
+            vel_span = summary.get("max_velocity", 100) - summary.get("min_velocity", 100)
+            if summary.get("notes_count", 0) >= 8 and vel_span == 0:
+                warnings.append(f"Velocity plana detectada en '{t_label}' (todas las notas a {summary.get('max_velocity')}).")
+
+            # Check same-role track collisions
+            fp = (
+                summary.get("notes_count"),
+                summary.get("min_pitch"),
+                summary.get("max_pitch"),
+                summary.get("avg_duration")
+            )
+            for prev_name, prev_fp in role_fingerprints.get(role, []):
+                if prev_fp == fp and summary.get("notes_count", 0) > 0:
+                    warnings.append(
+                        f"Posible colisión de notas en rol {role}: '{t_label}' y '{prev_name}' comparten idéntico perfil de notas {fp}."
+                    )
+            role_fingerprints.setdefault(role, []).append((t_label, fp))
+
+            # Check section contrast
+            if len(sec_notes) >= 3:
+                counts = [len(v) for v in sec_notes.values() if len(v) > 0]
+                if len(counts) >= 3 and len(set(counts)) == 1:
+                    warnings.append(f"Densidad estática en '{t_label}': todas las secciones activas tienen exactamente {counts[0]} notas.")
+
+        report = {
+            "status": "PASSED" if not warnings else "PASSED_WITH_ADVISORIES",
+            "warnings": warnings,
+            "track_metrics": track_metrics
+        }
+        session.data["composition_harness_audit"] = report
+        return report

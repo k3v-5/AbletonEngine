@@ -177,7 +177,7 @@ class BatchComposer:
                             # 3. Duplicate to Arrangement timeline at exact current_beat
                             if duplicate_to_arrangement:
                                 try:
-                                    conn.send_command("duplicate_to_arrangement", {
+                                    conn.send_command("duplicate_session_clip_to_arrangement", {
                                         "track_index": t_idx,
                                         "clip_index": s_idx,
                                         "destination_time": current_beat

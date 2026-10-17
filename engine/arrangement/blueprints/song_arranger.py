@@ -21,14 +21,20 @@ class SectionSpec:
     energy_target: float     # 0.0 to 1.0
     roles: Dict[str, str]    # {"kick": "OFF", "drums": "FULL", "bass": "OFF", ...}
     transition_fx: Optional[str] = None
+    time_signature: Tuple[int, int] = (4, 4)
+
+    @property
+    def beats_per_bar(self) -> float:
+        num, den = self.time_signature if self.time_signature else (4, 4)
+        return float(num * (4.0 / max(1, den)))
 
     @property
     def start_beat(self) -> float:
-        return (self.start_bar - 1) * 4.0
+        return (self.start_bar - 1) * self.beats_per_bar
 
     @property
     def end_beat(self) -> float:
-        return (self.start_bar - 1 + self.bars) * 4.0
+        return (self.start_bar - 1 + self.bars) * self.beats_per_bar
 
     @property
     def end_bar(self) -> int:
@@ -38,192 +44,166 @@ class SectionSpec:
 @dataclass
 class FullSongBlueprint:
     title: str
-    total_bars: int = 96
+    total_bars: int = 64
     tempo: float = 138.0
     key: str = "F"
     scale: str = "minor"
     genre: str = "atlanta_trap"
+    time_signature: Tuple[int, int] = (4, 4)
     sections: List[SectionSpec] = field(default_factory=list)
     cue_points: List[Dict[str, Any]] = field(default_factory=list)
 
     @property
+    def beats_per_bar(self) -> float:
+        num, den = self.time_signature if self.time_signature else (4, 4)
+        return float(num * (4.0 / max(1, den)))
+
+    @property
     def duration_seconds(self) -> float:
-        return (self.total_bars * 4.0 / self.tempo) * 60.0
+        return (self.total_bars * self.beats_per_bar / self.tempo) * 60.0
 
 
 class FullSongArrangerEngine:
     """End-to-end architect for full-length song arrangement and dynamic layer orchestration."""
 
     @classmethod
-    def generate_96bar_blueprint(
+    def generate_dynamic_blueprint(
         cls,
+        total_bars: Optional[int] = None,
+        sections_spec: Optional[List[Dict[str, Any]]] = None,
         bpm: float = 138.0,
         key: str = "F",
         scale: str = "minor",
         genre: str = "atlanta_trap",
-        title: str = "PIE 96-Bar Master Blueprint"
+        time_signature: Tuple[int, int] = (4, 4),
+        drop_bar: Optional[int] = None,
+        title: str = "PIE Dynamic Master Blueprint"
     ) -> FullSongBlueprint:
         """
-        Generates the golden standard 96-bar (~3 minute) commercial structure:
-        Intro (8) -> Verse 1 (16) -> Pre-Chorus (8) -> Drop 1 (16) ->
-        Verse 2 (16) -> Bridge (8) -> Final Drop (16) -> Outro (8) = 96 bars.
+        Dynamically generates a full song arrangement blueprint listening purely
+        to how many bars the producer/AI requests, supporting asymmetric phrases,
+        compound/irregular meters, and flexible drop placement without rigid templates.
         """
-        sections: List[SectionSpec] = [
-            # 1. Intro (Bars 1-8)
-            SectionSpec(
-                name="Intro",
-                type=SectionType.INTRO,
-                start_bar=1,
-                bars=8,
-                energy_target=0.25,
-                roles={
-                    "kick": "OFF",
-                    "drums": "GHOST",
-                    "bass": "OFF",
-                    "piano": "LOW",
-                    "lead": "OFF",
-                    "foley": "FULL",
-                    "break": "OFF",
-                    "vocal_chops": "OFF"
-                },
-                transition_fx="filter_sweep_rise"
-            ),
-            # 2. Verse 1 (Bars 9-24)
-            SectionSpec(
-                name="Verse 1",
-                type=SectionType.VERSE,
-                start_bar=9,
-                bars=16,
-                energy_target=0.55,
-                roles={
-                    "kick": "PUNCH",
-                    "drums": "FULL",
-                    "bass": "MEDIUM",
-                    "piano": "FULL",
-                    "lead": "OFF",          # Leaves acoustic space for vocals!
-                    "foley": "LOW",
-                    "break": "OFF",
-                    "vocal_chops": "OFF"
-                },
-                transition_fx="drum_fill"
-            ),
-            # 3. Pre-Chorus (Bars 25-32)
-            SectionSpec(
-                name="Pre-Chorus",
-                type=SectionType.BUILD,
-                start_bar=25,
-                bars=8,
-                energy_target=0.75,
-                roles={
-                    "kick": "OFF",          # Cut kick in second half of build
-                    "drums": "BUILD_ROLL",
-                    "bass": "CUT_AT_32",    # Hard cut before drop
-                    "piano": "TENSION",
-                    "lead": "OFF",
-                    "foley": "OFF",
-                    "break": "OFF",
-                    "vocal_chops": "CALL_RESPONSE"
-                },
-                transition_fx="pre_drop_vacuum"
-            ),
-            # 4. Drop 1 / Chorus (Bars 33-48)
-            SectionSpec(
-                name="Drop 1 (Chorus)",
-                type=SectionType.DROP,
-                start_bar=33,
-                bars=16,
-                energy_target=0.95,
-                roles={
-                    "kick": "FULL",
-                    "drums": "FULL",
-                    "bass": "FULL_SLIDES",
-                    "piano": "FULL_STRUM",
-                    "lead": "FOREGROUND",
-                    "foley": "DUCKED",
-                    "break": "OFF",
-                    "vocal_chops": "FULL_HOOK"
-                },
-                transition_fx="instant_cut"
-            ),
-            # 5. Verse 2 (Bars 49-64)
-            SectionSpec(
-                name="Verse 2",
-                type=SectionType.VERSE,
-                start_bar=49,
-                bars=16,
-                energy_target=0.60,
-                roles={
-                    "kick": "PUNCH",
-                    "drums": "MEDIUM",
-                    "bass": "MEDIUM",
-                    "piano": "REHARMONIZED",
-                    "lead": "OFF",
-                    "foley": "LOW",
-                    "break": "AMEN_SHUFFLE", # Breakbeat variation prevents fatigue
-                    "vocal_chops": "SPARSE"
-                },
-                transition_fx="break_fill"
-            ),
-            # 6. Bridge (Bars 65-72)
-            SectionSpec(
-                name="Bridge",
-                type=SectionType.BRIDGE,
-                start_bar=65,
-                bars=8,
-                energy_target=0.40,
-                roles={
-                    "kick": "OFF",
-                    "drums": "OFF",
-                    "bass": "OFF",
-                    "piano": "LUSH",
-                    "lead": "SOLO",
-                    "foley": "FULL",
-                    "break": "OFF",
-                    "vocal_chops": "AMBIENT"
-                },
-                transition_fx="pre_drop_vacuum"
-            ),
-            # 7. Final Drop (Bars 73-88)
-            SectionSpec(
-                name="Final Drop (Climax)",
-                type=SectionType.DROP,
-                start_bar=73,
-                bars=16,
-                energy_target=1.00,
-                roles={
-                    "kick": "FULL",
-                    "drums": "FULL",
-                    "bass": "FULL_SLIDES",
-                    "piano": "FULL_STRUM",
-                    "lead": "FOREGROUND",
-                    "foley": "DUCKED",
-                    "break": "LAYERED_FULL", # Layered breakbeat on top
-                    "vocal_chops": "FULL_HOOK"
-                },
-                transition_fx="crash_ringout"
-            ),
-            # 8. Outro (Bars 89-96)
-            SectionSpec(
-                name="Outro",
-                type=SectionType.OUTRO,
-                start_bar=89,
-                bars=8,
-                energy_target=0.20,
-                roles={
-                    "kick": "OFF",
-                    "drums": "FADING",
-                    "bass": "OFF",
-                    "piano": "LINGERING",
-                    "lead": "OFF",
-                    "foley": "FULL",
-                    "break": "OFF",
-                    "vocal_chops": "REVERB_TAIL"
-                },
-                transition_fx="fade_out"
-            )
-        ]
+        sections: List[SectionSpec] = []
+        effective_bars = total_bars or 96
 
-        # Generate cue points metadata
+        if sections_spec and isinstance(sections_spec, list):
+            # 1. Custom sections supplied explicitly (supports asymmetric phrases e.g. 5, 7, 9, 11 bars)
+            curr_bar = 1
+            for idx, s in enumerate(sections_spec, 1):
+                s_name = s.get("name", f"Section {idx}")
+                s_type_raw = str(s.get("type", "VERSE")).upper()
+                try:
+                    s_type = SectionType[s_type_raw] if s_type_raw in SectionType.__members__ else SectionType.VERSE
+                except Exception:
+                    s_type = SectionType.VERSE
+                s_bars = int(s.get("bars", 8))
+                s_energy = float(s.get("energy_target", s.get("energy", 0.5)))
+                s_roles = s.get("roles")
+                if not s_roles or not isinstance(s_roles, dict):
+                    # Proportional default role energy assignment
+                    if s_type == SectionType.INTRO:
+                        s_roles = {"kick": "OFF", "drums": "GHOST", "bass": "OFF", "lead": "OFF"}
+                    elif s_type == SectionType.DROP:
+                        s_roles = {"kick": "FULL", "drums": "FULL", "bass": "FULL_SLIDES", "lead": "FOREGROUND"}
+                    elif s_type in (SectionType.BUILD, SectionType.BREAK):
+                        s_roles = {"kick": "OFF", "drums": "BUILD_ROLL", "bass": "CUT_AT_32", "lead": "OFF"}
+                    elif s_type == SectionType.OUTRO:
+                        s_roles = {"kick": "OFF", "drums": "FADING", "bass": "OFF", "lead": "OFF"}
+                    else:
+                        s_roles = {"kick": "PUNCH", "drums": "FULL", "bass": "MEDIUM", "lead": "OFF"}
+
+                sections.append(SectionSpec(
+                    name=s_name,
+                    type=s_type,
+                    start_bar=curr_bar,
+                    bars=s_bars,
+                    energy_target=s_energy,
+                    roles=s_roles,
+                    transition_fx=s.get("transition_fx"),
+                    time_signature=time_signature
+                ))
+                curr_bar += s_bars
+            effective_bars = curr_bar - 1
+        else:
+            # 2. Dynamic proportional layout scaled to exact total_bars requested
+            # Use 12 proportional units:
+            # Intro: 1, Verse 1: 2, Pre-Chorus: 1, Drop 1: 2, Verse 2: 2, Bridge: 1, Final Drop: 2, Outro: 1 (Total = 12 units)
+            eff = max(8, int(effective_bars)) if effective_bars >= 8 else int(effective_bars)
+            if eff >= 8:
+                unit = eff / 12.0
+                intro_bars = max(1, int(round(unit * 1)))
+                verse1_bars = max(1, int(round(unit * 2)))
+                pre_bars = max(1, int(round(unit * 1)))
+                drop1_bars = max(1, int(round(unit * 2)))
+                verse2_bars = max(1, int(round(unit * 2)))
+                bridge_bars = max(1, int(round(unit * 1)))
+                final_drop_bars = max(1, int(round(unit * 2)))
+                outro_bars = max(1, int(round(unit * 1)))
+
+                # Exact sum reconciliation
+                alloc_sum = intro_bars + verse1_bars + pre_bars + drop1_bars + verse2_bars + bridge_bars + final_drop_bars + outro_bars
+                diff = eff - alloc_sum
+                final_drop_bars += diff
+                if final_drop_bars < 1:
+                    verse1_bars += (final_drop_bars - 1)
+                    final_drop_bars = 1
+
+                raw_specs = [
+                    ("Intro", SectionType.INTRO, intro_bars, 0.25,
+                     {"kick": "OFF", "drums": "GHOST", "bass": "OFF", "piano": "WARM_CHORDS", "lead": "OFF", "foley": "FULL", "break": "OFF", "vocal_chops": "FILTERED_AMBIENT"},
+                     "filter_sweep_rise"),
+                    ("Verse 1", SectionType.VERSE, verse1_bars, 0.55,
+                     {"kick": "PUNCH", "drums": "FULL", "bass": "SUB_ONLY", "piano": "OFF", "lead": "OFF", "foley": "LOW", "break": "OFF", "vocal_chops": "OFF"},
+                     "drum_fill"),
+                    ("Pre-Chorus", SectionType.BUILD, pre_bars, 0.75,
+                     {"kick": "OFF", "drums": "BUILD_ROLL", "bass": "CUT_AT_32", "piano": "STACCATO_RISER", "lead": "OFF", "foley": "OFF", "break": "ROLL", "vocal_chops": "RISING_PITCH"},
+                     "pre_drop_vacuum"),
+                    ("Drop 1 (Chorus)", SectionType.DROP, drop1_bars, 0.95,
+                     {"kick": "FULL", "drums": "FULL", "bass": "FULL_SLIDES", "piano": "FULL", "lead": "FOREGROUND", "foley": "OFF", "break": "OFF", "vocal_chops": "MAIN_HOOK"},
+                     "instant_cut"),
+                    ("Verse 2", SectionType.VERSE, verse2_bars, 0.60,
+                     {"kick": "PUNCH", "drums": "FULL", "bass": "MID_BOUNCE", "piano": "OFF", "lead": "OFF", "foley": "LOW", "break": "AMEN_SHUFFLE", "vocal_chops": "CALL_RESPONSE"},
+                     "break_fill"),
+                    ("Bridge", SectionType.BREAK, bridge_bars, 0.40,
+                     {"kick": "OFF", "drums": "OFF", "bass": "OFF", "piano": "SOLO_SPACIOUS", "lead": "WHISPER", "foley": "FULL", "break": "OFF", "vocal_chops": "DREAMY_DELAY"},
+                     "pre_drop_vacuum"),
+                    ("Final Drop (Climax)", SectionType.DROP, final_drop_bars, 1.00,
+                     {"kick": "FULL", "drums": "FULL", "bass": "FULL_SLIDES", "piano": "FULL_ENERGY", "lead": "OCTAVE_LAYERED", "foley": "OFF", "break": "LAYERED_FULL", "vocal_chops": "STUTTER_MAX"},
+                     "crash_ringout"),
+                    ("Outro", SectionType.OUTRO, outro_bars, 0.20,
+                     {"kick": "OFF", "drums": "FADING", "bass": "OFF", "piano": "LINGERING", "lead": "OFF", "foley": "FULL", "break": "OFF", "vocal_chops": "REVERB_TAIL"},
+                     "fade_out"),
+                ]
+            else:
+                # Ultra-short arrangement (< 8 bars)
+                raw_specs = [
+                    ("Intro", SectionType.INTRO, 1, 0.30, {"kick": "OFF", "drums": "GHOST", "bass": "OFF", "piano": "OFF", "lead": "OFF", "foley": "OFF", "break": "OFF", "vocal_chops": "OFF"}, "filter_sweep_rise"),
+                    ("Drop 1 (Chorus)", SectionType.DROP, eff - 2 if eff >= 3 else 1, 0.95, {"kick": "FULL", "drums": "FULL", "bass": "FULL_SLIDES", "piano": "FULL", "lead": "FOREGROUND", "foley": "OFF", "break": "OFF", "vocal_chops": "OFF"}, "instant_cut"),
+                    ("Outro", SectionType.OUTRO, 1, 0.20, {"kick": "OFF", "drums": "FADING", "bass": "OFF", "piano": "OFF", "lead": "OFF", "foley": "OFF", "break": "OFF", "vocal_chops": "OFF"}, "fade_out")
+                ]
+                alloc_sum = sum(s[2] for s in raw_specs)
+                diff = eff - alloc_sum
+                raw_specs[1] = (raw_specs[1][0], raw_specs[1][1], raw_specs[1][2] + diff, raw_specs[1][3], raw_specs[1][4], raw_specs[1][5])
+
+            curr = 1
+            for name, stype, bars, energy, roles, fx in raw_specs:
+                if bars <= 0:
+                    continue
+                sections.append(SectionSpec(
+                    name=name,
+                    type=stype,
+                    start_bar=curr,
+                    bars=bars,
+                    energy_target=energy,
+                    roles=roles,
+                    transition_fx=fx,
+                    time_signature=time_signature
+                ))
+                curr += bars
+            effective_bars = curr - 1
+
+        # Generate cue points metadata dynamically
         cue_points: List[Dict[str, Any]] = []
         for idx, s in enumerate(sections, 1):
             cue_points.append({
@@ -234,14 +214,16 @@ class FullSongArrangerEngine:
 
         return FullSongBlueprint(
             title=title,
-            total_bars=96,
+            total_bars=effective_bars,
             tempo=bpm,
             key=key,
             scale=scale,
             genre=genre,
+            time_signature=time_signature,
             sections=sections,
             cue_points=cue_points
         )
+
 
     @classmethod
     def calculate_clip_placements(
@@ -250,13 +232,16 @@ class FullSongArrangerEngine:
         tracks_map: Dict[str, int]
     ) -> List[Dict[str, Any]]:
         """
-        Calculates all Session-to-Arrangement clip duplications based on the section role matrix.
+        Calculates all Session-to-Arrangement clip duplications based on the section role matrix,
+        adapted dynamically to any meter and phrasing length.
         """
         placements: List[Dict[str, Any]] = []
+        bpb = blueprint.beats_per_bar
+        block_beats = max(1.0, 4.0 * bpb)
 
         for sec in blueprint.sections:
             sec_start_beat = sec.start_beat
-            sec_beats = sec.bars * 4.0
+            sec_beats = sec.bars * bpb
 
             for role, state in sec.roles.items():
                 if state in ["OFF", "CUT_AT_32", "CUT"]:
@@ -266,11 +251,13 @@ class FullSongArrangerEngine:
                 if t_idx is None:
                     continue
 
-                # Duplicate clip across section length in 16-beat (4-bar) blocks
-                for offset in range(0, int(sec_beats), 16):
-                    dest_time = sec_start_beat + float(offset)
-                    # Special handling for Pre-Chorus bass cut (stop before last bar)
-                    if role == "bass" and sec.name == "Pre-Chorus" and offset >= 16:
+                # Duplicate clip across section length in blocks
+                offset = 0.0
+                while offset < sec_beats:
+                    dest_time = sec_start_beat + offset
+                    if role == "bass" and sec.name == "Pre-Drop" and (offset >= sec_beats - bpb):
+                        # Silence bass in last measure before drop
+                        offset += block_beats
                         continue
 
                     placements.append({
@@ -281,6 +268,7 @@ class FullSongArrangerEngine:
                         "section": sec.name,
                         "role_state": state
                     })
+                    offset += block_beats
 
         return placements
 
@@ -288,17 +276,16 @@ class FullSongArrangerEngine:
     def calculate_pre_drop_vacuums(cls, blueprint: FullSongBlueprint) -> List[Dict[str, Any]]:
         """
         Calculates ear candy pre-drop silence vacuum automation points.
-        Specifically injected at:
-        - Bar 32 (Pre-Chorus transition into Drop 1): 1 beat silence at beat 127.0
-        - Bar 72 (Bridge transition into Final Drop): 1 beat silence at beat 287.0
+        Injected at any section boundary transitioning into a Drop or with pre_drop_vacuum fx.
         """
         vacuum_ops = []
+        bpb = blueprint.beats_per_bar
         for sec in blueprint.sections:
             if sec.transition_fx == "pre_drop_vacuum":
-                target_bar = sec.end_bar + 1.0  # Transition point (Bar 33.0 or 73.0)
+                target_bar = sec.end_bar + 1.0
                 pts = EarCandyEngine.generate_pre_drop_vacuum(
                     target_bar=target_bar,
-                    silence_duration_beats=1.0,
+                    silence_duration_beats=min(2.0, bpb),
                     normal_gain=0.85
                 )
                 vacuum_ops.append({
@@ -316,12 +303,17 @@ class FullSongArrangerEngine:
         bpm: float = 138.0,
         key: str = "F",
         scale: str = "minor",
-        genre: str = "atlanta_trap"
+        genre: str = "atlanta_trap",
+        total_bars: Optional[int] = None,
+        sections: Optional[List[Dict[str, Any]]] = None,
+        time_signature: Tuple[int, int] = (4, 4),
+        drop_bar: Optional[int] = None,
+        title: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executes end-to-end full song arrangement orchestration in Ableton Live:
-        1. Generates 96-bar blueprint.
-        2. Injects all 8 Section Cue Points (markers).
+        1. Generates dynamic blueprint matching the requested bar count and meter.
+        2. Injects Section Cue Points (markers).
         3. Duplicates active clips across the Arrangement timeline based on role matrix.
         4. Injects pre-drop vacuum automations.
         """
@@ -337,7 +329,17 @@ class FullSongArrangerEngine:
             "vocal_chops": 5
         }
 
-        blueprint = cls.generate_96bar_blueprint(bpm=bpm, key=key, scale=scale, genre=genre)
+        blueprint = cls.generate_dynamic_blueprint(
+            total_bars=total_bars,
+            sections_spec=sections,
+            bpm=bpm,
+            key=key,
+            scale=scale,
+            genre=genre,
+            time_signature=time_signature,
+            drop_bar=drop_bar,
+            title=title or "PIE Dynamic Master Blueprint"
+        )
         placements = cls.calculate_clip_placements(blueprint, effective_map)
         vacuums = cls.calculate_pre_drop_vacuums(blueprint)
 

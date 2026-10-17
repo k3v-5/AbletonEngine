@@ -86,6 +86,25 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         except Exception as e:
             logger.debug(f"Notice during phase and spectral audit: {e}")
     
+    @staticmethod
+    def _get_fx_list_for_track(trk: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Returns the insert effect list for a track.
+        - If the AI specified a custom_fx_chain on the track, uses that.
+        - If the track is a MIDI VOCALS track (e.g., Simpler Vocal Chop, is_audio=False),
+          uses a clean 3-stage instrument/chop chain (EQ Eight, Compressor, ValhallaVintageVerb)
+          instead of the 7-plugin microphone recording chain (Auto-Tune Artist, Pro-DS, etc.).
+        - Otherwise falls back to ROLE_INSERT_EFFECTS[role].
+        """
+        custom_chain = trk.get("custom_fx_chain")
+        if isinstance(custom_chain, list) and len(custom_chain) > 0:
+            return custom_chain
+        role = str(trk.get("role", "STRINGS")).upper()
+        is_audio = bool(trk.get("is_audio", False))
+        if role in ("VOCALS", "VOCAL", "VOX") and not is_audio:
+            return ROLE_INSERT_EFFECTS.get("SYNTH", ROLE_INSERT_EFFECTS.get("KEYS", []))
+        return ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+
     def force_missing_eq_prompt(self, session: Any, conn: Any, missing_trk: Dict[str, Any]) -> Dict[str, Any]:
         """Forces insertion and configuration of EQ Eight on a track that missed it."""
         tracks = session.data.get("tracks", [])
@@ -96,19 +115,19 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         session.data["current_fx_track_ptr"] = t_ptr
         session.data["current_fx_dev_ptr"] = 0
         session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-        session.data["phase_index"] = 5
+        session.data["phase_index"] = 6
         session._save_state()
     
         guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
         spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, missing_trk.get('name', ''))
         return {
             "status": "MISSING_EQ_ENFORCED",
-            "current_step": f"PASO 5 DE 7: ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{missing_trk.get('name')}')",
-            "action_taken": f"Compuerta de ecualización activada: la pista {t_idx} no tiene ecualizador. El motor exige su configuración obligatoria.",
+            "current_step": f"PASO 6 DE 9 — FASE 5 (INSERT EFFECTS): ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{missing_trk.get('name')}')",
+            "action_taken": f"Compuerta de ecualización activada: la pista {t_idx} no tiene ecualizador. El arnés exige su configuración obligatoria.",
             "question": (
                 f"⛔ **COMPUERTA DE ECUALIZACIÓN OBLIGATORIA (PISTA {t_idx}: '{missing_trk.get('name')}', Rol: {role})**\n\n"
-                f"El motor no permite avanzar a la Fase 6 si alguna pista carece de ecualizador.\n"
-                f"Es obligatorio insertar y calibrar `EQ Eight` para limpiar subgraves, resonancias y transientes.\n\n"
+                f"El arnés de higiene espectral no permite avanzar a la Fase 7 (Automatización) si alguna pista carece de ecualizador.\n"
+                f"Es obligatorio insertar y calibrar `EQ Eight` (o `Pro-Q`) para limpiar subgraves, resonancias y transientes.\n\n"
                 f"{spec_ascii}\n\n"
                 f"🎯 **Guía Espectral y Dinámica para {role}:**\n"
                 f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'Información espectral clave')}\n"
@@ -116,9 +135,8 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF y limpieza')}\n"
                 f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
                 f"📋 **Formato Esperado de Parámetros:**\n"
-                f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"`\n"
-                f"• Preset base: `\"Opción 1\"` (aplica el blueprint espectral base)\n\n"
-                f"*Especifica tus parámetros para EQ Eight, o usa 'Opción 1' para el preset base.*"
+                f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"` o `\"HPF: 120 Hz, Mud: 350 Hz, Gain 2: -2.5 dB\"`\n\n"
+                f"*Especifica tus parámetros para EQ Eight en esta pista.*"
             ),
             "instructions_for_ai": f"Define los parámetros obligatorios para EQ Eight en la pista {missing_trk.get('name')}.",
             "target_track": t_idx,
@@ -127,7 +145,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         }
     
     # -------------------------------------------------------------------------
-    # FASE 5: EFECTO POR EFECTO, PARÁMETRO POR PARÁMETRO CON REPORTE DE GANANCIA
+    # FASE 5 (ÍNDICE 6): EFECTO POR EFECTO CON CONTEXTO DE NOTAS REALES Y CADENA SOBERANA
     # -------------------------------------------------------------------------
     def _prompt_current_fx_device(self, session: Any) -> Dict[str, Any]:
         tracks = session.data.get("tracks", [])
@@ -138,18 +156,17 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             if missing_trk is not None:
                 return self.force_missing_eq_prompt(session, None, missing_trk)
     
-            session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
             session._save_state()
-            return session._prompt_phase_6()
+            return session._prompt_phase_7()
     
         conn = getattr(session, "_conn", None)
         from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
 
         while t_ptr < len(tracks):
             trk = tracks[t_ptr]
-            role = trk["role"]
-            fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+            fx_list = self._get_fx_list_for_track(trk)
             dev_ptr = session.data.get("current_fx_dev_ptr", 0)
 
             if dev_ptr >= len(fx_list):
@@ -164,7 +181,6 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
 
             if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
                 t_idx = session._resolve_live_track_index(conn, trk)
-                dev_idx = dev_ptr + 1
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
                         conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff.get("uri", "")})
@@ -177,20 +193,33 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             missing_trk = self.find_track_missing_eq(session, None)
             if missing_trk is not None:
                 return self.force_missing_eq_prompt(session, None, missing_trk)
-            session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
             session._save_state()
-            return session._prompt_phase_6()
+            return session._prompt_phase_7()
 
         trk = tracks[t_ptr]
         t_idx = trk.get("index", t_ptr)
         t_name = trk["name"]
         role = trk["role"]
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-        fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+        fx_list = self._get_fx_list_for_track(trk)
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
         is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
+
+        # Contexto de notas MIDI reales compuestas en Fase 6
+        notes_summary = trk.get("composed_notes_summary", {})
+        if notes_summary and notes_summary.get("notes_count", 0) > 0:
+            note_ctx_banner = (
+                f"🎼 **Contexto de Notas MIDI Compuestas en '{t_name}':** "
+                f"`{notes_summary.get('notes_count', 0)} notas` | "
+                f"Registro MIDI: `{notes_summary.get('min_pitch', 60)}–{notes_summary.get('max_pitch', 72)}` | "
+                f"Duración media: `{notes_summary.get('avg_duration', 0.5)} beats` | "
+                f"Velocidad media: `{notes_summary.get('avg_velocity', 95)}`\n\n"
+            )
+        else:
+            note_ctx_banner = ""
     
         params_info = []
         for p in eff["params"]:
@@ -209,11 +238,10 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"• **Puntos de Conflicto Crítico (Enmascaramiento):** {guide.get('conflict_points', 'N/A')}\n"
                 f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'N/A')}\n"
                 f"• **Manejo de Transitorios en Estilos Híbridos:** {guide.get('transient_handling', 'N/A')}\n"
-                f"⚠️ *Nota del Motor: El ecualizador es 100% obligatorio en esta pista para evitar solapamientos destructivos; no se admite bypass.*"
+                f"⚠️ *Nota del Arnés: El ecualizador es 100% obligatorio en esta pista para evitar solapamientos destructivos; no se admite bypass.*"
             )
             params_info.append(eq_guide_block)
     
-        # Inyectar directrices de FabFilter y Cadenas Vocales
         eq_tip = get_eq_preset(role.lower())
         comp_tip = get_compressor_preset(role.lower())
         fx_kb = []
@@ -221,7 +249,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
             fx_kb.append(f"  💡 **FabFilter Pro-Q ({role}):** {eq_tip.splitlines()[0] if eq_tip else ''}")
         if comp_tip:
             fx_kb.append(f"  💡 **FabFilter Pro-C2 ({role}):** {comp_tip.splitlines()[0] if comp_tip else ''}")
-        if role == "VOCALS":
+        if role == "VOCALS" and bool(trk.get("is_audio", False)):
             try:
                 sc = InstalledPluginScanner()
                 sc.scan()
@@ -261,28 +289,28 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
     
         p_examples = ", ".join([f"{p['id']}: X" for p in eff.get("params", [])[:2]]) or "Parameter: Value"
         decision_prompt = (
-            f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla."
+            f"Analiza el registro y densidad de las notas MIDI compuestas en '{t_name}' ({role}) y define los valores específicos de este ecualizador obligatorio."
             if is_eq else
-            f"Analiza la función de este efecto dentro del rol '{role}' y define los valores específicos para cada parámetro considerando la densidad y rango dinámico de la mezcla, o indica 'Bypass' si determinas que este procesador no es necesario en este canal."
+            f"Analiza el registro y densidad de las notas MIDI compuestas en '{t_name}' ({role}) y define los valores específicos para `{eff_name}`, o escribe `'Siguiente Pista'` / `'Bypass'` si determinas que no requiere más procesadores."
         )
-        action_note = f"*Especifica tus valores de configuración (ej: '{p_examples}'). (Nota: Ecualizador 100% obligatorio).*" if is_eq else f"*Especifica tus valores de configuración (ej: '{p_examples}') o indica 'Bypass'.*"
+        action_note = f"*Especifica tus valores de configuración (ej: '{p_examples}'). (Nota: Ecualizador 100% obligatorio).*" if is_eq else f"*Especifica tus valores de configuración (ej: '{p_examples}'), indica 'Bypass' o escribe 'Siguiente Pista' para concluir la cadena de esta pista.*"
     
         params_format_banner = (
-            f"\n\n📋 **Formato Esperado de Parámetros:**\n"
+            f"\n\n📋 **Formato Esperado de Parámetros (Soberanía por Pista):**\n"
             f"• Clave-Valor: `\"Parámetro: Valor, Parámetro: Valor\"` (ej: `\"{p_examples}\"` o `\"Drive: 35%, Dry/Wet: 50%\"`)\n"
             f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
-            f"• JSON: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
-            f"• Preset base: `\"Opción 1\"` (Aplica valores estándar para este procesador)\n"
-            f"• 🚀 **Cadena Express**: Escribe `'cadena express'` o `'lote'` para calibrar todos los efectos de esta pista ({t_name}) en 1 solo paso y avanzar.\n"
-            f"• Bypass puntual: Solo si determinas acústicamente que este canal no requiere este proceso (máximo 35% de la sesión)."
+            f"• JSON de dispositivo: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
+            f"• 🎛️ **Cadena Soberana a Medida (JSON)**: `{{\"effects\": [{{\"name\": \"EQ Eight\", \"params\": {{\"Band 1 On\": 1.0, \"1 Frequency A\": 0.28}}}}, {{\"name\": \"Compressor\", \"params\": {{\"Threshold\": 0.45, \"Ratio\": 0.40}}}}]}}`\n"
+            f"• ⏭️ **Cerrar Cadena de Pista**: Tras configurar el EQ obligatorio, puedes escribir `'Siguiente Pista'` o `'Fin de Cadena'` si esta pista no necesita más efectos."
         )
     
         return {
-            "current_step": f"PASO 5 DE 7: EFECTO {dev_ptr + 1} DE {len(fx_list)} (PISTA {t_ptr + 1} DE {len(tracks)}: '{t_name}')",
+            "current_step": f"PASO 6 DE 9 — FASE 5 (INSERT EFFECTS): EFECTO {dev_ptr + 1} DE {len(fx_list)} (PISTA {t_ptr + 1} DE {len(tracks)}: '{t_name}')",
             "action_taken": f"Configurando procesador #{dev_ptr + 1} ({eff_name}) en Pista {t_idx}. Nivel actual: {lvl_str}.",
             "question": (
-                f"🔌 **Paso 5 de 7: Cadena de Efectos de Inserción - Esculpido de '{eff_name}' en Pista {t_ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                f"🔌 **Paso 6 de 9: Fase 5 (Efectos de Inserción Pista por Pista) - Esculpido de '{eff_name}' en Pista {t_ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
                 f"Procesador #{dev_ptr + 1} de {len(fx_list)} en la cadena de inserción. Nivel pre-fader actual: `{lvl_str}`.\n\n"
+                f"{note_ctx_banner}"
                 f"**Espacio de Parámetros y Rangos Acústicos Disponibles:**\n"
                 f"{params_text}\n\n"
                 f"🧠 **Decisión Técnica Requerida:**\n"
@@ -290,7 +318,7 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 f"{action_note}"
                 f"{params_format_banner}"
             ),
-            "instructions_for_ai": f"Define los parámetros para {eff_name} en '{t_name}' o escribe 'cadena express' para configurar la pista completa.",
+            "instructions_for_ai": f"Define los parámetros explícitos para {eff_name} en '{t_name}', o envía una cadena JSON personalizada {{\"effects\": [...]}}.",
             "target_track": t_idx,
             "target_device": eff_name,
             "device_index_in_chain": dev_ptr + 1,
@@ -303,10 +331,10 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         t_ptr = session.data.get("current_fx_track_ptr", 0)
     
         if t_ptr >= len(tracks):
-            session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
             session._save_state()
-            return session._prompt_phase_6()
+            return session._prompt_phase_7()
     
         trk = tracks[t_ptr]
         t_idx = session._resolve_live_track_index(conn, trk)
@@ -314,7 +342,115 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
         dev_ptr = session.data.get("current_fx_dev_ptr", 0)
         text = _normalize_text(user_input)
     
-        fx_list = ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+        fx_list = self._get_fx_list_for_track(trk)
+
+        # Support sovereign custom JSON effect chain for the current track: {"effects": [{"name": "EQ Eight", "params": {...}}, ...]}
+        if "{" in user_input and "}" in user_input and '"effects"' in user_input:
+            try:
+                j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
+                parsed_chain_payload = json.loads(j_str)
+                custom_effects = parsed_chain_payload.get("effects")
+                if isinstance(custom_effects, list) and len(custom_effects) > 0:
+                    has_eq_in_custom = any(
+                        any(q in str(item.get("name", "")).lower() for q in ["eq", "equalizer", "pro-q"])
+                        and not bool(item.get("bypass", False))
+                        for item in custom_effects if isinstance(item, dict)
+                    )
+                    if not has_eq_in_custom:
+                        return {
+                            "status": "VALIDATION_ERROR",
+                            "current_step": f"FASE 6: ECUALIZACIÓN OBLIGATORIA EN CADENA SOBERANA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
+                            "action_taken": "Cadena JSON personalizada rechazada por omitir el ecualizador obligatorio.",
+                            "question": (
+                                f"⛔ **HIGIENE ESPECTRAL OBLIGATORIA (PISTA {t_idx}: '{trk.get('name')}')**\n\n"
+                                f"Tu cadena personalizada `{{\"effects\": [...]}}` debe incluir al menos un ecualizador activo (`EQ Eight` o `Pro-Q`) con parámetros explícitos."
+                            ),
+                            "instructions_for_ai": "Incluye 'EQ Eight' o 'Pro-Q 4' con sus parámetros dentro de 'effects'.",
+                            "target_track": t_idx,
+                            "phase": "PHASE_5_INSERT_EFFECTS"
+                        }
+                    trk["insert_effects"] = []
+                    applied_names = []
+                    for d_i, item in enumerate(custom_effects):
+                        if not isinstance(item, dict):
+                            continue
+                        e_name = str(item.get("name", "EQ Eight"))
+                        e_params = item.get("params", item.get("parameters", {}))
+                        if not isinstance(e_params, dict):
+                            e_params = {}
+                        # Resolve URI from catalog if not provided
+                        e_uri = item.get("uri", "")
+                        if not e_uri:
+                            for cat_list in ROLE_INSERT_EFFECTS.values():
+                                for cat_eff in cat_list:
+                                    if cat_eff.get("name", "").lower() == e_name.lower():
+                                        e_uri = cat_eff.get("uri", "")
+                                        break
+                                if e_uri:
+                                    break
+                        if conn is not None and hasattr(conn, "send_command") and e_uri:
+                            try:
+                                conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": e_uri})
+                                t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
+                                cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
+                                dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
+                                for p_k, p_v in e_params.items():
+                                    try:
+                                        conn.send_command("set_device_parameter", {
+                                            "track_index": t_idx,
+                                            "device_index": dev_target_idx,
+                                            "parameter": p_k,
+                                            "value": float(p_v) if isinstance(p_v, (int, float)) else 0.5
+                                        })
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                        trk["insert_effects"].append({
+                            "name": e_name,
+                            "device_index": d_i + 1,
+                            "bypass": False,
+                            "parameters": e_params
+                        })
+                        applied_names.append(e_name)
+                    session.data["current_fx_track_ptr"] = t_ptr + 1
+                    session.data["current_fx_dev_ptr"] = 0
+                    session._save_state()
+                    if session.data["current_fx_track_ptr"] < len(tracks):
+                        next_p = self._prompt_current_fx_device(session)
+                        next_p["status"] = "CUSTOM_FX_CHAIN_APPLIED"
+                        next_p["action_taken"] = f"Cadena soberana configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_names)}."
+                        return next_p
+                    else:
+                        missing_trk = self.find_track_missing_eq(session, conn)
+                        if missing_trk is not None:
+                            return self.force_missing_eq_prompt(session, conn, missing_trk)
+                        self.audit_phase_and_spectral_health(session, conn, tracks)
+                        session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                        session.data["phase_index"] = 7
+                        session._save_state()
+                        return session._prompt_phase_7()
+            except Exception as ex_custom:
+                logger.debug(f"Custom FX chain parse notice: {ex_custom}")
+
+        # Support closing the current track's FX chain early ("Siguiente Pista" / "Fin de Cadena") once mandatory EQ is configured
+        if any(w in text for w in ["siguiente pista", "fin de cadena", "cerrar cadena", "terminar pista"]) and dev_ptr >= 1:
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            session._save_state()
+            if session.data["current_fx_track_ptr"] < len(tracks):
+                next_p = self._prompt_current_fx_device(session)
+                next_p["action_taken"] = f"Cadena de inserción finalizada en Pista {t_idx} ('{trk.get('name')}'). Avanzando a la siguiente pista."
+                return next_p
+            else:
+                missing_trk = self.find_track_missing_eq(session, conn)
+                if missing_trk is not None:
+                    return self.force_missing_eq_prompt(session, conn, missing_trk)
+                self.audit_phase_and_spectral_health(session, conn, tracks)
+                session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                session.data["phase_index"] = 7
+                session._save_state()
+                return session._prompt_phase_7()
     
         if dev_ptr >= len(fx_list):
             session.data["current_fx_track_ptr"] = t_ptr + 1
@@ -418,10 +554,10 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                     "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
                 }
                 self.audit_phase_and_spectral_health(session, conn, tracks)
-                session.data["current_phase"] = "PHASE_6_COMPOSITION"
-                session.data["phase_index"] = 6
+                session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                session.data["phase_index"] = 7
                 session._save_state()
-                return session._prompt_phase_6()
+                return session._prompt_phase_7()
 
         eff = fx_list[dev_ptr]
         eff_name = eff["name"]
@@ -742,16 +878,28 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         after_devs = t_info_after.get("result", {}).get("devices", t_info_after.get("devices", [])) if isinstance(t_info_after, dict) else []
                         dev_idx = len(after_devs) - 1 if after_devs else dev_ptr + 1
     
+                    eq_param_aliases = {
+                        "Band 1 On": "1 Filter On A",
+                        "Band 2 On": "2 Filter On A",
+                        "Band 3 On": "3 Filter On A",
+                        "Band 4 On": "4 Filter On A",
+                        "Band 5 On": "5 Filter On A",
+                        "Band 6 On": "6 Filter On A",
+                        "Band 7 On": "7 Filter On A",
+                        "Band 8 On": "8 Filter On A",
+                    }
                     for p_key, p_val in applied_params.items():
+                        target_param_name = eq_param_aliases.get(p_key, p_key) if is_eq else p_key
                         try:
                             conn.send_command("set_device_parameter", {
                                 "track_index": t_idx,
                                 "device_index": dev_idx,
-                                "parameter": p_key,
+                                "parameter": target_param_name,
                                 "value": float(p_val) if isinstance(p_val, (int, float)) else 0.5
                             })
                         except Exception:
                             pass
+
     
                     # Specialized LOM parameter tuning for vocal plugins
                     if "auto-tune" in eff_name.lower():
@@ -841,7 +989,7 @@ for p in d.parameters:
         if session.data["current_fx_dev_ptr"] >= len(fx_list):
             session.data["current_fx_track_ptr"] = t_ptr + 1
             session.data["current_fx_dev_ptr"] = 0
-            if role == "VOCALS":
+            if role == "VOCALS" and bool(trk.get("is_audio", False)):
                 session._save_state()
                 return session._handle_dual_lufs_validation(conn, user_input)
     
@@ -865,9 +1013,10 @@ for p in d.parameters:
             }
             self.audit_phase_and_spectral_health(session, conn, tracks)
 
-            session.data["current_phase"] = "PHASE_6_COMPOSITION"
-            session.data["phase_index"] = 6
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
             session._save_state()
-            return session._prompt_phase_6()
+            return session._prompt_phase_7()
+
 
     

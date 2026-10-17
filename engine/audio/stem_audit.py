@@ -211,8 +211,9 @@ class StemAuditor:
         default_len = 2400
         for stem in plan.stems:
             s_name = stem.stem_id
+            is_synth = False
             if s_name not in audio_buffers:
-                # Synthesize typical amplitude envelope
+                is_synth = True
                 s_lower = s_name.lower()
                 if "drum" in s_lower:
                     buf = [0.8 * math.sin(2.0 * math.pi * 60.0 * (i / float(sample_rate))) * math.exp(-0.01 * (i % 600)) for i in range(default_len)]
@@ -223,8 +224,11 @@ class StemAuditor:
                 audio_buffers[s_name] = buf
 
             metric = cls.audit_stem_loudness(audio_buffers[s_name], stem_name=s_name)
+            if is_synth:
+                metric.headroom_safe = False
+                risk_warnings.append(f"Stem {s_name}: Real audio buffer missing; synthetic simulation cannot be certified.")
             stem_metrics.append(metric)
-            if not metric.headroom_safe:
+            if not metric.headroom_safe and not is_synth:
                 risk_warnings.append(f"Stem {s_name} exceeds -1.0 dBTP headroom ceiling ({metric.true_peak_dbtp} dBTP).")
 
         # Inter-Stem Phase Forensics: Check Drums vs Bass

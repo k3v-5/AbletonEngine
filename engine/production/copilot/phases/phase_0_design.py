@@ -44,9 +44,16 @@ class Phase0DesignHandler(BasePhaseHandler):
     """Handler for Phase 0: Artistic Design and Pre-Production Interview."""
 
     def prompt(self, session: Any, **kwargs) -> Dict[str, Any]:
+        if session.data.get("design_step") == "VITAL_MODELING":
+            return self._prompt_vital_modeling(session)
+        pending_spec = session.data.get("pending_design_spec")
+        if pending_spec and session.data.get("design_step") in ("CONFIRMATION", "AWAITING_ARTIST_CONFIRMATION"):
+            return self._prompt_artist_confirmation(session, pending_spec)
         return self._prompt_phase_0(session)
 
     def handle(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        if session.data.get("design_step") == "VITAL_MODELING":
+            return self._handle_vital_modeling(session, conn, user_input)
         return self._handle_phase_0(session, conn, user_input)
 
     def _prompt_phase_0(self, session: Any) -> Dict[str, Any]:
@@ -72,15 +79,15 @@ class Phase0DesignHandler(BasePhaseHandler):
                 "4. **Compás Métrico:** Especifica el compás (ej: `4/4`, `3/4`, `6/8`, `7/8`) y si hay cambios de compás.\n"
                 "5. **Tonalidad y Escala:** Tónica y modo del proyecto (ej: `Fa Menor`, `Do Menor`, `Re Dórico`, `Sol Mayor`).\n"
                 "6. **Densidad y Asignación de Roles por Pista:** El motor expone los siguientes roles musicales oficiales: `[DRUMS, PERCUSSION, BASS, 808_BASS, SUB_BASS, LEAD, GUITAR, KEYS, PIANO, RHODES, PAD, STRINGS, BRASS, CHOIR, VOCAL_CHOP, ARP, EAR_CANDY, FX]`. La IA decide soberanamente cada una de las pistas con su nombre y su rol exacto (ej: `tracks: [{'name': '...', 'role': '...'}, ...]`). Queda estrictamente prohibido que el motor adivine o infiera roles; la IA los define explícitamente en el diseño.\n"
-                "7. **Estructura Formal y Secciones:** La IA define las secciones reales (ej: Intro, Verso 1, Pre-Coro, Coro, Verso 2, Puente, Coro Final, Outro); el motor nunca forzará plantillas fijas de EDM.\n"
+                "7. **Estructura Formal y Secciones:** La IA define soberanamente las secciones y compases deseados (se admiten frases asimétricas libres; el motor no ofrece estructuras ni plantillas fijas).\n"
                 "8. **Ritmo y Groove (Soberanía de IA):** Selecciona explícitamente los 4 parámetros:\n"
                 "   - Estilo de pocket/groove (ej: `Dilla`, `Trap`, `BoomBap`, `MPC Heavy Swing`, `Neo Soul`, `Straight`, etc.)\n"
                 "   - Porcentaje de swing del hi-hat (`hihat_swing_pct`)\n"
                 "   - Desplazamiento de snare en ms (`snare_drag_ms`)\n"
                 "   - Desplazamiento de sub/bajo en ms (`sub_drag_ms`)\n"
                 "9. **Melodía y Armonía:** Progresión de acordes, lenguaje armónico (acordes de 9na/11na, sustituciones) e intención de contrapunto melódico.\n"
-                "10. **Instrumentación Específica:** Lista completa de instrumentos deseados (catálogo abierto: Drift, Analog Lab V, Pigments, Serum 2, Piano V3, Stage-73, Wurli, Wavetable, Operator; **queda prohibido usar Vital para todo**).\n"
-                "11. **Efectos por Instrumento:** Saturación analógica (Saturn 2, Tape MELLO-FI, Tape J-37), OTT, De-Esser Pro-DS, Reverb Valhalla configurable con predelay y low-cut.\n"
+                "10. **Instrumentación Específica:** Lista de instrumentos definidos soberanamente por el usuario/IA según la visión del proyecto (el motor no ofrece presets ni cadenas prefijadas).\n"
+                "11. **Efectos:** La IA/Productor define soberanamente si requiere efectos y cuáles (el motor no sugiere ningún efecto ni plantilla).\n"
                 "12. **Automatizaciones Dinámicas:** Barridos de filtro, silencios dramáticos (micro-stops), vocal riding y efectos de transición.\n"
                 "13. **Nivel de Sonoridad (Target LUFS):** Objetivo de masterización adaptado al género (ej: `-7.5` a `-8.5 LUFS` para Trap/Club; `-11` a `-13 LUFS` para Pop/Indie/ASMR; **se prohíbe normalización ciega a -14.7 LUFS**).\n"
                 "14. **Ubicación del Clímax / Drop:** Indica el compás exacto donde ocurrirá el clímax o si la obra no posee drop (**no se asume el compás 80 ni ningún compás fijo**).\n"
@@ -176,30 +183,27 @@ class Phase0DesignHandler(BasePhaseHandler):
         }
 
     def _handle_phase_0(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
-        """Processes design input or artist confirmation."""
+        """Processes design input directly and proceeds without self-complacent validation loops."""
         text = _normalize_text(user_input)
-        step = session.data.get("design_step", "AWAITING_DESIGN_INPUT")
         pending_spec = session.data.get("pending_design_spec", {})
 
-        # Step B: Artist Confirmation check
-        if step in ("CONFIRMATION", "AWAITING_ARTIST_CONFIRMATION") and pending_spec:
-            if any(w in text for w in ["si", "sí", "confirmo", "confirmar", "cumple", "yes", "adelante", "correcto", "aprobado"]):
-                # Confirmed! Preconfigure session state and Live
-                return self._finalize_design(session, conn, pending_spec)
-            else:
-                # Producer wants adjustments: update spec with adjustments
-                updated_spec = self._parse_design_input(user_input, base_spec=pending_spec)
-                session.data["pending_design_spec"] = updated_spec
-                session._save_state(action_tag="DESIGN_SPEC_ADJUSTED")
-                return self._prompt_artist_confirmation(session, updated_spec)
-
-        # Step A: Parse initial design input
-        parsed_spec = self._parse_design_input(user_input)
+        # If previous session had pending spec and user sent confirmation or adjustments, merge them
+        parsed_spec = self._parse_design_input(user_input, base_spec=pending_spec if pending_spec else None)
         session.data["pending_design_spec"] = parsed_spec
-        session.data["design_step"] = "CONFIRMATION"
-        session._save_state(action_tag="DESIGN_SPEC_RECEIVED")
+        session._save_state(action_tag="DESIGN_SPEC_CONFIRMED")
 
-        return self._prompt_artist_confirmation(session, parsed_spec)
+        # Check for Vital Synth tracks requiring interactive sound modeling (Fase 0-B)
+        from engine.sound_design.vital_modeling_session import VitalModelingSession
+        vital_tracks = VitalModelingSession.get_vital_tracks(parsed_spec)
+        modeled_presets = session.data.get("modeled_vital_presets", [])
+        if vital_tracks and len(modeled_presets) < len(vital_tracks):
+            session.data["vital_modeling_tracks"] = vital_tracks
+            session.data["vital_modeling_index"] = len(modeled_presets)
+            session.data["design_step"] = "VITAL_MODELING"
+            return self._prompt_vital_modeling(session)
+
+        # Directly finalize design and proceed to Phase 1 without self-complacent questioning
+        return self._finalize_design(session, conn, parsed_spec)
 
     def _parse_design_input(self, user_input: str, base_spec: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Extracts all architectural parameters from freeform text or JSON."""
@@ -346,9 +350,23 @@ class Phase0DesignHandler(BasePhaseHandler):
 
         # Extract groove_style from IA response ONLY — no heuristic fallback.
         # The IA must explicitly name one of the valid styles; motor does NOT infer from genre/artist tokens.
-        for g_style in ["ukg_2step", "mpc_60", "dilla_drunk", "neo_soul_dilla", "reggaeton_dembow", "straight_precise", "lofi_sp1200", "atlanta_trap", "boom_bap", "straight"]:
+        valid_grooves = [
+            "french_pump", "french pump", "funk_syncopated_ghost", "funk",
+            "ukg_2step", "mpc_60", "dilla_drunk", "neo_soul_dilla", "dilla",
+            "reggaeton_dembow", "straight_precise", "lofi_sp1200", "atlanta_trap",
+            "boom_bap", "boombap", "dark_rage", "organic_human", "straight"
+        ]
+        for g_style in valid_grooves:
             if g_style in text or g_style.replace("_", " ") in text:
-                spec["groove_style"] = g_style
+                norm_style = g_style.replace(" ", "_")
+                if norm_style == "french_pump" or norm_style == "funk":
+                    spec["groove_style"] = "french_pump"
+                elif norm_style in ("dilla", "dilla_drunk"):
+                    spec["groove_style"] = "neo_soul_dilla"
+                elif norm_style == "boombap":
+                    spec["groove_style"] = "boom_bap"
+                else:
+                    spec["groove_style"] = norm_style
                 break
         # NOTE: if groove_style not found in text, it is NOT assigned — the IA must be explicit.
 
@@ -396,7 +414,158 @@ class Phase0DesignHandler(BasePhaseHandler):
         )
         spec["acoustic_warnings"] = acoustic_warnings
 
+        # 13. Extract conscious stereo panning per track if provided
+        if "tracks" in spec and isinstance(spec["tracks"], list):
+            designed_panning = spec.get("designed_panning", {})
+            for t_item in spec["tracks"]:
+                if isinstance(t_item, dict):
+                    t_name = t_item.get("name")
+                    t_pan = t_item.get("panning", t_item.get("pan"))
+                    if t_name and t_pan is not None:
+                        try:
+                            if isinstance(t_pan, str):
+                                t_pan_clean = t_pan.strip().upper()
+                                if t_pan_clean.startswith("L"):
+                                    val = float(t_pan_clean[1:])
+                                    p_val = -val / (100.0 if val > 1.0 else 1.0)
+                                elif t_pan_clean.startswith("R"):
+                                    val = float(t_pan_clean[1:])
+                                    p_val = val / (100.0 if val > 1.0 else 1.0)
+                                else:
+                                    p_val = float(t_pan_clean)
+                            else:
+                                p_val = float(t_pan)
+                            p_val = max(-1.0, min(1.0, p_val))
+                            t_item["panning"] = p_val
+                            designed_panning[t_name] = p_val
+                        except Exception:
+                            pass
+            if designed_panning:
+                spec["designed_panning"] = designed_panning
+
         return spec
+
+    def _prompt_vital_modeling(self, session: Any) -> Dict[str, Any]:
+        """Prompts the AI to model the current Vital track preset based on a proven archetype."""
+        from engine.sound_design.vital_modeling_session import VitalModelingSession
+        from pathlib import Path
+        vital_tracks = session.data.get("vital_modeling_tracks", [])
+        idx = session.data.get("vital_modeling_index", 0)
+
+        if idx >= len(vital_tracks):
+            session.data["design_step"] = "COMPLETED"
+            pending_spec = session.data.get("pending_design_spec", {})
+            conn = session.data.get("active_conn")
+            return self._finalize_design(session, conn, pending_spec)
+
+        current_track = vital_tracks[idx]
+        pending_spec = session.data.get("pending_design_spec", {})
+        song_name = session.data.get("song_name") or pending_spec.get("name") or pending_spec.get("song_name") or "Master_Track"
+        genre = session.data.get("genre") or pending_spec.get("genre") or "Trap"
+        artist = session.data.get("artist") or pending_spec.get("artist") or "Artista Multi-Platino"
+
+        vital_session = VitalModelingSession()
+        base_path, base_data = vital_session.select_base_archetype(current_track)
+
+        session.data["current_vital_base_data"] = base_data
+        session.data["current_vital_base_path"] = str(base_path)
+        session.data["current_vital_track"] = current_track
+
+        prompt_payload = vital_session.format_modeling_prompt(
+            track=current_track,
+            base_path=base_path,
+            base_data=base_data,
+            current_idx=idx,
+            total_vital_tracks=len(vital_tracks),
+            song_name=song_name,
+            artist=artist,
+            genre=genre
+        )
+        session.data["last_prompt"] = prompt_payload
+        session._save_state(action_tag=f"VITAL_MODELING_PROMPT_{idx}")
+        return prompt_payload
+
+    def _handle_vital_modeling(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        """Validates and persists the AI's modeled .vital preset for the current track."""
+        from engine.sound_design.vital_modeling_session import VitalModelingSession
+        from pathlib import Path
+        vital_tracks = session.data.get("vital_modeling_tracks", [])
+        idx = session.data.get("vital_modeling_index", 0)
+        pending_spec = session.data.get("pending_design_spec", {})
+
+        if idx >= len(vital_tracks):
+            session.data["design_step"] = "COMPLETED"
+            return self._finalize_design(session, conn, pending_spec)
+
+        current_track = session.data.get("current_vital_track") or vital_tracks[idx]
+        base_data = session.data.get("current_vital_base_data")
+
+        vital_session = VitalModelingSession()
+        if not base_data:
+            base_path, base_data = vital_session.select_base_archetype(current_track)
+            session.data["current_vital_base_data"] = base_data
+
+        song_name = session.data.get("song_name") or pending_spec.get("name") or pending_spec.get("song_name") or "Master_Track"
+        genre = session.data.get("genre") or pending_spec.get("genre") or "Trap"
+
+        project_dir_val = session.data.get("project_dir")
+        project_dir = Path(project_dir_val) if project_dir_val else None
+
+        is_valid, msg, payload = vital_session.validate_and_save_modeled_preset(
+            user_input=user_input,
+            base_data=base_data,
+            track=current_track,
+            song_name=song_name,
+            genre=genre,
+            project_dir=project_dir
+        )
+
+        if not is_valid or not payload:
+            logger.warning(f"Vital preset validation rejected for {current_track.get('name')}: {msg}")
+            base_name = base_data.get("preset_name", "Archetype_Base")
+            rejection_resp = {
+                "phase": "PHASE_0_DESIGN",
+                "status": "VITAL_MODELING_REQUIRED",
+                "current_step": f"FASE 0-B: MODELADO DE SINTETIZADOR VITAL ({idx + 1}/{len(vital_tracks)})",
+                "action_taken": f"Rechazo de validación: {msg}",
+                "question": (
+                    f"{msg}\n\n"
+                    f"⚠️ **Por favor modifica los parámetros indicados y reenvía el objeto .vital completo en JSON para `{current_track.get('name')}`.**"
+                ),
+                "instructions_for_ai": "Corrige los parámetros según el reporte de error y reenvía el objeto JSON completo.",
+                "target_track": current_track,
+                "base_preset_name": base_name,
+                "base_preset_data": base_data
+            }
+            session.data["last_prompt"] = rejection_resp
+            return rejection_resp
+
+        # Validated successfully!
+        current_track["preset_path"] = payload["file_path"]
+        current_track["preset_name"] = payload["preset_name"]
+        if payload.get("synced_user_path"):
+            current_track["synced_user_path"] = payload["synced_user_path"]
+
+        # Reflect in pending_design_spec tracks
+        for t in pending_spec.get("tracks", []):
+            if t.get("name") == current_track.get("name"):
+                t["preset_path"] = payload["file_path"]
+                t["preset_name"] = payload["preset_name"]
+                if payload.get("synced_user_path"):
+                    t["synced_user_path"] = payload["synced_user_path"]
+
+        session.data.setdefault("modeled_vital_presets", []).append(payload)
+        session.data["vital_modeling_index"] = idx + 1
+        session._save_state(action_tag=f"VITAL_MODELING_SAVED_{idx}")
+
+        # Check if more tracks need modeling
+        if (idx + 1) < len(vital_tracks):
+            return self._prompt_vital_modeling(session)
+
+        # All Vital tracks modeled
+        session.data["design_step"] = "COMPLETED"
+        logger.info(f"All {len(vital_tracks)} Vital tracks successfully modeled and verified.")
+        return self._finalize_design(session, conn, pending_spec)
 
     def _finalize_design(self, session: Any, conn: Any, spec: Dict[str, Any]) -> Dict[str, Any]:
         """Preconfigures session state and physically configures Ableton Live."""
@@ -427,10 +596,14 @@ class Phase0DesignHandler(BasePhaseHandler):
         session.data["drop_bar"] = drop_bar
         session.data["drop_beat"] = drop_beat
         session.data["target_lufs"] = target_lufs
+        # Dynamic LUFS tolerance ±3.0 dB
+        session.data["target_lufs_tolerance"] = 3.0
+        session.data["target_lufs_range"] = (target_lufs - 3.0, target_lufs + 3.0)
         session.data["groove_style"] = groove_style
         session.data["pocket_style"] = groove_style
         session.data["swing_percentage"] = swing_pct
         session.data["designed_tracks"] = spec.get("tracks", [])
+        session.data["designed_panning"] = spec.get("designed_panning", {})
         session.data["designed_sections"] = spec.get("sections", [])
         session.data["advanced_production"] = spec.get("advanced_production", {})
         session.data["design_confirmed"] = True
@@ -444,9 +617,32 @@ class Phase0DesignHandler(BasePhaseHandler):
         # Physical execution in Ableton Live
         if conn is not None and hasattr(conn, "send_command"):
             try:
-                # 1. Physical tempo sync
+                # 1. Physical tempo sync & Anti-120 BPM Freeze verification
                 conn.send_command("set_tempo", {"tempo": bpm})
                 logger.info(f"Physically set Ableton Live tempo to {bpm} BPM.")
+
+                # Readback verification: ensure Live is not frozen at 120.0 BPM
+                try:
+                    s_info = conn.send_command("get_session_info")
+                    live_tempo = None
+                    if isinstance(s_info, dict):
+                        live_tempo = s_info.get("tempo", s_info.get("result", {}).get("tempo"))
+                    if live_tempo is not None:
+                        live_tempo = float(live_tempo)
+                        if abs(live_tempo - bpm) > 0.05:
+                            logger.warning(
+                                f"Anti-120 BPM Freeze triggered: Live reports {live_tempo} BPM, expected {bpm} BPM. Re-forcing via LOM code..."
+                            )
+                            conn.send_command("execute_code", params={"code": f"song.tempo = {bpm}"})
+                            s_info_re = conn.send_command("get_session_info")
+                            live_tempo_re = float(s_info_re.get("tempo", bpm)) if isinstance(s_info_re, dict) else bpm
+                            session.data["physical_tempo_verified"] = abs(live_tempo_re - bpm) <= 0.05
+                            session.data["physical_tempo"] = live_tempo_re
+                        else:
+                            session.data["physical_tempo_verified"] = True
+                            session.data["physical_tempo"] = live_tempo
+                except Exception as ex_read_tempo:
+                    logger.debug(f"Physical tempo verification notice: {ex_read_tempo}")
             except Exception as ex_tempo:
                 logger.warning(f"Could not set Live tempo: {ex_tempo}")
 
@@ -472,10 +668,10 @@ song.signature_denominator = {sig_denom}
             f"🎯 **RECORDATORIO DEL DISEÑO CONCEPTUAL CONFIRMADO:**\n"
             f"• **Artista:** `{artist}` | **Género:** `{genre}` | **Tempo:** `{bpm} BPM` | **Compás:** `{sig_num}/{sig_denom}`\n"
             f"• **Tonalidad:** `{key} {scale}` | **Densidad:** `{spec.get('channel_density', 10)} canales recomendados` | **Drop:** `Compás {drop_bar}`\n"
-            f"• **Mastering:** `{target_lufs} LUFS`\n\n"
+            f"• **Mastering:** `{target_lufs} LUFS` (Tolerancia: ±3.0 dB: [{target_lufs - 3.0:.1f}, {target_lufs + 3.0:.1f}])\n\n"
         )
         p1_prompt["question"] = reminder + p1_prompt.get("question", "")
         p1_prompt["action_taken"] = (
-            f"Fase de diseño aprobada exitosamente. Tempo sincronizado físicamente a {bpm} BPM en Live 12."
+            f"Fase de diseño aprobada exitosamente. Tempo verificado físicamente a {bpm} BPM en Live 12."
         )
         return p1_prompt

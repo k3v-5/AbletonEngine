@@ -12,6 +12,7 @@ Indivisible ACID orchestrator that bundles:
 Guarantees zero silent tracks, zero unconfigured plugins, and zero omitted clips.
 """
 
+import time
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from engine.music.models import NoteEvent, Chord
@@ -257,58 +258,65 @@ class RoleTrackOrchestrator:
         cls,
         conn: Any,
         track_index: int,
-        inst_display_name: str
+        inst_display_name: str,
+        timeout: float = 18.0,
+        poll_interval: float = 0.5
     ) -> Tuple[bool, Optional[int], Optional[str]]:
         """
         Physically queries Live LOM to ensure an authentic instrument is loaded.
+        Includes non-blocking polling post-VST loading with an 18-second benchmark
+        to allow heavy VSTs (>15s load times) to instantiate cleanly.
         Returns: (is_verified, device_index, device_name)
         """
         if conn is None or not hasattr(conn, "send_command"):
             # Mock / offline dry run
             return True, 0, inst_display_name
 
-        try:
-            t_info = conn.send_command("get_track_info", {"track_index": track_index})
-            devices = t_info.get("devices", t_info.get("result", {}).get("devices", [])) if isinstance(t_info, dict) else []
-            if not devices:
-                return False, None, None
+        is_mock = getattr(conn, "__class__", None).__name__ == "MockAbletonAdapter"
+        start_time = time.time()
+        authentic_classes = {
+            "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
+            "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
+            "Operator", "MultiSampler", "Wavetable", "Drift"
+        }
+        inst_keywords = [
+            "analog lab", "pigments", "serum", "vital", "massive", "strings",
+            "orch", "pad", "kit", "drum", "piano", "rhodes", "bass", "808",
+            "lead", "synth", "sampler", "simpler", "operator", "wavetable", "drift"
+        ]
+        target_lower = inst_display_name.lower().replace("vst3_", "").replace("_", " ")
 
-            authentic_classes = {
-                "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
-                "UltraAnalog", "StringStudio", "Collision", "LoungeLizard",
-                "Operator", "MultiSampler", "Wavetable", "Drift"
-            }
-            inst_keywords = [
-                "analog lab", "pigments", "serum", "vital", "massive", "strings",
-                "orch", "pad", "kit", "drum", "piano", "rhodes", "bass", "808",
-                "lead", "synth", "sampler", "simpler", "operator", "wavetable", "drift"
-            ]
+        while True:
+            try:
+                t_info = conn.send_command("get_track_info", {"track_index": track_index})
+                devices = t_info.get("devices", t_info.get("result", {}).get("devices", [])) if isinstance(t_info, dict) else []
+                if devices:
+                    for d_idx, d in enumerate(devices):
+                        d_type = str(d.get("type", "")).lower()
+                        c_name = str(d.get("class_name", ""))
+                        d_name = str(d.get("name", "")).lower()
 
-            target_lower = inst_display_name.lower().replace("vst3_", "").replace("_", " ")
+                        # Exclude audio effects from being identified as instruments
+                        if d_type == "audio_effect" or c_name in (
+                            "DrumBuss", "Saturator", "Chorus", "Delay", "Compressor", "Eq8",
+                            "AudioEffectGroupDevice", "AutoFilter", "Reverb", "Limiter"
+                        ):
+                            continue
 
-            for d_idx, d in enumerate(devices):
-                d_type = str(d.get("type", "")).lower()
-                c_name = str(d.get("class_name", ""))
-                d_name = str(d.get("name", "")).lower()
+                        if (
+                            target_lower in d_name or d_name in target_lower or
+                            c_name in authentic_classes or "Instrument" in c_name or
+                            any(k in d_name for k in inst_keywords)
+                        ):
+                            return True, d_idx, d.get("name", inst_display_name)
+            except Exception as ex:
+                logger.warning(f"Error during physical LOM verification on track {track_index}: {ex}")
 
-                # Exclude audio effects from being identified as instruments
-                if d_type == "audio_effect" or c_name in (
-                    "DrumBuss", "Saturator", "Chorus", "Delay", "Compressor", "Eq8",
-                    "AudioEffectGroupDevice", "AutoFilter", "Reverb", "Limiter"
-                ):
-                    continue
+            if is_mock or (time.time() - start_time) >= timeout:
+                break
+            time.sleep(poll_interval)
 
-                if (
-                    target_lower in d_name or d_name in target_lower or
-                    c_name in authentic_classes or "Instrument" in c_name or
-                    any(k in d_name for k in inst_keywords)
-                ):
-                    return True, d_idx, d.get("name", inst_display_name)
-
-            return False, None, None
-        except Exception as ex:
-            logger.warning(f"Error during physical LOM verification: {ex}")
-            return False, None, None
+        return False, None, None
 
     @classmethod
     def generate_musical_notes(
@@ -317,7 +325,7 @@ class RoleTrackOrchestrator:
         key: str = "F",
         scale: str = "natural_minor",
         genre: str = "hip_hop_neo_soul",
-        arrange_bars: int = 96
+        arrange_bars: int = 64
     ) -> List[NoteEvent]:
         """
         Composes complete multi-section NoteEvents tailored to role and arrangement length.
@@ -341,25 +349,21 @@ class RoleTrackOrchestrator:
             )
 
         elif norm_role == "STRINGS":
-            # Sustained orchestral voicings on Intro, Chorus 1, Bridge, Final Chorus, and Outro
+            # Sustained orchestral voicings scaled relative to arrange_bars
             chords = FullSongHarmonyEngine.generate_full_song_progression(key_root=key, scale=scale)
             current_beat = 0.0
+            total_b = float(max(1, arrange_bars))
             for chord in chords:
                 bar = current_beat / 4.0
-                # Active in Intro (0-8), Chorus 1 (32-48), Bridge (64-72), Final Chorus (72-88), Outro (88-96)
-                is_active = (
-                    (0 <= bar < 8) or
-                    (32 <= bar < 48) or
-                    (64 <= bar < 72) or
-                    (72 <= bar < 88) or
-                    (88 <= bar < 96)
-                )
+                b_ratio = bar / total_b
+                # Active in Intro (<15%), Chorus 1 (33-52%), Bridge & Final Chorus (65-92%), Outro (>92%)
+                is_active = (b_ratio < 0.15) or (0.33 <= b_ratio < 0.52) or (0.65 <= b_ratio < 0.92) or (b_ratio >= 0.92)
                 if is_active:
                     raw_voicing = FullSongHarmonyEngine.build_drop2_voicing(chord.root, chord.quality)
                     # Shift up to orchestral register (MIDI 60 to 84)
                     for v_idx, p in enumerate(raw_voicing):
                         p_str = p + 12 if p < 60 else p
-                        vel = 84 + (v_idx * 3) if bar >= 32 else 72
+                        vel = 84 + (v_idx * 3) if b_ratio >= 0.33 else 72
                         notes.append(NoteEvent(
                             pitch=p_str,
                             start=current_beat,
@@ -369,17 +373,14 @@ class RoleTrackOrchestrator:
                 current_beat += chord.duration
 
         elif norm_role == "PAD":
-            # Atmospheric wide stereo chords sustained across Intro, Verse 1, Chorus 1, Bridge, Final Chorus
+            # Atmospheric wide stereo chords sustained across arrangement
             chords = FullSongHarmonyEngine.generate_full_song_progression(key_root=key, scale=scale)
             current_beat = 0.0
+            total_b = float(max(1, arrange_bars))
             for chord in chords:
                 bar = current_beat / 4.0
-                is_active = (
-                    (0 <= bar < 32) or
-                    (32 <= bar < 48) or
-                    (64 <= bar < 88) or
-                    (88 <= bar < 96)
-                )
+                b_ratio = bar / total_b
+                is_active = (b_ratio < 0.52) or (0.65 <= b_ratio < 0.92) or (b_ratio >= 0.92)
                 if is_active:
                     raw_voicing = FullSongHarmonyEngine.build_drop2_voicing(chord.root, chord.quality)
                     for v_idx, p in enumerate(raw_voicing):
@@ -499,7 +500,8 @@ class RoleTrackOrchestrator:
         scale: str = "natural_minor",
         custom_instrument_id: Optional[str] = None,
         custom_blueprint: Optional[Dict[str, Any]] = None,
-        arrange_bars: int = 96
+        arrange_bars: int = 96,
+        timeout: float = 18.0
     ) -> Dict[str, Any]:
         """
         Executes complete Atomic Role Orchestration:
@@ -541,51 +543,31 @@ class RoleTrackOrchestrator:
                 }
 
         # -------------------------------------------------------------
-        # STEP 2: PHYSICAL LOM VERIFICATION & AUTONOMOUS NATIVE FALLBACK
+        # STEP 2: PHYSICAL LOM VERIFICATION (NO SILENT NATIVE FALLBACK)
         # -------------------------------------------------------------
-        verified, inst_device_idx, actual_dev_name = cls.verify_instrument_loaded(conn, track_index, inst_display_name)
-        if not verified and conn is not None and hasattr(conn, "send_command"):
-            logger.warning(
-                f"Physical LOM verification failed for '{inst_display_name}' ({uri}) on Track {track_index}. "
-                f"Engaging autonomous native fallback to guarantee non-empty, authentic track."
-            )
-            NATIVE_FALLBACKS = {
-                "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
-                "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
-                "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
-                "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
-                "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
-                "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-                "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
-                "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
-                "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
-                "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
-            }
-            fb_uri, fb_name = NATIVE_FALLBACKS.get(norm_role, ("query:Synths#Simpler", "Ableton Simpler"))
-            try:
-                conn.send_command("load_browser_item", {"track_index": track_index, "item_uri": fb_uri})
-                fb_verified, fb_idx, fb_dev = cls.verify_instrument_loaded(conn, track_index, fb_name)
-                if fb_verified:
-                    verified = True
-                    inst_device_idx = fb_idx
-                    actual_dev_name = fb_dev or fb_name
-                    inst_display_name = fb_name
-                    uri = fb_uri
-                    logger.info(f"Successfully recovered Track {track_index} with native fallback '{fb_name}'.")
-            except Exception as fb_err:
-                logger.error(f"Fallback attempt failed on Track {track_index}: {fb_err}")
-
+        verified, inst_device_idx, actual_dev_name = cls.verify_instrument_loaded(conn, track_index, inst_display_name, timeout=timeout)
         if not verified:
+            logger.error(
+                f"Physical LOM verification failed for '{inst_display_name}' ({uri}) on Track {track_index}. "
+                f"Silent fallback is prohibited."
+            )
+            avail_sources = []
+            try:
+                from engine.instruments.browser_catalog import LiveBrowserCatalogEngine
+                avail_sources = LiveBrowserCatalogEngine.get_available_sources_for_role(norm_role, conn=conn)
+            except Exception:
+                pass
             return {
                 "status": "FAILED",
                 "phase": "PHYSICAL_VERIFICATION",
+                "error_code": "INSTRUMENT_LOAD_FAILED",
                 "error": (
                     f"Physical LOM verification FAILED on Track {track_index}. Instrument '{inst_display_name}' "
-                    f"was not detected in the device chain after loading URI '{uri}'. "
-                    f"Check if the plugin or preset is properly installed."
+                    f"was not detected in the device chain after loading URI '{uri}'. Silent fallback is prohibited."
                 ),
                 "track_index": track_index,
-                "role": norm_role
+                "role": norm_role,
+                "available_options": [s.to_dict() if hasattr(s, "to_dict") else str(s) for s in avail_sources]
             }
 
         device_index = inst_device_idx if inst_device_idx is not None else 0

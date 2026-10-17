@@ -1,5 +1,5 @@
 {
-  "total_presets": 48,
+  "total_presets": 141,
   "presets": {
     "Vital_LEAD_Lead_Synth": {
       "file": "Vital_LEAD_Lead_Synth.vital",
@@ -835,6 +835,1499 @@
         "movement": 0.3,
         "is_bass": false
       }
+    },
+    "Vital_LEAD_Spectral_Whisper_Lead": {
+      "file": "Vital_LEAD_Spectral_Whisper_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Spectral_Whisper_Lead.vital",
+      "role": "LEAD_PLUCK",
+      "track_index": 3,
+      "track_name": "Spectral Whisper Lead",
+      "directives": {
+        "brightness": 0.75,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.15,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "sustain": 0.0,
+        "decay": 0.25
+      }
+    },
+    "Vital_808_BASS_Heavy_808_Sub": {
+      "file": "Vital_808_BASS_Heavy_808_Sub.vital",
+      "path": "Presets\\Vital_808_BASS_Heavy_808_Sub.vital",
+      "role": "BASS_808",
+      "track_index": 0,
+      "track_name": "Heavy 808 Sub",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Electronic_Lead_Synth": {
+      "file": "Vital_LEAD_Electronic_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Electronic_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 3,
+      "track_name": "Electronic Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Glitch_Synth_Hook": {
+      "file": "Vital_LEAD_Glitch_Synth_Hook.vital",
+      "path": "Presets\\Vital_LEAD_Glitch_Synth_Hook.vital",
+      "role": "LEAD_SAW",
+      "track_index": 3,
+      "track_name": "Glitch Synth Hook",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Saturated_Overdrive_808": {
+      "file": "Vital_808_BASS_Saturated_Overdrive_808.vital",
+      "path": "Presets\\Vital_808_BASS_Saturated_Overdrive_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Saturated Overdrive 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Metallic_Acid_Lead": {
+      "file": "Vital_LEAD_Metallic_Acid_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Metallic_Acid_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Metallic Acid Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Saturated_Sub_808": {
+      "file": "Vital_808_BASS_Saturated_Sub_808.vital",
+      "path": "Presets\\Vital_808_BASS_Saturated_Sub_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Saturated Sub 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Mike_Dean_Spectral_Lead": {
+      "file": "Vital_LEAD_Mike_Dean_Spectral_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Mike_Dean_Spectral_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Mike Dean Spectral Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Overdriven_Houston_808": {
+      "file": "Vital_808_BASS_Overdriven_Houston_808.vital",
+      "path": "Presets\\Vital_808_BASS_Overdriven_Houston_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Overdriven Houston 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Psychedelic_Rodeo_Lead": {
+      "file": "Vital_LEAD_Psychedelic_Rodeo_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Psychedelic_Rodeo_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Psychedelic Rodeo Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Punchy_Distorted_808": {
+      "file": "Vital_808_BASS_Punchy_Distorted_808.vital",
+      "path": "Presets\\Vital_808_BASS_Punchy_Distorted_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Punchy Distorted 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Erratic_Baby_Keem_Synth": {
+      "file": "Vital_LEAD_Erratic_Baby_Keem_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Erratic_Baby_Keem_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Erratic Baby Keem Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Rumbling_Heavy_808": {
+      "file": "Vital_808_BASS_Rumbling_Heavy_808.vital",
+      "path": "Presets\\Vital_808_BASS_Rumbling_Heavy_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Rumbling Heavy 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Staccato_Lead_Flute_Synth": {
+      "file": "Vital_LEAD_Staccato_Lead_Flute_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Staccato_Lead_Flute_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Staccato Lead Flute Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_West_Coast_Whistle_Lead": {
+      "file": "Vital_LEAD_West_Coast_Whistle_Lead.vital",
+      "path": "Presets\\Vital_LEAD_West_Coast_Whistle_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "West Coast Whistle Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Vintage_Mellotron_Flute_Lead": {
+      "file": "Vital_LEAD_Vintage_Mellotron_Flute_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Vintage_Mellotron_Flute_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Vintage Mellotron Flute Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Gritty_Igor_Vocal_Synth": {
+      "file": "Vital_LEAD_Gritty_Igor_Vocal_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Gritty_Igor_Vocal_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Gritty Igor Vocal Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Jazzy_Flute_&_Sax_Lead": {
+      "file": "Vital_LEAD_Jazzy_Flute__Sax_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Jazzy_Flute__Sax_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Jazzy Flute & Sax Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Vintage_Vibraphone_Lead": {
+      "file": "Vital_LEAD_Vintage_Vibraphone_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Vintage_Vibraphone_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Vintage Vibraphone Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Screaming_Punk_Synth_Lead": {
+      "file": "Vital_LEAD_Screaming_Punk_Synth_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Screaming_Punk_Synth_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Screaming Punk Synth Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Raw_Emotional_Lead_Synth": {
+      "file": "Vital_LEAD_Raw_Emotional_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Raw_Emotional_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Raw Emotional Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Bright_Poly_Synth_Lead": {
+      "file": "Vital_LEAD_Bright_Poly_Synth_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Bright_Poly_Synth_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Bright Poly Synth Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Distorted_Sub_808_Lows": {
+      "file": "Vital_808_BASS_Distorted_Sub_808_Lows.vital",
+      "path": "Presets\\Vital_808_BASS_Distorted_Sub_808_Lows.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Distorted Sub 808 Lows",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Gothic_Bell_Lead_Synth": {
+      "file": "Vital_LEAD_Gothic_Bell_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Gothic_Bell_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Gothic Bell Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Toy_Synthesizer_Lead": {
+      "file": "Vital_LEAD_Toy_Synthesizer_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Toy_Synthesizer_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Toy Synthesizer Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Vocal_Synth_Flute_Hook": {
+      "file": "Vital_LEAD_Vocal_Synth_Flute_Hook.vital",
+      "path": "Presets\\Vital_LEAD_Vocal_Synth_Flute_Hook.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Vocal Synth Flute Hook",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Overblown_Distorted_808": {
+      "file": "Vital_808_BASS_Overblown_Distorted_808.vital",
+      "path": "Presets\\Vital_808_BASS_Overblown_Distorted_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Overblown Distorted 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Duki_Anthem_Lead_Synth": {
+      "file": "Vital_LEAD_Duki_Anthem_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Duki_Anthem_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Duki Anthem Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Massive_808_Power_Bass": {
+      "file": "Vital_808_BASS_Massive_808_Power_Bass.vital",
+      "path": "Presets\\Vital_808_BASS_Massive_808_Power_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Massive 808 Power Bass",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Stadium_Synth_Horn_Lead": {
+      "file": "Vital_LEAD_Stadium_Synth_Horn_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Stadium_Synth_Horn_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Stadium Synth Horn Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Sub_Sine_Warm_808": {
+      "file": "Vital_808_BASS_Sub_Sine_Warm_808.vital",
+      "path": "Presets\\Vital_808_BASS_Sub_Sine_Warm_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Sub Sine Warm 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Lush_Whistle_Synth_Lead": {
+      "file": "Vital_LEAD_Lush_Whistle_Synth_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Lush_Whistle_Synth_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Lush Whistle Synth Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Falsetto_Vocoder_Lead": {
+      "file": "Vital_LEAD_Falsetto_Vocoder_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Falsetto_Vocoder_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Falsetto Vocoder Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Sub_808_Slap_Hybrid": {
+      "file": "Vital_808_BASS_Sub_808_Slap_Hybrid.vital",
+      "path": "Presets\\Vital_808_BASS_Sub_808_Slap_Hybrid.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Sub 808 Slap Hybrid",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Aggressive_Talkbox_Lead": {
+      "file": "Vital_LEAD_Aggressive_Talkbox_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Aggressive_Talkbox_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Aggressive Talkbox Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Melismatic_Flamenco_Synth_Lead": {
+      "file": "Vital_LEAD_Melismatic_Flamenco_Synth_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Melismatic_Flamenco_Synth_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Melismatic Flamenco Synth Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_808_Sub_Round_Bass": {
+      "file": "Vital_808_BASS_808_Sub_Round_Bass.vital",
+      "path": "Presets\\Vital_808_BASS_808_Sub_Round_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "808 Sub Round Bass",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Micro-Timed_Whistling_Lead": {
+      "file": "Vital_LEAD_Micro-Timed_Whistling_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Micro-Timed_Whistling_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Micro-Timed Whistling Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Chorus-Drenched_Vocal_Synth": {
+      "file": "Vital_LEAD_Chorus-Drenched_Vocal_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Chorus-Drenched_Vocal_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Chorus-Drenched Vocal Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Emotional_Vocal_Chop_Synth": {
+      "file": "Vital_LEAD_Emotional_Vocal_Chop_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Emotional_Vocal_Chop_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Emotional Vocal Chop Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Percussive_Marimba_Lead_Synth": {
+      "file": "Vital_LEAD_Percussive_Marimba_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Percussive_Marimba_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Percussive Marimba Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Steel_Drum_Caribbean_Lead": {
+      "file": "Vital_LEAD_Steel_Drum_Caribbean_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Steel_Drum_Caribbean_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Steel Drum Caribbean Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Emotional_Violin_Lead_Synth": {
+      "file": "Vital_LEAD_Emotional_Violin_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Emotional_Violin_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Emotional Violin Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Sub_Sine_Warm_808_Bass": {
+      "file": "Vital_808_BASS_Sub_Sine_Warm_808_Bass.vital",
+      "path": "Presets\\Vital_808_BASS_Sub_Sine_Warm_808_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Sub Sine Warm 808 Bass",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Arcangel_Signature_Lead": {
+      "file": "Vital_LEAD_Arcangel_Signature_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Arcangel_Signature_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Arcangel Signature Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_High_Pitch_G-Funk_Sine_Whistle": {
+      "file": "Vital_LEAD_High_Pitch_G-Funk_Sine_Whistle.vital",
+      "path": "Presets\\Vital_LEAD_High_Pitch_G-Funk_Sine_Whistle.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "High Pitch G-Funk Sine Whistle",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Distorted_Sub_808_Ground": {
+      "file": "Vital_808_BASS_Distorted_Sub_808_Ground.vital",
+      "path": "Presets\\Vital_808_BASS_Distorted_Sub_808_Ground.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Distorted Sub 808 Ground",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Menacing_Synth_Flute_Lead": {
+      "file": "Vital_LEAD_Menacing_Synth_Flute_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Menacing_Synth_Flute_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Menacing Synth Flute Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Soaring_80s_Brass_Lead": {
+      "file": "Vital_LEAD_Soaring_80s_Brass_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Soaring_80s_Brass_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Soaring 80s Brass Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Vocal_Range_Hook_Synth": {
+      "file": "Vital_LEAD_Vocal_Range_Hook_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Vocal_Range_Hook_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Vocal Range Hook Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Catchy_Dance-Pop_Vocal_Lead": {
+      "file": "Vital_LEAD_Catchy_Dance-Pop_Vocal_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Catchy_Dance-Pop_Vocal_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Catchy Dance-Pop Vocal Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_LEAD_Expressive_Soul_Vocal_Lead": {
+      "file": "Vital_LEAD_Expressive_Soul_Vocal_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Expressive_Soul_Vocal_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Expressive Soul Vocal Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Deep_Sub_Sine_808": {
+      "file": "Vital_808_BASS_Deep_Sub_Sine_808.vital",
+      "path": "Presets\\Vital_808_BASS_Deep_Sub_Sine_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Deep Sub Sine 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Dark_Autotuned_Vocal_Lead": {
+      "file": "Vital_LEAD_Dark_Autotuned_Vocal_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Dark_Autotuned_Vocal_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Dark Autotuned Vocal Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_808_BASS_Saturated_808_Sub_Glide": {
+      "file": "Vital_808_BASS_Saturated_808_Sub_Glide.vital",
+      "path": "Presets\\Vital_808_BASS_Saturated_808_Sub_Glide.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Saturated 808 Sub Glide",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_LEAD_Psychedelic_Lead": {
+      "file": "Vital_LEAD_Psychedelic_Lead.vital",
+      "path": "Presets\\Vital_LEAD_Psychedelic_Lead.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "Psychedelic Lead",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_PAD_Nebula_Atmospheric_Pad": {
+      "file": "Vital_PAD_Nebula_Atmospheric_Pad.vital",
+      "path": "Presets\\Vital_PAD_Nebula_Atmospheric_Pad.vital",
+      "role": "PAD_LUSH",
+      "track_index": 4,
+      "track_name": "Nebula Atmospheric Pad",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.8,
+        "stereo_width": 0.85,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 1.8
+      }
+    },
+    "Vital_808_BASS_Sub_Sine_808": {
+      "file": "Vital_808_BASS_Sub_Sine_808.vital",
+      "path": "Presets\\Vital_808_BASS_Sub_Sine_808.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Sub Sine 808",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true
+      }
+    },
+    "Vital_BASS_Growl_Reese_Bass": {
+      "file": "Vital_BASS_Growl_Reese_Bass.vital",
+      "path": "Presets\\Vital_BASS_Growl_Reese_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 2,
+      "track_name": "Growl Reese Bass",
+      "directives": {
+        "brightness": 0.4,
+        "warmth_drive": 0.75,
+        "punch": 0.9,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true,
+        "attack": 0.005,
+        "polyphony": 1.0
+      }
+    },
+    "Vital_LEAD_Laser_Synth_Stabs": {
+      "file": "Vital_LEAD_Laser_Synth_Stabs.vital",
+      "path": "Presets\\Vital_LEAD_Laser_Synth_Stabs.vital",
+      "role": "LEAD_SAW",
+      "track_index": 3,
+      "track_name": "Laser Synth Stabs",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_PAD_Eerie_Ambient_Texture": {
+      "file": "Vital_PAD_Eerie_Ambient_Texture.vital",
+      "path": "Presets\\Vital_PAD_Eerie_Ambient_Texture.vital",
+      "role": "PAD_LUSH",
+      "track_index": 5,
+      "track_name": "Eerie Ambient Texture",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.8,
+        "stereo_width": 0.85,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 1.8
+      }
+    },
+    "Vital_BASS_Deep_Upright_Acoustic_Bass": {
+      "file": "Vital_BASS_Deep_Upright_Acoustic_Bass.vital",
+      "path": "Presets\\Vital_BASS_Deep_Upright_Acoustic_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Deep Upright Acoustic Bass",
+      "directives": {
+        "brightness": 0.4,
+        "warmth_drive": 0.75,
+        "punch": 0.9,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true,
+        "attack": 0.005,
+        "polyphony": 1.0
+      }
+    },
+    "Vital_LEAD_Freestyle_Scratches_&_Cries": {
+      "file": "Vital_LEAD_Freestyle_Scratches__Cries.vital",
+      "path": "Presets\\Vital_LEAD_Freestyle_Scratches__Cries.vital",
+      "role": "LEAD_SAW",
+      "track_index": 4,
+      "track_name": "Freestyle Scratches & Cries",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_PAD_Warm_Tube_Vinyl_Pad": {
+      "file": "Vital_PAD_Warm_Tube_Vinyl_Pad.vital",
+      "path": "Presets\\Vital_PAD_Warm_Tube_Vinyl_Pad.vital",
+      "role": "PAD_LUSH",
+      "track_index": 5,
+      "track_name": "Warm Tube Vinyl Pad",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.8,
+        "stereo_width": 0.85,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 1.8
+      }
+    },
+    "Vital_BASS_Distorted_Mono_Analog_Bass": {
+      "file": "Vital_BASS_Distorted_Mono_Analog_Bass.vital",
+      "path": "Presets\\Vital_BASS_Distorted_Mono_Analog_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Distorted Mono Analog Bass",
+      "directives": {
+        "brightness": 0.4,
+        "warmth_drive": 0.75,
+        "punch": 0.9,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true,
+        "attack": 0.005,
+        "polyphony": 1.0
+      }
+    },
+    "Vital_STRINGS_Vintage_Melodic_Strings": {
+      "file": "Vital_STRINGS_Vintage_Melodic_Strings.vital",
+      "path": "Presets\\Vital_STRINGS_Vintage_Melodic_Strings.vital",
+      "role": "ACOUSTIC_STRINGS",
+      "track_index": 3,
+      "track_name": "Vintage Melodic Strings",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false
+      }
+    },
+    "Vital_LEAD_Moog_Lo-Fi_Lead_Synth": {
+      "file": "Vital_LEAD_Moog_Lo-Fi_Lead_Synth.vital",
+      "path": "Presets\\Vital_LEAD_Moog_Lo-Fi_Lead_Synth.vital",
+      "role": "LEAD_SAW",
+      "track_index": 4,
+      "track_name": "Moog Lo-Fi Lead Synth",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_PAD_Background_Choral_Vox_Pad": {
+      "file": "Vital_PAD_Background_Choral_Vox_Pad.vital",
+      "path": "Presets\\Vital_PAD_Background_Choral_Vox_Pad.vital",
+      "role": "PAD_LUSH",
+      "track_index": 6,
+      "track_name": "Background Choral Vox Pad",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.8,
+        "stereo_width": 0.85,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 1.8
+      }
+    },
+    "Vital_BASS_Thundercat_Melodic_Virtuoso_Bass": {
+      "file": "Vital_BASS_Thundercat_Melodic_Virtuoso_Bass.vital",
+      "path": "Presets\\Vital_BASS_Thundercat_Melodic_Virtuoso_Bass.vital",
+      "role": "BASS_808",
+      "track_index": 1,
+      "track_name": "Thundercat Melodic Virtuoso Bass",
+      "directives": {
+        "brightness": 0.4,
+        "warmth_drive": 0.75,
+        "punch": 0.9,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.15,
+        "stereo_width": 0.0,
+        "movement": 0.3,
+        "is_bass": true,
+        "attack": 0.005,
+        "polyphony": 1.0
+      }
+    },
+    "Vital_LEAD_G-Funk_High_Sine_Whistle": {
+      "file": "Vital_LEAD_G-Funk_High_Sine_Whistle.vital",
+      "path": "Presets\\Vital_LEAD_G-Funk_High_Sine_Whistle.vital",
+      "role": "LEAD_SAW",
+      "track_index": 2,
+      "track_name": "G-Funk High Sine Whistle",
+      "directives": {
+        "brightness": 0.85,
+        "warmth_drive": 0.35,
+        "punch": 0.8,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 0.005,
+        "polyphony": 7.0
+      }
+    },
+    "Vital_STRINGS_Dark_Cinematic_Strings": {
+      "file": "Vital_STRINGS_Dark_Cinematic_Strings.vital",
+      "path": "Presets\\Vital_STRINGS_Dark_Cinematic_Strings.vital",
+      "role": "ACOUSTIC_STRINGS",
+      "track_index": 4,
+      "track_name": "Dark Cinematic Strings",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.45,
+        "stereo_width": 0.7,
+        "movement": 0.3,
+        "is_bass": false
+      }
+    },
+    "Vital_PAD_Compton_Street_Foley_Pad": {
+      "file": "Vital_PAD_Compton_Street_Foley_Pad.vital",
+      "path": "Presets\\Vital_PAD_Compton_Street_Foley_Pad.vital",
+      "role": "PAD_LUSH",
+      "track_index": 6,
+      "track_name": "Compton Street Foley Pad",
+      "directives": {
+        "brightness": 0.65,
+        "warmth_drive": 0.35,
+        "punch": 0.65,
+        "decay_sustain": 0.6,
+        "space_dimension": 0.8,
+        "stereo_width": 0.85,
+        "movement": 0.3,
+        "is_bass": false,
+        "attack": 1.8
+      }
+    },
+    "Vital_BASS_Sub_Analog_Bass": {
+      "file": "Vital_BASS_Sub_Analog_Bass.vital",
+      "path": "Presets\\Vital_BASS_Sub_Analog_Bass.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Sub_Analog_Bass",
+      "directives": {}
+    },
+    "Vital_BASS_Distorted_808_Bass": {
+      "file": "Vital_BASS_Distorted_808_Bass.vital",
+      "path": "Presets\\Vital_BASS_Distorted_808_Bass.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Distorted_808_Bass",
+      "directives": {}
+    },
+    "Vital_BASS_Saturated_808_Bass": {
+      "file": "Vital_BASS_Saturated_808_Bass.vital",
+      "path": "Presets\\Vital_BASS_Saturated_808_Bass.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Saturated_808_Bass",
+      "directives": {}
+    },
+    "Vital_BASS_Moog_MidBass_Saw": {
+      "file": "Vital_BASS_Moog_MidBass_Saw.vital",
+      "path": "Presets\\Vital_BASS_Moog_MidBass_Saw.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Moog_MidBass_Saw",
+      "directives": {}
+    },
+    "Vital_BASS_Laser_808_Sub": {
+      "file": "Vital_BASS_Laser_808_Sub.vital",
+      "path": "Presets\\Vital_BASS_Laser_808_Sub.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Laser_808_Sub",
+      "directives": {}
+    },
+    "Vital_BASS_Sub_Bass_808": {
+      "file": "Vital_BASS_Sub_Bass_808.vital",
+      "path": "Presets\\Vital_BASS_Sub_Bass_808.vital",
+      "role": "BASS",
+      "track_index": 5,
+      "track_name": "Sub_Bass_808",
+      "directives": {}
+    },
+    "Vital_BASS_Sub_808_Pit_Distorted": {
+      "file": "Vital_BASS_Sub_808_Pit_Distorted.vital",
+      "path": "Presets\\Vital_BASS_Sub_808_Pit_Distorted.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Sub_808_Pit_Distorted",
+      "directives": {}
+    },
+    "Vital_BASS_Pit_808_Sub_Destructor": {
+      "file": "Vital_BASS_Pit_808_Sub_Destructor.vital",
+      "path": "Presets\\Vital_BASS_Pit_808_Sub_Destructor.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Pit_808_Sub_Destructor",
+      "directives": {}
+    },
+    "Vital_PERCUSSION_Split_808_Sub_Pit": {
+      "file": "Vital_PERCUSSION_Split_808_Sub_Pit.vital",
+      "path": "Presets\\Vital_PERCUSSION_Split_808_Sub_Pit.vital",
+      "role": "PERCUSSION",
+      "track_index": 5,
+      "track_name": "Split_808_Sub_Pit",
+      "directives": {}
+    },
+    "Vital_BASS_Tyler_Fuzz_Bass_PowerChords": {
+      "file": "Vital_BASS_Tyler_Fuzz_Bass_PowerChords.vital",
+      "path": "Presets\\Vital_BASS_Tyler_Fuzz_Bass_PowerChords.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Tyler_Fuzz_Bass_PowerChords",
+      "directives": {}
+    },
+    "Vital_PERCUSSION_Pit_808_Cuadrado_Staccato": {
+      "file": "Vital_PERCUSSION_Pit_808_Cuadrado_Staccato.vital",
+      "path": "Presets\\Vital_PERCUSSION_Pit_808_Cuadrado_Staccato.vital",
+      "role": "PERCUSSION",
+      "track_index": 5,
+      "track_name": "Pit_808_Cuadrado_Staccato",
+      "directives": {}
+    },
+    "Vital_BASS_Stomping_Brass_Bitcrushed": {
+      "file": "Vital_BASS_Stomping_Brass_Bitcrushed.vital",
+      "path": "Presets\\Vital_BASS_Stomping_Brass_Bitcrushed.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Stomping_Brass_Bitcrushed",
+      "directives": {}
+    },
+    "Vital_BASS_Squeeze_808_Muro_Estatica": {
+      "file": "Vital_BASS_Squeeze_808_Muro_Estatica.vital",
+      "path": "Presets\\Vital_BASS_Squeeze_808_Muro_Estatica.vital",
+      "role": "BASS",
+      "track_index": 5,
+      "track_name": "Squeeze_808_Muro_Estatica",
+      "directives": {}
+    },
+    "Vital_BASS_Trombon_Tyler_Paramilitar": {
+      "file": "Vital_BASS_Trombon_Tyler_Paramilitar.vital",
+      "path": "Presets\\Vital_BASS_Trombon_Tyler_Paramilitar.vital",
+      "role": "BASS",
+      "track_index": 5,
+      "track_name": "Trombon_Tyler_Paramilitar",
+      "directives": {}
+    },
+    "Vital_PERCUSSION_Pit_808_Arrogante_Staccato": {
+      "file": "Vital_PERCUSSION_Pit_808_Arrogante_Staccato.vital",
+      "path": "Presets\\Vital_PERCUSSION_Pit_808_Arrogante_Staccato.vital",
+      "role": "PERCUSSION",
+      "track_index": 6,
+      "track_name": "Pit_808_Arrogante_Staccato",
+      "directives": {}
+    },
+    "Vital_BASS_Sub808_Cuadrado_Fuzz_Pit": {
+      "file": "Vital_BASS_Sub808_Cuadrado_Fuzz_Pit.vital",
+      "path": "Presets\\Vital_BASS_Sub808_Cuadrado_Fuzz_Pit.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Sub808_Cuadrado_Fuzz_Pit",
+      "directives": {}
+    },
+    "Vital_BASS_Sub808_Distorsion_Glides": {
+      "file": "Vital_BASS_Sub808_Distorsion_Glides.vital",
+      "path": "Presets\\Vital_BASS_Sub808_Distorsion_Glides.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Sub808_Distorsion_Glides",
+      "directives": {}
+    },
+    "Vital_BASS_Moog_Reese_Bass_Sidechain": {
+      "file": "Vital_BASS_Moog_Reese_Bass_Sidechain.vital",
+      "path": "Presets\\Vital_BASS_Moog_Reese_Bass_Sidechain.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "Moog_Reese_Bass_Sidechain",
+      "directives": {}
+    },
+    "Vital_BASS_Bass": {
+      "file": "Vital_BASS_Bass.vital",
+      "path": "Presets\\Vital_BASS_Bass.vital",
+      "role": "BASS",
+      "track_index": 2,
+      "track_name": "Bass",
+      "directives": {}
+    },
+    "Vital_BASS_05_808_Slide_Melodic": {
+      "file": "Vital_BASS_05_808_Slide_Melodic.vital",
+      "path": "Presets\\Vital_BASS_05_808_Slide_Melodic.vital",
+      "role": "BASS",
+      "track_index": 6,
+      "track_name": "05_808_Slide_Melodic",
+      "directives": {}
+    },
+    "Vital_BASS_05_Bass_Slap_Electric": {
+      "file": "Vital_BASS_05_Bass_Slap_Electric.vital",
+      "path": "Presets\\Vital_BASS_05_Bass_Slap_Electric.vital",
+      "role": "BASS",
+      "track_index": 7,
+      "track_name": "05_Bass_Slap_Electric",
+      "directives": {}
     }
   },
   "tracks": [
@@ -843,28 +2336,56 @@
       "track_name": "Lead Synth",
       "role": "LEAD",
       "instrument": "Vital",
-      "preset_file": "Vital_LEAD_Agenda_Screamer_Lead.vital"
+      "preset_file": "Vital_BASS_Bass.vital"
     },
     {
       "track_index": 1,
       "track_name": "808 Bass",
       "role": "808_BASS",
       "instrument": "Vital",
-      "preset_file": "Vital_808_BASS_FM_Reese_BNYX_Bass.vital"
+      "preset_file": "Vital_BASS_Thundercat_Melodic_Virtuoso_Bass.vital"
     },
     {
       "track_index": 3,
       "track_name": "Massive Space Pad",
       "role": "PAD",
       "instrument": "Vital",
-      "preset_file": "Vital_STRINGS_Synthetic_Choir_Strings.vital"
+      "preset_file": "Vital_STRINGS_Vintage_Melodic_Strings.vital"
     },
     {
       "track_index": 4,
       "track_name": "Synthetic Choir Strings",
       "role": "CHOIR",
       "instrument": "Vital",
-      "preset_file": "Vital_CHOIR_Synthetic_Choir_Strings.vital"
+      "preset_file": "Vital_STRINGS_Dark_Cinematic_Strings.vital"
+    },
+    {
+      "track_index": 0,
+      "track_name": "Heavy 808 Sub",
+      "role": "808_BASS",
+      "instrument": "Vital",
+      "preset_file": "Vital_808_BASS_Heavy_808_Sub.vital"
+    },
+    {
+      "track_index": 5,
+      "track_name": "Eerie Ambient Texture",
+      "role": "PAD",
+      "instrument": "Vital",
+      "preset_file": "Vital_BASS_Trombon_Tyler_Paramilitar.vital"
+    },
+    {
+      "track_index": 6,
+      "track_name": "Background Choral Vox Pad",
+      "role": "PAD",
+      "instrument": "Vital",
+      "preset_file": "Vital_BASS_05_808_Slide_Melodic.vital"
+    },
+    {
+      "track_index": 7,
+      "track_name": "05_Bass_Slap_Electric",
+      "role": "BASS",
+      "instrument": "Vital",
+      "preset_file": "Vital_BASS_05_Bass_Slap_Electric.vital"
     }
   ]
 }

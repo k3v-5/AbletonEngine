@@ -67,6 +67,11 @@ __all__ = [
     "ArrangementIntelligenceEngine", "ArrangementIntelligenceAuditReport",
     "ExpectationDeviationEngine", "ExpectationStage", "DeviationMechanism",
     "ConsequenceReward", "DeviationPlan",
+    "ArrangementPhysicalAuditor", "ArrangementPhysicalAuditReport",
 ]
+
+from .arrangement_physical_auditor import ArrangementPhysicalAuditor, ArrangementPhysicalAuditReport
+
+
 
 

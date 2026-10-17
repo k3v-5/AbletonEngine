@@ -75,6 +75,7 @@ class CognitivePhaseEvaluator:
         target_lufs = float(proposal.get("target_lufs", -9.0))
         climax_bar = proposal.get("climax_bar") or proposal.get("drop_bar") or 32
 
+        step_response = step_response or {}
         question = step_response.get("question", "")
         options = step_response.get("options", [])
         status = step_response.get("status", "")
@@ -83,6 +84,79 @@ class CognitivePhaseEvaluator:
         # 1. PHASE 0: DESIGN SPECIFICATION & ARTIST CONFIRMATION
         # ---------------------------------------------------------------------
         if phase == "PHASE_0_DESIGN":
+            if status == "VITAL_MODELING_REQUIRED" or "MODELADO DE SINTETIZADOR VITAL" in question.upper():
+                import copy
+                target_track = step_response.get("target_track", {})
+                t_role = str(target_track.get("role", "LEAD")).upper()
+                base_preset_data = step_response.get("base_preset_data", {})
+                base_name = step_response.get("base_preset_name", "Archetype_Base")
+
+                modeled_preset = copy.deepcopy(base_preset_data) if base_preset_data else {}
+                settings = modeled_preset.setdefault("settings", {})
+
+                # Ensure volume is strictly audible and within professional domain
+                settings["volume"] = 5400.0
+
+                mod_desc = []
+                if any(k in t_role for k in ("BASS", "808", "SUB")):
+                    settings["filter_1_cutoff"] = 48.0
+                    settings["filter_1_resonance"] = 0.22
+                    settings["filter_1_drive"] = 4.5
+                    settings["distortion_on"] = 1.0
+                    settings["distortion_drive"] = 7.0
+                    settings["env_1_decay"] = 1.8
+                    settings["env_1_sustain"] = 0.65
+                    settings["osc_1_unison_detune"] = 0.02
+                    mod_desc.extend(["filter_1_cutoff=48.0", "distortion_drive=7.0dB", "filter_1_drive=4.5dB"])
+                elif any(k in t_role for k in ("LEAD", "COUNTER")):
+                    settings["filter_1_cutoff"] = 94.0
+                    settings["filter_1_resonance"] = 0.28
+                    settings["osc_1_unison_voices"] = 4.0
+                    settings["osc_1_unison_detune"] = 0.16
+                    settings["reverb_on"] = 1.0
+                    settings["reverb_dry_wet"] = 0.22
+                    settings["delay_on"] = 1.0
+                    settings["delay_dry_wet"] = 0.18
+                    settings["distortion_on"] = 1.0
+                    settings["distortion_drive"] = 5.5
+                    mod_desc.extend(["filter_1_cutoff=94.0", "unison=4v_detune_0.16", "reverb_wet=0.22"])
+                elif any(k in t_role for k in ("PAD", "STRINGS", "CHOIR", "TEXTURE")):
+                    settings["env_1_attack"] = 0.42
+                    settings["env_1_decay"] = 2.5
+                    settings["env_1_sustain"] = 0.85
+                    settings["env_1_release"] = 1.4
+                    settings["filter_1_cutoff"] = 76.0
+                    settings["reverb_on"] = 1.0
+                    settings["reverb_dry_wet"] = 0.40
+                    settings["reverb_decay_time"] = 4.0
+                    mod_desc.extend(["attack=0.42s", "release=1.4s", "reverb_wet=0.40", "reverb_decay=4.0s"])
+                elif any(k in t_role for k in ("KEYS", "RHODES", "PIANO", "PLUCK")):
+                    settings["env_1_attack"] = 0.008
+                    settings["env_1_decay"] = 1.25
+                    settings["env_1_sustain"] = 0.45
+                    settings["filter_1_cutoff"] = 82.0
+                    settings["filter_1_drive"] = 2.0
+                    settings["reverb_on"] = 1.0
+                    settings["reverb_dry_wet"] = 0.16
+                    mod_desc.extend(["decay=1.25s", "filter_1_cutoff=82.0", "drive=2.0dB"])
+                else:
+                    curr_cut = float(settings.get("filter_1_cutoff", 80.0))
+                    settings["filter_1_cutoff"] = round(curr_cut + 6.0, 2)
+                    settings["osc_1_unison_detune"] = 0.12
+                    settings["reverb_dry_wet"] = 0.20
+                    mod_desc.extend([f"filter_1_cutoff={settings['filter_1_cutoff']}", "detune=0.12"])
+
+                clean_artist = re.sub(r'[^a-zA-Z0-9_]', '_', artist)
+                modeled_preset["preset_name"] = f"{base_name}_{clean_artist}_Custom"
+                modeled_preset["author"] = f"Cognitive AI ({artist})"
+                modeled_preset["comments"] = f"Consciously sculpted Vital preset for {target_track.get('name')} ({t_role}) emulating {artist}."
+
+                rationale = (
+                    f"Modelado consciente de sintetizador Vital para pista '{target_track.get('name')}' ({t_role}) "
+                    f"adaptado a {artist}. Parámetros modificados: {', '.join(mod_desc)}."
+                )
+                return json.dumps(modeled_preset, indent=2), rationale
+
             if status in ("AWAITING_ARTIST_CONFIRMATION", "CONFIRMATION") or "CONFIRMACIÓN" in question.upper():
                 rationale = f"Confirmación consciente del ADN musical para {artist} ({genre} @ {bpm} BPM, Clímax en compás {climax_bar}, Target {target_lufs} LUFS)."
                 return "Sí, confirmo el diseño para el artista.", rationale
@@ -114,9 +188,14 @@ class CognitivePhaseEvaluator:
                 "sections": proposal.get("sections", []),
                 "tracks": designed_tracks,
                 "instruments": [t.get("instrument", "") for t in designed_tracks] if designed_tracks else proposal.get("instruments", []),
-                "target_lufs": target_lufs
+                "target_lufs": target_lufs,
+                "groove_style": proposal.get("groove_style") or proposal.get("pocket_style", "straight_precise"),
+                "swing_percentage": float(proposal.get("swing_percentage", proposal.get("hihat_swing_pct", 58.0))),
+                "snare_drag_ms": float(proposal.get("snare_drag_ms", proposal.get("snare_dragging_ms", 12.0))),
+                "sub_drag_ms": float(proposal.get("sub_drag_ms", proposal.get("sub_dragging_ms", 4.0))),
+                "advanced_production": proposal.get("advanced_production", {})
             }
-            rationale = f"Diseño de arquitectura musical personalizado para {artist} con {density} canales y roles explícitos definidos por la IA."
+            rationale = f"Diseño de arquitectura musical personalizado para {artist} con {density} canales, roles explícitos y groove consciente ({spec_payload['groove_style']}, swing {spec_payload['swing_percentage']}%) definidos por la IA."
             return json.dumps(spec_payload), rationale
 
         # ---------------------------------------------------------------------
@@ -184,16 +263,18 @@ class CognitivePhaseEvaluator:
                         role = str(proposal_tracks[ptr].get("role", "")).upper()
                 elif ptr is not None and isinstance(ptr, int) and ptr < len(proposal_insts):
                     planned_inst = proposal_insts[ptr]
-                elif role:
-                    for t in proposal_tracks:
-                        if str(t.get("role", "")).upper() == role:
-                            planned_inst = t.get("instrument")
-                            break
+                elif role and ptr is not None and isinstance(ptr, int):
+                    # Match by role only for the specific track index if possible
+                    matching_tracks = [t for i, t in enumerate(proposal_tracks) if str(t.get("role", "")).upper() == role and i == ptr]
+                    if matching_tracks:
+                        planned_inst = matching_tracks[0].get("instrument")
 
             available_options = step_response.get("options", []) or cls._extract_options(question, options)
 
             # If planned instrument exists in Phase 0 design, respect the AI's Phase 0 decision!
             if planned_inst:
+                if "kit-core 909" in str(planned_inst).lower() or planned_inst == "Kit-Core 909":
+                    planned_inst = "909 Core Kit (.adg)"
                 rationale = f"Instrumento consciente según diseño de Fase 0 para {artist} (Pista {ptr+1 if ptr is not None else ''} [{role}]): {planned_inst}."
                 return planned_inst, rationale
 
@@ -395,41 +476,73 @@ class CognitivePhaseEvaluator:
         artist_low = p.get("artist", "").lower()
         role_upper = role.upper() if role else ""
 
-        # Filter options suitable for role if possible
-        if role_upper in ("DRUMS", "PERCUSSION"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["kit", "drum", "perc", "808 core", "tamuz", "session", "garage"]):
-                    return opt, f"Kit rítmico seleccionado para {p.get('artist')}: {opt}"
-        elif role_upper in ("BASS", "SUB_BASS", "808_BASS", "SUB"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["sublab", "vital", "808", "sub", "drift", "sine", "bass", "serum", "massive"]):
-                    return opt, f"Bajo/sub seleccionado para {p.get('artist')}: {opt}"
-        elif role_upper in ("KEYS", "PIANO", "RHODES"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["piano", "keyscape", "rhodes", "wurli", "analog lab", "keys"]):
-                    return opt, f"Teclado armónico para {p.get('artist')}: {opt}"
-        elif role_upper in ("PAD", "STRINGS"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["pad", "warm", "strings", "pigments", "omnisphere", "shimmer"]):
-                    return opt, f"Colchón/cuerdas atmosféricas para {p.get('artist')}: {opt}"
-        elif role_upper == "CHOIR":
-            for opt in options:
-                if any(w in opt.lower() for w in ["choir", "voices", "ghost", "avalon", "bloom"]):
-                    return opt, f"Textura coral sacra para {p.get('artist')}: {opt}"
-        elif role_upper in ("LEAD", "COUNTER_LEAD", "ARP", "EAR_CANDY"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["lead", "spectral", "agenda", "solo", "drift", "vital"]):
-                    return opt, f"Topline/Lead solista para {p.get('artist')}: {opt}"
-        elif role_upper in ("GUITAR", "RHYTHM_GUITAR", "LEAD_GUITAR"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["guitar", "flamenco", "nylon", "steel"]):
-                    return opt, f"Guitarra orgánica para {p.get('artist')}: {opt}"
-        elif role_upper in ("BRASS", "HORNS"):
-            for opt in options:
-                if any(w in opt.lower() for w in ["brass", "horn", "trumpet", "transilvania"]):
-                    return opt, f"Sección de metales para {p.get('artist')}: {opt}"
+        # Collect instruments already used in earlier tracks of this song to avoid duplicate timbre
+        used_insts = set()
+        if ptr is not None and ptr > 0:
+            for t_idx in range(ptr):
+                if t_idx < len(p.get("tracks", [])):
+                    inst_name = str(p["tracks"][t_idx].get("instrument", "")).lower()
+                    if inst_name:
+                        used_insts.add(inst_name)
+                        for part in inst_name.replace("(", "").replace(")", "").split():
+                            if len(part) > 3:
+                                used_insts.add(part)
 
-        return options[0], f"Instrumento seleccionado: {options[0]}"
+        def is_already_used(cand_opt: str) -> bool:
+            cand_l = cand_opt.lower()
+            return any(u in cand_l for u in used_insts)
+
+        # Filter options suitable for role if possible
+        def pick_first_unused_or_any(matching_cands: List[str]) -> Optional[str]:
+            if not matching_cands:
+                return None
+            unused = [c for c in matching_cands if not is_already_used(c)]
+            return unused[0] if unused else matching_cands[0]
+
+        if role_upper in ("DRUMS", "PERCUSSION"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["kit", "drum", "perc", "808 core", "tamuz", "session", "garage"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Kit rítmico seleccionado para {p.get('artist')}: {chosen}"
+        elif role_upper in ("BASS", "SUB_BASS", "808_BASS", "SUB"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["sublab", "vital", "808", "sub", "drift", "sine", "bass", "serum", "massive"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Bajo/sub seleccionado para {p.get('artist')}: {chosen}"
+        elif role_upper in ("KEYS", "PIANO", "RHODES"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["piano", "keyscape", "rhodes", "wurli", "analog lab", "keys"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Teclado armónico para {p.get('artist')}: {chosen}"
+        elif role_upper in ("PAD", "STRINGS"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["pad", "warm", "strings", "pigments", "omnisphere", "shimmer"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Colchón/cuerdas atmosféricas para {p.get('artist')}: {chosen}"
+        elif role_upper == "CHOIR":
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["choir", "voices", "ghost", "avalon", "bloom"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Textura coral sacra para {p.get('artist')}: {chosen}"
+        elif role_upper in ("LEAD", "COUNTER_LEAD", "ARP", "EAR_CANDY"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["lead", "spectral", "agenda", "solo", "drift", "vital"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Topline/Lead solista para {p.get('artist')}: {chosen}"
+        elif role_upper in ("GUITAR", "RHYTHM_GUITAR", "LEAD_GUITAR"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["guitar", "flamenco", "nylon", "steel"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Guitarra orgánica para {p.get('artist')}: {chosen}"
+        elif role_upper in ("BRASS", "HORNS"):
+            cands = [opt for opt in options if any(w in opt.lower() for w in ["brass", "horn", "trumpet", "transilvania"])]
+            chosen = pick_first_unused_or_any(cands)
+            if chosen:
+                return chosen, f"Sección de metales para {p.get('artist')}: {chosen}"
+
+        unused_all = [opt for opt in options if not is_already_used(opt)]
+        final_pick = unused_all[0] if unused_all else options[0]
+        return final_pick, f"Instrumento seleccionado: {final_pick}"
 
     @classmethod
     def _select_best_fx_option(cls, options: List[str], p: Dict[str, Any]) -> Tuple[str, str]:

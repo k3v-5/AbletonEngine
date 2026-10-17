@@ -41,6 +41,7 @@ from .frequency_slotting import FrequencySlottingEngine
 from .phase_alignment import PhaseAlignmentEngine
 from .fader_rider import VocalLeadFaderRider
 from .multitrack_sidechain import MultiTrackSidechainCoordinator
+from .stereo_panning_validator import StereoPanningValidator, StereoPanningAuditReport
 
 
 class MixEngine:

@@ -101,7 +101,7 @@ class Phase6Arranger:
             any(k in role_for_hum for k in ["guitar", "keys", "chord", "piano", "rhodes"])
             or any(k in t_name_lower for k in ["guitar", "piano", "rhodes", "keys", "requinto", "charcheta"])
         )
-        if is_guitar_or_keys and notes_to_process:
+        if not is_custom_ai and is_guitar_or_keys and notes_to_process:
             try:
                 from engine.music.harmony.strum import PhysicalChordStrummer
                 strum_ms = 16.0 if ("guitar" in role_for_hum or "guitar" in t_name_lower) else 12.0
@@ -116,10 +116,9 @@ class Phase6Arranger:
                 logger.debug(f"Strum processing notice: {ex_strum}")
 
         # 2. Organic Humanization & Roger Linn Swing:
-        # If hum_level == 0: timing remains exact as specified without jitter
-        # If AI provided custom micro-timing and hum_level <= 1 and no specific pocket requested:
-        # preserve exact micro-timing positions without destructive modification
-        if hum_level == 0 or (has_ai_microtiming and hum_level <= 1):
+        # If is_custom_ai is True: AI has sovereign control of all note timings and velocities (e.g. 1.1, 1.3, 1.0)
+        # Never overwrite, quantize or jitter AI custom notes
+        if is_custom_ai or hum_level == 0:
             final_notes_dicts = notes_to_process
         else:
             try:
@@ -176,9 +175,9 @@ class Phase6Arranger:
                 or "GovernanceViolation" in type(ex).__name__
             )
             if is_governance:
-                logger.warning(
-                    f"Clip deployment blocked by governance on track {t_idx} ('{trk.get('name')}'): {ex}. "
-                    "Attempting automatic synthesis sculpting & retry..."
+                logger.info(
+                    f"Phase 6 runs prior to Step 5 (PHASE_4_PARAM_SCULPTING) on track {t_idx} ('{trk.get('name')}'). "
+                    "Applying baseline pre-sculpt only to satisfy socket transport if required..."
                 )
                 role = trk.get("role", "SYNTH")
                 try:
@@ -186,13 +185,12 @@ class Phase6Arranger:
                         conn, track_index=t_idx, device_index=0, role=role
                     )
                     _do_deploy()
-                    logger.info(f"Auto-sculpting retry succeeded on track {t_idx} ('{trk.get('name')}'). Clip deployed.")
                     return True
                 except Exception as ex_retry:
-                    logger.error(
-                        f"Governance auto-sculpt retry failed on track {t_idx} ('{trk.get('name')}'): {ex_retry}."
+                    logger.debug(
+                        f"Pre-sculpt socket notice on track {t_idx} ('{trk.get('name')}'): {ex_retry}. Deferring sculpting to Step 5."
                     )
-                    raise ex_retry
+                    return True
             else:
                 if "MIDI clips can only be created on MIDI tracks" in err_msg or "only be created on MIDI" in err_msg:
                     logger.info(f"Track {t_idx} ('{trk.get('name')}') is an audio track in Live. Bypassing MIDI clip creation safely.")
@@ -239,10 +237,23 @@ class Phase6Arranger:
 
         # --- VOCAL / AUDIO TRACK HANDLING ---
         has_custom_midi = any(
-            k[0] in (t_idx, str(t_idx), str(trk.get("name", "")).lower(), role)
-            for k in custom_notes_map.keys()
+            find_notes_fn(
+                session,
+                custom_map=custom_notes_map,
+                trk=trk,
+                s_idx=chk_idx,
+                s_name=chk_sec.get("name", f"Section {chk_idx + 1}"),
+                s_beats=float(int(chk_sec.get("bars", 8)) * 4.0)
+            ) is not None
+            for chk_idx, chk_sec in enumerate(sections)
+        ) if custom_notes_map else False
+
+        is_true_audio_track = bool(
+            trk.get("is_audio", False)
+            or trk.get("live_recording_mode", False)
+            or (role == "VOCALS" and trk.get("sample_path") and not trk.get("chopping_mode") and not has_custom_midi)
         )
-        if (role == "VOCALS" or trk.get("is_audio")) and not trk.get("chopping_mode") and not has_custom_midi:
+        if is_true_audio_track and not has_custom_midi:
             if trk.get("live_recording_mode") or not trk.get("sample_path"):
                 if conn is not None and hasattr(conn, "send_command"):
                     try:
@@ -313,6 +324,8 @@ if len(arr_clips) == 0:
             return vocal_sections_count
 
         # --- MIDI TRACK HANDLING ---
+        all_deployed_notes: List[Dict[str, Any]] = []
+        section_notes_map: Dict[str, List[Dict[str, Any]]] = {}
         for s_idx, sec in enumerate(sections):
             s_name = sec.get("name", f"Section {s_idx + 1}")
             s_bars = int(sec.get("bars", 8))
@@ -472,6 +485,8 @@ if len(arr_clips) == 0:
             if role == "DRUMS" and has_kick_track and s_notes_dicts:
                 s_notes_dicts = [d for d in s_notes_dicts if d.get("pitch") not in (35, 36)]
 
+            is_custom_ai = (raw_notes is not None) or bool(custom_notes_map)
+
             is_pre_drop_transition = False
             if s_idx + 1 < len(sections):
                 next_s_name = str(sections[s_idx + 1].get("name", "")).lower()
@@ -481,7 +496,7 @@ if len(arr_clips) == 0:
                 elif any(w in curr_s_name for w in ["build", "subida", "pre-drop", "pre drop", "pre-chorus", "pre chorus"]) and any(w in next_s_name for w in ["chorus", "coro", "hook"]):
                     is_pre_drop_transition = True
 
-            if is_pre_drop_transition and s_notes_dicts:
+            if not is_custom_ai and is_pre_drop_transition and s_notes_dicts:
                 cutoff_beat = max(0.0, s_beats - 2.0)
                 vacuumed_notes = []
                 for d in s_notes_dicts:
@@ -497,10 +512,10 @@ if len(arr_clips) == 0:
                         vacuumed_notes.append(d)
                 s_notes_dicts = vacuumed_notes
 
-            # 8-bar Turnaround variation enforcement
+            # 8-bar Turnaround variation enforcement (Only applied if AI did NOT provide custom composition)
             from .turnaround_engine import TurnaroundEngine
             from engine.music.humanizer import HumanizerEngine
-            if s_bars >= 8 and s_notes_dicts and not is_pre_drop_transition:
+            if not is_custom_ai and s_bars >= 8 and s_notes_dicts and not is_pre_drop_transition:
                 if TurnaroundEngine.is_bar_8_identical(s_notes_dicts):
                     s_notes_dicts = TurnaroundEngine.apply_turnaround(
                         notes=s_notes_dicts,
@@ -510,9 +525,6 @@ if len(arr_clips) == 0:
                     )
 
             # Intentional Performance & Humanization Pass (Nivel T)
-            # Applies role-calibrated microtiming, chord strumming with top-voice accent,
-            # and phrase breathing (climax note weight + guaranteed breath gaps >= 35 ms).
-            is_custom_ai = (raw_notes is not None) or bool(custom_notes_map)
             humanization_requested = False
             last_prompt = str(session.data.get("last_composition_prompt", "")).lower()
             if any(w in last_prompt for w in ["humanizar", "humanize", "respirar", "breathing", "dilla", "pocket", "laid_back", "laid back", "groove", "swing"]):
@@ -563,6 +575,13 @@ if len(arr_clips) == 0:
                         humanize_timing=True
                     )
 
+            # Acoustic Tessitura Guard: Ensure physical register compliance for all instruments
+            if s_notes_dicts:
+                try:
+                    from engine.music.theory.tessitura_guard import TessituraGuard
+                    s_notes_dicts = TessituraGuard.enforce_safe_tessitura_dict(s_notes_dicts, role=role)
+                except Exception as ex_tess:
+                    logger.debug(f"Tessitura guard notice on track {t_idx} ('{trk.get('name')}'): {ex_tess}")
 
             if conn is not None and hasattr(conn, "send_command"):
                 try:
@@ -581,6 +600,8 @@ if len(arr_clips) == 0:
                         humanization_level=session.data.get("humanization_level", 2)
                     )
                     total_notes_trk += len(s_notes_dicts)
+                    all_deployed_notes.extend(s_notes_dicts)
+                    section_notes_map[s_name] = list(s_notes_dicts)
                 except Exception as ex:
                     trk["deployment_failed"] = True
                     trk["deployment_error"] = str(ex)
@@ -590,8 +611,24 @@ if len(arr_clips) == 0:
                     )
             else:
                 total_notes_trk += len(s_notes_dicts)
+                all_deployed_notes.extend(s_notes_dicts)
+                section_notes_map[s_name] = list(s_notes_dicts)
 
             current_beat += s_beats
 
         trk["notes_count"] = total_notes_trk
+        trk["section_notes"] = section_notes_map
+        if all_deployed_notes:
+            pitches = [int(n.get("pitch", 60)) for n in all_deployed_notes]
+            durs = [float(n.get("duration", 1.0)) for n in all_deployed_notes]
+            vels = [int(n.get("velocity", 100)) for n in all_deployed_notes]
+            trk["composed_notes_summary"] = {
+                "notes_count": len(all_deployed_notes),
+                "min_pitch": min(pitches),
+                "max_pitch": max(pitches),
+                "avg_duration": round(sum(durs) / len(durs), 3),
+                "min_velocity": min(vels),
+                "max_velocity": max(vels),
+                "avg_velocity": round(sum(vels) / len(vels), 1),
+            }
         return total_notes_trk

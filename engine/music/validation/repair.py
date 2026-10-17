@@ -21,19 +21,26 @@ def repair_notes(
     role_key = role.lower().replace("-", "_").replace(" ", "_")
     min_p, max_p = ROLE_REGISTER_BOUNDS.get(role_key, (0, 127))
 
+    from ..theory.tessitura_guard import TessituraGuard
+
     for note in notes:
         p = note.pitch
 
-        # Register clamp via octave transposition
-        while p < min_p:
-            p += 12
-            actions.append(f"Transposed pitch up 1 octave to {p}")
-        while p > max_p:
-            p -= 12
-            actions.append(f"Transposed pitch down 1 octave to {p}")
+        # Register clamp via octave transposition using expanded ROLE_REGISTER_BOUNDS and TessituraGuard
+        clamped = TessituraGuard.clamp_single_pitch(p, role)
+        if clamped != p:
+            actions.append(f"TessituraGuard clamped pitch {p} to safe acoustic register {clamped} for role '{role}'")
+            p = clamped
+        elif min_p > 0 or max_p < 127:
+            while p < min_p:
+                p += 12
+                actions.append(f"Transposed pitch up 1 octave to {p}")
+            while p > max_p:
+                p -= 12
+                actions.append(f"Transposed pitch down 1 octave to {p}")
 
-        # Scale snapping on downbeats
-        if note.start % 1.0 == 0.0 and not is_in_scale(key, scale, p):
+        # Scale snapping on downbeats (melodic and harmonic roles only, NOT drums)
+        if role_key not in ["drums", "percussion", "kick"] and (note.start % 1.0 == 0.0) and not is_in_scale(key, scale, p):
             snapped = snap_to_scale(key, scale, p)
             actions.append(f"Snapped chromatic pitch {p} to diatonic {snapped}")
             p = snapped

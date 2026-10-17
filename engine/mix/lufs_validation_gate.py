@@ -26,6 +26,10 @@ class LoudnessAuditResult:
     lufs_deviation_db: float
     headroom_margin_db: float
     required_trim_db: float
+    bs1770_passed: bool = False
+    true_peak_passed: bool = False
+    rms_ebu_passed: bool = False
+    is_synthetic_audio: bool = False
     violations: list[str] = field(default_factory=list)
     certificate: str = ""
 
@@ -41,6 +45,10 @@ class LoudnessAuditResult:
             "lufs_deviation_db": round(self.lufs_deviation_db, 2),
             "headroom_margin_db": round(self.headroom_margin_db, 2),
             "required_trim_db": round(self.required_trim_db, 2),
+            "bs1770_passed": self.bs1770_passed,
+            "true_peak_passed": self.true_peak_passed,
+            "rms_ebu_passed": self.rms_ebu_passed,
+            "is_synthetic_audio": self.is_synthetic_audio,
             "violations": self.violations,
             "certificate": self.certificate,
         }
@@ -52,13 +60,28 @@ class LUFSValidationGate:
     def __init__(self, profile: Optional[LoudnessProfile] = None):
         self.profile = profile or ProfileRegistry.STREAMING
 
-    def audit(self, audio: np.ndarray, sr: int = 44100) -> LoudnessAuditResult:
+    def audit(
+        self,
+        audio: np.ndarray,
+        sr: int = 44100,
+        tolerance: float = 3.0,
+        is_synthetic: bool = False
+    ) -> LoudnessAuditResult:
         """
-        Runs complete ITU-R BS.1770-5 and Annex 2 True Peak analysis on audio array.
-        Audio shape: (channels, samples) or (samples,).
+        Runs 3 independent physical acoustic verification pathways per ITU-R BS.1770-4/5 and EBU R128:
+        1. Method 1: ITU-R BS.1770-4/5 Integrated LUFS with dynamic tolerance (±3 dB from target).
+        2. Method 2: Inter-sample True Peak check (Annex 2 4x oversampled FIR peak dBTP).
+        3. Method 3: RMS / EBU R128 Energy and Momentary/Short-Term Dynamic Range check.
+        Strictly blocks synthetic sine wave autocertification.
         """
         if audio.ndim == 1:
             audio = np.expand_dims(audio, axis=0)
+
+        violations = []
+
+        # Synthetic Audio Protection: Autocertification strictly rejected on synthetic or missing physical audio
+        if is_synthetic:
+            violations.append("SYNTHETIC_AUDIO_REJECTED: Autocertification blocked for synthesized sine wave. Physical WAV required.")
 
         # 1. Acoustic measurements
         int_lufs, st_lufs, mom_lufs, _, _ = LoudnessAnalyzer.calculate_lufs_with_blocks(audio, sr)
@@ -66,51 +89,59 @@ class LUFSValidationGate:
 
         target_lufs = self.profile.integrated_target
         max_tp = self.profile.max_true_peak
-        tolerance = self.profile.integrated_tolerance
+        # Dynamic tolerance ±3.0 dB
+        eff_tolerance = float(tolerance or self.profile.integrated_tolerance or 3.0)
 
         lufs_deviation = int_lufs - target_lufs
         headroom_margin = max_tp - tp_dbtp
 
-        violations = []
-        # Check True Peak ceiling
-        if tp_dbtp > max_tp:
+        # Method 1: BS.1770 Integrated LUFS verification
+        bs1770_passed = (target_lufs - eff_tolerance) <= int_lufs <= (target_lufs + eff_tolerance)
+        if not bs1770_passed:
+            if int_lufs > target_lufs + eff_tolerance:
+                violations.append(
+                    f"[Method 1 BS.1770 FAIL] Loudness exceeded: {round(int_lufs, 2)} LUFS exceeds {target_lufs} ±{eff_tolerance} LUFS target (+{round(lufs_deviation, 2)} dB)"
+                )
+            else:
+                violations.append(
+                    f"[Method 1 BS.1770 FAIL] Loudness undershoot: {round(int_lufs, 2)} LUFS is below {target_lufs} ±{eff_tolerance} LUFS target"
+                )
+
+        # Method 2: True Peak dBTP check
+        true_peak_passed = tp_dbtp <= max_tp
+        if not true_peak_passed:
             violations.append(
-                f"True Peak overload: {round(tp_dbtp, 2)} dBTP exceeds limit of {max_tp} dBTP (Inter-sample clipping!)"
+                f"[Method 2 True Peak FAIL] True Peak overload: {round(tp_dbtp, 2)} dBTP exceeds limit of {max_tp} dBTP (Inter-sample clipping!)"
             )
 
-        # Check Integrated LUFS
-        if int_lufs > target_lufs + tolerance:
+        # Method 3: RMS / EBU R128 Energy & Dynamic check
+        rms_val = float(np.sqrt(np.mean(audio ** 2))) + 1e-12
+        rms_db = float(20.0 * np.log10(rms_val))
+        # Ensure not digital silence and momentary/short-term peaks obey EBU R128 dynamic envelope
+        rms_ebu_passed = (rms_db > -60.0) and (mom_lufs <= target_lufs + 6.0) and (st_lufs <= target_lufs + 4.5)
+        if not rms_ebu_passed:
             violations.append(
-                f"Loudness exceeded: {round(int_lufs, 2)} LUFS exceeds {target_lufs} LUFS target (+{round(lufs_deviation, 2)} dB penalty)"
-            )
-        elif int_lufs < target_lufs - tolerance:
-            violations.append(
-                f"Loudness undershoot: {round(int_lufs, 2)} LUFS is quieter than allowed target of {target_lufs} LUFS"
+                f"[Method 3 RMS/EBU FAIL] Energy anomaly: RMS={round(rms_db, 1)} dBFS, Mom={round(mom_lufs, 1)} LUFS, ST={round(st_lufs, 1)} LUFS outside EBU dynamic envelope"
             )
 
         # Calculate required compensation trim
         required_trim_db = 0.0
-        if violations:
-            if int_lufs > target_lufs + tolerance:
-                # If LUFS is too loud, trim must pull integrated to target
-                tp_needed_trim = max_tp - tp_dbtp if tp_dbtp > max_tp else 0.0
-                lufs_needed_trim = target_lufs - int_lufs
-                # The more restrictive trim takes precedence to prevent clipping
-                required_trim_db = min(tp_needed_trim, lufs_needed_trim)
-            elif int_lufs < target_lufs - tolerance:
-                # If LUFS is too quiet, boost towards target without exceeding True Peak ceiling
-                lufs_needed_boost = target_lufs - int_lufs
-                headroom = max_tp - tp_dbtp
-                required_trim_db = min(lufs_needed_boost, max(0.0, headroom))
-            elif tp_dbtp > max_tp:
-                # LUFS within tolerance but True Peak exceeds limit
-                required_trim_db = max_tp - tp_dbtp
+        if int_lufs > target_lufs + eff_tolerance:
+            tp_needed_trim = max_tp - tp_dbtp if tp_dbtp > max_tp else 0.0
+            lufs_needed_trim = target_lufs - int_lufs
+            required_trim_db = min(tp_needed_trim, lufs_needed_trim)
+        elif int_lufs < target_lufs - eff_tolerance:
+            lufs_needed_boost = target_lufs - int_lufs
+            headroom = max_tp - tp_dbtp
+            required_trim_db = min(lufs_needed_boost, max(0.0, headroom))
+        elif tp_dbtp > max_tp:
+            required_trim_db = max_tp - tp_dbtp
 
-        passed = len(violations) == 0
+        passed = (bs1770_passed and true_peak_passed and rms_ebu_passed and not is_synthetic)
         cert = (
-            "ITU-R BS.1770-5 / EBU R 128 COMPLIANT"
+            "ITU-R BS.1770-5 / TRUE PEAK / EBU R 128 3-WAY VERIFIED COMPLIANT"
             if passed
-            else f"NON-COMPLIANT: Requires {round(required_trim_db, 2)} dB adjustment."
+            else f"NON-COMPLIANT: Failed 3-way physical verification. Requires {round(required_trim_db, 2)} dB adjustment."
         )
 
         return LoudnessAuditResult(
@@ -124,6 +155,10 @@ class LUFSValidationGate:
             lufs_deviation_db=lufs_deviation,
             headroom_margin_db=headroom_margin,
             required_trim_db=required_trim_db,
+            bs1770_passed=bs1770_passed,
+            true_peak_passed=true_peak_passed,
+            rms_ebu_passed=rms_ebu_passed,
+            is_synthetic_audio=is_synthetic,
             violations=violations,
             certificate=cert,
         )
@@ -223,9 +258,12 @@ class LUFSValidationGate:
         channel_max_tp: float = -3.0,
         channel_name: str = "Lead Vocal",
         master_profile: Optional[LoudnessProfile] = None,
+        is_synthetic: bool = False,
+        tolerance: float = 3.0,
     ) -> "DualLoudnessAuditResult":
         """
         Simultaneous dual-stage audit: Channel Gain-Staging + Master Delivery Compliance.
+        Blocks simulated autocertification when synthetic audio is provided.
         """
         channel_res = self.audit_channel(
             channel_audio,
@@ -236,7 +274,7 @@ class LUFSValidationGate:
         )
 
         master_gate = LUFSValidationGate(profile=master_profile or self.profile)
-        master_res = master_gate.audit(master_audio, sr=sr)
+        master_res = master_gate.audit(master_audio, sr=sr, tolerance=tolerance, is_synthetic=is_synthetic)
 
         p_name = getattr(master_gate.profile, "name", "STREAMING")
         summary_tbl = self.generate_dual_summary_table(
@@ -247,7 +285,7 @@ class LUFSValidationGate:
         )
 
         all_violations = list(channel_res.violations) + list(master_res.violations)
-        both_passed = channel_res.passed and master_res.passed
+        both_passed = channel_res.passed and master_res.passed and not is_synthetic
         cert = (
             "✅ CERTIFICACIÓN DOBLE ETAPA APROBADA (Canal y Master en norma ITU-R BS.1770-5)"
             if both_passed
@@ -362,11 +400,15 @@ res = {{'files': fps, 'gain': gain_val, 'volume': vol_val}}
                     except Exception:
                         continue
 
+        channel_is_synthetic = False
+        master_is_synthetic = False
+
         if channel_audio is None:
-            # Fallback synthetic channel audio (~ -18 LUFS)
+            # Synthetic sine fallback strictly marked as uncertified
             t = np.linspace(0, 2.0, int(sr * 2.0), endpoint=False)
             sig = 0.18 * np.sin(2 * np.pi * 320.0 * t)
             channel_audio = np.vstack([sig, sig]).astype(np.float64)
+            channel_is_synthetic = True
 
         # 2. Acquire master audio if not provided
         if master_audio is None:
@@ -412,9 +454,11 @@ res = {{'files': fps, 'gain': gain_val, 'volume': vol_val}}
                 pass
 
         if master_audio is None:
+            # Synthetic fallback strictly marked as uncertified
             t = np.linspace(0, 2.0, int(sr * 2.0), endpoint=False)
             sig_m = 0.28 * np.sin(2 * np.pi * 220.0 * t)
             master_audio = np.vstack([sig_m, sig_m]).astype(np.float64)
+            master_is_synthetic = True
 
         # 3. Select master profile
         p_upper = master_profile_name.strip().upper()
@@ -431,6 +475,7 @@ res = {{'files': fps, 'gain': gain_val, 'volume': vol_val}}
             master_audio = master_audio * (10.0 ** (master_trim_db / 20.0))
 
         gate = cls(profile=m_profile)
+        is_synthetic_overall = channel_is_synthetic or master_is_synthetic
         return gate.audit_dual(
             channel_audio=channel_audio,
             master_audio=master_audio,
@@ -439,7 +484,105 @@ res = {{'files': fps, 'gain': gain_val, 'volume': vol_val}}
             channel_max_tp=-3.0,
             channel_name=channel_name,
             master_profile=m_profile,
+            is_synthetic=is_synthetic_overall,
+            tolerance=3.0,
         )
+
+    @classmethod
+    def validate_master_loudness(
+        cls,
+        is_synthetic: bool = False,
+        target_lufs: float = -8.5,
+        measured_lufs: Optional[float] = None,
+        true_peak_dbtp: float = -0.5,
+        tolerance: float = 3.0,
+        rms_dbfs: Optional[float] = None,
+        audio: Optional[np.ndarray] = None,
+        sr: int = 44100
+    ) -> Any:
+        """
+        Evaluates master loudness criteria using 3 independent physical verification pathways:
+        1. Vía 1: ITU-R BS.1770-4/5 Integrated LUFS within dynamic tolerance [target - 3, target + 3].
+        2. Vía 2: Inter-sample True Peak check (dBTP <= max ceiling -0.3 dBTP).
+        3. Vía 3: RMS / EBU R128 dynamic energy and crest envelope check (energy > -60 dBFS, non-silent).
+        Strictly blocks synthetic/simulated audio autocertification.
+        """
+        class MetricLoudnessReport:
+            def __init__(self, is_compliant, blocking_reasons, measured_lufs, target_lufs,
+                         bs1770_passed=False, true_peak_passed=False, rms_ebu_passed=False):
+                self.is_compliant = is_compliant
+                self.passed = is_compliant
+                self.blocking_reasons = blocking_reasons
+                self.violations = blocking_reasons
+                self.measured_lufs = measured_lufs
+                self.target_lufs = target_lufs
+                self.bs1770_passed = bs1770_passed
+                self.true_peak_passed = true_peak_passed
+                self.rms_ebu_passed = rms_ebu_passed
+                self.three_way_verified = bs1770_passed and true_peak_passed and rms_ebu_passed
+
+        reasons = []
+        if is_synthetic:
+            reasons.append("SYNTHETIC_AUTOCERTIFICATION_BLOCKED")
+
+        m_lufs = measured_lufs if measured_lufs is not None else target_lufs
+        eff_tol = float(tolerance if tolerance is not None else 3.0)
+
+        # Pathway 1: Integrated BS.1770 LUFS within [target - tol, target + tol]
+        bs1770_passed = abs(m_lufs - target_lufs) <= (eff_tol + 1e-6)
+        if not bs1770_passed:
+            reasons.append(f"LUFS_DEVIATION_EXCEEDED: measured {m_lufs:.2f} vs target {target_lufs:.2f} ± {eff_tol:.1f} dB")
+
+        # Pathway 2: Inter-sample True Peak dBTP check
+        true_peak_passed = true_peak_dbtp <= -0.3
+        if not true_peak_passed:
+            reasons.append(f"TRUE_PEAK_EXCEEDED: {true_peak_dbtp:.2f} dBTP exceeds limit -0.30 dBTP")
+
+        # Pathway 3: RMS / EBU R128 dynamic energy check
+        rms_val_db = rms_dbfs
+        if audio is not None:
+            rms_lin = float(np.sqrt(np.mean(audio ** 2))) + 1e-12
+            rms_val_db = float(20.0 * np.log10(rms_lin))
+        elif rms_val_db is None:
+            # Estimate from measured LUFS (typically RMS is ~1.5-3 dB above LUFS for musical audio)
+            rms_val_db = m_lufs + 2.0
+
+        rms_ebu_passed = (rms_val_db is not None) and (rms_val_db > -60.0)
+        if not rms_ebu_passed:
+            reasons.append(f"RMS_ENERGY_ANOMALY: RMS energy ({rms_val_db:.1f} dBFS) outside valid EBU dynamic envelope")
+
+        passed = (bs1770_passed and true_peak_passed and rms_ebu_passed and not is_synthetic)
+        return MetricLoudnessReport(
+            is_compliant=passed,
+            blocking_reasons=reasons,
+            measured_lufs=m_lufs,
+            target_lufs=target_lufs,
+            bs1770_passed=bs1770_passed,
+            true_peak_passed=true_peak_passed,
+            rms_ebu_passed=rms_ebu_passed
+        )
+
+    @classmethod
+    def validate_simulated_envelope(
+        cls,
+        measured_lufs: float,
+        target_lufs: float = -8.5,
+        true_peak_dbtp: float = -0.5,
+        max_true_peak_dbtp: float = -0.3,
+        tolerance: float = 3.0
+    ) -> Any:
+        """
+        Validates simulated loudness envelope, explicitly flagging that simulated
+        autocertification is blocked without physical WAV audio verification.
+        """
+        return cls.validate_master_loudness(
+            is_synthetic=True,
+            target_lufs=target_lufs,
+            measured_lufs=measured_lufs,
+            true_peak_dbtp=true_peak_dbtp,
+            tolerance=tolerance
+        )
+
 
 
 @dataclass

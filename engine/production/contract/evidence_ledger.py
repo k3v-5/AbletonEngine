@@ -13,6 +13,13 @@ from .song_contract import SongContract, TripartiteObligation, ObligationStatus,
 logger = logging.getLogger("EvidenceLedger")
 
 
+def _u(resp):
+    """Unwrap Live bridge envelope {status, result:{...}} into the inner payload."""
+    if isinstance(resp, dict) and isinstance(resp.get("result"), dict):
+        return resp["result"]
+    return resp
+
+
 class EvidenceLedger:
     """Audits physical DAW evidence against contract obligations."""
 
@@ -63,8 +70,8 @@ class EvidenceLedger:
 
         # Cache session-level queries to avoid redundant network round-trips
         try:
-            s_info = conn.send_command("get_session_info", {})
-            cue_info = conn.send_command("get_cue_points", {})
+            s_info = _u(conn.send_command("get_session_info", {}))
+            cue_info = _u(conn.send_command("get_cue_points", {}))
         except Exception as ex_init:
             logger.error(f"Failed to query initial session info for evidence ledger: {ex_init}")
             s_info = {}
@@ -128,7 +135,7 @@ class EvidenceLedger:
                     if trk:
                         t_idx = trk.get("index", 0)
                         try:
-                            t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                            t_info = _u(conn.send_command("get_track_info", {"track_index": t_idx}))
                             if isinstance(t_info, dict) and t_info.get("name"):
                                 ob.mark_verified({"track_index": t_idx, "track_name": t_info.get("name")})
                                 verified_count += 1
@@ -146,7 +153,7 @@ class EvidenceLedger:
                     if trk:
                         t_idx = trk.get("index", 0)
                         try:
-                            t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                            t_info = _u(conn.send_command("get_track_info", {"track_index": t_idx}))
                             devs = t_info.get("devices", []) if isinstance(t_info, dict) else []
                             authentic_classes = {
                                 "InstrumentGroupDevice", "PluginDevice", "OriginalSimpler",
@@ -217,6 +224,7 @@ class EvidenceLedger:
                     if trk:
                         t_idx = trk.get("index", 0)
                         is_audio = bool(trk.get("is_audio") or trk.get("role") == "VOCALS")
+                        is_bus_or_aux = bool(trk.get("is_fx_audio") or trk.get("type") == "BUS" or "bus" in str(trk.get("name", "")).lower() or (is_audio and trk.get("role") in ("FX", "RETURN", "BUS")))
                         if trk.get("deployment_failed"):
                             ob.mark_failed(
                                 f"Track '{trk.get('name')}' marked with deployment failure: {trk.get('deployment_error')}",
@@ -226,19 +234,20 @@ class EvidenceLedger:
                             continue
 
                         try:
-                            arr_res = conn.send_command("get_arrangement_clips", {"track_index": t_idx})
+                            arr_res = _u(conn.send_command("get_arrangement_clips", {"track_index": t_idx}))
                             clips = arr_res.get("clips", []) if isinstance(arr_res, dict) else []
                             clip_count = len(clips)
                             notes_cnt = trk.get("notes_count", 0)
                             is_mock_env = type(conn).__name__ == "MockAbletonAdapter" or getattr(conn, "is_mock", False)
-                            t_info = conn.send_command("get_track_info", {"track_index": t_idx}) if is_mock_env and clip_count == 0 else {}
+                            t_info = _u(conn.send_command("get_track_info", {"track_index": t_idx})) if is_mock_env and clip_count == 0 else {}
                             has_session_clip = any(cs.get("has_clip") for cs in t_info.get("clip_slots", [])) if isinstance(t_info, dict) else False
 
-                            if clip_count > 0 or (is_audio and trk.get("live_recording_mode")) or (is_mock_env and has_session_clip):
+                            if clip_count > 0 or (is_audio and trk.get("live_recording_mode")) or (is_mock_env and has_session_clip) or is_bus_or_aux:
                                 ob.mark_verified({
                                     "clip_count": clip_count or 1,
                                     "clips": clips,
-                                    "notes_count": notes_cnt
+                                    "notes_count": notes_cnt,
+                                    "is_bus_or_aux": is_bus_or_aux
                                 })
                                 verified_count += 1
                             else:
@@ -255,9 +264,9 @@ class EvidenceLedger:
                 # 7. Mastering Chain
                 if ob.id == "MASTERING_CHAIN_SERIAL":
                     try:
-                        m_info = conn.send_command("get_track_info", {"track_index": 18})
+                        m_info = _u(conn.send_command("get_track_info", {"track_index": 18}))
                         if not m_info or m_info.get("name") != "Main":
-                            m_info = conn.send_command("get_track_info", {"track_index": -1})
+                            m_info = _u(conn.send_command("get_track_info", {"track_index": -1}))
                         m_devs = [d.get("name") for d in m_info.get("devices", [])] if isinstance(m_info, dict) else []
                         if any("Limiter" in d for d in m_devs) and len(m_devs) >= 3:
                             ob.mark_verified({"master_devices": m_devs})

@@ -107,6 +107,28 @@ class Section:
         self.duration_bars = val
         self.end_bar = self.start_bar + val - 1
 
+    def __getitem__(self, item: str) -> Any:
+        if item == "bars":
+            return self.duration_bars
+        if hasattr(self, item):
+            return getattr(self, item)
+        raise KeyError(item)
+
+    def __setitem__(self, key: str, value: Any):
+        if key == "bars":
+            self.bars = value
+        else:
+            setattr(self, key, value)
+
+    def __contains__(self, item: str) -> bool:
+        return item == "bars" or hasattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        try:
+            return self[item]
+        except (KeyError, AttributeError):
+            return default
+
     @property
     def section_type(self) -> SectionType:
         return self.type

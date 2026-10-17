@@ -33,18 +33,47 @@ class BusRoutingManager:
     }
 
     @classmethod
+    def infer_bus_for_track(cls, trk: Dict[str, Any]) -> str:
+        """Infers the appropriate submix bus name for a track based on role or name."""
+        if trk.get("output_bus"):
+            return str(trk["output_bus"]).replace("[BUS] ", "").strip()
+
+        role = str(trk.get("role", "")).upper()
+        name = str(trk.get("name", "")).upper()
+
+        # 1. Drums / Percussion
+        if any(w in role or w in name for w in ("DRUM", "PERC", "BEAT", "KIT", "KICK", "SNARE", "HIHAT", "DEMBOW")):
+            return "DRUMS BUS"
+        # 2. Bass / Sub / 808
+        if any(w in role or w in name for w in ("BASS", "808", "SUB", "REESE")):
+            return "BASS BUS"
+        # 3. Vocals / Chops
+        if any(w in role or w in name for w in ("VOCAL", "VOX", "VOICE", "CHOP")):
+            return "VOCALS BUS"
+        # 4. Pads / Strings / Choir / Atmosphere
+        if any(w in role or w in name for w in ("PAD", "STRINGS", "CHOIR", "VIOLIN", "CELLO", "ATMOSPHERE")):
+            return "PADS BUS"
+        # 5. Synths / Leads / Keys / Guitar / Brass
+        return "SYNTHS BUS"
+
+    @classmethod
     def analyze_bus_topology(cls, tracks: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Maps current tracks into their prospective submix buses based ONLY on the explicit output_bus field.
+        Maps current tracks into their prospective submix buses.
+        Infers the bus automatically from role and name if output_bus is not explicitly defined.
         """
         bus_map: Dict[str, List[Dict[str, Any]]] = {}
 
         for trk in tracks:
-            output_bus = trk.get("output_bus")
-            if output_bus:
-                if output_bus not in bus_map:
-                    bus_map[output_bus] = []
-                bus_map[output_bus].append(trk)
+            t_name = str(trk.get("name", ""))
+            if t_name.startswith("[BUS]") or t_name.startswith("[RETURN]"):
+                continue
+
+            bus_name = trk.get("output_bus") or cls.infer_bus_for_track(trk)
+            clean_bus_name = bus_name.replace("[BUS] ", "").strip()
+            if clean_bus_name not in bus_map:
+                bus_map[clean_bus_name] = []
+            bus_map[clean_bus_name].append(trk)
 
         return bus_map
 
@@ -112,11 +141,36 @@ result = {
         Constructs and physically configures the submix bus architecture in Ableton Live.
         Creates audio tracks with monitoring set to 'In' (0) and routes audio.
         """
-        effective_tracks = tracks if tracks is not None else []
+        effective_tracks = list(tracks) if tracks is not None else []
+
+        # Auto-query tracks from Live if not supplied
+        if not effective_tracks and conn is not None and hasattr(conn, "send_command"):
+            try:
+                code_get_trks = """
+t_list = []
+for i, t in enumerate(song.tracks):
+    if not t.name.startswith("[BUS]") and not t.name.startswith("[RETURN]") and getattr(t, 'has_audio_output', False):
+        t_list.append({'index': i, 'name': t.name, 'role': t.name})
+return_val = t_list
+result = t_list
+"""
+                res_get = conn.send_command("execute_code", {"code": code_get_trks})
+                live_trks = res_get.get("return_val", res_get.get("result", [])) if isinstance(res_get, dict) else []
+                if isinstance(live_trks, list) and live_trks:
+                    effective_tracks = live_trks
+            except Exception as ex_gt:
+                logger.debug(f"Error querying live tracks: {ex_gt}")
+
+        # Ensure output_bus is assigned on every track spec
+        for trk in effective_tracks:
+            if not trk.get("output_bus"):
+                trk["output_bus"] = cls.infer_bus_for_track(trk)
+
         topology = cls.analyze_bus_topology(effective_tracks)
         configured_buses: List[Dict[str, Any]] = []
 
         if conn is not None and hasattr(conn, "send_command"):
+            # 1. Create missing submix buses
             for bus_name, member_tracks in topology.items():
                 recipe = cls.BUS_PROCESSING_RECIPES.get(bus_name, {})
                 bus_label = f"[BUS] {bus_name}" if not bus_name.startswith("[BUS]") else bus_name
@@ -135,46 +189,12 @@ if not existing_bus:
 
 # Physical monitor in for audio group summing
 existing_bus.current_monitoring_state = 0
-
-# Physically route all member tracks' output to this group bus
-mem_names = {repr(member_names)}
-routed_members = []
-for t in song.tracks:
-    if t.name in mem_names:
-        # Prevent sequential overwrite if already assigned
-        if getattr(t, 'output_routing_type', None) and existing_bus.name in getattr(t.output_routing_type, 'display_name', ''):
-            routed_members.append(t.name)
-            continue
-            
-        for out_type in getattr(t, 'available_output_routing_types', []):
-            if existing_bus.name in getattr(out_type, 'display_name', ''):
-                try:
-                    t.output_routing_type = out_type
-                    routed_members.append(t.name)
-                except Exception:
-                    pass
-                break
-
-res = {{'bus_name': existing_bus.name, 'monitoring': existing_bus.current_monitoring_state, 'routed_members': routed_members}}
+existing_bus.mixer_device.volume.value = 0.85
 """
                 try:
                     conn.send_command("execute_code", {"code": code_bus})
                 except Exception as ex_bus:
                     logger.debug(f"Submix bus creation notice for {bus_label}: {ex_bus}")
-
-                # Instanciar físicamente los dispositivos de BUS_PROCESSING_RECIPES
-                if recipe:
-                    try:
-                        code_check = f"""
-b = next((t for t in song.tracks if t.name == {repr(bus_label)}), None)
-return_val = len(b.devices) > 0 if b else False
-"""
-                        check_res = conn.send_command("execute_code", {"code": code_check})
-                        if isinstance(check_res, dict) and not check_res.get("return_val", False):
-                            conn.send_command("load_browser_item", {"track_name": bus_label, "item_uri": "query:AudioFx#Glue%20Compressor"})
-                            conn.send_command("load_browser_item", {"track_name": bus_label, "item_uri": "query:AudioFx#EQ%20Eight"})
-                    except Exception as ex:
-                        logger.debug(f"Failed to load devices for {bus_label}: {ex}")
 
                 configured_buses.append({
                     "bus_name": bus_name,
@@ -183,6 +203,81 @@ return_val = len(b.devices) > 0 if b else False
                     "member_tracks": member_names,
                     "glue_recipe": recipe
                 })
+
+            # 2. Route tracks based on output_bus by physical track index and sovereign name
+            code_route = f"""
+tracks_spec = {repr(effective_tracks)}
+routed_results = []
+for idx, spec in enumerate(tracks_spec):
+    bus_name = spec.get('output_bus')
+    if not bus_name:
+        continue
+    target_bus = f"[BUS] {{bus_name}}" if not bus_name.startswith("[BUS]") else bus_name
+    
+    # Target track in Live by explicit spec['index'] and sovereign name (accounting for [ROLE] prefix)
+    trk = None
+    target_name = str(spec.get('name', '')).strip()
+    target_role = str(spec.get('role', '')).strip()
+    spec_idx = spec.get('index')
+
+    if spec_idx is not None and 0 <= int(spec_idx) < len(song.tracks):
+        cand = song.tracks[int(spec_idx)]
+        if not cand.name.startswith("[BUS]") and not getattr(cand, 'is_foldable', False):
+            if (not target_name) or (target_name.lower() in cand.name.lower()) or (target_role and f"[{{target_role.lower()}}]" in cand.name.lower()):
+                trk = cand
+
+    if not trk and target_name:
+        for t in song.tracks:
+            if t.name.startswith("[BUS]") or getattr(t, 'is_foldable', False):
+                continue
+            if t.name.lower() == target_name.lower() or t.name.lower() == f"[{{target_role.lower()}}] {{target_name.lower()}}" or target_name.lower() in t.name.lower():
+                trk = t
+                break
+
+    if not trk:
+        fallback_i = int(spec_idx) if spec_idx is not None else idx
+        if 0 <= fallback_i < len(song.tracks):
+            cand = song.tracks[fallback_i]
+            if not cand.name.startswith("[BUS]") and not getattr(cand, 'is_foldable', False):
+                trk = cand
+
+    if trk and not trk.name.startswith("[BUS]"):
+        for out_type in getattr(trk, 'available_output_routing_types', []):
+            if target_bus in getattr(out_type, 'display_name', ''):
+                try:
+                    trk.output_routing_type = out_type
+                    routed_results.append({{'track': trk.name, 'target_bus': target_bus}})
+                except Exception:
+                    pass
+                break
+
+bus_indices = {{t.name: i for i, t in enumerate(song.tracks) if t.name.startswith("[BUS]")}}
+return_val = {{'routed': routed_results, 'buses': bus_indices}}
+"""
+            try:
+                res_route = conn.send_command("execute_code", {"code": code_route})
+                bus_indices = res_route.get("return_val", {}).get("buses", {}) if isinstance(res_route, dict) else {}
+            except Exception as ex_route:
+                logger.debug(f"Submix bus audio routing notice: {ex_route}")
+                bus_indices = {}
+
+            # 3. Physically load devices (Glue Compressor + EQ Eight) using track_index
+            for b_info in configured_buses:
+                b_lbl = b_info["bus_label"]
+                b_idx = bus_indices.get(b_lbl)
+                if b_idx is not None and b_info.get("glue_recipe"):
+                    try:
+                        code_check = f"""
+b = song.tracks[{b_idx}] if {b_idx} < len(song.tracks) else None
+return_val = len(b.devices) > 0 if b else False
+"""
+                        chk = conn.send_command("execute_code", {"code": code_check})
+                        has_devs = chk.get("return_val", False) if isinstance(chk, dict) else False
+                        if not has_devs:
+                            conn.send_command("load_browser_item", {"track_index": b_idx, "item_uri": "query:AudioFx#Glue%20Compressor"})
+                            conn.send_command("load_browser_item", {"track_index": b_idx, "item_uri": "query:AudioFx#EQ%20Eight"})
+                    except Exception as ex_dev:
+                        logger.debug(f"Failed to load devices on {b_lbl} at index {b_idx}: {ex_dev}")
 
             cls.setup_aux_return_tracks(conn)
         else:

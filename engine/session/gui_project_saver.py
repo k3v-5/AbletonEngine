@@ -102,7 +102,7 @@ class LiveGuiProjectSaver:
         project_name: str,
         genre: Optional[str] = "Reggaeton",
         base_dir: Optional[Path] = None,
-        timeout_seconds: float = 8.0
+        timeout_seconds: float = 16.0
     ) -> Dict[str, Any]:
         r"""
         Automates 'Save Live Set As...' in Ableton Live 12.
@@ -129,11 +129,6 @@ class LiveGuiProjectSaver:
         u = ctypes.windll.user32
         k = ctypes.windll.kernel32
 
-        # 1. Bind thread to default interactive desktop
-        h_desk = u.OpenDesktopW("default", 0, False, DESKTOP_ALL)
-        if h_desk:
-            u.SetThreadDesktop(h_desk)
-
         try:
             from pywinauto import Application
             import psutil
@@ -152,45 +147,70 @@ class LiveGuiProjectSaver:
 
         pid = ableton_pids[0]
 
+        # 2.5 Multi-Desktop Awareness: Locate the specific desktop containing Ableton Live
+        desktops_to_try = ["Default", "default"]
+        h_ws = u.GetProcessWindowStation()
+        if h_ws:
+            all_desks = []
+            def d_cb(name, lparam):
+                all_desks.append(name)
+                return True
+            DESKTOPENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, ctypes.c_wchar_p, wintypes.LPARAM)
+            u.EnumDesktopsW(h_ws, DESKTOPENUMPROC(d_cb), 0)
+            for d in all_desks:
+                if d not in desktops_to_try:
+                    desktops_to_try.append(d)
+
+        main_hwnd = None
+        main_desktop = None
+        WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        for d_name in desktops_to_try:
+            hd = u.OpenDesktopW(d_name, 0, False, DESKTOP_ALL)
+            if not hd:
+                continue
+            win_candidates = []
+            def enum_win(hwnd, lparam):
+                p = wintypes.DWORD()
+                u.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
+                if p.value == pid:
+                    cls_buf = ctypes.create_unicode_buffer(256)
+                    u.GetClassNameW(hwnd, cls_buf, 256)
+                    title_buf = ctypes.create_unicode_buffer(512)
+                    u.GetWindowTextW(hwnd, title_buf, 512)
+                    win_candidates.append((hwnd, cls_buf.value, title_buf.value, bool(u.IsWindowVisible(hwnd))))
+                return True
+
+            u.EnumDesktopWindows(hd, WNDENUMPROC(enum_win), 0)
+            for h, c, t, v in win_candidates:
+                if c == "Ableton Live Window Class" and t:
+                    main_hwnd = h
+                    main_desktop = hd
+                    break
+            if not main_hwnd:
+                for h, c, t, v in win_candidates:
+                    if "Ableton Live 12" in t and "GDI+" not in t:
+                        main_hwnd = h
+                        main_desktop = hd
+                        break
+            if main_hwnd:
+                u.SetThreadDesktop(hd)
+                break
+
+        if not main_hwnd:
+            logger.error("Ableton Live 12 main window not found across any desktop.")
+            return {"success": False, "error": "Main window not found", "path": full_path_str}
+
+        # Restore window if minimized
+        if u.IsIconic(main_hwnd):
+            u.ShowWindow(main_hwnd, 9)  # SW_RESTORE
+            time.sleep(0.3)
+
         try:
             app = Application(backend="win32").connect(process=pid)
         except Exception as ex_conn:
             logger.error(f"Could not connect pywinauto to Ableton PID {pid}: {ex_conn}")
             return {"success": False, "error": str(ex_conn), "path": full_path_str}
-
-        # 3. Locate Main Window (Ableton Live Window Class)
-        main_win = None
-        WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-        win_candidates = []
-        def enum_win(hwnd, lparam):
-            p = wintypes.DWORD()
-            u.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
-            if p.value == pid:
-                cls_buf = ctypes.create_unicode_buffer(256)
-                u.GetClassNameW(hwnd, cls_buf, 256)
-                title_buf = ctypes.create_unicode_buffer(512)
-                u.GetWindowTextW(hwnd, title_buf, 512)
-                win_candidates.append((hwnd, cls_buf.value, title_buf.value, bool(u.IsWindowVisible(hwnd))))
-            return True
-
-        cb = WNDENUMPROC(enum_win)
-        u.EnumWindows(cb, 0)
-
-        main_hwnd = None
-        for h, c, t, v in win_candidates:
-            if c == "Ableton Live Window Class" and v and t:
-                main_hwnd = h
-                break
-
-        if not main_hwnd:
-            for h, c, t, v in win_candidates:
-                if "Ableton Live 12" in t and "GDI+" not in t and v:
-                    main_hwnd = h
-                    break
-
-        if not main_hwnd:
-            logger.error("Ableton Live 12 main window not found.")
-            return {"success": False, "error": "Main window not found", "path": full_path_str}
 
         main_win = app.window(handle=main_hwnd)
         old_title = main_win.window_text()
@@ -206,20 +226,48 @@ class LiveGuiProjectSaver:
             attached = bool(u.AttachThreadInput(my_tid, ab_tid, True))
 
         try:
+            u.keybd_event(0x12, 0, 0, 0) # ALT down
+            u.ShowWindow(main_hwnd, 9)   # SW_RESTORE
+            u.SetForegroundWindow(main_hwnd)
+            u.keybd_event(0x12, 0, 2, 0) # ALT up
+            if main_desktop:
+                u.SetThreadDesktop(main_desktop)
             main_win.set_focus()
         except Exception:
             pass
-        time.sleep(0.3)
+        time.sleep(0.4)
 
         # 5. Trigger Save Live Set As (Ctrl + Shift + S)
         logger.info("Sending Ctrl+Shift+S hotkey to trigger 'Save Live Set As...'")
-        main_win.type_keys("^+s")
+        def _send_save_as_hotkey():
+            if main_desktop:
+                u.SetThreadDesktop(main_desktop)
+            u.keybd_event(0x11, 0, 0, 0)  # VK_CONTROL
+            u.keybd_event(0x10, 0, 0, 0)  # VK_SHIFT
+            u.keybd_event(0x53, 0, 0, 0)  # 'S'
+            time.sleep(0.05)
+            u.keybd_event(0x53, 0, 2, 0)
+            u.keybd_event(0x10, 0, 2, 0)
+            u.keybd_event(0x11, 0, 2, 0)
 
-        # 6. Wait for file dialog
+        _send_save_as_hotkey()
+
+        # 6. Wait for file dialog (with auto-retry at 4 seconds)
         dialog = None
         start_wait = time.time()
+        retried_hotkey = False
         while time.time() - start_wait < timeout_seconds:
-            time.sleep(0.2)
+            time.sleep(0.25)
+            if not retried_hotkey and (time.time() - start_wait) > 4.0:
+                logger.info("Retrying Ctrl+Shift+S hotkey with renewed window focus...")
+                try:
+                    u.SetForegroundWindow(main_hwnd)
+                    main_win.set_focus()
+                    time.sleep(0.2)
+                    _send_save_as_hotkey()
+                except Exception:
+                    pass
+                retried_hotkey = True
             dlg_candidates = []
             def enum_dlg(hwnd, lparam):
                 p = wintypes.DWORD()
@@ -232,7 +280,10 @@ class LiveGuiProjectSaver:
                     dlg_candidates.append((hwnd, cls_buf.value, title_buf.value))
                 return True
             cb_dlg = WNDENUMPROC(enum_dlg)
-            u.EnumWindows(cb_dlg, 0)
+            if main_desktop:
+                u.EnumDesktopWindows(main_desktop, cb_dlg, 0)
+            else:
+                u.EnumWindows(cb_dlg, 0)
             dialog_hwnd = None
             dialog_title = ""
             for h, c, t in dlg_candidates:
@@ -270,7 +321,10 @@ class LiveGuiProjectSaver:
             u.GetWindowTextW(hwnd, txt, 256)
 
             if cls_name.value == "Edit":
-                edit_hwnds.append(hwnd)
+                if ctrl_id in (1001, 41477):
+                    edit_hwnds.insert(0, hwnd)
+                else:
+                    edit_hwnds.append(hwnd)
             elif cls_name.value == "Button":
                 if ctrl_id == IDOK or any(k in txt.value.lower() for k in ["guardar", "save"]):
                     guardar_btn_hwnd = hwnd
@@ -291,12 +345,17 @@ class LiveGuiProjectSaver:
 
         time.sleep(0.3)
 
-        # 9. Trigger click on Guardar via Win32 BM_CLICK and WM_COMMAND
+        # 9. Trigger click on Guardar via Win32 BM_CLICK, WM_COMMAND and VK_RETURN
         if guardar_btn_hwnd and u.IsWindow(guardar_btn_hwnd):
             u.SendMessageW(guardar_btn_hwnd, BM_CLICK, 0, 0)
             time.sleep(0.15)
         if u.IsWindow(dialog_hwnd):
             u.SendMessageW(dialog_hwnd, WM_COMMAND, IDOK, guardar_btn_hwnd or 0)
+            if main_desktop:
+                u.SetThreadDesktop(main_desktop)
+            u.keybd_event(0x0D, 0, 0, 0)
+            time.sleep(0.05)
+            u.keybd_event(0x0D, 0, 2, 0)
 
         # 10. Check for overwrite confirmation dialog ("¿Desea reemplazarlo?")
         time.sleep(0.6)
@@ -336,7 +395,25 @@ class LiveGuiProjectSaver:
                 pass
 
         logger.info(f"Ableton window title is now: '{new_title}'")
-        is_success = clean_name.lower() in new_title.lower() or target_als.exists()
+
+        # Locate saved .als file (directly in dest_dir or within "<Project_Name> Project" subfolder)
+        actual_als = target_als if target_als.exists() else None
+        if not actual_als:
+            candidates = list(dest_dir.rglob("*.als"))
+            if candidates:
+                actual_als = sorted(candidates, key=lambda f: f.stat().st_mtime, reverse=True)[0]
+        if actual_als and actual_als.exists():
+            import shutil
+            direct_als = dest_dir / f"{clean_name}.als"
+            if actual_als.resolve() != direct_als.resolve() and not direct_als.exists():
+                try:
+                    shutil.copy2(actual_als, direct_als)
+                except Exception:
+                    pass
+            target_als = direct_als if direct_als.exists() else actual_als
+            full_path_str = str(target_als.resolve())
+
+        is_success = target_als.exists() or clean_name.lower() in new_title.lower()
 
         return {
             "success": is_success,

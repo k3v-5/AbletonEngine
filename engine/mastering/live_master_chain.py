@@ -163,13 +163,13 @@ class LiveMasterChainEngine:
         # Collect all parameter assignments across all 5 mastering devices
         all_param_ops = []
 
-        # 1. Parameterize EQ Eight
+        # 1. Parameterize EQ Eight (transparent mastering contour)
         if eq_idx is not None:
             eq_params = [
                 (0, 1.0),
                 (4, 1.0), (5, 0.0), (6, cls.freq_to_normalized(25.0)), (7, 0.0), (8, 0.38),
                 (14, 1.0), (15, 3.0), (16, cls.freq_to_normalized(250.0)), (17, -0.8), (18, 0.40),
-                (24, 1.0), (25, 3.0), (26, cls.freq_to_normalized(441.4)), (27, -3.5), (28, 0.70),
+                (24, 1.0), (25, 3.0), (26, cls.freq_to_normalized(350.0)), (27, -1.5), (28, 0.55),
                 (34, 1.0), (35, 5.0), (36, cls.freq_to_normalized(12000.0)), (37, 0.8), (38, 0.38)
             ]
             for p_idx, val in eq_params:

@@ -162,6 +162,7 @@ def generate_modular_section_notes(
 
         else:
             is_drop = ("drop" in s_lower or "chorus" in s_lower or "climax" in s_lower or section_index in (3, 5))
+            is_verse = ("verse" in s_lower or "verso" in s_lower or section_index == 1)
             style = resolve_genre_style(genre, bpm=bpm)
             raw_groove = GenreRhythmGrooveEngine.generate_rhythm_pattern(
                 genre=style,
@@ -170,6 +171,20 @@ def generate_modular_section_notes(
                 swing_amount=0.15 if style in (GenreDrumStyle.BOOM_BAP, GenreDrumStyle.NEO_SOUL) else 0.0,
                 humanize_ms=6.0
             )
+            # Pocket filter for verses: maintain breathing room for vocals, filtering cluttering 16th notes
+            if is_verse and raw_groove:
+                filtered_groove = []
+                for n in raw_groove:
+                    if n.pitch in (35, 36, 37, 38, 39, 40):
+                        filtered_groove.append(n)
+                    elif n.pitch in (42, 44, 46):
+                        pos_in_beat = n.start % 1.0
+                        if (pos_in_beat < 0.25) or (0.40 <= pos_in_beat <= 0.65):
+                            filtered_groove.append(n)
+                    else:
+                        filtered_groove.append(n)
+                raw_groove = filtered_groove
+
             # Ensure accent to 127 in drops
             if raw_groove and is_drop:
                 max_v = max(n.velocity for n in raw_groove)
@@ -192,8 +207,8 @@ def generate_modular_section_notes(
 
     # 1.1 KICK (Isolated Kick Drum)
     elif "KICK" in r:
-        if "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower or section_index == 4:
-            return []  # Structural silence in bridge/calma
+        if "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower or "switch" in s_lower or section_index == 4:
+            return []  # Structural silence in bridge/calma/switch
         elif "build" in s_lower or "pre" in s_lower or section_index == 2:
             # 4-on-the-floor driving buildup with 1-beat silence before the drop impact
             for bar in range(section_bars):
@@ -241,8 +256,8 @@ def generate_modular_section_notes(
 
     # 2. BASS
     elif "BASS" in r:
-        if "intro" in s_lower or "build" in s_lower or "pre" in s_lower or "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower:
-            return []  # Structural silence in Intro, Buildup and Bridge!
+        if "intro" in s_lower or "build" in s_lower or "pre" in s_lower or "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower or "switch" in s_lower or section_index in (0, 2, 4):
+            return []  # Structural silence in Intro, Buildup and Beat Switch!
         elif "outro" in s_lower:
             notes.append(NoteEvent(pitch=bass_pitches[0], start=0.0, duration=16.0, velocity=85))
         else:
@@ -268,7 +283,7 @@ def generate_modular_section_notes(
 
     # 3. KEYS
     elif "KEY" in r:
-        is_calm = ("intro" in s_lower or "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower or "outro" in s_lower)
+        is_calm = ("intro" in s_lower or "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower or "switch" in s_lower or "outro" in s_lower or section_index in (0, 4, 6))
         vel = 72 if is_calm else 102
         step_len = 8.0 if is_calm else 4.0
         for step_idx in range(int(total_beats / step_len)):
@@ -281,8 +296,12 @@ def generate_modular_section_notes(
 
     # 4. PAD / STRINGS
     elif "PAD" in r or "STRING" in r:
+        is_verse = ("verse" in s_lower or "verso" in s_lower or section_index == 1)
         step_len = 16.0 if total_beats >= 16.0 else 8.0
-        for step_idx in range(max(1, int(total_beats / step_len))):
+        # In 16-bar verses, pad enters on second half (bars 9-16) for progressive narrative lift
+        start_step = 2 if (is_verse and total_beats >= 64.0) else 0
+        total_steps = max(1, int(total_beats / step_len))
+        for step_idx in range(start_step, total_steps):
             b = step_idx * step_len
             v = pad_voicings[step_idx % len(pad_voicings)]
             for p in v:
@@ -290,8 +309,9 @@ def generate_modular_section_notes(
 
     # 5. LEAD
     elif "LEAD" in r:
-        if "intro" in s_lower or "build" in s_lower or "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower:
-            return []
+        if "intro" in s_lower or "build" in s_lower or "bridge" in s_lower or "puente" in s_lower or "calma" in s_lower or "switch" in s_lower or "verse" in s_lower or section_index in (0, 1, 2, 4):
+            return []  # Structural silence in Intro, Verse 1, Buildup and Beat Switch! Reserved for Hooks and Outro!
+
         elif "outro" in s_lower:
             # Outro sustained drone / chord bed (the synthesizer must NEVER be silenced in the outro!)
             root_pitch = root + 48  # e.g. E3 = 52
