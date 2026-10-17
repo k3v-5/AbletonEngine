@@ -15,22 +15,51 @@ class BusRoutingManager:
     """Orchestrates track grouping and submix bus signal flow."""
 
     STANDARD_BUS_GROUPS: Dict[str, List[str]] = {
-        "DRUMS BUS": ["DRUMS", "PERCUSSION", "BEAT", "KIT"],
-        "BASS BUS": ["BASS", "808", "SUB", "REESE"],
-        "SYNTHS BUS": ["LEAD", "KEYS", "CHORDS", "PLUCK", "ARP"],
-        "PADS BUS": ["PAD", "STRINGS", "ATMOSPHERE"],
-        "VOCALS BUS": ["VOCALS", "VOX", "CHOPS"],
-        "FX BUS": ["FX", "RISER", "IMPACT", "FOLEY"]
+        "DRUMS BUS": ["DRUMS", "PERCUSSION", "BEAT", "KIT", "KICK", "DEMBOW"],
+        "BASS BUS": ["BASS", "808", "SUB", "REESE", "808_BASS", "ELECTRIC_BASS"],
+        "GUITARS BUS": ["GUITAR", "RHYTHM_GUITAR", "LEAD_GUITAR"],
+        "KEYS BUS": ["KEYS", "PIANO", "CHORDS", "RHODES"],
+        "SYNTHS BUS": ["LEAD", "SYNTH", "PLUCK", "ARP", "COUNTER_LEAD", "EAR_CANDY"],
+        "PADS BUS": ["PAD", "STRINGS", "CHOIR", "BRASS", "ATMOSPHERE"],
+        "VOCALS BUS": ["VOCALS", "VOX", "CHOPS", "BACKING_VOCALS"],
+        "FX BUS": ["FX", "RISER", "IMPACT", "FOLEY", "TEXTURE_FOLEY"],
+        "AUDIO FX BUS": ["FX", "RISER", "IMPACT", "FOLEY", "TEXTURE_FOLEY"]
+    }
+
+    DEFAULT_BUS_RECIPE: Dict[str, Any] = {
+        "glue_threshold": -3.5,
+        "glue_ratio": 2.0,
+        "glue_attack": 10.0,
+        "glue_release": 0.2,
+        "glue_makeup": 1.0,
+        "glue_wet": 0.85,
+        "eq_low_cut": 90.0
     }
 
     BUS_PROCESSING_RECIPES: Dict[str, Dict[str, Any]] = {
-        "DRUMS BUS": {"glue_threshold": -4.0, "glue_ratio": 4.0, "glue_attack": 30.0, "glue_release": 0.2, "eq_low_cut": 28.0},
-        "BASS BUS": {"glue_threshold": -6.0, "glue_ratio": 4.0, "glue_attack": 10.0, "glue_release": 0.4, "eq_mono_sub": True},
-        "SYNTHS BUS": {"glue_threshold": -3.0, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "eq_low_cut": 100.0},
-        "PADS BUS": {"glue_threshold": -2.0, "glue_ratio": 2.0, "glue_attack": 30.0, "glue_release": 0.6, "eq_low_cut": 140.0},
-        "VOCALS BUS": {"glue_threshold": -5.0, "glue_ratio": 4.0, "glue_attack": 1.0, "glue_release": 0.1, "eq_low_cut": 120.0},
-        "FX BUS": {"glue_threshold": -2.0, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "eq_low_cut": 80.0}
+        "DRUMS BUS": {"glue_threshold": -4.5, "glue_ratio": 4.0, "glue_attack": 30.0, "glue_release": 0.2, "glue_makeup": 1.5, "glue_wet": 0.85, "eq_low_cut": 28.0},
+        "BASS BUS": {"glue_threshold": -6.0, "glue_ratio": 4.0, "glue_attack": 10.0, "glue_release": 0.4, "glue_makeup": 1.5, "glue_wet": 0.85, "eq_low_cut": 25.0, "eq_mono_sub": True},
+        "GUITARS BUS": {"glue_threshold": -4.0, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "glue_makeup": 1.2, "glue_wet": 0.85, "eq_low_cut": 105.0},
+        "KEYS BUS": {"glue_threshold": -3.5, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "glue_makeup": 1.0, "glue_wet": 0.85, "eq_low_cut": 100.0},
+        "SYNTHS BUS": {"glue_threshold": -3.5, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "glue_makeup": 1.0, "glue_wet": 0.85, "eq_low_cut": 100.0},
+        "PADS BUS": {"glue_threshold": -2.5, "glue_ratio": 2.0, "glue_attack": 30.0, "glue_release": 0.6, "glue_makeup": 0.8, "glue_wet": 0.80, "eq_low_cut": 135.0},
+        "STRINGS BUS": {"glue_threshold": -2.5, "glue_ratio": 2.0, "glue_attack": 30.0, "glue_release": 0.6, "glue_makeup": 0.8, "glue_wet": 0.80, "eq_low_cut": 120.0},
+        "BRASS BUS": {"glue_threshold": -4.0, "glue_ratio": 4.0, "glue_attack": 10.0, "glue_release": 0.2, "glue_makeup": 1.2, "glue_wet": 0.85, "eq_low_cut": 100.0},
+        "VOCALS BUS": {"glue_threshold": -5.0, "glue_ratio": 4.0, "glue_attack": 3.0, "glue_release": 0.1, "glue_makeup": 1.8, "glue_wet": 0.90, "eq_low_cut": 115.0},
+        "FX BUS": {"glue_threshold": -2.5, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "glue_makeup": 0.5, "glue_wet": 0.80, "eq_low_cut": 80.0},
+        "AUDIO FX BUS": {"glue_threshold": -2.5, "glue_ratio": 2.0, "glue_attack": 10.0, "glue_release": 0.2, "glue_makeup": 0.5, "glue_wet": 0.80, "eq_low_cut": 80.0}
     }
+
+    @classmethod
+    def get_bus_recipe(cls, bus_name: str) -> Dict[str, Any]:
+        """Resolves the studio processing recipe for any bus name, with semantic fallback."""
+        clean = str(bus_name or "").replace("[BUS]", "").strip().upper()
+        if clean in cls.BUS_PROCESSING_RECIPES:
+            return dict(cls.BUS_PROCESSING_RECIPES[clean])
+        for k, v in cls.BUS_PROCESSING_RECIPES.items():
+            if k.split()[0] in clean:
+                return dict(v)
+        return dict(cls.DEFAULT_BUS_RECIPE)
 
     @classmethod
     def infer_bus_for_track(cls, trk: Dict[str, Any]) -> str:
@@ -178,7 +207,7 @@ result = t_list
         if conn is not None and hasattr(conn, "send_command"):
             # 1. Create missing submix buses
             for bus_name, member_tracks in topology.items():
-                recipe = cls.BUS_PROCESSING_RECIPES.get(bus_name, {})
+                recipe = cls.get_bus_recipe(bus_name)
                 bus_label = f"[BUS] {bus_name}" if not bus_name.startswith("[BUS]") else bus_name
                 member_names = [t.get("name", "") for t in member_tracks]
 
@@ -211,8 +240,17 @@ existing_bus.mixer_device.volume.value = 0.85
                 })
 
             # 2. Route tracks based on output_bus by physical track index and sovereign name
+            light_specs = [
+                {
+                    "index": t.get("index"),
+                    "name": str(t.get("name", "")),
+                    "role": str(t.get("role", "")),
+                    "output_bus": str(t.get("output_bus", ""))
+                }
+                for t in effective_tracks if isinstance(t, dict)
+            ]
             code_route = f"""
-tracks_spec = {repr(effective_tracks)}
+tracks_spec = {repr(light_specs)}
 routed_results = []
 
 # Pass A: Group-level Submix Routing (Foldable Parent Groups -> Corresponding Submix Buses)
@@ -222,7 +260,9 @@ for g in song.tracks:
         target_g_bus = None
         if any(w in g_name for w in ("drum", "perc", "beat", "kit")):
             target_g_bus = "[BUS] DRUMS BUS"
-        elif any(w in g_name for w in ("synth", "inst", "lead", "key", "chord", "guitar", "brass", "string")):
+        elif any(w in g_name for w in ("guitar",)):
+            target_g_bus = "[BUS] GUITARS BUS"
+        elif any(w in g_name for w in ("synth", "inst", "lead", "key", "chord", "brass", "string")):
             target_g_bus = "[BUS] SYNTHS BUS"
         elif any(w in g_name for w in ("vocal", "vox", "voice", "chop")):
             target_g_bus = "[BUS] VOCALS BUS"
@@ -248,7 +288,6 @@ for idx, spec in enumerate(tracks_spec):
         continue
     target_bus = f"[BUS] {{bus_name}}" if not bus_name.startswith("[BUS]") else bus_name
     
-    # Target track in Live by explicit spec['index'] and sovereign name (accounting for [ROLE] prefix)
     trk = None
     target_name = str(spec.get('name', '')).strip()
     target_role = str(spec.get('role', '')).strip()
@@ -287,8 +326,6 @@ for idx, spec in enumerate(tracks_spec):
                     pass
                 break
 
-        # If direct track routing is restricted (e.g. grouped MIDI track before instrument load),
-        # ensure parent group track routes to target_bus
         if not target_assigned and getattr(trk, 'is_grouped', False):
             p_group = getattr(trk, 'group_track', None)
             if p_group:
@@ -301,43 +338,91 @@ for idx, spec in enumerate(tracks_spec):
                             pass
                         break
 
-bus_indices = {{t.name: i for i, t in enumerate(song.tracks) if t.name.startswith("[BUS]")}}
-return_val = {{'routed': routed_results, 'buses': bus_indices}}
-result = return_val
+result = routed_results
 """
             try:
-                res_route = conn.send_command("execute_code", {"code": code_route})
-                inner_r = res_route.get("result", res_route) if isinstance(res_route, dict) else {}
-                r_val = inner_r.get("return_val", inner_r.get("result", {})) if isinstance(inner_r, dict) else {}
-                bus_indices = r_val.get("buses", {}) if isinstance(r_val, dict) else {}
+                conn.send_command("execute_code", {"code": code_route})
             except Exception as ex_route:
                 logger.debug(f"Submix bus audio routing notice: {ex_route}")
+
+            # 3. Physically load and calibrate devices (Glue Compressor + EQ Eight) on EVERY [BUS] track in song.tracks
+            import json
+            import math
+            try:
+                res_bi = conn.send_command("execute_code", {
+                    "code": "import json\nresult = json.dumps({t.name: i for i, t in enumerate(song.tracks) if t.name.startswith('[BUS]')})"
+                })
+                raw_bi = res_bi.get("result", "{}") if isinstance(res_bi, dict) else "{}"
+                if isinstance(raw_bi, dict):
+                    raw_bi = raw_bi.get("result", "{}")
+                bus_indices = json.loads(raw_bi) if isinstance(raw_bi, str) else (raw_bi if isinstance(raw_bi, dict) else {})
+            except Exception:
                 bus_indices = {}
 
-            # 3. Physically load devices (Glue Compressor + EQ Eight) using track_index
-            for b_info in configured_buses:
-                b_lbl = b_info["bus_label"]
-                b_idx = bus_indices.get(b_lbl)
-                if b_idx is not None and b_info.get("glue_recipe"):
+            for b_lbl, b_idx in bus_indices.items():
+                rec = cls.get_bus_recipe(b_lbl)
+                if b_idx is not None and rec:
                     try:
-                        code_check = f"""
-b = song.tracks[{b_idx}] if {b_idx} < len(song.tracks) else None
-return_val = len(b.devices) > 0 if b else False
-result = return_val
-"""
-                        chk = conn.send_command("execute_code", {"code": code_check})
-                        c_inner = chk.get("result", chk) if isinstance(chk, dict) else {}
-                        has_devs = c_inner.get("return_val", c_inner.get("result", False)) if isinstance(c_inner, dict) else False
+                        chk = conn.send_command("execute_code", {
+                            "code": f"b = song.tracks[{b_idx}] if {b_idx} < len(song.tracks) else None\nresult = len(b.devices) if b else 0"
+                        })
+                        raw_cnt = chk.get("result", 0) if isinstance(chk, dict) else 0
+                        if isinstance(raw_cnt, dict):
+                            raw_cnt = raw_cnt.get("result", 0)
+                        has_devs = int(raw_cnt or 0) > 0
                         if not has_devs:
                             conn.send_command("load_browser_item", {"track_index": b_idx, "item_uri": "query:AudioFx#Glue%20Compressor"})
                             conn.send_command("load_browser_item", {"track_index": b_idx, "item_uri": "query:AudioFx#EQ%20Eight"})
+
+                        thresh_db = max(-40.0, min(0.0, float(rec.get("glue_threshold", -4.0))))
+                        raw_ratio = float(rec.get("glue_ratio", 2.0))
+                        ratio_idx = 0.0 if raw_ratio <= 2.5 else (1.0 if raw_ratio <= 6.0 else 2.0)
+                        att_ms = float(rec.get("glue_attack", 10.0))
+                        att_idx = 3.0 if att_ms <= 1.5 else (4.0 if att_ms <= 5.0 else (5.0 if att_ms <= 15.0 else 6.0))
+                        rel_s = float(rec.get("glue_release", 0.2))
+                        rel_idx = 0.0 if rel_s <= 0.15 else (1.0 if rel_s <= 0.25 else (2.0 if rel_s <= 0.45 else 3.0))
+                        makeup_db = max(0.0, min(20.0, float(rec.get("glue_makeup", 1.2))))
+                        wet_val = max(0.0, min(1.0, float(rec.get("glue_wet", 0.85))))
+                        low_cut_hz = max(20.0, min(500.0, float(rec.get("eq_low_cut", 30.0))))
+                        eq_freq_norm = round(max(0.0, min(1.0, math.log(low_cut_hz / 10.0) / math.log(2200.0))), 4)
+
+                        code_cal_bus = f"""
+b = song.tracks[{b_idx}] if {b_idx} < len(song.tracks) else None
+if b:
+    for d in b.devices:
+        d_nm = d.name.lower()
+        if 'glue' in d_nm:
+            for p in d.parameters:
+                if p.name == 'Threshold':
+                    p.value = max(p.min, min(p.max, {thresh_db}))
+                elif p.name == 'Ratio':
+                    p.value = max(p.min, min(p.max, {ratio_idx}))
+                elif p.name == 'Attack':
+                    p.value = max(p.min, min(p.max, {att_idx}))
+                elif p.name == 'Release':
+                    p.value = max(p.min, min(p.max, {rel_idx}))
+                elif p.name in ('Output', 'Makeup'):
+                    p.value = max(p.min, min(p.max, {makeup_db}))
+                elif p.name == 'Dry/Wet':
+                    p.value = max(p.min, min(p.max, {wet_val}))
+        elif 'eq' in d_nm:
+            for p in d.parameters:
+                if p.name == '1 Filter On A':
+                    p.value = 1.0
+                elif p.name == '1 Filter Type A':
+                    p.value = 1.0
+                elif p.name == '1 Frequency A':
+                    p.value = max(p.min, min(p.max, {eq_freq_norm}))
+result = True
+"""
+                        conn.send_command("execute_code", {"code": code_cal_bus})
                     except Exception as ex_dev:
-                        logger.debug(f"Failed to load devices on {b_lbl} at index {b_idx}: {ex_dev}")
+                        logger.debug(f"Failed to load/calibrate devices on {b_lbl} at index {b_idx}: {ex_dev}")
 
             cls.setup_aux_return_tracks(conn)
         else:
             for bus_name, member_tracks in topology.items():
-                recipe = cls.BUS_PROCESSING_RECIPES.get(bus_name, {})
+                recipe = cls.get_bus_recipe(bus_name)
                 configured_buses.append({
                     "bus_name": bus_name,
                     "bus_label": f"[BUS] {bus_name}" if not bus_name.startswith("[BUS]") else bus_name,

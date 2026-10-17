@@ -15,29 +15,74 @@ class Phase6Gatekeepers:
 
     @staticmethod
     def enforce_pre_drop_vacuum(session: Any, conn: Any) -> None:
-        """Enforces physical pre-drop vacuum across all arrangement clips in Live."""
+        """
+        Enforces physical pre-drop vacuum (1.0 beat silence before Drop / Chorus downbeats)
+        on low-end and harmonic bed tracks (KICK, BASS, 808, SUB, PAD, KEYS, RHYTHM_GUITAR)
+        while preserving DRUMS turnaround fills, FX risers, and Vocal/Lead pickups.
+        """
         if conn is not None and hasattr(conn, "send_command"):
             try:
-                code_phys_vac = """
+                sec_drop_beats = []
+                if session and hasattr(session, "data"):
+                    ts = session.data.get("time_signature", (4, 4))
+                    sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+                    beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+                    cur_bar = 0.0
+                    for sec in session.data.get("sections", []):
+                        if not isinstance(sec, dict):
+                            continue
+                        s_nm = str(sec.get("name", "")).lower()
+                        raw_sb = sec.get("start_bar")
+                        s_start = float(raw_sb) if raw_sb is not None else cur_bar
+                        raw_bars = sec.get("bars")
+                        s_bars = float(raw_bars) if raw_bars is not None else 8.0
+                        is_pre = any(p in s_nm for p in ("pre-", "pre ", "precoro", "prechorus", "predrop", "buildup", "build"))
+                        if s_start > 0 and not is_pre and any(w in s_nm for w in ("drop", "chorus", "coro", "estribillo", "climax", "clímax", "switch", "caida", "caída")):
+                            sec_drop_beats.append(s_start * beats_per_bar)
+                        cur_bar = s_start + s_bars
+
+                code_phys_vac = f"""
+drop_beats = set({repr(sec_drop_beats)})
+for cp in getattr(song, 'cue_points', []):
+    cp_nm = str(getattr(cp, 'name', '')).lower()
+    cp_t = float(getattr(cp, 'time', 0.0))
+    is_pre_cp = False
+    for p in ('pre-', 'pre ', 'precoro', 'prechorus', 'predrop', 'buildup', 'build'):
+        if p in cp_nm:
+            is_pre_cp = True
+            break
+    if cp_t > 0.0 and not is_pre_cp:
+        for w in ('drop', 'chorus', 'coro', 'estribillo', 'switch', 'climax', 'clímax', 'caida', 'caída', 'corte'):
+            if w in cp_nm:
+                drop_beats.add(cp_t)
+                break
+
 for t in song.tracks:
+    t_nm = str(getattr(t, 'name', '')).lower()
+    # Preserve drum turnaround fills, FX risers, and vocal/lead pickups
+    should_skip = False
+    for skip_w in ('[drums]', '[percussion]', '[fx]', '[vocals]', '[lead]', 'riser', 'fill', 'motoric_drums'):
+        if skip_w in t_nm:
+            should_skip = True
+            break
+    if should_skip and '[kick]' not in t_nm and 'guitar' not in t_nm:
+        continue
     try:
-        clips = list(t.arrangement_clips)
+        clips = list(t.arrangement_clips) if not getattr(t, 'is_foldable', False) else []
     except Exception:
         continue
     for c in clips:
         if getattr(c, 'is_midi_clip', False):
-            for cp in getattr(song, 'cue_points', []):
-                cp_nm = str(getattr(cp, 'name', '')).lower()
-                cp_t = getattr(cp, 'time', 0.0)
-                is_drop = False
-                for w in ['drop', 'switch', 'climax', 'caida', 'caída', 'corte']:
-                    if w in cp_nm:
-                        is_drop = True
-                        break
-                if is_drop:
-                    v_start = max(0.0, cp_t - 2.0)
-                    if c.start_time < cp_t and c.end_time > v_start:
-                        c.remove_notes_extended(from_time=max(0.0, v_start - c.start_time), from_pitch=0, time_span=max(0.1, cp_t - max(v_start, c.start_time)), pitch_span=128)
+            for cp_t in sorted(drop_beats):
+                v_start = max(0.0, cp_t - 1.08)
+                if c.start_time < cp_t and c.end_time > v_start:
+                    rel_from = max(0.0, v_start - c.start_time)
+                    rel_span = max(0.1, cp_t - max(v_start, c.start_time))
+                    try:
+                        c.remove_notes_extended(0, 128, rel_from, rel_span)
+                    except Exception:
+                        pass
+result = sorted(drop_beats)
 """
                 conn.send_command("execute_code", {"code": code_phys_vac})
             except Exception as ex_vac:
@@ -116,14 +161,25 @@ for t in song.tracks:
         custom_notes_map: Dict[Tuple[Any, Any], List[Dict[str, Any]]],
         parser_fn: Any
     ) -> Optional[Dict[str, Any]]:
-        """Enforces that synthesizer tracks sustain notes into the Outro section."""
+        """
+        Checks synthesizer activity in the Outro section.
+        Genre-agnostic: Only blocks if `enforce_synth_outro_drone` is explicitly enabled in session.data;
+        otherwise respects artistic silence in the Outro (e.g., Rock, Jazz, Boom-Bap, Pop, Acoustic endings).
+        """
+        if not (session and hasattr(session, "data") and session.data.get("enforce_synth_outro_drone", False)):
+            return None
+
+        ts = session.data.get("time_signature", (4, 4)) if (session and hasattr(session, "data")) else (4, 4)
+        sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+        beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+
         outro_sec_idx = next((i for i, s in enumerate(sections) if "outro" in str(s.get("name", "")).lower()), None)
         silenced_synths_in_outro = []
         if outro_sec_idx is not None:
             o_sec = sections[outro_sec_idx]
             o_name = o_sec.get("name", "Outro")
             o_bars = int(o_sec.get("bars", 8))
-            o_beats = float(o_bars * 4.0)
+            o_beats = float(o_bars * beats_per_bar)
             for trk in tracks:
                 r = str(trk.get("role", "")).upper()
                 nm = str(trk.get("name", "")).lower()
@@ -141,7 +197,6 @@ for t in song.tracks:
                         s_beats=o_beats
                     )
                     if o_notes is not None and len(o_notes) == 0:
-                        # Explicit silence declared by the AI: intentional artistic choice (radical minimalism)
                         continue
                     if not o_notes:
                         silenced_synths_in_outro.append(trk.get("name", f"Pista {trk.get('index')}"))
@@ -156,10 +211,9 @@ for t in song.tracks:
                 "question": (
                     f"⚠️ **Gatekeeper de Outro Activado (Sintetizador no debe silenciarse):**\n\n"
                     f"Las siguientes pistas de sintetizador carecen de notas en la sección Outro: **{', '.join(silenced_synths_in_outro)}**.\n"
-                    f"La regla de producción exige terminantemente que el sintetizador no se silencie en el Outro para mantener drones armónicos sostenidos que alimenten el colapso y la saturación final.\n\n"
                     f"Por favor, provee las notas MIDI para el sintetizador en la sección Outro para continuar al Paso 5 (Esculpido de Síntesis)."
                 ),
-                "instructions_for_ai": "Genera y envía las notas MIDI explícitas (drones armónicos sostenidos) para el sintetizador en el Outro. El motor prohíbe silenciar el sintetizador en el outro.",
+                "instructions_for_ai": "Genera y envía las notas MIDI explícitas para el sintetizador en el Outro.",
                 "silenced_synth_tracks": silenced_synths_in_outro
             }
         return None

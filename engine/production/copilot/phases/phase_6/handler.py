@@ -169,7 +169,10 @@ class Phase6CompositionHandler(BasePhaseHandler):
                         {"pitch": scale_root + 2, "start_time": 6.0, "duration": 1.5, "velocity": 95}
                     ]
 
-                tot_beats = float(session.data.get("total_bars", 32) * 4.0)
+                ts = session.data.get("time_signature", (4, 4))
+                sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+                beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+                tot_beats = float(session.data.get("total_bars", 32) * beats_per_bar)
                 dialogue_res = AntiphonalDialogueEngine.orchestrate_rotational_dialogue(
                     tracks=tracks,
                     focal_track_index=focal_idx,
@@ -207,10 +210,13 @@ class Phase6CompositionHandler(BasePhaseHandler):
             from engine.music.drums.adaptive_fill import AdaptiveDrumFillGenerator
             drum_trk = next((t for t in tracks if str(t.get("role", "")).upper() in ("DRUMS", "DRUM", "PERCUSSION", "DRUM_RACK")), None)
             if drum_trk:
-                sec_beats = float(sections[0].get("bars", 8) * 4.0) if sections else 32.0
+                ts = session.data.get("time_signature", (4, 4))
+                sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+                beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+                sec_beats = float(sections[0].get("bars", 8) * beats_per_bar) if sections else 8.0 * beats_per_bar
                 fill_res = AdaptiveDrumFillGenerator.generate_turnaround_fill(
                     section_length_beats=sec_beats,
-                    fill_duration_beats=4.0,
+                    fill_duration_beats=beats_per_bar,
                     genre=genre,
                     bpm=bpm
                 )
@@ -798,8 +804,13 @@ for trk in song.tracks:
                             return omission_blk
                     return self._transition_to_phase_4_param_sculpting(session)
 
+            ts = session.data.get("time_signature", (4, 4))
+            sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+            beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+            four_bar_beats = 4.0 * beats_per_bar
+
             s_bars = int(cur_sec.get("bars", 8))
-            s_beats = float(s_bars * 4.0)
+            s_beats = float(s_bars * beats_per_bar)
             is_silence = any(w in text_norm for w in ["silencio", "silence", "mutear", "mute", "vacio", "vacío"]) or user_input.strip() in ("[]", "{}")
 
             clip_notes = []
@@ -819,12 +830,12 @@ for trk in song.tracks:
                     }
 
             t_idx = session._resolve_live_track_index(conn, cur_trk)
-            current_beat = sum(float(sections[i].get("bars", 8)) * 4.0 for i in range(sec_idx))
+            current_beat = sum(float(sections[i].get("bars", 8)) * beats_per_bar for i in range(sec_idx))
 
             if clip_notes:
                 max_reach = max(n.get("start_time", 0.0) + n.get("duration", 1.0) for n in clip_notes)
-                if 0 < max_reach < s_beats and max_reach <= 16.0:
-                    pattern_len = 16.0
+                if 0 < max_reach < s_beats and max_reach <= four_bar_beats:
+                    pattern_len = four_bar_beats
                     tiled = []
                     offset = 0.0
                     while offset < s_beats:

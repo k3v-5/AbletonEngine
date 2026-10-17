@@ -79,6 +79,43 @@ class DrumRackGuard:
 
         is_populated = (len(populated_pads) >= 4)  # At minimum Kick, Snare, Clap, Hat
 
+        # If top-level get_drum_rack_pads returned < 4 pads, check if the device is an InstrumentGroupDevice
+        # (e.g., 'Dry Session Kit', 'Session Dry Kit', 'Heavy Rock Kit') with populated chains or nested drum_pads
+        if not is_populated and conn and hasattr(conn, "send_command"):
+            try:
+                code_nested = f"""
+t = song.tracks[{track_index}] if {track_index} < len(song.tracks) else None
+d = t.devices[{device_index}] if (t and {device_index} < len(t.devices)) else None
+nested_count = 0
+d_name = d.name if d else 'Drum Rack'
+if d:
+    chains = list(getattr(d, 'chains', []))
+    if len(chains) > 0:
+        for ch in chains:
+            ch_devs = list(getattr(ch, 'devices', []))
+            for cd in ch_devs:
+                sub_pads = [p for p in getattr(cd, 'drum_pads', []) if len(getattr(p, 'chains', [])) > 0]
+                if len(sub_pads) >= 4:
+                    nested_count = len(sub_pads)
+                    break
+            if nested_count >= 4:
+                break
+        if nested_count == 0 and any(len(getattr(ch, 'devices', [])) > 0 for ch in chains):
+            nested_count = max(4, len(chains))
+result = {{'nested_count': nested_count, 'name': d_name}}
+"""
+                n_res = conn.send_command("execute_code", {"code": code_nested})
+                n_inner = n_res.get("result", n_res) if isinstance(n_res, dict) else {}
+                if isinstance(n_inner, dict) and "result" in n_inner and isinstance(n_inner["result"], dict):
+                    n_inner = n_inner["result"]
+                nested_cnt = int(n_inner.get("nested_count", 0)) if isinstance(n_inner, dict) else 0
+                if nested_cnt >= 4:
+                    is_populated = True
+                    pad_count = max(pad_count, nested_cnt)
+                    populated_pads = [{"note": 36 + i, "name": f"Chain_{i}", "device_count": 1} for i in range(nested_cnt)]
+            except Exception:
+                pass
+
         return {
             "track_index": track_index,
             "drum_rack_name": data.get("drum_rack_name", "Drum Rack"),

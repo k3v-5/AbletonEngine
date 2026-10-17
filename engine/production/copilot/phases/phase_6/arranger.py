@@ -97,36 +97,39 @@ class Phase6Arranger:
                     break
 
         # 1. Polyphonic Chord Strumming:
-        # Micro-delay (10-18ms) staggered across chord voicings for guitars, pianos, and keys
+        # Micro-delay (10-16ms) staggered across chord voicings for guitars, pianos, and keys when notes are grid-quantized
+        is_arp_track = ("arp" in role_for_hum or "arp" in t_name_lower or "counter" in role_for_hum)
         is_guitar_or_keys = (
             any(k in role_for_hum for k in ["guitar", "keys", "chord", "piano", "rhodes"])
             or any(k in t_name_lower for k in ["guitar", "piano", "rhodes", "keys", "requinto", "charcheta"])
-        )
-        if not is_custom_ai and is_guitar_or_keys and notes_to_process:
+        ) and not is_arp_track
+        if not has_ai_microtiming and hum_level > 0 and is_guitar_or_keys and notes_to_process:
             try:
                 from engine.music.harmony.strum import PhysicalChordStrummer
-                strum_ms = 16.0 if ("guitar" in role_for_hum or "guitar" in t_name_lower) else 12.0
+                strum_ms = 14.0 if ("guitar" in role_for_hum or "guitar" in t_name_lower) else 10.0
                 notes_to_process = PhysicalChordStrummer.strum_dict_notes(
                     dict_notes=notes_to_process,
                     tempo=bpm,
                     strum_ms=strum_ms,
                     direction="alternating",
-                    velocity_tilt=0.15
+                    velocity_tilt=0.12
                 )
             except Exception as ex_strum:
                 logger.debug(f"Strum processing notice: {ex_strum}")
 
-        # 2. Organic Humanization & Roger Linn Swing:
-        # If is_custom_ai is True: AI has sovereign control of all note timings and velocities (e.g. 1.1, 1.3, 1.0)
-        # Never overwrite, quantize or jitter AI custom notes
-        if is_custom_ai or hum_level == 0:
+        # 2. Organic Humanization & Micro-Groove:
+        # If the composer provided explicit off-grid micro-timing (has_ai_microtiming=True) or hum_level==0, preserve exact timings.
+        # Otherwise, apply subtle studio micro-pocket on grid-locked notes (keeping KICK and 808_BASS phase-locked).
+        is_sub_anchor = any(k in role_for_hum for k in ("kick", "808", "sub"))
+        if has_ai_microtiming or hum_level == 0 or is_sub_anchor:
             final_notes_dicts = notes_to_process
         else:
             try:
                 from engine.music.groove.humanizer import DynamicGrooveHumanizer
+                eff_level = 1 if (is_custom_ai and hum_level == 2) else hum_level
                 final_notes_dicts = DynamicGrooveHumanizer.humanize_with_level(
                     dict_notes=notes_to_process,
-                    level=hum_level,
+                    level=eff_level,
                     role=role_for_hum,
                     pocket_style=resolved_pocket.value if hasattr(resolved_pocket, "value") else str(resolved_pocket),
                     tempo=bpm,
@@ -148,6 +151,11 @@ class Phase6Arranger:
         ]
 
         def _do_deploy():
+            if s_idx >= 8:
+                try:
+                    conn.send_command("execute_code", {"code": f"while len(song.scenes) <= {s_idx}:\n    song.create_scene(-1)"})
+                except Exception:
+                    pass
             conn.send_command("delete_clip", {"track_index": t_idx, "clip_index": s_idx})
             if s_notes_dicts:
                 conn.send_command("create_clip", {"track_index": t_idx, "clip_index": s_idx, "length": s_beats})
@@ -232,6 +240,11 @@ class Phase6Arranger:
         if find_notes_fn is None:
             find_notes_fn = Phase6Parser.find_custom_notes_for_track_section
 
+        ts = session.data.get("time_signature", (4, 4))
+        sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+        beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+        four_bar_beats = 4.0 * beats_per_bar
+
         t_idx = session._resolve_live_track_index(conn, trk)
         role = trk.get("role", "OTHER")
         current_beat = 0.0
@@ -246,7 +259,7 @@ class Phase6Arranger:
                 trk=trk,
                 s_idx=chk_idx,
                 s_name=chk_sec.get("name", f"Section {chk_idx + 1}"),
-                s_beats=float(int(chk_sec.get("bars", 8)) * 4.0)
+                s_beats=float(int(chk_sec.get("bars", 8)) * beats_per_bar)
             ) is not None
             for chk_idx, chk_sec in enumerate(sections)
         ) if custom_notes_map else False
@@ -301,7 +314,7 @@ if len(arr_clips) == 0:
             for s_idx, sec in enumerate(sections):
                 s_name = str(sec.get("name", f"Section {s_idx + 1}")).lower()
                 s_bars = int(sec.get("bars", 8))
-                s_beats = float(s_bars * 4.0)
+                s_beats = float(s_bars * beats_per_bar)
 
                 is_vocal_section = False
                 if any(w in s_name for w in ["verse", "verso", "drop", "hook", "coro", "climax", "chorus"]):
@@ -332,7 +345,7 @@ if len(arr_clips) == 0:
         for s_idx, sec in enumerate(sections):
             s_name = sec.get("name", f"Section {s_idx + 1}")
             s_bars = int(sec.get("bars", 8))
-            s_beats = float(s_bars * 4.0)
+            s_beats = float(s_bars * beats_per_bar)
 
             has_kick_track = any(
                 (t.get("role") == "KICK" or "kick" in str(t.get("name", "")).lower())
@@ -361,7 +374,7 @@ if len(arr_clips) == 0:
                     if ck in custom_notes_map:
                         base_notes = custom_notes_map[ck]
                         if ck[1] == "all" and base_notes:
-                            sec_st = float(sec.get("start_bar", 0)) * 4.0
+                            sec_st = float(sec.get("start_bar", 0)) * beats_per_bar
                             sec_end = sec_st + s_beats
                             in_window = [n for n in base_notes if sec_st <= n.get("start_time", 0.0) < sec_end]
                             if in_window:
@@ -374,7 +387,7 @@ if len(arr_clips) == 0:
                                 break
                             max_reach = max(n["start_time"] + n["duration"] for n in base_notes)
                             if max_reach > 0 and s_beats > max_reach:
-                                pattern_len = 16.0 if max_reach <= 16.0 else max_reach
+                                pattern_len = four_bar_beats if max_reach <= four_bar_beats else max_reach
                                 tiled = []
                                 offset = 0.0
                                 while offset < s_beats:
@@ -429,8 +442,8 @@ if len(arr_clips) == 0:
             # Auto-tile section motifs if shorter than section length
             if s_notes_dicts and not any(w in s_name.lower() for w in ["silence", "silencio", "false ending", "falso final"]):
                 max_reach = max(n.get("start_time", 0.0) + n.get("duration", 1.0) for n in s_notes_dicts)
-                if 0 < max_reach < s_beats and max_reach <= 16.0:
-                    pattern_len = 16.0
+                if 0 < max_reach < s_beats and max_reach <= four_bar_beats:
+                    pattern_len = four_bar_beats
                     tiled = []
                     offset = 0.0
                     while offset < s_beats:

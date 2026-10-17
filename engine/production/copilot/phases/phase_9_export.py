@@ -190,17 +190,21 @@ class Phase9ExportHandler(BasePhaseHandler):
         except Exception as ex_audit:
             logger.debug(f"Static mix audit notice: {ex_audit}")
 
+        ts = session.data.get("time_signature", (4, 4))
+        sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+        beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+
         # 0. Per-Track Acoustic Loudness & Pre-Sum LUFS Audit (ITU-R BS.1770-5)
         per_track_audit = None
         per_track_calibrations = []
         try:
             from engine.mix.per_track_loudness import PerTrackLoudnessAuditor
             if conn is not None and hasattr(conn, "send_command"):
-                drop_beat = 136.0
+                drop_beat = 34.0 * beats_per_bar
                 for sec in session.data.get("sections", []):
                     s_name = str(sec.get("name", "")).lower()
                     if any(k in s_name for k in ["drop", "coro", "estribillo", "chorus"]):
-                        drop_beat = float(sec.get("start_bar", 32.0)) * 4.0
+                        drop_beat = float(sec.get("start_bar", 32.0)) * beats_per_bar
                         break
 
                 per_track_audit = PerTrackLoudnessAuditor.audit_session_tracks(
@@ -259,11 +263,18 @@ class Phase9ExportHandler(BasePhaseHandler):
                     target_profile=target_profile,
                     master_track_index=master_target_idx
                 )
-                # Impulso de ganancia de entrada del limitador / Glue Compressor (+2.5 a +3.5 dB)
+                # Impulso de ganancia adaptativo según el objetivo LUFS del género/perfil
+                prof_lufs = float(getattr(profile, "target_lufs", -9.0))
+                if prof_lufs <= -13.0:
+                    adaptive_boost_db = 0.5
+                elif prof_lufs <= -10.0:
+                    adaptive_boost_db = 1.5
+                else:
+                    adaptive_boost_db = 3.0
                 boost_res = LiveMasterChainEngine.apply_master_gain_boost(
                     conn=conn,
                     master_track_index=master_target_idx,
-                    gain_boost_db=3.0,
+                    gain_boost_db=adaptive_boost_db,
                     target_component="limiter"
                 )
                 session.data["master_gain_boost"] = boost_res
@@ -276,7 +287,7 @@ class Phase9ExportHandler(BasePhaseHandler):
                     total_bars=tot_bars
                 )
                 session.data["top_and_tail"] = tt_res
-                mastering_status = f"Cadena Master (5 VSTs) con Boost +3.0 dB y Top&Tail activos en Pista {master_target_idx}"
+                mastering_status = f"Cadena Master (5 VSTs) con Boost +{adaptive_boost_db:.1f} dB y Top&Tail activos en Pista {master_target_idx}"
             except Exception as e:
                 mastering_status = f"Mastering warning: {e}"
 
@@ -584,7 +595,7 @@ class Phase9ExportHandler(BasePhaseHandler):
         sec_nav_list = []
         for s in session.data.get("sections", []):
             sb = float(s.get("start_bar", 0))
-            sec_nav_list.append(f"  • **{s.get('name')}**: Compás {sb:.0f} (Beat {sb * 4.0:.0f})")
+            sec_nav_list.append(f"  • **{s.get('name')}**: Compás {sb:.0f} (Beat {sb * beats_per_bar:.0f})")
         sec_nav_str = "\n".join(sec_nav_list) if sec_nav_list else "  • Intro: Compás 0 (Beat 0)"
 
         # Query physical Live tempo
@@ -636,7 +647,7 @@ class Phase9ExportHandler(BasePhaseHandler):
             f"| **Tempo (BPM)** | {target_bpm:.1f} BPM | {live_tempo:.1f} BPM | {'Sincronizado' if abs(target_bpm - live_tempo) < 0.1 else 'Discrepancia'} |\n"
             f"| **Tonalidad / Escala** | {target_key} | {actual_key} | Coincidente |\n"
             f"| **Densidad de Pistas** | {target_density} canales | {real_tracks_count} canales activos | {'Adecuada' if real_tracks_count >= 8 else 'Baja densidad'} |\n"
-            f"| **Punto de Caída (Drop)** | Compás {target_drop} | Compás {real_drop} (Beat {real_drop * 4:.0f}) | {'Sincronizado' if target_drop == real_drop else 'Ajustado'} |\n"
+            f"| **Punto de Caída (Drop)** | Compás {target_drop} | Compás {real_drop} (Beat {real_drop * beats_per_bar:.0f}) | {'Sincronizado' if target_drop == real_drop else 'Ajustado'} |\n"
             f"| **Groove & Micro-Timing** | {groove_style} ({swing_pct:.1f}%) | {groove_style} ({swing_pct:.1f}%) | Inyectado |\n"
             f"| **Sonoridad Integrada** | {target_lufs:.1f} LUFS | {audit_res.integrated_lufs:.1f} LUFS | {'Dentro de Norma' if abs(audit_res.integrated_lufs - target_lufs) <= 1.5 else 'Desviación'} |\n"
             f"| **Pico Verdadero (True Peak)** | Máx {audit_res.max_true_peak_dbtp:.1f} dBTP | {audit_res.true_peak_dbtp:.2f} dBTP | {'Protegido (<0.0 dBTP)' if audit_res.true_peak_dbtp <= 0.0 else 'RIESGO INTER-SAMPLE'} |\n\n"
@@ -690,6 +701,9 @@ class Phase9ExportHandler(BasePhaseHandler):
         genre = session.data.get("genre", design.get("genre", "Trap"))
         target_bpm = float(design.get("target_bpm", design.get("bpm", session.data.get("bpm", 120.0))))
         time_sig = design.get("time_signature", "4/4")
+        ts = session.data.get("time_signature", (4, 4))
+        sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+        beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
         target_key = f"{design.get('key', session.data.get('key', 'F'))} {design.get('scale', session.data.get('scale', 'Minor'))}"
         actual_key = f"{session.data.get('key', 'F')} {session.data.get('scale', 'Minor')}"
         target_density = int(design.get("channel_density", len(tracks)))
@@ -724,7 +738,7 @@ class Phase9ExportHandler(BasePhaseHandler):
 | **Compás Métrico** | {time_sig} | {time_sig} | Sincronizado |
 | **Tonalidad / Escala** | {target_key} | {actual_key} | Coincidente |
 | **Densidad de Pistas** | {target_density} canales | {live_track_count} canales activos | {'Adecuada' if live_track_count >= 4 else 'Baja densidad'} |
-| **Punto de Caída (Drop)** | Compás {target_drop} | Compás {real_drop} (Beat {real_drop * 4:.0f}) | {'Sincronizado' if target_drop == real_drop else 'Ajustado'} |
+| **Punto de Caída (Drop)** | Compás {target_drop} | Compás {real_drop} (Beat {real_drop * beats_per_bar:.0f}) | {'Sincronizado' if target_drop == real_drop else 'Ajustado'} |
 | **Objetivo LUFS Integrado** | {target_lufs:.1f} LUFS | {target_lufs:.1f} LUFS | Calibrado |
 
 • **Arquitectura de Mezcla:** Submix Buses físicos activos con ruteo de monitoreo 'In' y retornos auxiliares.

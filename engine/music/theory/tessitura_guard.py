@@ -36,7 +36,8 @@ class TessituraGuard:
         lvl = (level or conf.get("default_level", "MINIMA")).upper()
         levels = conf.get("strictness_levels", {})
         return levels.get(lvl, levels.get("MINIMA", {
-            "max_bass_pitch": 48,
+            "max_bass_pitch": 55,
+            "max_electric_bass_pitch": 60,
             "min_lead_pitch": 55,
             "min_brass_pitch": 55,
             "max_brass_pitch": 84,
@@ -61,7 +62,7 @@ class TessituraGuard:
         r = role.lower()
         violations = []
 
-        max_bass = settings.get("max_bass_pitch", 48)
+        max_bass = settings.get("max_electric_bass_pitch", 60) if "electric" in r else settings.get("max_bass_pitch", 55)
         min_lead = settings.get("min_lead_pitch", 55)
         min_brass = settings.get("min_brass_pitch", 55)
         max_brass = settings.get("max_brass_pitch", 84)
@@ -72,7 +73,7 @@ class TessituraGuard:
                     violations.append({
                         "pitch": n.pitch,
                         "time": n.start,
-                        "reason": f"Bass pitch {n.pitch} exceeds maximum tessitura ceiling {max_bass} (C3)"
+                        "reason": f"Bass pitch {n.pitch} exceeds maximum tessitura ceiling {max_bass}"
                     })
                 if n.pitch < 24 and not settings.get("allow_sub_harmonics_below_c1", False):
                     violations.append({
@@ -172,11 +173,13 @@ class TessituraGuard:
         r = role.lower()
         p = int(pitch)
 
-        # 1. Bass / 808 / Sub
+        # 1. Bass / Electric Bass / 808 / Sub
         if "sub" in r:
             min_p, max_p = 24, 46  # C1 to Bb2
+        elif "electric" in r and "bass" in r:
+            min_p, max_p = 28, settings.get("max_electric_bass_pitch", 60)  # E1 to C4
         elif "808" in r or "bass" in r:
-            min_p, max_p = 28, settings.get("max_bass_pitch", 48)  # E1 to C3
+            min_p, max_p = 28, settings.get("max_bass_pitch", 55)  # E1 to G3
         # 2. Brass Family
         elif any(k in r for k in ("trombone", "trombón")):
             min_p, max_p = 40, 65  # E2 to F4

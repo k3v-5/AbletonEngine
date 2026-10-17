@@ -367,176 +367,187 @@ class Phase8VocalDuckingHandler(BasePhaseHandler):
             "automation_applied": False
         }
 
-        if not is_bypass and conn is not None and hasattr(conn, "send_command"):
-            try:
-                sc_id = "SC-VOCAL-TO-CHORDS"
-                sc_params = MultiTrackSidechainCoordinator.generate_compressor_device_parameters(sc_id)
-                if duck_amount_db != -2.5:
-                    sc_params["threshold"] = round(max(0.0, min(1.0, (duck_amount_db * 2.0 + 40.0) / 40.0)), 4)
+        ts = session.data.get("time_signature", (4, 4))
+        sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+        beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
 
-                if vocal_idx is None:
-                    logger.warning("Vocal sidechain ducking omitted: vocal_idx is None (no vocal track identified in session).")
-                else:
-                    for t_idx in target_indices:
-                        comp_res = SidechainManager.find_or_load_compressor(conn, t_idx)
-                        d_idx = comp_res.get("device_index", 0)
-                        if d_idx >= 0:
-                            for p_idx, p_val in [
-                                (0, 1.0),
-                                (20, 1.0),
-                                (1, sc_params["threshold"]),
-                                (2, sc_params["ratio"]),
-                                (4, sc_params["attack"]),
-                                (5, sc_params["release"]),
-                                (12, 4.0),
-                                (21, 0.40),
-                                (22, 1.0)
-                            ]:
-                                try:
-                                    conn.send_command("set_device_parameter", {
-                                        "track_index": t_idx,
-                                        "device_index": d_idx,
-                                        "parameter": p_idx,
-                                        "value": p_val
-                                    })
-                                except Exception:
-                                    pass
+        if conn is not None and hasattr(conn, "send_command"):
+            # 1. Physical Kick -> Bass / Sub Ducking Configuration (runs for both vocal and instrumental productions unless explicitly disabled)
+            disable_kick_sc = any(w in text for w in ["sin sidechain", "no sidechain", "disable sidechain"])
+            if not disable_kick_sc:
+                try:
+                    kick_track_idx = None
+                    bass_track_indices = []
+                    for trk in tracks:
+                        t_idx_cand = trk.get("index")
+                        r = str(trk.get("role", "")).upper()
+                        n = str(trk.get("name", "")).lower()
+                        if kick_track_idx is None and (r in ("KICK", "DRUMS", "DEMBOW", "PERCUSSION", "BEAT", "RHYTHM", "DRUM") or any(k in n for k in ("kick", "drum", "dembow", "bombo", "perc", "percussion", "bateria"))):
+                            kick_track_idx = t_idx_cand
+                        if r in ("BASS", "808_BASS", "ELECTRIC_BASS", "SUB") or any(k in n for k in ("bass", "808", "sub")):
+                            bass_track_indices.append(t_idx_cand)
+
+                    if kick_track_idx is None and len(tracks) > 0:
+                        kick_track_idx = tracks[0].get("index", 0)
+
+                    if kick_track_idx is not None and bass_track_indices:
+                        for b_idx in bass_track_indices:
                             try:
-                                SidechainManager.route_compressor_sidechain_source(conn, t_idx, d_idx, vocal_idx)
-                            except Exception:
-                                pass
-                            ducking_report["compressors_configured"] += 1
+                                b_comp = SidechainManager.find_or_load_compressor(conn, b_idx)
+                                b_d_idx = b_comp.get("device_index", 0)
+                                if b_d_idx >= 0:
+                                    for p_idx, p_val in [
+                                        (0, 1.0),   # Device On
+                                        (20, 1.0),  # S/C On
+                                        (1, 0.52),  # Threshold ~ -18 dB
+                                        (2, 0.75),  # Ratio 4:1
+                                        (4, 0.0),   # Attack 0.0 ms
+                                        (5, 0.16),  # Release ~120 ms
+                                        (12, 4.0),  # Peak mode
+                                        (21, 0.40), # S/C Gain
+                                        (22, 1.0)   # S/C Mix 100%
+                                    ]:
+                                        try:
+                                            conn.send_command("set_device_parameter", {
+                                                "track_index": b_idx,
+                                                "device_index": b_d_idx,
+                                                "parameter": p_idx,
+                                                "value": p_val
+                                            })
+                                        except Exception:
+                                            pass
+                                    SidechainManager.route_compressor_sidechain_source(conn, b_idx, b_d_idx, kick_track_idx)
+                                    ducking_report["compressors_configured"] += 1
+                                    logger.info(f"Physically routed Kick (Track {kick_track_idx}) sidechain into Bass (Track {b_idx}).")
+                            except Exception as ex_b_sc:
+                                logger.warning(f"Notice routing Kick->Bass sidechain: {ex_b_sc}")
+                except Exception as ex_ksc:
+                    logger.debug(f"Kick->Bass sidechain pass notice: {ex_ksc}")
 
-                # Physical Kick -> Bass / Sub Ducking Configuration
-                kick_track_idx = None
-                bass_track_indices = []
-                for trk in tracks:
-                    t_idx_cand = trk.get("index")
-                    r = str(trk.get("role", "")).upper()
-                    n = str(trk.get("name", "")).lower()
-                    if kick_track_idx is None and (r in ("KICK", "DRUMS", "DEMBOW", "PERCUSSION", "BEAT", "RHYTHM", "DRUM") or any(k in n for k in ("kick", "drum", "dembow", "bombo", "perc", "percussion", "bateria"))):
-                        kick_track_idx = t_idx_cand
-                    if r in ("BASS", "808_BASS", "ELECTRIC_BASS", "SUB") or any(k in n for k in ("bass", "808", "sub")):
-                        bass_track_indices.append(t_idx_cand)
+            # 2. Vocal -> Harmonic Pocket Ducking (when not bypassed)
+            if not is_bypass:
+                try:
+                    sc_id = "SC-VOCAL-TO-CHORDS"
+                    sc_params = MultiTrackSidechainCoordinator.generate_compressor_device_parameters(sc_id)
+                    if duck_amount_db != -2.5:
+                        sc_params["threshold"] = round(max(0.0, min(1.0, (duck_amount_db * 2.0 + 40.0) / 40.0)), 4)
 
-                if kick_track_idx is None and len(tracks) > 0:
-                    kick_track_idx = tracks[0].get("index", 0)
-
-                if kick_track_idx is not None and bass_track_indices:
-                    for b_idx in bass_track_indices:
-                        try:
-                            b_comp = SidechainManager.find_or_load_compressor(conn, b_idx)
-                            b_d_idx = b_comp.get("device_index", 0)
-                            if b_d_idx >= 0:
+                    if vocal_idx is None:
+                        logger.warning("Vocal sidechain ducking omitted: vocal_idx is None (no vocal track identified in session).")
+                    else:
+                        for t_idx in target_indices:
+                            comp_res = SidechainManager.find_or_load_compressor(conn, t_idx)
+                            d_idx = comp_res.get("device_index", 0)
+                            if d_idx >= 0:
                                 for p_idx, p_val in [
-                                    (0, 1.0),   # Device On
-                                    (20, 1.0),  # S/C On
-                                    (1, 0.52),  # Threshold ~ -18 dB
-                                    (2, 0.75),  # Ratio 4:1
-                                    (4, 0.0),   # Attack 0.0 ms
-                                    (5, 0.16),  # Release ~120 ms
-                                    (12, 4.0),  # Peak mode
-                                    (21, 0.40), # S/C Gain
-                                    (22, 1.0)   # S/C Mix 100%
+                                    (0, 1.0),
+                                    (20, 1.0),
+                                    (1, sc_params["threshold"]),
+                                    (2, sc_params["ratio"]),
+                                    (4, sc_params["attack"]),
+                                    (5, sc_params["release"]),
+                                    (12, 4.0),
+                                    (21, 0.40),
+                                    (22, 1.0)
                                 ]:
                                     try:
                                         conn.send_command("set_device_parameter", {
-                                            "track_index": b_idx,
-                                            "device_index": b_d_idx,
+                                            "track_index": t_idx,
+                                            "device_index": d_idx,
                                             "parameter": p_idx,
                                             "value": p_val
                                         })
                                     except Exception:
                                         pass
-                                SidechainManager.route_compressor_sidechain_source(conn, b_idx, b_d_idx, kick_track_idx)
+                                try:
+                                    SidechainManager.route_compressor_sidechain_source(conn, t_idx, d_idx, vocal_idx)
+                                except Exception:
+                                    pass
                                 ducking_report["compressors_configured"] += 1
-                                logger.info(f"Physically routed Kick (Track {kick_track_idx}) sidechain into Bass (Track {b_idx}).")
-                        except Exception as ex_b_sc:
-                            logger.warning(f"Notice routing Kick->Bass sidechain: {ex_b_sc}")
 
-                if vocal_idx is not None:
-                    try:
-                        c_res = conn.send_command("get_arrangement_clips", {"track_index": vocal_idx})
-                        clips = c_res.get("clips", []) if isinstance(c_res, dict) else []
-                        if clips:
-                            v_ranges = [(float(c.get("start_time", 0.0)), float(c.get("end_time", 0.0))) for c in clips]
-                        else:
-                            sections = session.data.get("sections", [])
-                            v_ranges = []
-                            c_beat = 0.0
-                            for sec in sections:
-                                s_b = float(sec.get("bars", 8) * 4.0)
-                                s_n = str(sec.get("name", "")).lower()
-                                if any(w in s_n for w in ["verse", "verso", "drop", "hook", "coro", "climax", "chorus"]) and not any(w in s_n for w in ["intro", "buildup", "puente", "outro"]):
-                                    v_ranges.append((c_beat, c_beat + s_b))
-                                c_beat += s_b
+                    if vocal_idx is not None:
+                        try:
+                            c_res = conn.send_command("get_arrangement_clips", {"track_index": vocal_idx})
+                            clips = c_res.get("clips", []) if isinstance(c_res, dict) else []
+                            if clips:
+                                v_ranges = [(float(c.get("start_time", 0.0)), float(c.get("end_time", 0.0))) for c in clips]
+                            else:
+                                sections = session.data.get("sections", [])
+                                v_ranges = []
+                                c_beat = 0.0
+                                for sec in sections:
+                                    s_b = float(sec.get("bars", 8) * beats_per_bar)
+                                    s_n = str(sec.get("name", "")).lower()
+                                    if any(w in s_n for w in ["verse", "verso", "drop", "hook", "coro", "climax", "chorus"]) and not any(w in s_n for w in ["intro", "buildup", "puente", "outro"]):
+                                        v_ranges.append((c_beat, c_beat + s_b))
+                                    c_beat += s_b
 
-                        if v_ranges:
-                            tot_bars = session.data.get("total_bars", 64)
-                            tot_beats = float(tot_bars * 4.0)
-                            v_engine = VocalProductionEngine()
-                            points = v_engine.calculate_ducking_envelope(
-                                vocal_ranges_beats=v_ranges,
-                                song_length_beats=tot_beats,
-                                duck_amount_db=duck_amount_db
-                            )
-                            util_points = [
-                                {
-                                    "time": float(p["time"]),
-                                    "value": round(duck_amount_db / 35.0, 4) if float(p.get("value", 1.0)) < 0.80 else 0.0
-                                }
-                                for p in points
-                            ]
-                            for t_idx in target_indices:
-                                u_res = SidechainManager.ensure_utility_device(conn, t_idx)
-                                u_idx = u_res.get("device_index", 0)
-                                # Resolve parameter name on Utility: Live 12 uses 'Output', older versions use 'Gain'
-                                param_name = "Output"
-                                try:
-                                    dev_p = conn.send_command("get_device_parameters", {"track_index": t_idx, "device_index": u_idx})
-                                    p_names = [p.get("name", "").lower() for p in dev_p.get("parameters", [])]
-                                    if "output" in p_names:
-                                        param_name = "Output"
-                                    elif "gain" in p_names:
-                                        param_name = "Gain"
-                                except Exception:
-                                    pass
-
-                                try:
-                                    conn.send_command("create_arrangement_automation_envelope", {
-                                        "track_index": t_idx,
-                                        "device_index": u_idx,
-                                        "parameter": param_name,
-                                        "points": util_points
-                                    })
-                                except Exception:
-                                    pass
-
-                            # Invariant: verify that no active track's volume fader was corrupted or zeroed
-                            from engine.mix.auto_gain_staging import AutoGainStaging
-                            for trk_item in session.data.get("tracks", []):
-                                trk_idx = trk_item.get("index")
-                                if trk_idx is not None and conn and hasattr(conn, "send_command"):
+                            if v_ranges:
+                                tot_bars = session.data.get("total_bars", 64)
+                                tot_beats = float(tot_bars * beats_per_bar)
+                                v_engine = VocalProductionEngine()
+                                points = v_engine.calculate_ducking_envelope(
+                                    vocal_ranges_beats=v_ranges,
+                                    song_length_beats=tot_beats,
+                                    duck_amount_db=duck_amount_db
+                                )
+                                util_points = [
+                                    {
+                                        "time": float(p["time"]),
+                                        "value": round(duck_amount_db / 35.0, 4) if float(p.get("value", 1.0)) < 0.80 else 0.0
+                                    }
+                                    for p in points
+                                ]
+                                for t_idx in target_indices:
+                                    u_res = SidechainManager.ensure_utility_device(conn, t_idx)
+                                    u_idx = u_res.get("device_index", 0)
+                                    # Resolve parameter name on Utility: Live 12 uses 'Output', older versions use 'Gain'
+                                    param_name = "Output"
                                     try:
-                                        ti = conn.send_command("get_track_info", {"track_index": trk_idx})
-                                        cur_v = float(ti.get("volume", 0.85))
-                                        if cur_v <= 0.05:
-                                            role = trk_item.get("role", "OTHER")
-                                            target_v = AutoGainStaging.get_role_target_volume(role)
-                                            conn.send_command("set_track_volume", {"track_index": trk_idx, "volume": target_v})
-                                            logger.info(f"Safeguard restored track {trk_idx} ({trk_item.get('name')}) volume from {cur_v} to {target_v}")
+                                        dev_p = conn.send_command("get_device_parameters", {"track_index": t_idx, "device_index": u_idx})
+                                        p_names = [p.get("name", "").lower() for p in dev_p.get("parameters", [])]
+                                        if "output" in p_names:
+                                            param_name = "Output"
+                                        elif "gain" in p_names:
+                                            param_name = "Gain"
                                     except Exception:
                                         pass
 
-                            ducking_report["automation_applied"] = True
-                            ducking_report["ducking_target"] = f"Utility.{param_name}"
-                            ducking_report["faders_unlocked"] = True
-                            ducking_report["ducking_points_count"] = len(points)
-                    except Exception as ex_auto:
-                        logger.debug(f"Vocal ducking automation notice: {ex_auto}")
-            except Exception as ex:
-                logger.warning(f"Error configuring vocal ducking: {ex}")
-                ducking_report["error"] = str(ex)
+                                    try:
+                                        conn.send_command("create_arrangement_automation_envelope", {
+                                            "track_index": t_idx,
+                                            "device_index": u_idx,
+                                            "parameter": param_name,
+                                            "points": util_points
+                                        })
+                                    except Exception:
+                                        pass
+
+                                # Invariant: verify that no active track's volume fader was corrupted or zeroed
+                                from engine.mix.auto_gain_staging import AutoGainStaging
+                                for trk_item in session.data.get("tracks", []):
+                                    trk_idx = trk_item.get("index")
+                                    if trk_idx is not None and conn and hasattr(conn, "send_command"):
+                                        try:
+                                            ti = conn.send_command("get_track_info", {"track_index": trk_idx})
+                                            cur_v = float(ti.get("volume", 0.85))
+                                            if cur_v <= 0.05:
+                                                role = trk_item.get("role", "OTHER")
+                                                target_v = AutoGainStaging.get_role_target_volume(role)
+                                                conn.send_command("set_track_volume", {"track_index": trk_idx, "volume": target_v})
+                                                logger.info(f"Safeguard restored track {trk_idx} ({trk_item.get('name')}) volume from {cur_v} to {target_v}")
+                                        except Exception:
+                                            pass
+
+                                ducking_report["automation_applied"] = True
+                                ducking_report["ducking_target"] = f"Utility.{param_name}"
+                                ducking_report["faders_unlocked"] = True
+                                ducking_report["ducking_points_count"] = len(points)
+                        except Exception as ex_auto:
+                            logger.debug(f"Vocal ducking automation notice: {ex_auto}")
+                except Exception as ex:
+                    logger.warning(f"Error configuring vocal ducking: {ex}")
+                    ducking_report["error"] = str(ex)
 
         session.data["vocal_ducking"] = ducking_report
 

@@ -159,6 +159,12 @@ class LiveBusArchitectureEngine:
         deployed_buses = []
         errors = []
 
+        try:
+            from engine.mix.bus_routing import BusRoutingManager
+            BusRoutingManager.setup_submix_buses(conn, tracks)
+        except Exception as ex_br:
+            logger.debug(f"BusRoutingManager setup notice in deploy_submix_buses_nondestructive: {ex_br}")
+
         for bus_name, member_tracks in active_buses.items():
             try:
                 recipe = cls.STANDARD_BUS_DEFINITIONS[bus_name]["glue_recipe"]

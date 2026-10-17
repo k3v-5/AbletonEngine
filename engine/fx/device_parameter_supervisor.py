@@ -1668,45 +1668,58 @@ class DeviceParameterSupervisor:
         # 2. Dispatch parameters to Live if connected
         if conn is not None and hasattr(conn, "send_command"):
             live_params = cls.introspect_device_parameters(conn, track_index, device_index)
-            live_param_map = {str(p.get("name", "")).strip().lower(): p.get("original_id", p.get("id")) for p in live_params}
+            live_param_map = {
+                str(p.get("name", "")).strip().lower(): p
+                for p in live_params
+            }
 
             for p_name, p_val in target_params.items():
                 val_float = float(p_val)
                 p_clean = str(p_name).strip().lower()
 
                 # Try direct name match first
-                matched_id = None
+                matched_p = None
                 if p_clean in ("polyphony", "voices", "voice_mode", "poly"):
-                    for live_name, orig_id in live_param_map.items():
+                    for live_name, p_info in live_param_map.items():
                         if "poly voice depth" in live_name or "polyphony" in live_name or "voices" in live_name:
-                            matched_id = orig_id
+                            matched_p = p_info
                             break
                 elif p_clean in ("legato", "voice_legato"):
-                    for live_name, orig_id in live_param_map.items():
+                    for live_name, p_info in live_param_map.items():
                         if "legato" in live_name:
-                            matched_id = orig_id
+                            matched_p = p_info
                             break
                 elif p_clean in ("glide", "portamento", "portamento_glide"):
-                    for live_name, orig_id in live_param_map.items():
+                    for live_name, p_info in live_param_map.items():
                         if "glide" in live_name or "porta" in live_name:
-                            matched_id = orig_id
+                            matched_p = p_info
                             break
 
-                if matched_id is None:
-                    for live_name, orig_id in live_param_map.items():
+                if matched_p is None:
+                    for live_name, p_info in live_param_map.items():
                         if p_clean == live_name or p_clean in live_name or live_name in p_clean:
-                            matched_id = orig_id
+                            matched_p = p_info
                             break
 
-                if matched_id is not None:
+                if matched_p is not None:
+                    matched_id = matched_p.get("original_id", matched_p.get("id"))
+                    p_min = float(matched_p.get("min", 0.0))
+                    p_max = float(matched_p.get("max", 1.0))
+                    p_orig_name = str(matched_p.get("name", p_name))
+                    if 0.0 <= val_float <= 1.0 and p_max > 1.0 and p_clean not in ("polyphony", "voices", "voice_mode", "poly"):
+                        dispatch_val = cls._calculate_musical_parameter_value(
+                            plugin_name, p_orig_name, val_float, p_min, p_max
+                        )
+                    else:
+                        dispatch_val = max(p_min, min(p_max, val_float)) if p_max > p_min else val_float
                     try:
                         conn.send_command("set_device_parameter", {
                             "track_index": track_index,
                             "device_index": device_index,
                             "parameter": matched_id,
-                            "value": val_float
+                            "value": dispatch_val
                         })
-                        applied_params[p_name] = val_float
+                        applied_params[p_name] = round(dispatch_val, 4)
                     except Exception as set_err:
                         logger.debug(f"Could not set parameter {p_name}: {set_err}")
                 else:

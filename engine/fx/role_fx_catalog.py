@@ -443,6 +443,28 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
             ]
         },
         {
+            "name": "Amp",
+            "uri": "query:AudioFx#Amp",
+            "params": [
+                {"id": "Amp Type", "name": "Amp Type (Modelo de Amplificador)", "range": "0.0 (Clean), 1.0 (Boost), 2.0 (Blues), 3.0 (Rock), 4.0 (Lead)", "behavior": "Modelado físico de cabezal de válvulas para articulación armónica de guitarra.", "default": 2.0},
+                {"id": "Input Gain", "name": "Input Gain (Ganancia de Previo)", "range": "0.0 a 1.0", "behavior": "Saturación de válvulas de entrada.", "default": 0.52},
+                {"id": "Bass", "name": "Bass", "range": "0.0 a 1.0", "behavior": "Cuerpo grave del amplificador.", "default": 0.46},
+                {"id": "Middle", "name": "Middle", "range": "0.0 a 1.0", "behavior": "Mordida en frecuencias medias.", "default": 0.62},
+                {"id": "Treble", "name": "Treble", "range": "0.0 a 1.0", "behavior": "Brillo de cuerdas y púa.", "default": 0.64},
+                {"id": "Presence", "name": "Presence", "range": "0.0 a 1.0", "behavior": "Definición de etapa de potencia.", "default": 0.58},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance entre señal directa DI y amplificador.", "default": 0.80}
+            ]
+        },
+        {
+            "name": "Cabinet",
+            "uri": "query:AudioFx#Cabinet",
+            "params": [
+                {"id": "Cabinet Type", "name": "Cabinet Type (Pantalla)", "range": "0.0 (1x12), 1.0 (2x12), 2.0 (4x12)", "behavior": "Respuesta acústica del gabinete de altavoces.", "default": 1.0},
+                {"id": "Microphone Type", "name": "Microphone Type", "range": "0.0 (Dynamic) o 1.0 (Condenser)", "behavior": "Carácter del micrófono de captura.", "default": 0.0},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Mezcla acústica de pantalla.", "default": 0.82}
+            ]
+        },
+        {
             "name": "Glue Compressor",
             "uri": "query:AudioFx#Glue%20Compressor",
             "params": [
@@ -462,6 +484,27 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "1 Frequency A", "name": "Frecuencia HPF", "range": "0.0 a 1.0", "behavior": "Eliminación de zumbidos de amplificador.", "default": 0.25},
                 {"id": "Band 3 On", "name": "Banda 3 Bell (Presencia Solo)", "range": "0.0 o 1.0", "behavior": "Realce solista en 3.0-4.0 kHz para sobresalir en la mezcla.", "default": 1.0},
                 {"id": "3 Frequency A", "name": "Frecuencia Presencia", "range": "0.0 a 1.0", "behavior": "Mordida solista armónica.", "default": 0.72}
+            ]
+        },
+        {
+            "name": "Pedal",
+            "uri": "query:AudioFx#Pedal",
+            "params": [
+                {"id": "Type", "name": "Type (Circuito de Pedal)", "range": "0.0 (Overdrive), 1.0 (Distortion), 2.0 (Fuzz)", "behavior": "Circuito analógico de saturación de guitarra.", "default": 0.0},
+                {"id": "Drive", "name": "Drive", "range": "0.0 a 1.0", "behavior": "Saturación y sustain armónico.", "default": 0.48},
+                {"id": "Mid", "name": "Mid", "range": "-1.0 a 1.0", "behavior": "Empuje de frecuencias medias solistas.", "default": 0.25},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Balance de saturación del pedal.", "default": 0.80}
+            ]
+        },
+        {
+            "name": "Amp",
+            "uri": "query:AudioFx#Amp",
+            "params": [
+                {"id": "Amp Type", "name": "Amp Type", "range": "3.0 (Rock) o 4.0 (Lead)", "behavior": "Amplificador de alta ganancia para sustain y mordida solista.", "default": 4.0},
+                {"id": "Middle", "name": "Middle", "range": "0.0 a 1.0", "behavior": "Proyección en el rango medio.", "default": 0.65},
+                {"id": "Treble", "name": "Treble", "range": "0.0 a 1.0", "behavior": "Definición armónica superior.", "default": 0.66},
+                {"id": "Presence", "name": "Presence", "range": "0.0 a 1.0", "behavior": "Presencia frontal en la mezcla.", "default": 0.62},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Mezcla del cabezal.", "default": 0.85}
             ]
         },
         {
@@ -504,6 +547,17 @@ ROLE_INSERT_EFFECTS: Dict[str, List[Dict[str, Any]]] = {
                 {"id": "2 Frequency A", "name": "Frecuencia Cuerpo", "range": "0.0 a 1.0", "behavior": "Pegada armónica del mástil.", "default": 0.28},
                 {"id": "Band 3 On", "name": "Banda 3 Bell (Corte Conflicto)", "range": "0.0 o 1.0", "behavior": "Corte de frecuencias huecas en 400-600 Hz.", "default": 1.0},
                 {"id": "3 Frequency A", "name": "Frecuencia Dip", "range": "0.0 a 1.0", "behavior": "Abre espacio a guitarras y teclados.", "default": 0.48}
+            ]
+        },
+        {
+            "name": "Amp",
+            "uri": "query:AudioFx#Amp",
+            "params": [
+                {"id": "Amp Type", "name": "Amp Type (Bass Amp)", "range": "6.0 (Bass)", "behavior": "Modelado de cabezal de bajo para peso fundamental y gruñido de medios.", "default": 6.0},
+                {"id": "Bass", "name": "Bass", "range": "0.0 a 1.0", "behavior": "Cuerpo grave sólido.", "default": 0.62},
+                {"id": "Middle", "name": "Middle", "range": "0.0 a 1.0", "behavior": "Articulación de dedos y púa en 800 Hz - 1.5 kHz.", "default": 0.58},
+                {"id": "Treble", "name": "Treble", "range": "0.0 a 1.0", "behavior": "Definición metálica de traste.", "default": 0.52},
+                {"id": "Dry/Wet", "name": "Dry/Wet", "range": "0.0 a 1.0", "behavior": "Mezcla paralela entre DI subgrave limpio y cabezal saturado.", "default": 0.68}
             ]
         },
         {

@@ -604,30 +604,39 @@ if rack and getattr(rack, 'can_have_chains', False):
                 session._save_state()
                 return session._prompt_phase_6()
 
-        # Dynamic Drum Kit Lookup across all 159 Live kits (strictly restricted to DRUMS / PERCUSSION roles)
+        # Dynamic Drum Kit Lookup across all 159 Live kits (DRUMS / PERCUSSION / KICK / DEMBOW roles)
         drum_match = None
-        if role in ("DRUMS", "PERCUSSION") and not is_audio:
+        if role in ("DRUMS", "PERCUSSION", "KICK", "DEMBOW") and not is_audio:
             drum_match = LiveBrowserCatalogEngine.find_drum_kit_uri(user_input)
             if drum_match:
                 target_uri, display_name = drum_match
 
         native_fallbacks = {
             "GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6432", "Nylon Flamenco Guitar (.adv)"),
+            "RHYTHM_GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_5067", "Electric Guitar Clean Rhythms (.adg)"),
+            "LEAD_GUITAR": ("query:Sounds#Guitar%20&%20Plucked:FileId_6417", "Rock Lead Solo Guitar (.adv)"),
             "PERCUSSION": ("query:Drums#FileId_5437", "Percussion Core Kit (.adg)"),
             "KEYS": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
             "PIANO": ("query:Sounds#Piano%20&%20Keys:FileId_4847", "Ac Piano Upright (.adg)"),
             "BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
+            "808_BASS": ("query:Sounds#Bass:FileId_5176", "808 Drifter Bass (.adg)"),
+            "ELECTRIC_BASS": ("query:Sounds#Bass:FileId_5215", "Classic Electric Finger Bass (.adg)"),
             "SUB": ("query:Sounds#Bass:FileId_5176", "808 Drifter (.adg)"),
             "DRUMS": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
             "KICK": ("query:Drums#FileId_5422", "808 Core Kit (.adg)"),
+            "DEMBOW": ("query:Drums#FileId_5422", "Urban Reggaeton Dembow Kit (.adg)"),
             "LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-            "SYNTH": ("query:Synths#Drift:FileId_65890", "Drift Classic Lead (.adv)"),
-            "COUNTER_LEAD": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
-            "ARPS": ("query:Sounds#Synth%20Lead:FileId_6743", "Agenda Lead (.adv)"),
+            "SYNTH": ("query:Synths#Drift", "Drift Classic Lead (.adv)"),
+            "COUNTER_LEAD": ("query:Sounds#Synth%20Rhythmic:FileId_4539", "Basic Pluck Arp (.adg)"),
+            "ARPS": ("query:Sounds#Synth%20Rhythmic:FileId_4539", "Basic Pluck Arp (.adg)"),
+            "EAR_CANDY": ("query:Sounds#Synth%20Keys:FileId_4674", "Basic Bell Keys (.adg)"),
+            "TEXTURE_FOLEY": ("query:AudioFx#VinylDistortion", "Ableton Vinyl Distortion"),
             "PAD": ("query:Sounds#Pad:FileId_4993", "Warm Analog Pad (.adg)"),
             "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
-            "BRASS": ("query:Sounds#Brass:FileId_4610", "Brass Ensemble (.adg)"),
+            "BRASS": ("query:Sounds#Brass:FileId_5168", "Some Trumpets (.adg)"),
+            "CHOIR": ("query:Sounds#Pad:FileId_4910", "Choir Pad Avalon (.adg)"),
             "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
+            "BACKING_VOCALS": ("query:Sounds#Voices:FileId_6632", "Backing Vocal Stereo Spread (.adg)"),
             "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
         }
 
@@ -697,7 +706,7 @@ if rack and getattr(rack, 'can_have_chains', False):
                             selected_opt = opt
                             break
     
-                    # 2. Exact or substring match (e.g. "warm analog pad", "808 core kit")
+                    # 2. Exact or substring match within role-scoped options (e.g. "warm analog pad", "808 core kit")
                     if not selected_opt:
                         for opt in options:
                             o_name = opt.name.lower()
@@ -706,17 +715,39 @@ if rack and getattr(rack, 'can_have_chains', False):
                                 selected_opt = opt
                                 break
     
-                    # 3. Global exact or substring match across all CURATED_SOURCES (allows cross-role physical instruments)
+                    # 3. Global match across CURATED_SOURCES (guarded against bare-engine cross-role cloning)
                     if not selected_opt:
-                        from engine.instruments.curated_data import CURATED_SOURCES
-                        for c_role, c_list in CURATED_SOURCES.items():
-                            for c_opt in c_list:
-                                c_clean = c_opt.name.lower()
-                                if c_clean == u_clean or c_clean in u_clean or u_clean in c_clean:
-                                    selected_opt = c_opt
+                        bare_engines = {"drift", "wavetable", "operator", "analog", "tension", "collision", "meld", "vital", "serum", "pigments", "surge", "surge xt"}
+                        if u_clean in bare_engines and role.upper() in ("GUITAR", "RHYTHM_GUITAR", "LEAD_GUITAR", "ELECTRIC_BASS"):
+                            # Prevent bare synth engine names on guitar/electric-bass roles from matching 'Drift Neo-Soul Rhodes' in KEYS
+                            t_hint = f"{t_name} {user_input}".lower()
+                            for opt in options:
+                                if any(k in t_hint for k in ("wall", "overdrive", "power", "rock", "dist")) and "power" in opt.name.lower():
+                                    selected_opt = opt
                                     break
-                            if selected_opt:
-                                break
+                                if any(k in t_hint for k in ("chorus", "angular", "post", "dark", "clean")) and ("chorus" in opt.name.lower() or "clean" in opt.name.lower()):
+                                    selected_opt = opt
+                                    break
+                            if not selected_opt and options:
+                                selected_opt = options[0]
+                        else:
+                            from engine.instruments.curated_data import CURATED_SOURCES
+                            parent_role = LiveBrowserCatalogEngine.get_parent_acoustic_role(role)
+                            # Search compatible family first, then remaining roles (excluding KEYS rhodes on non-keys)
+                            ordered_roles = [r_k for r_k in CURATED_SOURCES.keys() if r_k in (role.upper(), parent_role)] + [
+                                r_k for r_k in CURATED_SOURCES.keys() if r_k not in (role.upper(), parent_role)
+                            ]
+                            for c_role in ordered_roles:
+                                c_list = CURATED_SOURCES.get(c_role, [])
+                                for c_opt in c_list:
+                                    c_clean = c_opt.name.lower()
+                                    if u_clean in bare_engines and "rhodes" in c_clean and role.upper() not in ("KEYS", "PIANO", "CHORDS"):
+                                        continue
+                                    if c_clean == u_clean or c_clean in u_clean or u_clean in c_clean:
+                                        selected_opt = c_opt
+                                        break
+                                if selected_opt:
+                                    break
 
                     # 4. Keyword / word match (length > 4) within options
                     if not selected_opt:
@@ -788,7 +819,7 @@ if rack and getattr(rack, 'can_have_chains', False):
                         trk["blueprint"] = selected_opt.blueprint
 
         # Timbral Diversity & Role Coherence Harness:
-        # Prevent generic lead synths (e.g. 'Drift Classic Lead') from cloning across incompatible roles (KEYS, BASS, STRINGS, GUITAR)
+        # Prevent any preset (e.g. 'Drift Neo-Soul Rhodes', 'Drift Classic Lead', 'Agenda Lead') from cloning across incompatible roles
         if locals().get("display_name") and not is_audio and not is_fx_audio:
             disp_low = str(display_name).lower()
             prev_same_inst = [
@@ -797,10 +828,34 @@ if rack and getattr(rack, 'can_have_chains', False):
             ]
             is_generic_lead_on_non_lead = (
                 ("drift classic lead" in disp_low or "agenda lead" in disp_low)
-                and role.upper() not in ("LEAD", "SYNTH", "COUNTER_LEAD", "ARPS")
+                and role.upper() not in ("LEAD", "SYNTH", "COUNTER_LEAD", "ARPS", "KEYS", "CHORDS", "PLUCK")
             )
-            if is_generic_lead_on_non_lead or (len(prev_same_inst) >= 1 and any(t.get("role") != role for t in prev_same_inst) and ("drift classic lead" in disp_low or "agenda lead" in disp_low)):
-                if role.upper() in native_fallbacks:
+            is_keys_preset_on_non_keys = (
+                any(k in disp_low for k in ("rhodes", "wurli", "upright", "grand piano"))
+                and role.upper() not in ("KEYS", "PIANO", "CHORDS")
+            )
+            has_cross_role_clone = (
+                len(prev_same_inst) >= 1
+                and any(str(t.get("role", "")).upper() != role.upper() for t in prev_same_inst)
+                and role.upper() not in ("DRUMS", "KICK")
+            )
+            if is_generic_lead_on_non_lead or is_keys_preset_on_non_keys or has_cross_role_clone:
+                used_names = {str(t.get("instrument", "")).lower() for t in tracks[:ptr]}
+                role_opts = LiveBrowserCatalogEngine.get_available_sources_for_role(role, filter_installed=True)
+                replacement_found = False
+                for r_opt in role_opts:
+                    if r_opt.name.lower() not in used_names and r_opt.vendor == "Ableton":
+                        logger.info(
+                            f"[TimbralCoherenceHarness] Preventing cross-role duplicate '{display_name}' on Track {t_idx} "
+                            f"('{t_name}', Role: {role}) -> assigning role-authentic '{r_opt.name}'."
+                        )
+                        target_uri = r_opt.uri
+                        display_name = r_opt.name
+                        if getattr(r_opt, "blueprint", None):
+                            trk["blueprint"] = r_opt.blueprint
+                        replacement_found = True
+                        break
+                if not replacement_found and role.upper() in native_fallbacks:
                     fb_uri, fb_name = native_fallbacks[role.upper()]
                     logger.info(
                         f"[TimbralCoherenceHarness] Preventing generic duplicate '{display_name}' on Track {t_idx} "

@@ -99,29 +99,39 @@ class LiveGuiProjectSaver:
     @classmethod
     def save_live_set(
         cls,
-        project_name: str,
+        project_name: Any,
         genre: Optional[str] = "Reggaeton",
         base_dir: Optional[Path] = None,
-        timeout_seconds: float = 16.0
+        timeout_seconds: float = 16.0,
+        conn: Any = None,
+        **kwargs
     ) -> Dict[str, Any]:
         r"""
         Automates 'Save Live Set As...' in Ableton Live 12.
-        Saves to <base_dir>/<genre>/<project_name>/<project_name>.als and updates the window title.
+        Saves to <base_dir>/<genre>/<project_name>/<project_name>.als (or directly to project_name if it is a .als Path)
+        and updates the window title.
         Default base_dir: F:\Canciones (organized by genre).
         Includes a fail-safe watchdog that dismisses the dialog if save fails,
         guaranteeing Ableton never stays locked in a modal state.
         """
-        clean_name = "".join(c for c in project_name if c.isalnum() or c in (" ", "_", "-")).strip()
-        if not clean_name:
-            clean_name = "Untitled_Project"
+        if isinstance(project_name, Path) or str(project_name).lower().endswith(".als"):
+            target_als = Path(project_name)
+            dest_dir = target_als.parent
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            clean_name = target_als.stem
+            genre_dir = dest_dir.parent.name
+        else:
+            clean_name = "".join(c for c in str(project_name) if c.isalnum() or c in (" ", "_", "-")).strip()
+            if not clean_name:
+                clean_name = "Untitled_Project"
 
-        if base_dir is None:
-            base_dir = DEFAULT_PROJECTS_DIR if (DEFAULT_PROJECTS_DIR.exists() or Path("F:/").exists()) else FALLBACK_PROJECTS_DIR
+            if base_dir is None:
+                base_dir = DEFAULT_PROJECTS_DIR if (DEFAULT_PROJECTS_DIR.exists() or Path("F:/").exists()) else FALLBACK_PROJECTS_DIR
 
-        genre_dir = normalize_genre_family(genre)
-        dest_dir = Path(base_dir) / genre_dir / clean_name
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        target_als = dest_dir / f"{clean_name}.als"
+            genre_dir = normalize_genre_family(genre)
+            dest_dir = Path(base_dir) / genre_dir / clean_name
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            target_als = dest_dir / f"{clean_name}.als"
         full_path_str = str(target_als.resolve())
 
         logger.info(f"Initiating autonomous Live Set save for '{clean_name}' (Genre: {genre_dir}) at {full_path_str}")
@@ -307,9 +317,18 @@ class LiveGuiProjectSaver:
         logger.info(f"Save dialog detected: '{dialog_title}' (Handle: {dialog_hwnd})")
         time.sleep(0.4)
 
-        # 7. Locate Edit controls and Guardar button using Win32 Child Enum
+        # Remove any stale pre-existing target_als before saving so Windows Save As never blocks on Overwrite prompt
+        save_start_ts = time.time()
+        if target_als.exists():
+            try:
+                target_als.unlink()
+            except Exception:
+                pass
+
+        # 7. Locate File Name Edit control (ctrl_id 1001 or 1148) and Guardar button (IDOK=1) using Win32 Child Enum
         WNDENUMCHILDPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-        edit_hwnds = []
+        filename_edit_hwnds = []
+        other_edit_hwnds = []
         guardar_btn_hwnd = None
 
         def enum_child(hwnd, lparam):
@@ -321,21 +340,37 @@ class LiveGuiProjectSaver:
             u.GetWindowTextW(hwnd, txt, 256)
 
             if cls_name.value == "Edit":
-                if ctrl_id in (1001, 41477):
-                    edit_hwnds.insert(0, hwnd)
-                else:
-                    edit_hwnds.append(hwnd)
+                if ctrl_id in (1001, 1148):
+                    filename_edit_hwnds.append(hwnd)
+                elif ctrl_id != 41477:
+                    other_edit_hwnds.append(hwnd)
             elif cls_name.value == "Button":
                 if ctrl_id == IDOK or any(k in txt.value.lower() for k in ["guardar", "save"]):
-                    guardar_btn_hwnd = hwnd
+                    if ctrl_id == IDOK or guardar_btn_hwnd is None:
+                        guardar_btn_hwnd = hwnd
             return True
 
         u.EnumChildWindows(dialog_hwnd, WNDENUMCHILDPROC(enum_child), 0)
+        target_edits = filename_edit_hwnds if filename_edit_hwnds else other_edit_hwnds
 
-        # 8. Set target path in Edit controls via direct Win32 WM_SETTEXT
-        if edit_hwnds:
-            for eh in edit_hwnds:
+        # 8. Set target path in File Name Edit control via WM_SETTEXT + EN_CHANGE notification to parent ComboBox
+        EN_CHANGE = 0x0300
+        WM_KEYDOWN = 0x0100
+        WM_KEYUP = 0x0101
+        VK_END = 0x23
+        if target_edits:
+            for eh in target_edits:
                 u.SendMessageW(eh, WM_SETTEXT, 0, full_path_str)
+                parent_h = u.GetParent(eh)
+                ctrl_id = u.GetDlgCtrlID(eh)
+                if parent_h:
+                    wparam_notify = (EN_CHANGE << 16) | (ctrl_id & 0xFFFF)
+                    u.SendMessageW(parent_h, WM_COMMAND, wparam_notify, eh)
+                    grandparent_h = u.GetParent(parent_h)
+                    if grandparent_h:
+                        u.SendMessageW(grandparent_h, WM_COMMAND, wparam_notify, eh)
+                u.PostMessageW(eh, WM_KEYDOWN, VK_END, 0)
+                u.PostMessageW(eh, WM_KEYUP, VK_END, 0)
         else:
             try:
                 dlg_wrap = app.window(handle=dialog_hwnd)
@@ -343,36 +378,34 @@ class LiveGuiProjectSaver:
             except Exception:
                 pass
 
-        time.sleep(0.3)
+        time.sleep(0.35)
 
-        # 9. Trigger click on Guardar via Win32 BM_CLICK, WM_COMMAND and VK_RETURN
+        # 9. Trigger click on Guardar via Win32 BM_CLICK and WM_COMMAND IDOK
         if guardar_btn_hwnd and u.IsWindow(guardar_btn_hwnd):
             u.SendMessageW(guardar_btn_hwnd, BM_CLICK, 0, 0)
-            time.sleep(0.15)
+            time.sleep(0.2)
         if u.IsWindow(dialog_hwnd):
             u.SendMessageW(dialog_hwnd, WM_COMMAND, IDOK, guardar_btn_hwnd or 0)
-            if main_desktop:
-                u.SetThreadDesktop(main_desktop)
-            u.keybd_event(0x0D, 0, 0, 0)
-            time.sleep(0.05)
-            u.keybd_event(0x0D, 0, 2, 0)
 
-        # 10. Check for overwrite confirmation dialog ("¿Desea reemplazarlo?")
-        time.sleep(0.6)
-        for w in app.windows():
-            if w.handle not in (main_win.handle, dialog_hwnd):
-                txt = w.window_text().lower()
-                if any(k in txt for k in ["confirmar", "reemplazar", "replace", "already exists", "sobrescribir"]):
-                    logger.info(f"Overwrite confirmation dialog detected: '{w.window_text()}'. Confirming replacement...")
-                    u.SendMessageW(w.handle, WM_COMMAND, IDYES, 0)
-                    u.SendMessageW(w.handle, WM_COMMAND, IDOK, 0)
-                    time.sleep(0.4)
-                    break
+        # 10. Check for overwrite confirmation dialog ("¿Desea reemplazarlo?") and wait up to 3.5s for dialog to close
+        wait_close_start = time.time()
+        while time.time() - wait_close_start < 3.5:
+            time.sleep(0.25)
+            for w in app.windows():
+                if w.handle not in (main_win.handle, dialog_hwnd):
+                    txt = w.window_text().lower()
+                    if any(k in txt for k in ["confirmar", "reemplazar", "replace", "already exists", "sobrescribir"]):
+                        logger.info(f"Overwrite confirmation dialog detected: '{w.window_text()}'. Confirming replacement...")
+                        u.SendMessageW(w.handle, WM_COMMAND, IDYES, 0)
+                        u.SendMessageW(w.handle, WM_COMMAND, IDOK, 0)
+                        time.sleep(0.3)
+                        break
+            if not (u.IsWindow(dialog_hwnd) and u.IsWindowVisible(dialog_hwnd)):
+                break
 
-        # 11. Fail-Safe Watchdog: Ensure the dialog closes completely
-        time.sleep(0.8)
+        # 11. Fail-Safe Watchdog: Ensure the dialog closes completely if still stuck open
         if u.IsWindow(dialog_hwnd) and u.IsWindowVisible(dialog_hwnd):
-            logger.warning("Watchdog: Save dialog still open after click. Sending fail-safe IDCANCEL to prevent lockup...")
+            logger.warning("Watchdog: Save dialog still open after 3.5s. Sending fail-safe IDCANCEL to prevent lockup...")
             u.SendMessageW(dialog_hwnd, WM_COMMAND, IDCANCEL, 0)
             time.sleep(0.3)
 
@@ -382,14 +415,14 @@ class LiveGuiProjectSaver:
             except Exception:
                 pass
 
-        # 12. Verify title update and file existence
+        # 12. Verify title update and fresh file existence
         new_title = old_title
         verify_start = time.time()
         while time.time() - verify_start < 5.0:
             time.sleep(0.25)
             try:
                 new_title = main_win.window_text()
-                if clean_name.lower() in new_title.lower():
+                if clean_name.lower() in new_title.lower() or target_als.exists():
                     break
             except Exception:
                 pass
@@ -397,15 +430,18 @@ class LiveGuiProjectSaver:
         logger.info(f"Ableton window title is now: '{new_title}'")
 
         # Locate saved .als file (directly in dest_dir or within "<Project_Name> Project" subfolder)
-        actual_als = target_als if target_als.exists() else None
+        actual_als = target_als if (target_als.exists() and target_als.stat().st_mtime >= save_start_ts - 2.0) else None
         if not actual_als:
-            candidates = list(dest_dir.rglob("*.als"))
+            candidates = [
+                f for f in dest_dir.rglob("*.als")
+                if "Backup" not in str(f) and f.stat().st_mtime >= save_start_ts - 5.0
+            ]
             if candidates:
                 actual_als = sorted(candidates, key=lambda f: f.stat().st_mtime, reverse=True)[0]
         if actual_als and actual_als.exists():
             import shutil
             direct_als = dest_dir / f"{clean_name}.als"
-            if actual_als.resolve() != direct_als.resolve() and not direct_als.exists():
+            if actual_als.resolve() != direct_als.resolve():
                 try:
                     shutil.copy2(actual_als, direct_als)
                 except Exception:
@@ -413,7 +449,7 @@ class LiveGuiProjectSaver:
             target_als = direct_als if direct_als.exists() else actual_als
             full_path_str = str(target_als.resolve())
 
-        is_success = target_als.exists() or clean_name.lower() in new_title.lower()
+        is_success = (target_als.exists() and target_als.stat().st_mtime >= save_start_ts - 5.0) or clean_name.lower() in new_title.lower()
 
         return {
             "success": is_success,

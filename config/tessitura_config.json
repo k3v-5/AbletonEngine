@@ -3,9 +3,10 @@
   "strictness_levels": {
     "MINIMA": {
       "name": "M\u00ednima",
-      "description": "Verificaci\u00f3n b\u00e1sica de registros. El bajo no supera C3, la melod\u00eda no baja de C3 y se evitan colisiones de lodo en 100-250 Hz.",
+      "description": "Verificaci\u00f3n b\u00e1sica de registros. El bajo permite octavas/glides hasta G3 (60 C4 en bajo el\u00e9ctrico), la melod\u00eda no baja de G3 y se evitan colisiones de lodo en 100-250 Hz.",
       "allow_sub_harmonics_below_c1": false,
-      "max_bass_pitch": 48,
+      "max_bass_pitch": 55,
+      "max_electric_bass_pitch": 60,
       "min_lead_pitch": 55,
       "min_brass_pitch": 55,
       "max_brass_pitch": 84,

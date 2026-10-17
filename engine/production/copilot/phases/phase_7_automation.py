@@ -208,6 +208,11 @@ class Phase7AutomationHandler(BasePhaseHandler):
         curve_type = cand.get("type", "AUTOMATION")
         musical_purpose = cand.get("musical_purpose", "")
 
+        ts = session.data.get("time_signature", (4, 4)) if (session and hasattr(session, "data")) else (4, 4)
+        sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+        beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
+        cand["beats_per_bar"] = beats_per_bar
+
         return {
             "status": "AWAITING_CLIP_POINTS",
             "phase": "PHASE_7_AUTOMATION",
@@ -218,7 +223,7 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 f"• **Pista:** Pista {t_idx}: **{t_name}**\n"
                 f"• **Parámetro:** `{param}`\n"
                 f"• **Transición:** `{s_from}` ➔ `{s_to}`\n"
-                f"• **Ubicación en Arrangement:** Compás {start_bar} (duración: {dur_bars} compases / {dur_bars * 4.0} beats)\n"
+                f"• **Ubicación en Arrangement:** Compás {start_bar} (duración: {dur_bars} compases / {dur_bars * beats_per_bar} beats)\n"
                 f"• **Tipo de Envolvente:** `{curve_type}`\n"
                 f"• **Propósito Musical:** {musical_purpose}\n\n"
                 "🧠 **¿Cuántos puntos de automatización deseas para este clip?**\n"
@@ -240,10 +245,11 @@ class Phase7AutomationHandler(BasePhaseHandler):
     def generate_custom_points(cls, cand: Dict[str, Any], num_points: int) -> List[Dict[str, float]]:
         """Generates precisely calculated envelope breakpoints for Ableton Live based on user-requested point count."""
         num_points = max(2, int(num_points))
+        beats_per_bar = float(cand.get("beats_per_bar", 4.0))
         start_bar = float(cand.get("start_bar", 0.0))
         dur_bars = float(cand.get("duration_bars", 4.0))
-        start_beat = start_bar * 4.0
-        dur_beats = dur_bars * 4.0
+        start_beat = start_bar * beats_per_bar
+        dur_beats = dur_bars * beats_per_bar
         end_beat = start_beat + dur_beats
         curve = str(cand.get("curve", "exponential"))
         auto_type = str(cand.get("type", "FILTER_SWEEP_UP")).upper()
@@ -402,12 +408,15 @@ class Phase7AutomationHandler(BasePhaseHandler):
                 from engine.arrangement.energy_curve import EnergyCurveEngine
                 from engine.arrangement.transitions.micro_stutter import MicroStutterEngine
                 try:
+                    ts = session.data.get("time_signature", (4, 4))
+                    sig_num, sig_den = (int(ts[0]), int(ts[1])) if isinstance(ts, (list, tuple)) and len(ts) >= 2 else (4, 4)
+                    beats_per_bar = float(sig_num) * (4.0 / max(1, sig_den))
                     micro_res = MicroAutomationsPass.execute_micro_automation_pass(session, conn)
                     session.data["micro_automations"] = micro_res
                     session.data["energy_curve"] = [p.to_dict() for p in EnergyCurveEngine.build_song_energy_curve(session.data.get("sections", []))]
                     secs = session.data.get("sections", [])
                     d_sec = next((s for s in secs if any(w in str(s.get("name", "")).lower() for w in ["drop", "climax", "coro"])), None)
-                    d_beat = float(d_sec.get("start_bar", 0) * 4.0) if d_sec else 32.0
+                    d_beat = float(d_sec.get("start_bar", 0) * beats_per_bar) if d_sec else 8.0 * beats_per_bar
                     session.data["tape_stop"] = MicroStutterEngine.generate_tape_stop_envelope(
                         pre_drop_beat=d_beat,
                         stop_duration_beats=2.0,

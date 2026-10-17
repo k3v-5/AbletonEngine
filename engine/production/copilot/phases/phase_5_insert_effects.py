@@ -394,6 +394,11 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                                 t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
                                 cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
                                 dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
+                                if "eq" in e_name.lower():
+                                    if ("1 Filter On A" in e_params or "Band 1 On" in e_params) and "1 Gain A" not in e_params and "1 Filter Type A" not in e_params:
+                                        e_params["1 Filter Type A"] = 1.0
+                                    if ("8 Filter On A" in e_params or "Band 8 On" in e_params) and "8 Gain A" not in e_params and "8 Filter Type A" not in e_params:
+                                        e_params["8 Filter Type A"] = 6.0
                                 for p_k, p_v in e_params.items():
                                     try:
                                         conn.send_command("set_device_parameter", {
@@ -425,6 +430,13 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         missing_trk = self.find_track_missing_eq(session, conn)
                         if missing_trk is not None:
                             return self.force_missing_eq_prompt(session, conn, missing_trk)
+                        from engine.mix.bus_architecture import LiveBusArchitectureEngine
+                        bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+                        session.data["bus_architecture"] = {
+                            "deployed": True,
+                            "topology": bus_report.get("analysis", {}).get("buses", {}),
+                            "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+                        }
                         self.audit_phase_and_spectral_health(session, conn, tracks)
                         session.data["current_phase"] = "PHASE_7_AUTOMATION"
                         session.data["phase_index"] = 7
@@ -446,6 +458,13 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 missing_trk = self.find_track_missing_eq(session, conn)
                 if missing_trk is not None:
                     return self.force_missing_eq_prompt(session, conn, missing_trk)
+                from engine.mix.bus_architecture import LiveBusArchitectureEngine
+                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+                session.data["bus_architecture"] = {
+                    "deployed": True,
+                    "topology": bus_report.get("analysis", {}).get("buses", {}),
+                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+                }
                 self.audit_phase_and_spectral_health(session, conn, tracks)
                 session.data["current_phase"] = "PHASE_7_AUTOMATION"
                 session.data["phase_index"] = 7
@@ -482,15 +501,16 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                 if any(q in d_eff_name.lower() for q in ["eq", "equalizer", "pro-q"]):
                     prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
                     rec_eq = prof.get("recommended_eq", {})
-                    d_params["Band 1 On"] = 1.0
+                    d_params["1 Filter On A"] = 1.0
+                    d_params["1 Filter Type A"] = 1.0
                     d_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
-                    d_params["Band 2 On"] = 1.0
+                    d_params["2 Filter On A"] = 1.0
                     d_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
                     d_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
-                    d_params["Band 3 On"] = 1.0
+                    d_params["3 Filter On A"] = 1.0
                     d_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
                     d_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
-                    d_params["Band 4 On"] = 1.0
+                    d_params["4 Filter On A"] = 1.0
                     d_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
                     d_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
                 elif "auto-tune" in d_eff_name.lower() or "autotune" in d_eff_name.lower():
@@ -854,6 +874,9 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                             (e_name == "glue compressor" and "gluecompressor" in d_class) or
                             (e_name == "eq eight" and "eq8" in d_class) or
                             (e_name == "saturator" and "saturator" in d_class) or
+                            (e_name == "amp" and "amp" in d_class) or
+                            (e_name == "cabinet" and "cabinet" in d_class) or
+                            (e_name == "pedal" and "pedal" in d_class) or
                             (e_name == "chorus-ensemble" and ("chorus" in d_class or "chorus" in d_name)) or
                             (e_name == "delay" and "delay" in d_class) or
                             (e_name == "ott" and "ott" in d_name) or
@@ -888,6 +911,11 @@ class Phase5InsertEffectsHandler(BasePhaseHandler):
                         "Band 7 On": "7 Filter On A",
                         "Band 8 On": "8 Filter On A",
                     }
+                    if is_eq:
+                        if ("Band 1 On" in applied_params or "1 Filter On A" in applied_params) and "1 Gain A" not in applied_params and "1 Filter Type A" not in applied_params:
+                            applied_params["1 Filter Type A"] = 1.0
+                        if ("Band 8 On" in applied_params or "8 Filter On A" in applied_params) and "8 Gain A" not in applied_params and "8 Filter Type A" not in applied_params:
+                            applied_params["8 Filter Type A"] = 6.0
                     for p_key, p_val in applied_params.items():
                         target_param_name = eq_param_aliases.get(p_key, p_key) if is_eq else p_key
                         try:
