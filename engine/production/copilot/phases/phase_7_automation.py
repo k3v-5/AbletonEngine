@@ -628,13 +628,15 @@ class Phase7AutomationHandler(BasePhaseHandler):
                         if matched_trk is None and item.get("track_index") is not None:
                             req_idx = int(item.get("track_index"))
                             matched_trk = next((t for t in tracks if t.get("index") == req_idx), None)
+                            if matched_trk is None and 0 <= req_idx < len(tracks):
+                                matched_trk = tracks[req_idx]
                         if matched_trk is None and tracks:
                             matched_trk = tracks[0]
 
                         t_idx = session._resolve_live_track_index(conn, matched_trk) if matched_trk else int(item.get("track_index", 0))
                         t_name = matched_trk.get("name", t_ref or f"Track {t_idx}") if matched_trk else (t_ref or f"Track {t_idx}")
-                        dev_name = str(item.get("device") or item.get("device_name") or "EQ Eight").strip()
-                        param_name = str(item.get("parameter") or item.get("parameter_name") or "1 Frequency A").strip()
+                        dev_name = str(item.get("device") or item.get("device_name") or "").strip()
+                        param_name = str(item.get("parameter") or item.get("parameter_name") or "Volume").strip()
                         raw_pts = item.get("points", [])
                         norm_pts = []
                         start_val = float(item.get("start_value", 0.35))
@@ -655,12 +657,21 @@ class Phase7AutomationHandler(BasePhaseHandler):
                                 end_beat = norm_pts[-1]["time"]
                                 start_val = norm_pts[0]["value"]
                                 end_val = norm_pts[-1]["value"]
+                        if not norm_pts:
+                            curve_mode = str(item.get("curve", "linear")).lower()
+                            steps = 8
+                            for s_i in range(steps + 1):
+                                frac = s_i / float(steps)
+                                t_pos = round(start_beat + (end_beat - start_beat) * frac, 4)
+                                c_frac = (frac ** 2.2) if "exp" in curve_mode else frac
+                                v_pos = round(start_val + (end_val - start_val) * c_frac, 4)
+                                norm_pts.append({"time": t_pos, "value": v_pos})
 
                         sovereign_cands.append({
                             "track_index": t_idx,
                             "track_name": t_name,
                             "device_name": dev_name,
-                            "parameter_name": f"{dev_name} - {param_name}" if dev_name.lower() not in param_name.lower() else param_name,
+                            "parameter_name": param_name,
                             "raw_parameter_name": param_name,
                             "start_beat": start_beat,
                             "end_beat": end_beat,

@@ -1,1050 +1,1076 @@
-# engine/production/copilot/phases/phase_5_insert_effects.py
-"""
-Phase 5: Track-by-track insert effect chains, mandatory EQ gate, and parameter calibration.
-"""
-import re
-import json
-import logging
-from typing import Dict, Any, List, Optional
-from engine.production.copilot.phases.base import BasePhaseHandler
-from engine.production.copilot.nlp_parser import _normalize_text, parse_autotune_settings
-from engine.fx.role_fx_catalog import ROLE_INSERT_EFFECTS, ROLE_FREQUENCY_GUIDE
-from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
-from engine.session.transaction_guard import TransactionGuard
-from engine.instruments.installed_scanner import InstalledPluginScanner
-from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_preset
-from engine.vocal.vocal_chain_processor import VocalChainProcessor
-from engine.mix.ascii_spectrum import AsciiSpectrumVisualizer
-from engine.mix.frequency_slotting import FrequencySlottingEngine
-from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
-
-logger = logging.getLogger("Phase5InsertEffects")
-
-class Phase5InsertEffectsHandler(BasePhaseHandler):
-    def prompt(self, session: Any, **kwargs) -> Dict[str, Any]:
-        return self._prompt_current_fx_device(session)
-
-    def handle(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
-        return self._handle_phase_5(session, conn, user_input)
-
-    def find_track_missing_eq(self, session: Any, conn: Any = None) -> Optional[Dict[str, Any]]:
-        """
-        Verifies if every active track in Live has an equalizer (EQ Eight or Pro-Q).
-        Returns the first track lacking an EQ, or None if all tracks are compliant.
-        """
-        tracks = session.data.get("tracks", [])
-        if not tracks:
-            return None
-    
-        for trk in tracks:
-            t_idx = session._resolve_live_track_index(conn, trk)
-            has_eq = False
-            # Check recorded insert_effects
-            for eff in trk.get("insert_effects", []):
-                if any(q in str(eff.get("name", "")).lower() for q in ["eq", "equalizer", "pro-q"]):
-                    if not eff.get("bypass", False):
-                        has_eq = True
-                        break
-            # Check physical devices in Live if connected
-            if not has_eq and conn and hasattr(conn, "send_command"):
-                try:
-                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
-                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
-                    for d in raw_devs:
-                        d_name = str(d.get("name", "")).lower()
-                        d_class = str(d.get("class_name", "")).lower()
-                        if "eq" in d_name or "eq8" in d_class or "pro-q" in d_name:
-                            has_eq = True
-                            break
-                except Exception:
-                    pass
-    
-            if not has_eq:
-                return trk
-    
-        return None
-
-    @staticmethod
-    def audit_phase_and_spectral_health(session: Any, conn: Any, tracks: List[Dict[str, Any]]) -> None:
-        """Audits low-end phase correlation (Kick/Bass) and detects spectral resonance clashes."""
-        try:
-            from engine.mix.phase_correlation_sentinel import PhaseCorrelationSentinel
-            from engine.mix.smart_resonance_carver import SmartResonanceCarver
-
-            # 1. Phase Correlation Sentinel between Kick and Bass
-            sentinel_report = PhaseCorrelationSentinel.audit_kick_bass_coherence(simulated_correlation=0.88)
-            session.data["phase_correlation"] = sentinel_report
-
-            bass_trk = next((t for t in tracks if "BASS" in str(t.get("role", "")).upper() or "808" in str(t.get("name", "")).upper()), None)
-            if bass_trk and conn is not None:
-                b_idx = session._resolve_live_track_index(conn, bass_trk)
-                PhaseCorrelationSentinel.apply_phase_alignment_in_live(conn, b_idx, sentinel_report)
-
-            # 2. Smart Resonance Carver session clash audit
-            clashes = SmartResonanceCarver.audit_session_clashes(tracks)
-            session.data["spectral_clashes"] = clashes
-        except Exception as e:
-            logger.debug(f"Notice during phase and spectral audit: {e}")
-    
-    @staticmethod
-    def _get_fx_list_for_track(trk: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """
-        Returns the insert effect list for a track.
-        - If the AI specified a custom_fx_chain on the track, uses that.
-        - If the track is a MIDI VOCALS track (e.g., Simpler Vocal Chop, is_audio=False),
-          uses a clean 3-stage instrument/chop chain (EQ Eight, Compressor, ValhallaVintageVerb)
-          instead of the 7-plugin microphone recording chain (Auto-Tune Artist, Pro-DS, etc.).
-        - Otherwise falls back to ROLE_INSERT_EFFECTS[role].
-        """
-        custom_chain = trk.get("custom_fx_chain")
-        if isinstance(custom_chain, list) and len(custom_chain) > 0:
-            return custom_chain
-        role = str(trk.get("role", "STRINGS")).upper()
-        is_audio = bool(trk.get("is_audio", False))
-        if role in ("VOCALS", "VOCAL", "VOX") and not is_audio:
-            return ROLE_INSERT_EFFECTS.get("SYNTH", ROLE_INSERT_EFFECTS.get("KEYS", []))
-        return ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
-
-    def force_missing_eq_prompt(self, session: Any, conn: Any, missing_trk: Dict[str, Any]) -> Dict[str, Any]:
-        """Forces insertion and configuration of EQ Eight on a track that missed it."""
-        tracks = session.data.get("tracks", [])
-        t_ptr = tracks.index(missing_trk) if missing_trk in tracks else 0
-        t_idx = session._resolve_live_track_index(conn, missing_trk)
-        role = missing_trk.get("role", "OTHER")
-    
-        session.data["current_fx_track_ptr"] = t_ptr
-        session.data["current_fx_dev_ptr"] = 0
-        session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
-        session.data["phase_index"] = 6
-        session._save_state()
-    
-        guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
-        spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, missing_trk.get('name', ''))
-        return {
-            "status": "MISSING_EQ_ENFORCED",
-            "current_step": f"PASO 6 DE 9 — FASE 5 (INSERT EFFECTS): ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{missing_trk.get('name')}')",
-            "action_taken": f"Compuerta de ecualización activada: la pista {t_idx} no tiene ecualizador. El arnés exige su configuración obligatoria.",
-            "question": (
-                f"⛔ **COMPUERTA DE ECUALIZACIÓN OBLIGATORIA (PISTA {t_idx}: '{missing_trk.get('name')}', Rol: {role})**\n\n"
-                f"El arnés de higiene espectral no permite avanzar a la Fase 7 (Automatización) si alguna pista carece de ecualizador.\n"
-                f"Es obligatorio insertar y calibrar `EQ Eight` (o `Pro-Q`) para limpiar subgraves, resonancias y transientes.\n\n"
-                f"{spec_ascii}\n\n"
-                f"🎯 **Guía Espectral y Dinámica para {role}:**\n"
-                f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'Información espectral clave')}\n"
-                f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento de frecuencias')}\n"
-                f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF y limpieza')}\n"
-                f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
-                f"📋 **Formato Esperado de Parámetros:**\n"
-                f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"` o `\"HPF: 120 Hz, Mud: 350 Hz, Gain 2: -2.5 dB\"`\n\n"
-                f"*Especifica tus parámetros para EQ Eight en esta pista.*"
-            ),
-            "instructions_for_ai": f"Define los parámetros obligatorios para EQ Eight en la pista {missing_trk.get('name')}.",
-            "target_track": t_idx,
-            "target_device": "EQ Eight",
-            "phase": "PHASE_5_INSERT_EFFECTS"
-        }
-    
-    # -------------------------------------------------------------------------
-    # FASE 5 (ÍNDICE 6): EFECTO POR EFECTO CON CONTEXTO DE NOTAS REALES Y CADENA SOBERANA
-    # -------------------------------------------------------------------------
-    def _prompt_current_fx_device(self, session: Any) -> Dict[str, Any]:
-        tracks = session.data.get("tracks", [])
-        t_ptr = session.data.get("current_fx_track_ptr", 0)
-    
-        if t_ptr >= len(tracks):
-            missing_trk = self.find_track_missing_eq(session, None)
-            if missing_trk is not None:
-                return self.force_missing_eq_prompt(session, None, missing_trk)
-    
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
-    
-        conn = getattr(session, "_conn", None)
-        from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
-
-        while t_ptr < len(tracks):
-            trk = tracks[t_ptr]
-            fx_list = self._get_fx_list_for_track(trk)
-            dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-
-            if dev_ptr >= len(fx_list):
-                session.data["current_fx_track_ptr"] = t_ptr + 1
-                session.data["current_fx_dev_ptr"] = 0
-                t_ptr += 1
-                session._save_state()
-                continue
-
-            eff = fx_list[dev_ptr]
-            eff_name = eff.get("name", "")
-
-            if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
-                t_idx = session._resolve_live_track_index(conn, trk)
-                if conn is not None and hasattr(conn, "send_command"):
-                    try:
-                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff.get("uri", "")})
-                    except Exception:
-                        pass
-                return DedicatedPluginConfigurator.get_effect_sculpting_prompt(trk, eff, dev_ptr, session, conn)
-            break
-
-        if t_ptr >= len(tracks):
-            missing_trk = self.find_track_missing_eq(session, None)
-            if missing_trk is not None:
-                return self.force_missing_eq_prompt(session, None, missing_trk)
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
-
-        trk = tracks[t_ptr]
-        t_idx = trk.get("index", t_ptr)
-        t_name = trk["name"]
-        role = trk["role"]
-        dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-        fx_list = self._get_fx_list_for_track(trk)
-        eff = fx_list[dev_ptr]
-        eff_name = eff["name"]
-        is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
-
-        # Contexto de notas MIDI reales compuestas en Fase 6
-        notes_summary = trk.get("composed_notes_summary", {})
-        if notes_summary and notes_summary.get("notes_count", 0) > 0:
-            note_ctx_banner = (
-                f"🎼 **Contexto de Notas MIDI Compuestas en '{t_name}':** "
-                f"`{notes_summary.get('notes_count', 0)} notas` | "
-                f"Registro MIDI: `{notes_summary.get('min_pitch', 60)}–{notes_summary.get('max_pitch', 72)}` | "
-                f"Duración media: `{notes_summary.get('avg_duration', 0.5)} beats` | "
-                f"Velocidad media: `{notes_summary.get('avg_velocity', 95)}`\n\n"
-            )
-        else:
-            note_ctx_banner = ""
-    
-        params_info = []
-        for p in eff["params"]:
-            p_range = p.get("range", "0.0 a 1.0")
-            p_behavior = p.get("behavior", p.get("desc", ""))
-            params_info.append(f"  • **{p['name']}** (Rango: `{p_range}`): {p_behavior}")
-    
-        if is_eq:
-            guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
-            spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, t_name)
-            eq_guide_block = (
-                f"\n📊 **ESPECTROGRAMA Y ENERGÍA FRECUENCIAL ESTIMADA ({role}):**\n"
-                f"{spec_ascii}\n\n"
-                f"🎯 **Guía Espectral y Manejo de Transitorios OBLIGATORIA ({role}):**\n"
-                f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'N/A')}\n"
-                f"• **Puntos de Conflicto Crítico (Enmascaramiento):** {guide.get('conflict_points', 'N/A')}\n"
-                f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'N/A')}\n"
-                f"• **Manejo de Transitorios en Estilos Híbridos:** {guide.get('transient_handling', 'N/A')}\n"
-                f"⚠️ *Nota del Arnés: El ecualizador es 100% obligatorio en esta pista para evitar solapamientos destructivos; no se admite bypass.*"
-            )
-            params_info.append(eq_guide_block)
-    
-        eq_tip = get_eq_preset(role.lower())
-        comp_tip = get_compressor_preset(role.lower())
-        fx_kb = []
-        if eq_tip:
-            fx_kb.append(f"  💡 **FabFilter Pro-Q ({role}):** {eq_tip.splitlines()[0] if eq_tip else ''}")
-        if comp_tip:
-            fx_kb.append(f"  💡 **FabFilter Pro-C2 ({role}):** {comp_tip.splitlines()[0] if comp_tip else ''}")
-        if role == "VOCALS" and bool(trk.get("is_audio", False)):
-            try:
-                sc = InstalledPluginScanner()
-                sc.scan()
-                at_plugs = [p.name for p in sc.get_plugins_for_role("VOCALS") if "auto" in p.name.lower() or "antares" in p.vendor.lower()]
-                s_key = session.data.get("key", "F")
-                s_scale = session.data.get("scale", "Minor")
-                if at_plugs:
-                    fx_kb.append(f"  🎤 **Auto-Tune VST Detectado ({at_plugs[0]}):** Prioridad #1 recomendada. Afinación pre-calibrada en {s_key} {s_scale}. Retune Speed: 0 ms (Trap Hard Snap) o 25 ms (Natural).")
-                else:
-                    fx_kb.append("  💡 **Cadena Vocal de 10 Slots:** RX De-Click -> Auto-Tune -> Pro-Q3 sustractivo -> 1176 peak -> LA-2A -> Pro-DS -> Pro-Q3 aire -> Saturn 2 -> MicroShift -> Pro-L2.")
-                fx_kb.append("  💎 **Suite Vocal Detectada:** FabFilter Pro-Q, Pro-DS, Saturn 2 y ValhallaVintageVerb listos para inserción híbrida.")
-            except Exception:
-                fx_kb.append("  💡 **Cadena Vocal de 10 Slots:** RX De-Click -> Auto-Tune -> Pro-Q3 sustractivo -> 1176 peak -> LA-2A -> Pro-DS -> Pro-Q3 aire -> Saturn 2 -> MicroShift -> Pro-L2.")
-    
-        if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
-            fx_kb.append("  ⚠️ **OBLIGATORIO — KEY Y SCALE:** Auto-Tune Artist **exige obligatoriamente** definir la **Key** (Tono: C, C#, D, D#, E, F, F#, G, G#, A, A#, B) y la **Scale** (Escala: Minor o Major). No se permite omitir estos valores.")
-
-        is_reverb = any(w in eff_name.lower() for w in ["reverb", "vintageverb", "supermassive", "valhalla"])
-        if is_reverb:
-            is_front_element = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
-            max_mix_pct = 22 if is_front_element else 35
-            fx_kb.append(
-                f"  🏛️ **POLÍTICA DE REVERBERACIÓN Y CLARIDAD ACÚSTICA ({role}):**\n"
-                f"     • **Libertad Creativa de Espacio:** Elige libremente cualquier tipo o algoritmo (Hall, Plate, Room, Shimmer, VintageVerb, Supermassive, etc.).\n"
-                f"     • **Pre-Delay Obligatorio (≥ 15 ms):** Garantiza que el golpe transitorio directo se entienda con total nitidez antes de la cola reverberante.\n"
-                f"     • **Filtro Paso-Alto (Low Cut ≥ 180 Hz):** Elimina cualquier enturbiamiento del subgrave en el espacio difuso.\n"
-                f"     • **Techo Seguro de Mezcla (Dry/Wet ≤ {max_mix_pct}%):** Protege la pista para que nunca quede sepultada ni pierda inteligibilidad en la mezcla."
-            )
-
-        if fx_kb:
-            params_info.append("\n**Directrices Quirúrgicas de Inserción (FabFilter / Plugins):**\n" + "\n".join(fx_kb))
-    
-        params_text = "\n".join(params_info)
-    
-        gs = trk.get("gain_staging", {})
-        lvl_str = f"{gs.get('target_peak_dbfs', -14.0):.1f} dBFS" if gs else "-14.0 dBFS"
-    
-        p_examples = ", ".join([f"{p['id']}: X" for p in eff.get("params", [])[:2]]) or "Parameter: Value"
-        decision_prompt = (
-            f"Analiza el registro y densidad de las notas MIDI compuestas en '{t_name}' ({role}) y define los valores específicos de este ecualizador obligatorio."
-            if is_eq else
-            f"Analiza el registro y densidad de las notas MIDI compuestas en '{t_name}' ({role}) y define los valores específicos para `{eff_name}`, o escribe `'Siguiente Pista'` / `'Bypass'` si determinas que no requiere más procesadores."
-        )
-        action_note = f"*Especifica tus valores de configuración (ej: '{p_examples}'). (Nota: Ecualizador 100% obligatorio).*" if is_eq else f"*Especifica tus valores de configuración (ej: '{p_examples}'), indica 'Bypass' o escribe 'Siguiente Pista' para concluir la cadena de esta pista.*"
-    
-        params_format_banner = (
-            f"\n\n📋 **Formato Esperado de Parámetros (Soberanía por Pista):**\n"
-            f"• Clave-Valor: `\"Parámetro: Valor, Parámetro: Valor\"` (ej: `\"{p_examples}\"` o `\"Drive: 35%, Dry/Wet: 50%\"`)\n"
-            f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
-            f"• JSON de dispositivo: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
-            f"• 🎛️ **Cadena Soberana a Medida (JSON)**: `{{\"effects\": [{{\"name\": \"EQ Eight\", \"params\": {{\"Band 1 On\": 1.0, \"1 Frequency A\": 0.28}}}}, {{\"name\": \"Compressor\", \"params\": {{\"Threshold\": 0.45, \"Ratio\": 0.40}}}}]}}`\n"
-            f"• ⏭️ **Cerrar Cadena de Pista**: Tras configurar el EQ obligatorio, puedes escribir `'Siguiente Pista'` o `'Fin de Cadena'` si esta pista no necesita más efectos."
-        )
-    
-        return {
-            "current_step": f"PASO 6 DE 9 — FASE 5 (INSERT EFFECTS): EFECTO {dev_ptr + 1} DE {len(fx_list)} (PISTA {t_ptr + 1} DE {len(tracks)}: '{t_name}')",
-            "action_taken": f"Configurando procesador #{dev_ptr + 1} ({eff_name}) en Pista {t_idx}. Nivel actual: {lvl_str}.",
-            "question": (
-                f"🔌 **Paso 6 de 9: Fase 5 (Efectos de Inserción Pista por Pista) - Esculpido de '{eff_name}' en Pista {t_ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
-                f"Procesador #{dev_ptr + 1} de {len(fx_list)} en la cadena de inserción. Nivel pre-fader actual: `{lvl_str}`.\n\n"
-                f"{note_ctx_banner}"
-                f"**Espacio de Parámetros y Rangos Acústicos Disponibles:**\n"
-                f"{params_text}\n\n"
-                f"🧠 **Decisión Técnica Requerida:**\n"
-                f"{decision_prompt}\n\n"
-                f"{action_note}"
-                f"{params_format_banner}"
-            ),
-            "instructions_for_ai": f"Define los parámetros explícitos para {eff_name} en '{t_name}', o envía una cadena JSON personalizada {{\"effects\": [...]}}.",
-            "target_track": t_idx,
-            "target_device": eff_name,
-            "device_index_in_chain": dev_ptr + 1,
-            "total_devices_in_chain": len(fx_list),
-            "phase": "PHASE_5_INSERT_EFFECTS"
-        }
-    
-    def _handle_phase_5(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
-        tracks = session.data.get("tracks", [])
-        t_ptr = session.data.get("current_fx_track_ptr", 0)
-    
-        if t_ptr >= len(tracks):
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
-    
-        trk = tracks[t_ptr]
-        t_idx = session._resolve_live_track_index(conn, trk)
-        role = trk["role"]
-        dev_ptr = session.data.get("current_fx_dev_ptr", 0)
-        text = _normalize_text(user_input)
-    
-        fx_list = self._get_fx_list_for_track(trk)
-
-        # Support sovereign custom JSON effect chain for the current track: {"effects": [{"name": "EQ Eight", "params": {...}}, ...]}
-        if "{" in user_input and "}" in user_input and '"effects"' in user_input:
-            try:
-                j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
-                parsed_chain_payload = json.loads(j_str)
-                custom_effects = parsed_chain_payload.get("effects")
-                if isinstance(custom_effects, list) and len(custom_effects) > 0:
-                    has_eq_in_custom = any(
-                        any(q in str(item.get("name", "")).lower() for q in ["eq", "equalizer", "pro-q"])
-                        and not bool(item.get("bypass", False))
-                        for item in custom_effects if isinstance(item, dict)
-                    )
-                    if not has_eq_in_custom:
-                        return {
-                            "status": "VALIDATION_ERROR",
-                            "current_step": f"FASE 6: ECUALIZACIÓN OBLIGATORIA EN CADENA SOBERANA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
-                            "action_taken": "Cadena JSON personalizada rechazada por omitir el ecualizador obligatorio.",
-                            "question": (
-                                f"⛔ **HIGIENE ESPECTRAL OBLIGATORIA (PISTA {t_idx}: '{trk.get('name')}')**\n\n"
-                                f"Tu cadena personalizada `{{\"effects\": [...]}}` debe incluir al menos un ecualizador activo (`EQ Eight` o `Pro-Q`) con parámetros explícitos."
-                            ),
-                            "instructions_for_ai": "Incluye 'EQ Eight' o 'Pro-Q 4' con sus parámetros dentro de 'effects'.",
-                            "target_track": t_idx,
-                            "phase": "PHASE_5_INSERT_EFFECTS"
-                        }
-                    trk["insert_effects"] = []
-                    applied_names = []
-                    for d_i, item in enumerate(custom_effects):
-                        if not isinstance(item, dict):
-                            continue
-                        e_name = str(item.get("name", "EQ Eight"))
-                        e_params = item.get("params", item.get("parameters", {}))
-                        if not isinstance(e_params, dict):
-                            e_params = {}
-                        # Resolve URI from catalog if not provided
-                        e_uri = item.get("uri", "")
-                        if not e_uri:
-                            for cat_list in ROLE_INSERT_EFFECTS.values():
-                                for cat_eff in cat_list:
-                                    if cat_eff.get("name", "").lower() == e_name.lower():
-                                        e_uri = cat_eff.get("uri", "")
-                                        break
-                                if e_uri:
-                                    break
-                        if conn is not None and hasattr(conn, "send_command") and e_uri:
-                            try:
-                                conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": e_uri})
-                                t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
-                                cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
-                                dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
-                                if "eq" in e_name.lower():
-                                    if ("1 Filter On A" in e_params or "Band 1 On" in e_params) and "1 Gain A" not in e_params and "1 Filter Type A" not in e_params:
-                                        e_params["1 Filter Type A"] = 1.0
-                                    if ("8 Filter On A" in e_params or "Band 8 On" in e_params) and "8 Gain A" not in e_params and "8 Filter Type A" not in e_params:
-                                        e_params["8 Filter Type A"] = 6.0
-                                for p_k, p_v in e_params.items():
-                                    try:
-                                        conn.send_command("set_device_parameter", {
-                                            "track_index": t_idx,
-                                            "device_index": dev_target_idx,
-                                            "parameter": p_k,
-                                            "value": float(p_v) if isinstance(p_v, (int, float)) else 0.5
-                                        })
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                pass
-                        trk["insert_effects"].append({
-                            "name": e_name,
-                            "device_index": d_i + 1,
-                            "bypass": False,
-                            "parameters": e_params
-                        })
-                        applied_names.append(e_name)
-                    session.data["current_fx_track_ptr"] = t_ptr + 1
-                    session.data["current_fx_dev_ptr"] = 0
-                    session._save_state()
-                    if session.data["current_fx_track_ptr"] < len(tracks):
-                        next_p = self._prompt_current_fx_device(session)
-                        next_p["status"] = "CUSTOM_FX_CHAIN_APPLIED"
-                        next_p["action_taken"] = f"Cadena soberana configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_names)}."
-                        return next_p
-                    else:
-                        missing_trk = self.find_track_missing_eq(session, conn)
-                        if missing_trk is not None:
-                            return self.force_missing_eq_prompt(session, conn, missing_trk)
-                        from engine.mix.bus_architecture import LiveBusArchitectureEngine
-                        bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
-                        session.data["bus_architecture"] = {
-                            "deployed": True,
-                            "topology": bus_report.get("analysis", {}).get("buses", {}),
-                            "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
-                        }
-                        self.audit_phase_and_spectral_health(session, conn, tracks)
-                        session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                        session.data["phase_index"] = 7
-                        session._save_state()
-                        return session._prompt_phase_7()
-            except Exception as ex_custom:
-                logger.debug(f"Custom FX chain parse notice: {ex_custom}")
-
-        # Support closing the current track's FX chain early ("Siguiente Pista" / "Fin de Cadena") once mandatory EQ is configured
-        if any(w in text for w in ["siguiente pista", "fin de cadena", "cerrar cadena", "terminar pista"]) and dev_ptr >= 1:
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            session._save_state()
-            if session.data["current_fx_track_ptr"] < len(tracks):
-                next_p = self._prompt_current_fx_device(session)
-                next_p["action_taken"] = f"Cadena de inserción finalizada en Pista {t_idx} ('{trk.get('name')}'). Avanzando a la siguiente pista."
-                return next_p
-            else:
-                missing_trk = self.find_track_missing_eq(session, conn)
-                if missing_trk is not None:
-                    return self.force_missing_eq_prompt(session, conn, missing_trk)
-                from engine.mix.bus_architecture import LiveBusArchitectureEngine
-                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
-                session.data["bus_architecture"] = {
-                    "deployed": True,
-                    "topology": bus_report.get("analysis", {}).get("buses", {}),
-                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
-                }
-                self.audit_phase_and_spectral_health(session, conn, tracks)
-                session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                session.data["phase_index"] = 7
-                session._save_state()
-                return session._prompt_phase_7()
-    
-        if dev_ptr >= len(fx_list):
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            session._save_state()
-            return session._prompt_current_fx_device()
-    
-        # Check for Cadena Express / Lote configuration across the whole track
-        is_express_chain = any(w in text for w in ["cadena express", "express", "lote", "receta completa", "toda la pista", "cadena completa", "todos los efectos"])
-        if is_express_chain:
-            applied_express_devices = []
-            trk["insert_effects"] = []
-
-            # Deduplication & Clean-Slate Guard: Purge any existing insert audio effects on this track before loading fresh chain
-            if conn is not None and hasattr(conn, "send_command"):
-                try:
-                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
-                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
-                    # Purge insert effects strictly from highest index down to index 1 (never delete index 0)
-                    for d_i in range(len(raw_devs) - 1, 0, -1):
-                        conn.send_command("delete_device", {"track_index": t_idx, "device_index": d_i})
-                except Exception as ex_clean:
-                    logger.debug(f"Notice during express chain cleanup on track {t_idx}: {ex_clean}")
-
-            for d_i, d_eff in enumerate(fx_list):
-                d_eff_name = d_eff["name"]
-                d_eff_uri = d_eff["uri"]
-                d_params = {}
-                if any(q in d_eff_name.lower() for q in ["eq", "equalizer", "pro-q"]):
-                    prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
-                    rec_eq = prof.get("recommended_eq", {})
-                    d_params["1 Filter On A"] = 1.0
-                    d_params["1 Filter Type A"] = 1.0
-                    d_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
-                    d_params["2 Filter On A"] = 1.0
-                    d_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
-                    d_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
-                    d_params["3 Filter On A"] = 1.0
-                    d_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
-                    d_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
-                    d_params["4 Filter On A"] = 1.0
-                    d_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
-                    d_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
-                elif "auto-tune" in d_eff_name.lower() or "autotune" in d_eff_name.lower():
-                    d_params["Key"] = session.data.get("key", "F")
-                    d_params["Scale"] = session.data.get("scale", "Minor")
-                    d_params["Retune Speed"] = 0.0
-                elif DedicatedPluginConfigurator.is_dedicated_effect(d_eff_name):
-                    d_params = DedicatedPluginConfigurator.configure_effect(trk, d_eff, d_i + 1, session, conn)
-                else:
-                    for p in d_eff.get("params", []):
-                        d_params[p["id"]] = p["default"]
-
-                if conn is not None and hasattr(conn, "send_command"):
-                    try:
-                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": d_eff_uri})
-                        # Apply calibrated parameters to the loaded effect
-                        t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
-                        cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
-                        dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
-                        for p_k, p_v in d_params.items():
-                            try:
-                                conn.send_command("set_device_parameter", {
-                                    "track_index": t_idx,
-                                    "device_index": dev_target_idx,
-                                    "parameter": p_k,
-                                    "value": float(p_v) if isinstance(p_v, (int, float)) else 0.5
-                                })
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
-
-                trk["insert_effects"].append({
-                    "name": d_eff_name,
-                    "device_index": d_i + 1,
-                    "bypass": False,
-                    "bypassed": False,
-                    "parameters": d_params
-                })
-                applied_express_devices.append(d_eff_name)
-
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + len(fx_list)
-            session._save_state()
-
-            if session.data["current_fx_track_ptr"] < len(tracks):
-                next_prompt = session._prompt_current_fx_device()
-                next_prompt["status"] = "EXPRESS_CHAIN_CONFIGURED"
-                next_prompt["action_taken"] = f"Cadena express configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_express_devices)}."
-                return next_prompt
-            else:
-                missing_trk = self.find_track_missing_eq(session, conn)
-                if missing_trk is not None:
-                    return self.force_missing_eq_prompt(session, conn, missing_trk)
-                from engine.mix.bus_architecture import LiveBusArchitectureEngine
-                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
-                session.data["bus_architecture"] = {
-                    "deployed": True,
-                    "topology": bus_report.get("analysis", {}).get("buses", {}),
-                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
-                }
-                self.audit_phase_and_spectral_health(session, conn, tracks)
-                session.data["current_phase"] = "PHASE_7_AUTOMATION"
-                session.data["phase_index"] = 7
-                session._save_state()
-                return session._prompt_phase_7()
-
-        eff = fx_list[dev_ptr]
-        eff_name = eff["name"]
-        eff_uri = eff["uri"]
-
-        if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
-            res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_ptr + 1, session, conn, ai_input=user_input)
-            if "insert_effects" not in trk:
-                trk["insert_effects"] = []
-            trk["insert_effects"].append({
-                "name": eff_name,
-                "device_index": dev_ptr + 1,
-                "bypass": False,
-                "parameters": res_eff.get("parameters", {}),
-                "mode": res_eff.get("mode", ""),
-                "action_taken": res_eff.get("action_taken", "")
-            })
-            session.data["current_fx_dev_ptr"] = dev_ptr + 1
-            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
-            session._save_state()
-            next_p = self._prompt_current_fx_device(session)
-            if res_eff.get("action_taken"):
-                next_p["action_taken"] = res_eff.get("action_taken")
-            return next_p
-
-        # Capture pre-mutation snapshot for deterministic rollback
-        track_state = [TransactionGuard.capture_live_track_state(conn, t_idx)]
-        TransactionGuard.begin_transaction(session.data, track_state)
-    
-        applied_params = {}
-        is_bypass = ("bypass" in text or "omitir" in text or "opcion 3" in text or "directo" in text)
-        is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
-    
-        if is_bypass and is_eq:
-            guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
-            TransactionGuard.rollback_transaction(conn, session)
-            return {
-                "status": "VALIDATION_ERROR",
-                "current_step": f"PASO 5 DE 7: ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
-                "action_taken": f"El motor prohíbe terminantemente el bypass en el ecualizador ({eff_name}). ¡EL ECUALIZADOR ES 100% OBLIGATORIO!",
-                "question": (
-                    f"⛔ **EL ECUALIZADOR ES ESTRICTAMENTE OBLIGATORIO EN LA PISTA {t_idx} ('{trk.get('name')}')**\n\n"
-                    f"Para garantizar un balance espectral limpio y evitar enmascaramiento y distorsión de transitorios, el motor exige la presencia y configuración del ecualizador.\n\n"
-                    f"🎯 **Guía Espectral y Dinámica (Guía Psicoacústica de Frecuencias) para {role}:**\n"
-                    f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'Información espectral')}\n"
-                    f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento')}\n"
-                    f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF')}\n"
-                    f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
-                    f"*Por favor define los parámetros del ecualizador para continuar (o utiliza 'Opción 1' para el preset base).*"
-                ),
-                "instructions_for_ai": f"No puedes omitir el ecualizador {eff_name}. Envía los parámetros de configuración.",
-                "target_track": t_idx,
-                "target_device": eff_name,
-                "device_index_in_chain": dev_ptr + 1,
-                "total_devices_in_chain": len(fx_list),
-                "phase": "PHASE_5_INSERT_EFFECTS"
-            }
-
-        if is_bypass and not is_eq:
-            all_tracks = session.data.get("tracks", [])
-            tot_non_eq = 0
-            for ot in all_tracks:
-                o_role = ot.get("role", "STRINGS")
-                o_fx = ROLE_INSERT_EFFECTS.get(o_role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
-                for fx_item in o_fx:
-                    if not any(q in fx_item.get("name", "").lower() for q in ["eq", "equalizer", "pro-q"]):
-                        tot_non_eq += 1
-            tot_non_eq = max(1, tot_non_eq)
-            current_bypassed = session.data.get("bypassed_non_eq_count", 0)
-            max_allowed = max(2, int(tot_non_eq * 0.35))
-
-            if current_bypassed >= max_allowed:
-                TransactionGuard.rollback_transaction(conn, session)
-                return {
-                    "status": "VALIDATION_ERROR",
-                    "current_step": f"PASO 5 DE 7: CUOTA DE BYPASS EXCEDIDA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
-                    "action_taken": f"El motor prohíbe el bypass excesivo ({current_bypassed}/{tot_non_eq} efectos omitidos). Límite de cuota alcanzado (35%).",
-                    "question": (
-                        f"⛔ **CUOTA MÁXIMA DE BYPASS EXCEDIDA ({current_bypassed}/{tot_non_eq} procesadores omitidos)**\n\n"
-                        f"Una producción comercial de alto nivel exige control dinámico (compresión), calidez armónica (saturación) y espacialidad.\n"
-                        f"No se permite omitir `{eff_name}` en la pista '{trk.get('name')}'.\n\n"
-                        f"Por favor define los parámetros para `{eff_name}` (o responde 'Opción 1' para aplicar el preset base, o 'cadena express' para procesar en lote)."
-                    ),
-                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name}, o utiliza 'Opción 1' / 'cadena express'.",
-                    "target_track": t_idx,
-                    "target_device": eff_name,
-                    "device_index_in_chain": dev_ptr + 1,
-                    "total_devices_in_chain": len(fx_list),
-                    "phase": "PHASE_5_INSERT_EFFECTS"
-                }
-            session.data["bypassed_non_eq_count"] = current_bypassed + 1
-    
-        if not is_bypass:
-            # Validación Estricta para Auto-Tune: Key y Scale son estrictamente obligatorios
-            if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
-                det_key, det_scale, det_retune = parse_autotune_settings(user_input)
-                if not det_key and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
-                    det_key = session.data.get("key", "F")
-                if not det_scale and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
-                    det_scale = session.data.get("scale", "Minor")
-                if not det_key or not det_scale:
-                    missing = []
-                    if not det_key:
-                        missing.append("Key / Tono (ej: 'Key: B', 'Si', 'Key: F#')")
-                    if not det_scale:
-                        missing.append("Scale / Escala (ej: 'Scale: Minor', 'Menor', 'Scale: Major')")
-                    missing_str = " y ".join(missing)
-                    TransactionGuard.rollback_transaction(conn, session)
-                    return {
-                        "status": "VALIDATION_ERROR",
-                        "current_step": f"PASO 5 DE 7: CONFIGURACIÓN OBLIGATORIA DE AUTO-TUNE (PISTA {t_ptr + 1})",
-                        "action_taken": f"Auto-Tune exige definir obligatoriamente {missing_str}.",
-                        "question": (
-                            f"⛔ **ERROR DE VALIDACIÓN: PARÁMETROS OBLIGATORIOS REQUERIDOS**\n\n"
-                            f"Auto-Tune Artist en la Pista {t_idx} ('{trk.get('name')}') exige **obligatoriamente definir la Key y la Scale** para garantizar afinación armónica precisa con la canción.\n\n"
-                            f"Parámetros faltantes detectados:\n"
-                            + "\n".join([f"  • **{m}**" for m in missing]) + "\n\n"
-                            f"💡 **Especifica tu selección:**\n"
-                            f"• *Ejemplo*: `Key: B, Scale: Minor, Retune Speed: 0 ms` (o `Si menor snap`)\n"
-                            f"• *O indica*: `Bypass` si determinas que esta pista no llevará afinación vocal.\n\n"
-                            f"*Por favor define la Key y Scale obligatorias para continuar.*"
-                        ),
-                        "instructions_for_ai": "Especifica obligatoriamente Key y Scale para Auto-Tune Artist (ej: 'Key: B, Scale: Minor').",
-                        "target_track": t_idx,
-                        "target_device": eff_name,
-                        "device_index_in_chain": dev_ptr + 1,
-                        "total_devices_in_chain": len(fx_list),
-                        "phase": "PHASE_5_INSERT_EFFECTS"
-                    }
-    
-                # Si ambos fueron provistos, fijar en el estado general de la sesión
-                session.data["key"] = det_key
-                session.data["scale"] = det_scale
-                applied_params["Key"] = det_key
-                applied_params["Scale"] = det_scale
-                if det_retune is not None:
-                    applied_params["Retune Speed"] = det_retune
-    
-            if is_eq:
-                prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
-                rec_eq = prof.get("recommended_eq", {})
-                if any(w in text for w in ["opcion 1", "opción 1", "recomendad", "default", "blueprint"]) or text.strip() == "1":
-                    applied_params["Band 1 On"] = 1.0
-                    applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
-                    applied_params["Band 2 On"] = 1.0
-                    applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
-                    applied_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
-                    applied_params["Band 3 On"] = 1.0
-                    applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
-                    applied_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
-                    applied_params["Band 4 On"] = 1.0
-                    applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
-                    applied_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
-                else:
-                    # Parse custom Band 1 HPF
-                    m_b1 = re.search(r"(?:hpf|banda?\s*1|low\s*cut|corte)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
-                    if m_b1:
-                        f1 = float(m_b1.group(1))
-                        applied_params["Band 1 On"] = 1.0
-                        applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f1)
-                    # Parse custom Band 2 Mud Cut
-                    m_b2_f = re.search(r"(?:mud|barro|banda?\s*2)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
-                    if m_b2_f:
-                        f2 = float(m_b2_f.group(1))
-                        applied_params["Band 2 On"] = 1.0
-                        applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f2)
-                    m_b2_g = re.search(r"(?:mud\s*gain|ganancia\s*barro|ganancia\s*banda\s*2|gain\s*2)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
-                    if m_b2_g:
-                        applied_params["2 Gain A"] = float(m_b2_g.group(1))
-                    # Parse custom Band 3 Presence
-                    m_b3_f = re.search(r"(?:presencia|presence|snap|banda?\s*3)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
-                    if m_b3_f:
-                        f3 = float(m_b3_f.group(1))
-                        applied_params["Band 3 On"] = 1.0
-                        applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f3)
-                    m_b3_g = re.search(r"(?:presencia\s*gain|ganancia\s*presencia|gain\s*3)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
-                    if m_b3_g:
-                        applied_params["3 Gain A"] = float(m_b3_g.group(1))
-                    # Parse custom Band 4 Air
-                    m_b4_f = re.search(r"(?:aire|air|shelf|banda?\s*4)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
-                    if m_b4_f:
-                        f4 = float(m_b4_f.group(1))
-                        applied_params["Band 4 On"] = 1.0
-                        applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f4)
-                    m_b4_g = re.search(r"(?:air\s*gain|ganancia\s*aire|gain\s*4)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
-                    if m_b4_g:
-                        applied_params["4 Gain A"] = float(m_b4_g.group(1))
-
-            def _clean_key(k: str) -> str:
-                return re.sub(r'[^a-z0-9]', '', _normalize_text(k))
-    
-            alias_map = {
-                "frecuencia": "frequency", "freq": "frequency", "corte": "frequency", "cutoff": "frequency",
-                "ganancia": "gain", "drive": "drive", "saturacion": "drive",
-                "mezcla": "drywet", "mix": "drywet", "drywet": "drywet", "dry_wet": "drywet", "dry/wet": "drywet",
-                "umbral": "threshold", "threshold": "threshold",
-                "ratio": "ratio", "proporcion": "ratio",
-                "ataque": "attack", "attack": "attack",
-                "release": "release", "liberacion": "release", "relajacion": "release",
-                "decay": "decay", "tiempo": "time", "feedback": "feedback",
-                "depth": "depth", "profundidad": "depth", "output": "output", "salida": "output"
-            }
-    
-            parsed_json = {}
-            if "{" in user_input and "}" in user_input:
-                try:
-                    j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
-                    parsed_json = json.loads(j_str)
-                except Exception:
-                    pass
-    
-            for p in eff["params"]:
-                p_id = p["id"]
-                if p_id in applied_params:
-                    continue
-                p_clean = _normalize_text(p_id)
-                p_alpha = _clean_key(p_id)
-                val_found = None
-    
-                # 1. Look in JSON block
-                for jk, jv in parsed_json.items():
-                    jk_clean = _normalize_text(str(jk))
-                    jk_alpha = _clean_key(str(jk))
-                    if (jk_clean == p_clean or jk_alpha == p_alpha or
-                        alias_map.get(jk_clean) == p_alpha or alias_map.get(jk_alpha) == p_alpha):
-                        try:
-                            val_found = float(jv)
-                            break
-                        except (ValueError, TypeError):
-                            pass
-    
-                # 2. Text regex if not in JSON
-                if val_found is None:
-                    patterns = [
-                        rf"{re.escape(p_clean)}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?",
-                        rf"{re.escape(p_id.lower())}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?"
-                    ]
-                    for alias_key, target_key in alias_map.items():
-                        if target_key == p_alpha or target_key == p_clean:
-                            patterns.append(rf"{alias_key}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?")
-    
-                    for pat in patterns:
-                        match = re.search(pat, text)
-                        if match:
-                            num_str = match.group(1)
-                            unit_str = (match.group(2) or "").lower()
-                            try:
-                                v = float(num_str)
-                                if unit_str == "%" or (v > 1.0 and str(p.get("range", "")).startswith("0.0") and v <= 100.0):
-                                    v = v / 100.0
-                                val_found = v
-                                break
-                            except ValueError:
-                                pass
-    
-                if val_found is not None:
-                    applied_params[p_id] = val_found
-                else:
-                    applied_params[p_id] = p["default"]
-
-            # Reverb Clarity Enforcement (Pre-Delay >= 15ms, Low-Cut >= 180Hz, Dry/Wet <= 22% on front elements)
-            is_reverb = any(w in eff_name.lower() for w in ["reverb", "vintageverb", "supermassive", "valhalla"])
-            if is_reverb:
-                is_front = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
-                for k, v in list(applied_params.items()):
-                    k_l = k.lower()
-                    if ("mix" in k_l or "dry" in k_l) and is_front:
-                        applied_params[k] = min(float(v), 0.22)
-                    elif "predelay" in k_l or "pre-delay" in k_l:
-                        applied_params[k] = max(float(v), 0.15)
-                    elif "lowcut" in k_l or "low cut" in k_l:
-                        applied_params[k] = max(float(v), 0.18)
-
-            if conn is not None and hasattr(conn, "send_command"):
-                try:
-                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
-                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
-    
-                    # Idempotency check: find existing device matching eff_name or class (protect instruments)
-                    matching_indices = []
-                    for d_i in range(len(raw_devs)):
-                        d = raw_devs[d_i]
-                        d_type = str(d.get("type", "")).lower()
-                        d_class = str(d.get("class_name", "")).lower()
-                        d_name = d.get("name", "").strip().lower()
-                        e_name = eff_name.strip().lower()
-    
-                        # Never treat an authentic instrument / drum kit as an insert effect
-                        if d_type in ("instrument", "synth", "drum_machine") or d_class in ("drumgroupdevice", "instrumentgroupdevice", "drift", "originalsimpler"):
-                            continue
-    
-                        if (e_name in d_name or d_name in e_name or
-                            (e_name == "drum buss" and "drumbuss" in d_class) or
-                            (e_name == "glue compressor" and "gluecompressor" in d_class) or
-                            (e_name == "eq eight" and "eq8" in d_class) or
-                            (e_name == "saturator" and "saturator" in d_class) or
-                            (e_name == "amp" and "amp" in d_class) or
-                            (e_name == "cabinet" and "cabinet" in d_class) or
-                            (e_name == "pedal" and "pedal" in d_class) or
-                            (e_name == "chorus-ensemble" and ("chorus" in d_class or "chorus" in d_name)) or
-                            (e_name == "delay" and "delay" in d_class) or
-                            (e_name == "ott" and "ott" in d_name) or
-                            (e_name == "auto-tune artist" and ("auto-tune" in d_name or "autotune" in d_name)) or
-                            (e_name == "pro-q 4" and ("pro-q" in d_name or "eq" in d_name)) or
-                            (e_name == "saturn 2" and "saturn" in d_name) or
-                            (e_name == "compressor" and ("compressor" in d_name and not "glue" in d_name)) or
-                            (e_name == "valhallavintageverb" and ("valhalla" in d_name or "vintageverb" in d_name))):
-                            matching_indices.append(d_i)
-    
-                    if matching_indices:
-                        dev_idx = matching_indices[0]
-                        # Remove extra duplicates from highest index to lowest
-                        for extra_idx in sorted(matching_indices[1:], reverse=True):
-                            try:
-                                conn.send_command("delete_device", {"track_index": t_idx, "device_index": extra_idx})
-                            except Exception:
-                                pass
-                    else:
-                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff_uri})
-                        t_info_after = conn.send_command("get_track_info", {"track_index": t_idx})
-                        after_devs = t_info_after.get("result", {}).get("devices", t_info_after.get("devices", [])) if isinstance(t_info_after, dict) else []
-                        dev_idx = len(after_devs) - 1 if after_devs else dev_ptr + 1
-    
-                    eq_param_aliases = {
-                        "Band 1 On": "1 Filter On A",
-                        "Band 2 On": "2 Filter On A",
-                        "Band 3 On": "3 Filter On A",
-                        "Band 4 On": "4 Filter On A",
-                        "Band 5 On": "5 Filter On A",
-                        "Band 6 On": "6 Filter On A",
-                        "Band 7 On": "7 Filter On A",
-                        "Band 8 On": "8 Filter On A",
-                    }
-                    if is_eq:
-                        if ("Band 1 On" in applied_params or "1 Filter On A" in applied_params) and "1 Gain A" not in applied_params and "1 Filter Type A" not in applied_params:
-                            applied_params["1 Filter Type A"] = 1.0
-                        if ("Band 8 On" in applied_params or "8 Filter On A" in applied_params) and "8 Gain A" not in applied_params and "8 Filter Type A" not in applied_params:
-                            applied_params["8 Filter Type A"] = 6.0
-                    for p_key, p_val in applied_params.items():
-                        target_param_name = eq_param_aliases.get(p_key, p_key) if is_eq else p_key
-                        try:
-                            conn.send_command("set_device_parameter", {
-                                "track_index": t_idx,
-                                "device_index": dev_idx,
-                                "parameter": target_param_name,
-                                "value": float(p_val) if isinstance(p_val, (int, float)) else 0.5
-                            })
-                        except Exception:
-                            pass
-
-    
-                    # Specialized LOM parameter tuning for vocal plugins
-                    if "auto-tune" in eff_name.lower():
-                        s_key = str(applied_params.get("Key", session.data.get("key", "F"))).strip().upper()
-                        s_scale = str(applied_params.get("Scale", session.data.get("scale", "Minor"))).strip().upper()
-                        key_val = VocalChainProcessor.AUTOTUNE_KEY_VALUES.get(s_key, 0.48)
-                        scale_val = VocalChainProcessor.AUTOTUNE_SCALE_VALUES.get(s_scale, 0.05)
-                        is_snap = ("opcion 1" in text or "hard" in text or "snap" in text or "0" in text or "tyler" in text)
-                        retune_lom = 1.0 if (is_snap or not ("opcion 2" in text or "natural" in text)) else 0.40
-                        code_at = f"""
-t = song.tracks[{t_idx}]
-d = t.devices[{dev_idx}]
-for p in d.parameters:
-    p_l = p.name.lower()
-    if 'key' in p_l: p.value = {key_val}
-    elif 'scale' in p_l: p.value = {scale_val}
-    elif 'retune' in p_l or 'speed' in p_l: p.value = {retune_lom}
-    elif 'flex' in p_l: p.value = 0.5
-    elif 'humanize' in p_l: p.value = 0.0
-"""
-                        conn.send_command("execute_code", {"code": code_at})
-                    elif "pro-q" in eff_name.lower():
-                        code_proq = f"""
-t = song.tracks[{t_idx}]
-d = t.devices[{dev_idx}]
-for p in d.parameters:
-    p_l = p.name.lower()
-    if 'band 1' in p_l and 'state' in p_l: p.value = 1.0
-    elif 'band 1' in p_l and 'shape' in p_l: p.value = 0.2
-    elif 'band 1' in p_l and 'freq' in p_l: p.value = 0.25
-    elif 'band 2' in p_l and 'freq' in p_l: p.value = 0.42
-    elif 'band 2' in p_l and 'gain' in p_l: p.value = 0.45
-    elif 'band 4' in p_l and 'gain' in p_l: p.value = 0.53
-"""
-                        conn.send_command("execute_code", {"code": code_proq})
-                    elif "saturn" in eff_name.lower():
-                        code_sat = f"""
-t = song.tracks[{t_idx}]
-d = t.devices[{dev_idx}]
-for p in d.parameters:
-    p_l = p.name.lower()
-    if 'drive' in p_l: p.value = 0.20
-    elif 'tone' in p_l: p.value = 0.55
-    elif 'mix' in p_l: p.value = 0.75
-"""
-                        conn.send_command("execute_code", {"code": code_sat})
-                    elif any(w in eff_name.lower() for w in ["valhalla", "vintageverb", "reverb"]):
-                        is_front = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
-                        mix_limit = 0.16 if is_front else 0.28
-                        code_val = f"""
-t = song.tracks[{t_idx}]
-d = t.devices[{dev_idx}]
-for p in d.parameters:
-    p_l = p.name.lower()
-    if 'mix' in p_l or 'dry' in p_l: p.value = {mix_limit}
-    elif 'decay' in p_l: p.value = 0.25
-    elif 'predelay' in p_l or 'pre-delay' in p_l: p.value = 0.18
-    elif 'low cut' in p_l or 'lowcut' in p_l or 'in lowcut' in p_l: p.value = 0.20
-"""
-                        conn.send_command("execute_code", {"code": code_val})
-    
-                    DeviceParameterSupervisor.enforce_mandatory_sculpting(conn, track_index=t_idx, device_index=dev_idx, role=eff_name)
-                    DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, dev_idx))
-                except Exception as ex:
-                    logger.warning(f"Error physically tuning {eff_name} on track {t_idx}: {ex}")
-            else:
-                DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, dev_ptr + 1))
-    
-        if "insert_effects" not in trk:
-            trk["insert_effects"] = []
-        if dev_ptr < len(trk["insert_effects"]):
-            trk["insert_effects"][dev_ptr] = {
-                "name": eff_name,
-                "bypass": is_bypass,
-                "parameters": applied_params
-            }
-        else:
-            trk["insert_effects"].append({
-                "name": eff_name,
-                "bypass": is_bypass,
-                "parameters": applied_params
-            })
-    
-        session.data["current_fx_dev_ptr"] = dev_ptr + 1
-        session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
-    
-        if session.data["current_fx_dev_ptr"] >= len(fx_list):
-            session.data["current_fx_track_ptr"] = t_ptr + 1
-            session.data["current_fx_dev_ptr"] = 0
-            if role == "VOCALS" and bool(trk.get("is_audio", False)):
-                session._save_state()
-                return session._handle_dual_lufs_validation(conn, user_input)
-    
-        session._save_state()
-        TransactionGuard.commit_transaction()
-    
-        if session.data["current_fx_track_ptr"] < len(tracks):
-            return session._prompt_current_fx_device()
-        else:
-            missing_trk = self.find_track_missing_eq(session, conn)
-            if missing_trk is not None:
-                return self.force_missing_eq_prompt(session, conn, missing_trk)
-
-            # Deploy non-destructive submaster bus architecture (preserves all existing tracks)
-            from engine.mix.bus_architecture import LiveBusArchitectureEngine
-            bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
-            session.data["bus_architecture"] = {
-                "deployed": True,
-                "topology": bus_report.get("analysis", {}).get("buses", {}),
-                "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
-            }
-            self.audit_phase_and_spectral_health(session, conn, tracks)
-
-            session.data["current_phase"] = "PHASE_7_AUTOMATION"
-            session.data["phase_index"] = 7
-            session._save_state()
-            return session._prompt_phase_7()
-
-
-    
+# engine/production/copilot/phases/phase_5_insert_effects.py
+"""
+Phase 5: Track-by-track insert effect chains, mandatory EQ gate, and parameter calibration.
+"""
+import re
+import json
+import logging
+from typing import Dict, Any, List, Optional
+from engine.production.copilot.phases.base import BasePhaseHandler
+from engine.production.copilot.nlp_parser import _normalize_text, parse_autotune_settings
+from engine.fx.role_fx_catalog import ROLE_INSERT_EFFECTS, ROLE_FREQUENCY_GUIDE
+from engine.fx.device_parameter_supervisor import DeviceParameterSupervisor
+from engine.session.transaction_guard import TransactionGuard
+from engine.instruments.installed_scanner import InstalledPluginScanner
+from engine.knowledge.plugins.fabfilter import get_eq_preset, get_compressor_preset
+from engine.vocal.vocal_chain_processor import VocalChainProcessor
+from engine.mix.ascii_spectrum import AsciiSpectrumVisualizer
+from engine.mix.frequency_slotting import FrequencySlottingEngine
+from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
+
+logger = logging.getLogger("Phase5InsertEffects")
+
+class Phase5InsertEffectsHandler(BasePhaseHandler):
+    def prompt(self, session: Any, **kwargs) -> Dict[str, Any]:
+        return self._prompt_current_fx_device(session)
+
+    def handle(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        return self._handle_phase_5(session, conn, user_input)
+
+    def find_track_missing_eq(self, session: Any, conn: Any = None) -> Optional[Dict[str, Any]]:
+        """
+        Verifies if every active track in Live has an equalizer (EQ Eight or Pro-Q).
+        Returns the first track lacking an EQ, or None if all tracks are compliant.
+        """
+        tracks = session.data.get("tracks", [])
+        if not tracks:
+            return None
+    
+        for trk in tracks:
+            t_idx = session._resolve_live_track_index(conn, trk)
+            has_eq = False
+            # Check recorded insert_effects
+            for eff in trk.get("insert_effects", []):
+                if any(q in str(eff.get("name", "")).lower() for q in ["eq", "equalizer", "pro-q"]):
+                    if not eff.get("bypass", False):
+                        has_eq = True
+                        break
+            # Check physical devices in Live if connected
+            if not has_eq and conn and hasattr(conn, "send_command"):
+                try:
+                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
+                    for d in raw_devs:
+                        d_name = str(d.get("name", "")).lower()
+                        d_class = str(d.get("class_name", "")).lower()
+                        if "eq" in d_name or "eq8" in d_class or "pro-q" in d_name:
+                            has_eq = True
+                            break
+                except Exception:
+                    pass
+    
+            if not has_eq:
+                return trk
+    
+        return None
+
+    @staticmethod
+    def audit_phase_and_spectral_health(session: Any, conn: Any, tracks: List[Dict[str, Any]]) -> None:
+        """Audits low-end phase correlation (Kick/Bass) and detects spectral resonance clashes."""
+        try:
+            from engine.mix.phase_correlation_sentinel import PhaseCorrelationSentinel
+            from engine.mix.smart_resonance_carver import SmartResonanceCarver
+
+            # 1. Phase Correlation Sentinel between Kick and Bass
+            sentinel_report = PhaseCorrelationSentinel.audit_kick_bass_coherence(simulated_correlation=0.88)
+            session.data["phase_correlation"] = sentinel_report
+
+            bass_trk = next((t for t in tracks if "BASS" in str(t.get("role", "")).upper() or "808" in str(t.get("name", "")).upper()), None)
+            if bass_trk and conn is not None:
+                b_idx = session._resolve_live_track_index(conn, bass_trk)
+                PhaseCorrelationSentinel.apply_phase_alignment_in_live(conn, b_idx, sentinel_report)
+
+            # 2. Smart Resonance Carver session clash audit
+            clashes = SmartResonanceCarver.audit_session_clashes(tracks)
+            session.data["spectral_clashes"] = clashes
+        except Exception as e:
+            logger.debug(f"Notice during phase and spectral audit: {e}")
+    
+    @staticmethod
+    def _get_fx_list_for_track(trk: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Returns the insert effect list for a track.
+        - If the AI specified a custom_fx_chain on the track, uses that.
+        - If the track is a MIDI VOCALS track (e.g., Simpler Vocal Chop, is_audio=False),
+          uses a clean 3-stage instrument/chop chain (EQ Eight, Compressor, ValhallaVintageVerb)
+          instead of the 7-plugin microphone recording chain (Auto-Tune Artist, Pro-DS, etc.).
+        - Otherwise falls back to ROLE_INSERT_EFFECTS[role].
+        """
+        custom_chain = trk.get("custom_fx_chain")
+        if isinstance(custom_chain, list) and len(custom_chain) > 0:
+            return custom_chain
+        role = str(trk.get("role", "STRINGS")).upper()
+        is_audio = bool(trk.get("is_audio", False))
+        if role in ("VOCALS", "VOCAL", "VOX") and not is_audio:
+            return ROLE_INSERT_EFFECTS.get("SYNTH", ROLE_INSERT_EFFECTS.get("KEYS", []))
+        return ROLE_INSERT_EFFECTS.get(role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+
+    def force_missing_eq_prompt(self, session: Any, conn: Any, missing_trk: Dict[str, Any]) -> Dict[str, Any]:
+        """Forces insertion and configuration of EQ Eight on a track that missed it."""
+        tracks = session.data.get("tracks", [])
+        t_ptr = tracks.index(missing_trk) if missing_trk in tracks else 0
+        t_idx = session._resolve_live_track_index(conn, missing_trk)
+        role = missing_trk.get("role", "OTHER")
+    
+        session.data["current_fx_track_ptr"] = t_ptr
+        session.data["current_fx_dev_ptr"] = 0
+        session.data["current_phase"] = "PHASE_5_INSERT_EFFECTS"
+        session.data["phase_index"] = 6
+        session._save_state()
+    
+        guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
+        spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, missing_trk.get('name', ''))
+        return {
+            "status": "MISSING_EQ_ENFORCED",
+            "current_step": f"PASO 6 DE 9 — FASE 5 (INSERT EFFECTS): ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{missing_trk.get('name')}')",
+            "action_taken": f"Compuerta de ecualización activada: la pista {t_idx} no tiene ecualizador. El arnés exige su configuración obligatoria.",
+            "question": (
+                f"⛔ **COMPUERTA DE ECUALIZACIÓN OBLIGATORIA (PISTA {t_idx}: '{missing_trk.get('name')}', Rol: {role})**\n\n"
+                f"El arnés de higiene espectral no permite avanzar a la Fase 7 (Automatización) si alguna pista carece de ecualizador.\n"
+                f"Es obligatorio insertar y calibrar `EQ Eight` (o `Pro-Q`) para limpiar subgraves, resonancias y transientes.\n\n"
+                f"{spec_ascii}\n\n"
+                f"🎯 **Guía Espectral y Dinámica para {role}:**\n"
+                f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'Información espectral clave')}\n"
+                f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento de frecuencias')}\n"
+                f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF y limpieza')}\n"
+                f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
+                f"📋 **Formato Esperado de Parámetros:**\n"
+                f"• Clave-Valor: `\"Band 1 On: 1.0, 1 Frequency A: 0.28, Band 4 Gain: 0.50\"` o `\"HPF: 120 Hz, Mud: 350 Hz, Gain 2: -2.5 dB\"`\n\n"
+                f"*Especifica tus parámetros para EQ Eight en esta pista.*"
+            ),
+            "instructions_for_ai": f"Define los parámetros obligatorios para EQ Eight en la pista {missing_trk.get('name')}.",
+            "target_track": t_idx,
+            "target_device": "EQ Eight",
+            "phase": "PHASE_5_INSERT_EFFECTS"
+        }
+    
+    # -------------------------------------------------------------------------
+    # FASE 5 (ÍNDICE 6): EFECTO POR EFECTO CON CONTEXTO DE NOTAS REALES Y CADENA SOBERANA
+    # -------------------------------------------------------------------------
+    def _prompt_current_fx_device(self, session: Any) -> Dict[str, Any]:
+        tracks = session.data.get("tracks", [])
+        t_ptr = session.data.get("current_fx_track_ptr", 0)
+    
+        if t_ptr >= len(tracks):
+            missing_trk = self.find_track_missing_eq(session, None)
+            if missing_trk is not None:
+                return self.force_missing_eq_prompt(session, None, missing_trk)
+    
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
+            session._save_state()
+            return session._prompt_phase_7()
+    
+        conn = getattr(session, "_conn", None)
+        from engine.sound_design.dedicated_plugin_configurator import DedicatedPluginConfigurator
+
+        while t_ptr < len(tracks):
+            trk = tracks[t_ptr]
+            fx_list = self._get_fx_list_for_track(trk)
+            dev_ptr = session.data.get("current_fx_dev_ptr", 0)
+
+            if dev_ptr >= len(fx_list):
+                session.data["current_fx_track_ptr"] = t_ptr + 1
+                session.data["current_fx_dev_ptr"] = 0
+                t_ptr += 1
+                session._save_state()
+                continue
+
+            eff = fx_list[dev_ptr]
+            eff_name = eff.get("name", "")
+
+            if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
+                t_idx = session._resolve_live_track_index(conn, trk)
+                if conn is not None and hasattr(conn, "send_command"):
+                    try:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff.get("uri", "")})
+                    except Exception:
+                        pass
+                return DedicatedPluginConfigurator.get_effect_sculpting_prompt(trk, eff, dev_ptr, session, conn)
+            break
+
+        if t_ptr >= len(tracks):
+            missing_trk = self.find_track_missing_eq(session, None)
+            if missing_trk is not None:
+                return self.force_missing_eq_prompt(session, None, missing_trk)
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
+            session._save_state()
+            return session._prompt_phase_7()
+
+        trk = tracks[t_ptr]
+        t_idx = trk.get("index", t_ptr)
+        t_name = trk["name"]
+        role = trk["role"]
+        dev_ptr = session.data.get("current_fx_dev_ptr", 0)
+        fx_list = self._get_fx_list_for_track(trk)
+        eff = fx_list[dev_ptr]
+        eff_name = eff["name"]
+        is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
+
+        # Contexto de notas MIDI reales compuestas en Fase 6
+        notes_summary = trk.get("composed_notes_summary", {})
+        if notes_summary and notes_summary.get("notes_count", 0) > 0:
+            note_ctx_banner = (
+                f"🎼 **Contexto de Notas MIDI Compuestas en '{t_name}':** "
+                f"`{notes_summary.get('notes_count', 0)} notas` | "
+                f"Registro MIDI: `{notes_summary.get('min_pitch', 60)}–{notes_summary.get('max_pitch', 72)}` | "
+                f"Duración media: `{notes_summary.get('avg_duration', 0.5)} beats` | "
+                f"Velocidad media: `{notes_summary.get('avg_velocity', 95)}`\n\n"
+            )
+        else:
+            note_ctx_banner = ""
+    
+        params_info = []
+        for p in eff["params"]:
+            p_range = p.get("range", "0.0 a 1.0")
+            p_behavior = p.get("behavior", p.get("desc", ""))
+            params_info.append(f"  • **{p['name']}** (Rango: `{p_range}`): {p_behavior}")
+    
+        if is_eq:
+            guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
+            spec_ascii = AsciiSpectrumVisualizer.render_ascii_spectrum(role, t_name)
+            eq_guide_block = (
+                f"\n📊 **ESPECTROGRAMA Y ENERGÍA FRECUENCIAL ESTIMADA ({role}):**\n"
+                f"{spec_ascii}\n\n"
+                f"🎯 **Guía Espectral y Manejo de Transitorios OBLIGATORIA ({role}):**\n"
+                f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'N/A')}\n"
+                f"• **Puntos de Conflicto Crítico (Enmascaramiento):** {guide.get('conflict_points', 'N/A')}\n"
+                f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'N/A')}\n"
+                f"• **Manejo de Transitorios en Estilos Híbridos:** {guide.get('transient_handling', 'N/A')}\n"
+                f"⚠️ *Nota del Arnés: El ecualizador es 100% obligatorio en esta pista para evitar solapamientos destructivos; no se admite bypass.*"
+            )
+            params_info.append(eq_guide_block)
+    
+        eq_tip = get_eq_preset(role.lower())
+        comp_tip = get_compressor_preset(role.lower())
+        fx_kb = []
+        if eq_tip:
+            fx_kb.append(f"  💡 **FabFilter Pro-Q ({role}):** {eq_tip.splitlines()[0] if eq_tip else ''}")
+        if comp_tip:
+            fx_kb.append(f"  💡 **FabFilter Pro-C2 ({role}):** {comp_tip.splitlines()[0] if comp_tip else ''}")
+        if role == "VOCALS" and bool(trk.get("is_audio", False)):
+            try:
+                sc = InstalledPluginScanner()
+                sc.scan()
+                at_plugs = [p.name for p in sc.get_plugins_for_role("VOCALS") if "auto" in p.name.lower() or "antares" in p.vendor.lower()]
+                s_key = session.data.get("key", "F")
+                s_scale = session.data.get("scale", "Minor")
+                if at_plugs:
+                    fx_kb.append(f"  🎤 **Auto-Tune VST Detectado ({at_plugs[0]}):** Prioridad #1 recomendada. Afinación pre-calibrada en {s_key} {s_scale}. Retune Speed: 0 ms (Trap Hard Snap) o 25 ms (Natural).")
+                else:
+                    fx_kb.append("  💡 **Cadena Vocal de 10 Slots:** RX De-Click -> Auto-Tune -> Pro-Q3 sustractivo -> 1176 peak -> LA-2A -> Pro-DS -> Pro-Q3 aire -> Saturn 2 -> MicroShift -> Pro-L2.")
+                fx_kb.append("  💎 **Suite Vocal Detectada:** FabFilter Pro-Q, Pro-DS, Saturn 2 y ValhallaVintageVerb listos para inserción híbrida.")
+            except Exception:
+                fx_kb.append("  💡 **Cadena Vocal de 10 Slots:** RX De-Click -> Auto-Tune -> Pro-Q3 sustractivo -> 1176 peak -> LA-2A -> Pro-DS -> Pro-Q3 aire -> Saturn 2 -> MicroShift -> Pro-L2.")
+    
+        if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
+            fx_kb.append("  ⚠️ **OBLIGATORIO — KEY Y SCALE:** Auto-Tune Artist **exige obligatoriamente** definir la **Key** (Tono: C, C#, D, D#, E, F, F#, G, G#, A, A#, B) y la **Scale** (Escala: Minor o Major). No se permite omitir estos valores.")
+
+        is_reverb = any(w in eff_name.lower() for w in ["reverb", "vintageverb", "supermassive", "valhalla"])
+        if is_reverb:
+            is_front_element = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
+            max_mix_pct = 22 if is_front_element else 35
+            fx_kb.append(
+                f"  🏛️ **POLÍTICA DE REVERBERACIÓN Y CLARIDAD ACÚSTICA ({role}):**\n"
+                f"     • **Libertad Creativa de Espacio:** Elige libremente cualquier tipo o algoritmo (Hall, Plate, Room, Shimmer, VintageVerb, Supermassive, etc.).\n"
+                f"     • **Pre-Delay Obligatorio (≥ 15 ms):** Garantiza que el golpe transitorio directo se entienda con total nitidez antes de la cola reverberante.\n"
+                f"     • **Filtro Paso-Alto (Low Cut ≥ 180 Hz):** Elimina cualquier enturbiamiento del subgrave en el espacio difuso.\n"
+                f"     • **Techo Seguro de Mezcla (Dry/Wet ≤ {max_mix_pct}%):** Protege la pista para que nunca quede sepultada ni pierda inteligibilidad en la mezcla."
+            )
+
+        if fx_kb:
+            params_info.append("\n**Directrices Quirúrgicas de Inserción (FabFilter / Plugins):**\n" + "\n".join(fx_kb))
+    
+        params_text = "\n".join(params_info)
+    
+        gs = trk.get("gain_staging", {})
+        lvl_str = f"{gs.get('target_peak_dbfs', -14.0):.1f} dBFS" if gs else "-14.0 dBFS"
+    
+        p_examples = ", ".join([f"{p['id']}: X" for p in eff.get("params", [])[:2]]) or "Parameter: Value"
+        decision_prompt = (
+            f"Analiza el registro y densidad de las notas MIDI compuestas en '{t_name}' ({role}) y define los valores específicos de este ecualizador obligatorio."
+            if is_eq else
+            f"Analiza el registro y densidad de las notas MIDI compuestas en '{t_name}' ({role}) y define los valores específicos para `{eff_name}`, o escribe `'Siguiente Pista'` / `'Bypass'` si determinas que no requiere más procesadores."
+        )
+        action_note = f"*Especifica tus valores de configuración (ej: '{p_examples}'). (Nota: Ecualizador 100% obligatorio).*" if is_eq else f"*Especifica tus valores de configuración (ej: '{p_examples}'), indica 'Bypass' o escribe 'Siguiente Pista' para concluir la cadena de esta pista.*"
+    
+        params_format_banner = (
+            f"\n\n📋 **Formato Esperado de Parámetros (Soberanía por Pista):**\n"
+            f"• Clave-Valor: `\"Parámetro: Valor, Parámetro: Valor\"` (ej: `\"{p_examples}\"` o `\"Drive: 35%, Dry/Wet: 50%\"`)\n"
+            f"• Con Unidades: `\"Threshold: -16 dB, Attack: 15 ms, Ratio: 4:1\"`\n"
+            f"• JSON de dispositivo: `{{\"Drive\": 0.35, \"Dry/Wet\": 0.50}}`\n"
+            f"• 🎛️ **Cadena Soberana a Medida (JSON)**: `{{\"effects\": [{{\"name\": \"EQ Eight\", \"params\": {{\"Band 1 On\": 1.0, \"1 Frequency A\": 0.28}}}}, {{\"name\": \"Compressor\", \"params\": {{\"Threshold\": 0.45, \"Ratio\": 0.40}}}}]}}`\n"
+            f"• ⏭️ **Cerrar Cadena de Pista**: Tras configurar el EQ obligatorio, puedes escribir `'Siguiente Pista'` o `'Fin de Cadena'` si esta pista no necesita más efectos."
+        )
+    
+        return {
+            "current_step": f"PASO 6 DE 9 — FASE 5 (INSERT EFFECTS): EFECTO {dev_ptr + 1} DE {len(fx_list)} (PISTA {t_ptr + 1} DE {len(tracks)}: '{t_name}')",
+            "action_taken": f"Configurando procesador #{dev_ptr + 1} ({eff_name}) en Pista {t_idx}. Nivel actual: {lvl_str}.",
+            "question": (
+                f"🔌 **Paso 6 de 9: Fase 5 (Efectos de Inserción Pista por Pista) - Esculpido de '{eff_name}' en Pista {t_ptr} (Track {t_idx}: '{t_name}', Rol: {role})**\n\n"
+                f"Procesador #{dev_ptr + 1} de {len(fx_list)} en la cadena de inserción. Nivel pre-fader actual: `{lvl_str}`.\n\n"
+                f"{note_ctx_banner}"
+                f"**Espacio de Parámetros y Rangos Acústicos Disponibles:**\n"
+                f"{params_text}\n\n"
+                f"🧠 **Decisión Técnica Requerida:**\n"
+                f"{decision_prompt}\n\n"
+                f"{action_note}"
+                f"{params_format_banner}"
+            ),
+            "instructions_for_ai": f"Define los parámetros explícitos para {eff_name} en '{t_name}', o envía una cadena JSON personalizada {{\"effects\": [...]}}.",
+            "target_track": t_idx,
+            "target_device": eff_name,
+            "device_index_in_chain": dev_ptr + 1,
+            "total_devices_in_chain": len(fx_list),
+            "phase": "PHASE_5_INSERT_EFFECTS"
+        }
+    
+    def _handle_phase_5(self, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
+        tracks = session.data.get("tracks", [])
+        t_ptr = session.data.get("current_fx_track_ptr", 0)
+    
+        if t_ptr >= len(tracks):
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
+            session._save_state()
+            return session._prompt_phase_7()
+    
+        trk = tracks[t_ptr]
+        t_idx = session._resolve_live_track_index(conn, trk)
+        role = trk["role"]
+        dev_ptr = session.data.get("current_fx_dev_ptr", 0)
+        text = _normalize_text(user_input)
+    
+        fx_list = self._get_fx_list_for_track(trk)
+
+        # Support sovereign custom JSON effect chain for the current track: {"effects": [{"name": "EQ Eight", "params": {...}}, ...]}
+        if "{" in user_input and "}" in user_input and '"effects"' in user_input:
+            try:
+                j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
+                parsed_chain_payload = json.loads(j_str)
+                custom_effects = parsed_chain_payload.get("effects")
+                if isinstance(custom_effects, list) and len(custom_effects) > 0:
+                    has_eq_in_custom = any(
+                        any(q in str(item.get("name", "")).lower() for q in ["eq", "equalizer", "pro-q"])
+                        and not bool(item.get("bypass", False))
+                        for item in custom_effects if isinstance(item, dict)
+                    )
+                    if not has_eq_in_custom:
+                        return {
+                            "status": "VALIDATION_ERROR",
+                            "current_step": f"FASE 6: ECUALIZACIÓN OBLIGATORIA EN CADENA SOBERANA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
+                            "action_taken": "Cadena JSON personalizada rechazada por omitir el ecualizador obligatorio.",
+                            "question": (
+                                f"⛔ **HIGIENE ESPECTRAL OBLIGATORIA (PISTA {t_idx}: '{trk.get('name')}')**\n\n"
+                                f"Tu cadena personalizada `{{\"effects\": [...]}}` debe incluir al menos un ecualizador activo (`EQ Eight` o `Pro-Q`) con parámetros explícitos."
+                            ),
+                            "instructions_for_ai": "Incluye 'EQ Eight' o 'Pro-Q 4' con sus parámetros dentro de 'effects'.",
+                            "target_track": t_idx,
+                            "phase": "PHASE_5_INSERT_EFFECTS"
+                        }
+                    trk["insert_effects"] = []
+                    applied_names = []
+                    for d_i, item in enumerate(custom_effects):
+                        if not isinstance(item, dict):
+                            continue
+                        e_name = str(item.get("name", "EQ Eight"))
+                        e_params = item.get("params", item.get("parameters", {}))
+                        if not isinstance(e_params, dict):
+                            e_params = {}
+                        # Resolve URI from catalog if not provided
+                        e_uri = item.get("uri", "")
+                        if not e_uri:
+                            for cat_list in ROLE_INSERT_EFFECTS.values():
+                                for cat_eff in cat_list:
+                                    if cat_eff.get("name", "").lower() == e_name.lower():
+                                        e_uri = cat_eff.get("uri", "")
+                                        break
+                                if e_uri:
+                                    break
+                        if conn is not None and hasattr(conn, "send_command") and e_uri:
+                            try:
+                                conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": e_uri})
+                                t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
+                                cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
+                                dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
+                                if "eq" in e_name.lower():
+                                    if ("1 Filter On A" in e_params or "Band 1 On" in e_params) and "1 Gain A" not in e_params and "1 Filter Type A" not in e_params:
+                                        e_params["1 Filter Type A"] = 1.0
+                                    if ("8 Filter On A" in e_params or "Band 8 On" in e_params) and "8 Gain A" not in e_params and "8 Filter Type A" not in e_params:
+                                        e_params["8 Filter Type A"] = 6.0
+                                for p_k, p_v in e_params.items():
+                                    try:
+                                        raw_val = float(p_v) if isinstance(p_v, (int, float)) else 0.5
+                                        code_safe_p = f"""
+t = song.tracks[{t_idx}] if {t_idx} < len(song.tracks) else None
+if t and {dev_target_idx} < len(t.devices):
+    dev = t.devices[{dev_target_idx}]
+    tgt = {repr(str(p_k).lower().strip())}
+    for p in dev.parameters:
+        pn = p.name.lower().strip()
+        if pn == tgt or tgt in pn or pn in tgt:
+            rv = {raw_val}
+            if p.min <= rv <= p.max:
+                p.value = rv
+            elif 0.0 <= rv <= 1.0 and p.max > 1.0 and p.min >= 0.0:
+                p.value = p.min + rv * (p.max - p.min)
+            else:
+                p.value = max(p.min, min(p.max, rv))
+            break
+"""
+                                        conn.send_command("execute_code", {"code": code_safe_p})
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                        trk["insert_effects"].append({
+                            "name": e_name,
+                            "device_index": d_i + 1,
+                            "bypass": False,
+                            "parameters": e_params
+                        })
+                        applied_names.append(e_name)
+                    session.data["current_fx_track_ptr"] = t_ptr + 1
+                    session.data["current_fx_dev_ptr"] = 0
+                    session._save_state()
+                    if session.data["current_fx_track_ptr"] < len(tracks):
+                        next_p = self._prompt_current_fx_device(session)
+                        next_p["status"] = "CUSTOM_FX_CHAIN_APPLIED"
+                        next_p["action_taken"] = f"Cadena soberana configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_names)}."
+                        return next_p
+                    else:
+                        missing_trk = self.find_track_missing_eq(session, conn)
+                        if missing_trk is not None:
+                            return self.force_missing_eq_prompt(session, conn, missing_trk)
+                        from engine.mix.bus_architecture import LiveBusArchitectureEngine
+                        bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+                        session.data["bus_architecture"] = {
+                            "deployed": True,
+                            "topology": bus_report.get("analysis", {}).get("buses", {}),
+                            "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+                        }
+                        self.audit_phase_and_spectral_health(session, conn, tracks)
+                        session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                        session.data["phase_index"] = 7
+                        session._save_state()
+                        return session._prompt_phase_7()
+            except Exception as ex_custom:
+                logger.debug(f"Custom FX chain parse notice: {ex_custom}")
+
+        # Support closing the current track's FX chain early ("Siguiente Pista" / "Fin de Cadena") once mandatory EQ is configured
+        if any(w in text for w in ["siguiente pista", "fin de cadena", "cerrar cadena", "terminar pista"]) and dev_ptr >= 1:
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            session._save_state()
+            if session.data["current_fx_track_ptr"] < len(tracks):
+                next_p = self._prompt_current_fx_device(session)
+                next_p["action_taken"] = f"Cadena de inserción finalizada en Pista {t_idx} ('{trk.get('name')}'). Avanzando a la siguiente pista."
+                return next_p
+            else:
+                missing_trk = self.find_track_missing_eq(session, conn)
+                if missing_trk is not None:
+                    return self.force_missing_eq_prompt(session, conn, missing_trk)
+                from engine.mix.bus_architecture import LiveBusArchitectureEngine
+                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+                session.data["bus_architecture"] = {
+                    "deployed": True,
+                    "topology": bus_report.get("analysis", {}).get("buses", {}),
+                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+                }
+                self.audit_phase_and_spectral_health(session, conn, tracks)
+                session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                session.data["phase_index"] = 7
+                session._save_state()
+                return session._prompt_phase_7()
+    
+        if dev_ptr >= len(fx_list):
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            session._save_state()
+            return session._prompt_current_fx_device()
+    
+        # Check for Cadena Express / Lote configuration across the whole track
+        is_express_chain = any(w in text for w in ["cadena express", "express", "lote", "receta completa", "toda la pista", "cadena completa", "todos los efectos"])
+        if is_express_chain:
+            applied_express_devices = []
+            trk["insert_effects"] = []
+
+            # Deduplication & Clean-Slate Guard: Purge any existing insert audio effects on this track before loading fresh chain
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
+                    # Purge insert effects strictly from highest index down to index 1 (never delete index 0)
+                    for d_i in range(len(raw_devs) - 1, 0, -1):
+                        conn.send_command("delete_device", {"track_index": t_idx, "device_index": d_i})
+                except Exception as ex_clean:
+                    logger.debug(f"Notice during express chain cleanup on track {t_idx}: {ex_clean}")
+
+            for d_i, d_eff in enumerate(fx_list):
+                d_eff_name = d_eff["name"]
+                d_eff_uri = d_eff["uri"]
+                d_params = {}
+                if any(q in d_eff_name.lower() for q in ["eq", "equalizer", "pro-q"]):
+                    prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
+                    rec_eq = prof.get("recommended_eq", {})
+                    d_params["1 Filter On A"] = 1.0
+                    d_params["1 Filter Type A"] = 1.0
+                    d_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
+                    d_params["2 Filter On A"] = 1.0
+                    d_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
+                    d_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
+                    d_params["3 Filter On A"] = 1.0
+                    d_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
+                    d_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
+                    d_params["4 Filter On A"] = 1.0
+                    d_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
+                    d_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
+                elif "auto-tune" in d_eff_name.lower() or "autotune" in d_eff_name.lower():
+                    d_params["Key"] = session.data.get("key", "F")
+                    d_params["Scale"] = session.data.get("scale", "Minor")
+                    d_params["Retune Speed"] = 0.0
+                elif DedicatedPluginConfigurator.is_dedicated_effect(d_eff_name):
+                    d_params = DedicatedPluginConfigurator.configure_effect(trk, d_eff, d_i + 1, session, conn)
+                else:
+                    for p in d_eff.get("params", []):
+                        d_params[p["id"]] = p["default"]
+
+                if conn is not None and hasattr(conn, "send_command"):
+                    try:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": d_eff_uri})
+                        # Apply calibrated parameters to the loaded effect
+                        t_info_cur = conn.send_command("get_track_info", {"track_index": t_idx})
+                        cur_devs = t_info_cur.get("result", {}).get("devices", t_info_cur.get("devices", [])) if isinstance(t_info_cur, dict) else []
+                        dev_target_idx = len(cur_devs) - 1 if cur_devs else d_i + 1
+                        for p_k, p_v in d_params.items():
+                            try:
+                                raw_val = float(p_v) if isinstance(p_v, (int, float)) else 0.5
+                                code_safe_p = f"""
+t = song.tracks[{t_idx}] if {t_idx} < len(song.tracks) else None
+if t and {dev_target_idx} < len(t.devices):
+    dev = t.devices[{dev_target_idx}]
+    tgt = {repr(str(p_k).lower().strip())}
+    for p in dev.parameters:
+        pn = p.name.lower().strip()
+        if pn == tgt or tgt in pn or pn in tgt:
+            rv = {raw_val}
+            if p.min <= rv <= p.max:
+                p.value = rv
+            elif 0.0 <= rv <= 1.0 and p.max > 1.0 and p.min >= 0.0:
+                p.value = p.min + rv * (p.max - p.min)
+            else:
+                p.value = max(p.min, min(p.max, rv))
+            break
+"""
+                                conn.send_command("execute_code", {"code": code_safe_p})
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                trk["insert_effects"].append({
+                    "name": d_eff_name,
+                    "device_index": d_i + 1,
+                    "bypass": False,
+                    "bypassed": False,
+                    "parameters": d_params
+                })
+                applied_express_devices.append(d_eff_name)
+
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + len(fx_list)
+            session._save_state()
+
+            if session.data["current_fx_track_ptr"] < len(tracks):
+                next_prompt = session._prompt_current_fx_device()
+                next_prompt["status"] = "EXPRESS_CHAIN_CONFIGURED"
+                next_prompt["action_taken"] = f"Cadena express configurada en Pista {t_idx} ('{trk.get('name')}'): {', '.join(applied_express_devices)}."
+                return next_prompt
+            else:
+                missing_trk = self.find_track_missing_eq(session, conn)
+                if missing_trk is not None:
+                    return self.force_missing_eq_prompt(session, conn, missing_trk)
+                from engine.mix.bus_architecture import LiveBusArchitectureEngine
+                bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+                session.data["bus_architecture"] = {
+                    "deployed": True,
+                    "topology": bus_report.get("analysis", {}).get("buses", {}),
+                    "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+                }
+                self.audit_phase_and_spectral_health(session, conn, tracks)
+                session.data["current_phase"] = "PHASE_7_AUTOMATION"
+                session.data["phase_index"] = 7
+                session._save_state()
+                return session._prompt_phase_7()
+
+        eff = fx_list[dev_ptr]
+        eff_name = eff["name"]
+        eff_uri = eff["uri"]
+
+        if DedicatedPluginConfigurator.is_dedicated_effect(eff_name):
+            res_eff = DedicatedPluginConfigurator.configure_effect(trk, eff, dev_ptr + 1, session, conn, ai_input=user_input)
+            if "insert_effects" not in trk:
+                trk["insert_effects"] = []
+            trk["insert_effects"].append({
+                "name": eff_name,
+                "device_index": dev_ptr + 1,
+                "bypass": False,
+                "parameters": res_eff.get("parameters", {}),
+                "mode": res_eff.get("mode", ""),
+                "action_taken": res_eff.get("action_taken", "")
+            })
+            session.data["current_fx_dev_ptr"] = dev_ptr + 1
+            session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
+            session._save_state()
+            next_p = self._prompt_current_fx_device(session)
+            if res_eff.get("action_taken"):
+                next_p["action_taken"] = res_eff.get("action_taken")
+            return next_p
+
+        # Capture pre-mutation snapshot for deterministic rollback
+        track_state = [TransactionGuard.capture_live_track_state(conn, t_idx)]
+        TransactionGuard.begin_transaction(session.data, track_state)
+    
+        applied_params = {}
+        is_bypass = ("bypass" in text or "omitir" in text or "opcion 3" in text or "directo" in text)
+        is_eq = any(q in eff_name.lower() for q in ["eq", "equalizer", "pro-q"])
+    
+        if is_bypass and is_eq:
+            guide = ROLE_FREQUENCY_GUIDE.get(role, ROLE_FREQUENCY_GUIDE.get("KEYS", {}))
+            TransactionGuard.rollback_transaction(conn, session)
+            return {
+                "status": "VALIDATION_ERROR",
+                "current_step": f"PASO 5 DE 7: ECUALIZACIÓN OBLIGATORIA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
+                "action_taken": f"El motor prohíbe terminantemente el bypass en el ecualizador ({eff_name}). ¡EL ECUALIZADOR ES 100% OBLIGATORIO!",
+                "question": (
+                    f"⛔ **EL ECUALIZADOR ES ESTRICTAMENTE OBLIGATORIO EN LA PISTA {t_idx} ('{trk.get('name')}')**\n\n"
+                    f"Para garantizar un balance espectral limpio y evitar enmascaramiento y distorsión de transitorios, el motor exige la presencia y configuración del ecualizador.\n\n"
+                    f"🎯 **Guía Espectral y Dinámica (Guía Psicoacústica de Frecuencias) para {role}:**\n"
+                    f"• **Frecuencias Dominantes:** {guide.get('dominant_zone', 'Información espectral')}\n"
+                    f"• **Puntos de Conflicto Crítico:** {guide.get('conflict_points', 'Enmascaramiento')}\n"
+                    f"• **Ajuste Quirúrgico Recomendado:** {guide.get('eq_recommendation', 'Corte HPF')}\n"
+                    f"• **Manejo de Transitorios:** {guide.get('transient_handling', 'Control dinámico')}\n\n"
+                    f"*Por favor define los parámetros del ecualizador para continuar (o utiliza 'Opción 1' para el preset base).*"
+                ),
+                "instructions_for_ai": f"No puedes omitir el ecualizador {eff_name}. Envía los parámetros de configuración.",
+                "target_track": t_idx,
+                "target_device": eff_name,
+                "device_index_in_chain": dev_ptr + 1,
+                "total_devices_in_chain": len(fx_list),
+                "phase": "PHASE_5_INSERT_EFFECTS"
+            }
+
+        if is_bypass and not is_eq:
+            all_tracks = session.data.get("tracks", [])
+            tot_non_eq = 0
+            for ot in all_tracks:
+                o_role = ot.get("role", "STRINGS")
+                o_fx = ROLE_INSERT_EFFECTS.get(o_role, ROLE_INSERT_EFFECTS.get("STRINGS", []))
+                for fx_item in o_fx:
+                    if not any(q in fx_item.get("name", "").lower() for q in ["eq", "equalizer", "pro-q"]):
+                        tot_non_eq += 1
+            tot_non_eq = max(1, tot_non_eq)
+            current_bypassed = session.data.get("bypassed_non_eq_count", 0)
+            max_allowed = max(2, int(tot_non_eq * 0.35))
+
+            if current_bypassed >= max_allowed:
+                TransactionGuard.rollback_transaction(conn, session)
+                return {
+                    "status": "VALIDATION_ERROR",
+                    "current_step": f"PASO 5 DE 7: CUOTA DE BYPASS EXCEDIDA (PISTA {t_ptr + 1}: '{trk.get('name')}')",
+                    "action_taken": f"El motor prohíbe el bypass excesivo ({current_bypassed}/{tot_non_eq} efectos omitidos). Límite de cuota alcanzado (35%).",
+                    "question": (
+                        f"⛔ **CUOTA MÁXIMA DE BYPASS EXCEDIDA ({current_bypassed}/{tot_non_eq} procesadores omitidos)**\n\n"
+                        f"Una producción comercial de alto nivel exige control dinámico (compresión), calidez armónica (saturación) y espacialidad.\n"
+                        f"No se permite omitir `{eff_name}` en la pista '{trk.get('name')}'.\n\n"
+                        f"Por favor define los parámetros para `{eff_name}` (o responde 'Opción 1' para aplicar el preset base, o 'cadena express' para procesar en lote)."
+                    ),
+                    "instructions_for_ai": f"Cuota de bypass excedida. Calibra los parámetros para {eff_name}, o utiliza 'Opción 1' / 'cadena express'.",
+                    "target_track": t_idx,
+                    "target_device": eff_name,
+                    "device_index_in_chain": dev_ptr + 1,
+                    "total_devices_in_chain": len(fx_list),
+                    "phase": "PHASE_5_INSERT_EFFECTS"
+                }
+            session.data["bypassed_non_eq_count"] = current_bypassed + 1
+    
+        if not is_bypass:
+            # Validación Estricta para Auto-Tune: Key y Scale son estrictamente obligatorios
+            if "auto-tune" in eff_name.lower() or "autotune" in eff_name.lower():
+                det_key, det_scale, det_retune = parse_autotune_settings(user_input)
+                if not det_key and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
+                    det_key = session.data.get("key", "F")
+                if not det_scale and ("opcion 1" in text or "default" in text or "recomendad" in text or not user_input.strip()):
+                    det_scale = session.data.get("scale", "Minor")
+                if not det_key or not det_scale:
+                    missing = []
+                    if not det_key:
+                        missing.append("Key / Tono (ej: 'Key: B', 'Si', 'Key: F#')")
+                    if not det_scale:
+                        missing.append("Scale / Escala (ej: 'Scale: Minor', 'Menor', 'Scale: Major')")
+                    missing_str = " y ".join(missing)
+                    TransactionGuard.rollback_transaction(conn, session)
+                    return {
+                        "status": "VALIDATION_ERROR",
+                        "current_step": f"PASO 5 DE 7: CONFIGURACIÓN OBLIGATORIA DE AUTO-TUNE (PISTA {t_ptr + 1})",
+                        "action_taken": f"Auto-Tune exige definir obligatoriamente {missing_str}.",
+                        "question": (
+                            f"⛔ **ERROR DE VALIDACIÓN: PARÁMETROS OBLIGATORIOS REQUERIDOS**\n\n"
+                            f"Auto-Tune Artist en la Pista {t_idx} ('{trk.get('name')}') exige **obligatoriamente definir la Key y la Scale** para garantizar afinación armónica precisa con la canción.\n\n"
+                            f"Parámetros faltantes detectados:\n"
+                            + "\n".join([f"  • **{m}**" for m in missing]) + "\n\n"
+                            f"💡 **Especifica tu selección:**\n"
+                            f"• *Ejemplo*: `Key: B, Scale: Minor, Retune Speed: 0 ms` (o `Si menor snap`)\n"
+                            f"• *O indica*: `Bypass` si determinas que esta pista no llevará afinación vocal.\n\n"
+                            f"*Por favor define la Key y Scale obligatorias para continuar.*"
+                        ),
+                        "instructions_for_ai": "Especifica obligatoriamente Key y Scale para Auto-Tune Artist (ej: 'Key: B, Scale: Minor').",
+                        "target_track": t_idx,
+                        "target_device": eff_name,
+                        "device_index_in_chain": dev_ptr + 1,
+                        "total_devices_in_chain": len(fx_list),
+                        "phase": "PHASE_5_INSERT_EFFECTS"
+                    }
+    
+                # Si ambos fueron provistos, fijar en el estado general de la sesión
+                session.data["key"] = det_key
+                session.data["scale"] = det_scale
+                applied_params["Key"] = det_key
+                applied_params["Scale"] = det_scale
+                if det_retune is not None:
+                    applied_params["Retune Speed"] = det_retune
+    
+            if is_eq:
+                prof = AsciiSpectrumVisualizer.get_profile_for_role(role)
+                rec_eq = prof.get("recommended_eq", {})
+                if any(w in text for w in ["opcion 1", "opción 1", "recomendad", "default", "blueprint"]) or text.strip() == "1":
+                    applied_params["Band 1 On"] = 1.0
+                    applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_1_hpf_hz", 100.0))
+                    applied_params["Band 2 On"] = 1.0
+                    applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_2_mud_hz", 400.0))
+                    applied_params["2 Gain A"] = rec_eq.get("band_2_gain_db", -3.0)
+                    applied_params["Band 3 On"] = 1.0
+                    applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_3_snap_hz", 2500.0))
+                    applied_params["3 Gain A"] = rec_eq.get("band_3_gain_db", 1.0)
+                    applied_params["Band 4 On"] = 1.0
+                    applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(rec_eq.get("band_4_air_hz", 10000.0))
+                    applied_params["4 Gain A"] = rec_eq.get("band_4_gain_db", 1.5)
+                else:
+                    # Parse custom Band 1 HPF
+                    m_b1 = re.search(r"(?:hpf|banda?\s*1|low\s*cut|corte)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b1:
+                        f1 = float(m_b1.group(1))
+                        applied_params["Band 1 On"] = 1.0
+                        applied_params["1 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f1)
+                    # Parse custom Band 2 Mud Cut
+                    m_b2_f = re.search(r"(?:mud|barro|banda?\s*2)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b2_f:
+                        f2 = float(m_b2_f.group(1))
+                        applied_params["Band 2 On"] = 1.0
+                        applied_params["2 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f2)
+                    m_b2_g = re.search(r"(?:mud\s*gain|ganancia\s*barro|ganancia\s*banda\s*2|gain\s*2)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
+                    if m_b2_g:
+                        applied_params["2 Gain A"] = float(m_b2_g.group(1))
+                    # Parse custom Band 3 Presence
+                    m_b3_f = re.search(r"(?:presencia|presence|snap|banda?\s*3)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b3_f:
+                        f3 = float(m_b3_f.group(1))
+                        applied_params["Band 3 On"] = 1.0
+                        applied_params["3 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f3)
+                    m_b3_g = re.search(r"(?:presencia\s*gain|ganancia\s*presencia|gain\s*3)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
+                    if m_b3_g:
+                        applied_params["3 Gain A"] = float(m_b3_g.group(1))
+                    # Parse custom Band 4 Air
+                    m_b4_f = re.search(r"(?:aire|air|shelf|banda?\s*4)\s*[:=]?\s*([0-9\.]+)\s*(?:hz)?", text)
+                    if m_b4_f:
+                        f4 = float(m_b4_f.group(1))
+                        applied_params["Band 4 On"] = 1.0
+                        applied_params["4 Frequency A"] = FrequencySlottingEngine.freq_to_normalized(f4)
+                    m_b4_g = re.search(r"(?:air\s*gain|ganancia\s*aire|gain\s*4)\s*[:=]?\s*([+\-]?[0-9\.]+)\s*(?:db)?", text)
+                    if m_b4_g:
+                        applied_params["4 Gain A"] = float(m_b4_g.group(1))
+
+            def _clean_key(k: str) -> str:
+                return re.sub(r'[^a-z0-9]', '', _normalize_text(k))
+    
+            alias_map = {
+                "frecuencia": "frequency", "freq": "frequency", "corte": "frequency", "cutoff": "frequency",
+                "ganancia": "gain", "drive": "drive", "saturacion": "drive",
+                "mezcla": "drywet", "mix": "drywet", "drywet": "drywet", "dry_wet": "drywet", "dry/wet": "drywet",
+                "umbral": "threshold", "threshold": "threshold",
+                "ratio": "ratio", "proporcion": "ratio",
+                "ataque": "attack", "attack": "attack",
+                "release": "release", "liberacion": "release", "relajacion": "release",
+                "decay": "decay", "tiempo": "time", "feedback": "feedback",
+                "depth": "depth", "profundidad": "depth", "output": "output", "salida": "output"
+            }
+    
+            parsed_json = {}
+            if "{" in user_input and "}" in user_input:
+                try:
+                    j_str = user_input[user_input.find("{"):user_input.rfind("}") + 1]
+                    parsed_json = json.loads(j_str)
+                except Exception:
+                    pass
+    
+            for p in eff["params"]:
+                p_id = p["id"]
+                if p_id in applied_params:
+                    continue
+                p_clean = _normalize_text(p_id)
+                p_alpha = _clean_key(p_id)
+                val_found = None
+    
+                # 1. Look in JSON block
+                for jk, jv in parsed_json.items():
+                    jk_clean = _normalize_text(str(jk))
+                    jk_alpha = _clean_key(str(jk))
+                    if (jk_clean == p_clean or jk_alpha == p_alpha or
+                        alias_map.get(jk_clean) == p_alpha or alias_map.get(jk_alpha) == p_alpha):
+                        try:
+                            val_found = float(jv)
+                            break
+                        except (ValueError, TypeError):
+                            pass
+    
+                # 2. Text regex if not in JSON
+                if val_found is None:
+                    patterns = [
+                        rf"{re.escape(p_clean)}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?",
+                        rf"{re.escape(p_id.lower())}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?"
+                    ]
+                    for alias_key, target_key in alias_map.items():
+                        if target_key == p_alpha or target_key == p_clean:
+                            patterns.append(rf"{alias_key}\s*[:=]?\s*([0-9\.\-]+)\s*(%|db|ms|s|hz)?")
+    
+                    for pat in patterns:
+                        match = re.search(pat, text)
+                        if match:
+                            num_str = match.group(1)
+                            unit_str = (match.group(2) or "").lower()
+                            try:
+                                v = float(num_str)
+                                if unit_str == "%" or (v > 1.0 and str(p.get("range", "")).startswith("0.0") and v <= 100.0):
+                                    v = v / 100.0
+                                val_found = v
+                                break
+                            except ValueError:
+                                pass
+    
+                if val_found is not None:
+                    applied_params[p_id] = val_found
+                else:
+                    applied_params[p_id] = p["default"]
+
+            # Reverb Clarity Enforcement (Pre-Delay >= 15ms, Low-Cut >= 180Hz, Dry/Wet <= 22% on front elements)
+            is_reverb = any(w in eff_name.lower() for w in ["reverb", "vintageverb", "supermassive", "valhalla"])
+            if is_reverb:
+                is_front = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
+                for k, v in list(applied_params.items()):
+                    k_l = k.lower()
+                    if ("mix" in k_l or "dry" in k_l) and is_front:
+                        applied_params[k] = min(float(v), 0.22)
+                    elif "predelay" in k_l or "pre-delay" in k_l:
+                        applied_params[k] = max(float(v), 0.15)
+                    elif "lowcut" in k_l or "low cut" in k_l:
+                        applied_params[k] = max(float(v), 0.18)
+
+            if conn is not None and hasattr(conn, "send_command"):
+                try:
+                    t_info = conn.send_command("get_track_info", {"track_index": t_idx})
+                    raw_devs = t_info.get("result", {}).get("devices", t_info.get("devices", [])) if isinstance(t_info, dict) else []
+    
+                    # Idempotency check: find existing device matching eff_name or class (protect instruments)
+                    matching_indices = []
+                    for d_i in range(len(raw_devs)):
+                        d = raw_devs[d_i]
+                        d_type = str(d.get("type", "")).lower()
+                        d_class = str(d.get("class_name", "")).lower()
+                        d_name = d.get("name", "").strip().lower()
+                        e_name = eff_name.strip().lower()
+    
+                        # Never treat an authentic instrument / drum kit as an insert effect
+                        if d_type in ("instrument", "synth", "drum_machine") or d_class in ("drumgroupdevice", "instrumentgroupdevice", "drift", "originalsimpler"):
+                            continue
+    
+                        if (e_name in d_name or d_name in e_name or
+                            (e_name == "drum buss" and "drumbuss" in d_class) or
+                            (e_name == "glue compressor" and "gluecompressor" in d_class) or
+                            (e_name == "eq eight" and "eq8" in d_class) or
+                            (e_name == "saturator" and "saturator" in d_class) or
+                            (e_name == "amp" and "amp" in d_class) or
+                            (e_name == "cabinet" and "cabinet" in d_class) or
+                            (e_name == "pedal" and "pedal" in d_class) or
+                            (e_name == "chorus-ensemble" and ("chorus" in d_class or "chorus" in d_name)) or
+                            (e_name == "delay" and "delay" in d_class) or
+                            (e_name == "ott" and "ott" in d_name) or
+                            (e_name == "auto-tune artist" and ("auto-tune" in d_name or "autotune" in d_name)) or
+                            (e_name == "pro-q 4" and ("pro-q" in d_name or "eq" in d_name)) or
+                            (e_name == "saturn 2" and "saturn" in d_name) or
+                            (e_name == "compressor" and ("compressor" in d_name and not "glue" in d_name)) or
+                            (e_name == "valhallavintageverb" and ("valhalla" in d_name or "vintageverb" in d_name))):
+                            matching_indices.append(d_i)
+    
+                    if matching_indices:
+                        dev_idx = matching_indices[0]
+                        # Remove extra duplicates from highest index to lowest
+                        for extra_idx in sorted(matching_indices[1:], reverse=True):
+                            try:
+                                conn.send_command("delete_device", {"track_index": t_idx, "device_index": extra_idx})
+                            except Exception:
+                                pass
+                    else:
+                        conn.send_command("load_browser_item", {"track_index": t_idx, "item_uri": eff_uri})
+                        t_info_after = conn.send_command("get_track_info", {"track_index": t_idx})
+                        after_devs = t_info_after.get("result", {}).get("devices", t_info_after.get("devices", [])) if isinstance(t_info_after, dict) else []
+                        dev_idx = len(after_devs) - 1 if after_devs else dev_ptr + 1
+    
+                    eq_param_aliases = {
+                        "Band 1 On": "1 Filter On A",
+                        "Band 2 On": "2 Filter On A",
+                        "Band 3 On": "3 Filter On A",
+                        "Band 4 On": "4 Filter On A",
+                        "Band 5 On": "5 Filter On A",
+                        "Band 6 On": "6 Filter On A",
+                        "Band 7 On": "7 Filter On A",
+                        "Band 8 On": "8 Filter On A",
+                    }
+                    if is_eq:
+                        if ("Band 1 On" in applied_params or "1 Filter On A" in applied_params) and "1 Gain A" not in applied_params and "1 Filter Type A" not in applied_params:
+                            applied_params["1 Filter Type A"] = 1.0
+                        if ("Band 8 On" in applied_params or "8 Filter On A" in applied_params) and "8 Gain A" not in applied_params and "8 Filter Type A" not in applied_params:
+                            applied_params["8 Filter Type A"] = 6.0
+                    for p_key, p_val in applied_params.items():
+                        target_param_name = eq_param_aliases.get(p_key, p_key) if is_eq else p_key
+                        try:
+                            conn.send_command("set_device_parameter", {
+                                "track_index": t_idx,
+                                "device_index": dev_idx,
+                                "parameter": target_param_name,
+                                "value": float(p_val) if isinstance(p_val, (int, float)) else 0.5
+                            })
+                        except Exception:
+                            pass
+
+    
+                    # Specialized LOM parameter tuning for vocal plugins
+                    if "auto-tune" in eff_name.lower():
+                        s_key = str(applied_params.get("Key", session.data.get("key", "F"))).strip().upper()
+                        s_scale = str(applied_params.get("Scale", session.data.get("scale", "Minor"))).strip().upper()
+                        key_val = VocalChainProcessor.AUTOTUNE_KEY_VALUES.get(s_key, 0.48)
+                        scale_val = VocalChainProcessor.AUTOTUNE_SCALE_VALUES.get(s_scale, 0.05)
+                        is_snap = ("opcion 1" in text or "hard" in text or "snap" in text or "0" in text or "tyler" in text)
+                        retune_lom = 1.0 if (is_snap or not ("opcion 2" in text or "natural" in text)) else 0.40
+                        code_at = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if 'key' in p_l: p.value = {key_val}
+    elif 'scale' in p_l: p.value = {scale_val}
+    elif 'retune' in p_l or 'speed' in p_l: p.value = {retune_lom}
+    elif 'flex' in p_l: p.value = 0.5
+    elif 'humanize' in p_l: p.value = 0.0
+"""
+                        conn.send_command("execute_code", {"code": code_at})
+                    elif "pro-q" in eff_name.lower():
+                        code_proq = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if 'band 1' in p_l and 'state' in p_l: p.value = 1.0
+    elif 'band 1' in p_l and 'shape' in p_l: p.value = 0.2
+    elif 'band 1' in p_l and 'freq' in p_l: p.value = 0.25
+    elif 'band 2' in p_l and 'freq' in p_l: p.value = 0.42
+    elif 'band 2' in p_l and 'gain' in p_l: p.value = 0.45
+    elif 'band 4' in p_l and 'gain' in p_l: p.value = 0.53
+"""
+                        conn.send_command("execute_code", {"code": code_proq})
+                    elif "saturn" in eff_name.lower():
+                        code_sat = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if 'drive' in p_l: p.value = 0.20
+    elif 'tone' in p_l: p.value = 0.55
+    elif 'mix' in p_l: p.value = 0.75
+"""
+                        conn.send_command("execute_code", {"code": code_sat})
+                    elif any(w in eff_name.lower() for w in ["valhalla", "vintageverb", "reverb"]):
+                        is_front = role in ("LEAD", "VOCALS", "VOICE", "KEYS", "PIANO", "PLUCK", "SNARE", "GUITAR", "DRUMS")
+                        mix_limit = 0.16 if is_front else 0.28
+                        code_val = f"""
+t = song.tracks[{t_idx}]
+d = t.devices[{dev_idx}]
+for p in d.parameters:
+    p_l = p.name.lower()
+    if 'mix' in p_l or 'dry' in p_l: p.value = {mix_limit}
+    elif 'decay' in p_l: p.value = 0.25
+    elif 'predelay' in p_l or 'pre-delay' in p_l: p.value = 0.18
+    elif 'low cut' in p_l or 'lowcut' in p_l or 'in lowcut' in p_l: p.value = 0.20
+"""
+                        conn.send_command("execute_code", {"code": code_val})
+    
+                    DeviceParameterSupervisor.enforce_mandatory_sculpting(conn, track_index=t_idx, device_index=dev_idx, role=eff_name)
+                    DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, dev_idx))
+                except Exception as ex:
+                    logger.warning(f"Error physically tuning {eff_name} on track {t_idx}: {ex}")
+            else:
+                DeviceParameterSupervisor._SCULPTED_REGISTRY.add((t_idx, dev_ptr + 1))
+    
+        if "insert_effects" not in trk:
+            trk["insert_effects"] = []
+        if dev_ptr < len(trk["insert_effects"]):
+            trk["insert_effects"][dev_ptr] = {
+                "name": eff_name,
+                "bypass": is_bypass,
+                "parameters": applied_params
+            }
+        else:
+            trk["insert_effects"].append({
+                "name": eff_name,
+                "bypass": is_bypass,
+                "parameters": applied_params
+            })
+    
+        session.data["current_fx_dev_ptr"] = dev_ptr + 1
+        session.data["current_fx_ptr"] = session.data.get("current_fx_ptr", 0) + 1
+    
+        if session.data["current_fx_dev_ptr"] >= len(fx_list):
+            session.data["current_fx_track_ptr"] = t_ptr + 1
+            session.data["current_fx_dev_ptr"] = 0
+            if role == "VOCALS" and bool(trk.get("is_audio", False)):
+                session._save_state()
+                return session._handle_dual_lufs_validation(conn, user_input)
+    
+        session._save_state()
+        TransactionGuard.commit_transaction()
+    
+        if session.data["current_fx_track_ptr"] < len(tracks):
+            return session._prompt_current_fx_device()
+        else:
+            missing_trk = self.find_track_missing_eq(session, conn)
+            if missing_trk is not None:
+                return self.force_missing_eq_prompt(session, conn, missing_trk)
+
+            # Deploy non-destructive submaster bus architecture (preserves all existing tracks)
+            from engine.mix.bus_architecture import LiveBusArchitectureEngine
+            bus_report = LiveBusArchitectureEngine.deploy_submix_buses_nondestructive(conn, tracks)
+            session.data["bus_architecture"] = {
+                "deployed": True,
+                "topology": bus_report.get("analysis", {}).get("buses", {}),
+                "summary_table": bus_report.get("analysis", {}).get("summary_table", "")
+            }
+            self.audit_phase_and_spectral_health(session, conn, tracks)
+
+            session.data["current_phase"] = "PHASE_7_AUTOMATION"
+            session.data["phase_index"] = 7
+            session._save_state()
+            return session._prompt_phase_7()
+
+
+    

@@ -229,12 +229,12 @@ class Phase9ExportHandler(BasePhaseHandler):
         kick_name = None
         bass_indices = []
         for trk in tracks:
-            r = trk.get("role")
+            r = str(trk.get("role", "")).upper()
             name = str(trk.get("name", "")).lower()
             if (r == "KICK" or ("kick" in name and "drum" not in name)) and kick_idx is None:
                 kick_idx = trk["index"]
                 kick_name = trk.get("name", "Kick")
-            elif r in ("BASS", "PAD"):
+            elif r in ("BASS", "808_BASS", "SUB_BASS", "ELECTRIC_BASS", "REESE_BASS", "SYNTH_BASS", "PAD") or any(k in name for k in ("808", "bass", "sub")):
                 bass_indices.append(trk["index"])
 
         if kick_idx is None:
@@ -301,6 +301,14 @@ class Phase9ExportHandler(BasePhaseHandler):
         # Source 1: Autonomous physical arrangement render (ALWAYS execute to ensure real audio audit)
         trigger_render = True
         if trigger_render:
+            try:
+                if conn is not None and hasattr(conn, "send_command"):
+                    saved_autos = session.data.get("automations", [])
+                    if saved_autos:
+                        ProductionRecipeEngine.apply_section_automations(conn, saved_autos)
+                    conn.send_command("execute_code", {"code": "song.re_enable_automation()\nres = 'automation_re_enabled'"})
+            except Exception:
+                pass
             try:
                 import soundfile as sf
                 from engine.mix.render_manager import RenderManager
@@ -554,6 +562,20 @@ class Phase9ExportHandler(BasePhaseHandler):
                             logger.info(f"Phase 9 Safeguard restored track {t_i} ({trk_item.get('name')}) volume from {cur_v} to {target_v}")
                     except Exception:
                         pass
+            # Ensure all submix buses have 'No Input' and all tracks route cleanly to their buses
+            try:
+                from engine.mix.bus_routing import BusRoutingManager
+                BusRoutingManager.setup_submix_buses(conn, tracks)
+            except Exception as bus_err:
+                logger.debug(f"Phase 9 submix bus final assertion notice: {bus_err}")
+            # Re-apply Phase 7 automations and re-enable automation so static mix calibration does not override them
+            try:
+                saved_autos = session.data.get("automations", [])
+                if saved_autos:
+                    ProductionRecipeEngine.apply_section_automations(conn, saved_autos)
+                conn.send_command("execute_code", {"code": "song.re_enable_automation()\nres = 'automation_re_enabled'"})
+            except Exception as re_auto_err:
+                logger.debug(f"Phase 9 automation re-enable notice: {re_auto_err}")
 
         preflight = executive_copilot.preflight_check()
 

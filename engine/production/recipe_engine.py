@@ -694,9 +694,9 @@ class ProductionRecipeEngine:
     ) -> Dict[str, Any]:
         """
         Aplica físicamente las curvas de automatización seleccionadas en el Arrangement de Ableton Live.
-        Utiliza create_arrangement_automation_envelope para inyectar los puntos de envolvente en el LOM.
-        Optimiza automáticamente cada envolvente en 2 a 8 puntos clave para garantizar transiciones musicales
-        sin bloquear la interfaz de Live.
+        Resuelve parámetros en Mixer (Volume, Panning) o cualquier dispositivo de la cadena (EQ Eight, Drift, etc.),
+        escribe los pasos interpolados en cada clip de sesión correspondiente a cada sección del Arrangement
+        y actualiza el clip de Arrangement en su posición exacta sin sobrescribir secciones adyacentes.
         """
         applied = []
         errors = []
@@ -705,54 +705,203 @@ class ProductionRecipeEngine:
         if not automations:
             return {"status": "SUCCESS", "applied_count": 0, "applied": [], "errors": []}
 
+        # Group automations by track_index so all envelopes on a track are written before re-duplicating its clips
+        by_track: Dict[int, List[Dict[str, Any]]] = {}
         for auto in automations:
-            t_idx = auto["track_index"]
-            param = auto["parameter_name"]
+            t_idx = int(auto["track_index"])
             raw_points = auto.get("points", [])
-            points = cls.optimize_points_for_clip(raw_points, min_points=2, max_points=8)
+            points = cls.optimize_points_for_clip(raw_points, min_points=2, max_points=12)
             auto["points"] = points
-            auto_id = auto.get("id", f"auto_{t_idx}_{param}")
-            dev_idx = auto.get("device_index", None)
-            if param.lower() in ["volume", "panning", "send"]:
-                dev_idx = None
-            elif dev_idx is None:
-                dev_idx = 0
+            by_track.setdefault(t_idx, []).append(auto)
 
-            if conn is not None and hasattr(conn, "send_command"):
-                try:
-                    c_idx = auto.get("clip_index", None)
-                    res = conn.send_command("create_arrangement_automation_envelope", {
-                        "track_index": t_idx,
-                        "device_index": dev_idx,
-                        "parameter": param,
-                        "points": points,
-                        "clip_index": c_idx
+        if conn is not None and hasattr(conn, "send_command"):
+            for t_idx, track_autos in by_track.items():
+                payload_list = []
+                for a in track_autos:
+                    raw_pts = a.get("points", [])
+                    clean_pts = sorted(
+                        [{"time": float(pt["time"]), "value": float(pt["value"])} for pt in raw_pts if isinstance(pt, dict) and "time" in pt and "value" in pt],
+                        key=lambda x: x["time"]
+                    )
+                    p_low = str(a.get("parameter_name", "")).lower()
+                    aliases = [p_low]
+                    if any(w in p_low for w in ("cutoff", "lp freq", "filter freq", "f1 freq")):
+                        for syn in ("filter cutoff", "lp freq", "filter freq", "filter 1 freq", "f1 freq", "cutoff"):
+                            if syn not in aliases:
+                                aliases.append(syn)
+                    elif any(w in p_low for w in ("resonance", "lp res", "filter res")):
+                        for syn in ("filter res", "lp res", "resonance", "filter 1 res", "f1 resonance"):
+                            if syn not in aliases:
+                                aliases.append(syn)
+                    payload_list.append({
+                        "id": str(a.get("id", f"auto_{t_idx}_{a.get('parameter_name')}")),
+                        "device_name": str(a.get("device_name", "")),
+                        "device_index": a.get("device_index", None),
+                        "parameter_name": str(a.get("parameter_name", "")),
+                        "aliases": aliases,
+                        "points": clean_pts,
                     })
-                    if c_idx is not None and "start_bar" in auto:
-                        try:
-                            start_beat = float(auto["start_bar"]) * 4.0
-                            conn.send_command("duplicate_session_clip_to_arrangement", {
-                                "track_index": t_idx,
-                                "clip_index": c_idx,
-                                "destination_time": start_beat
-                            })
-                        except Exception as re_dup_err:
-                            logger.debug(f"Optional duplicate to arrangement notice: {re_dup_err}")
-                    applied.append({
-                        "id": auto_id,
-                        "track_index": t_idx,
-                        "parameter": param,
-                        "points_count": len(points),
-                        "start_time": points[0]["time"] if points else 0.0,
-                        "end_time": points[-1]["time"] if points else 0.0,
-                        "response": res
-                    })
-                    logger.info(f"  -> Automatización '{auto_id}' ({param}) inyectada exitosamente en pista {t_idx} ({len(points)} puntos).")
-                except Exception as err:
-                    logger.warning(f"Aviso al aplicar automatización '{auto_id}' en pista {t_idx}: {err}")
-                    errors.append({"id": auto_id, "error": str(err)})
+                code_auto = f"""
+payload = {repr(payload_list)}
+trk = song.tracks[{t_idx}]
+arr_clips = list(getattr(trk, 'arrangement_clips', []))
+pop_clips = []
+for s in getattr(trk, 'clip_slots', []):
+    if getattr(s, 'has_clip', False) and getattr(s, 'clip', None) is not None:
+        c_obj = s.clip
+        if getattr(c_obj, 'is_midi_clip', False):
+            try:
+                if len(c_obj.get_notes_extended(0, 128, 0.0, 9999.0)) == 0:
+                    continue
+            except Exception:
+                pass
+        pop_clips.append(c_obj)
+results = []
+
+for a in payload:
+    p_name_low = a['parameter_name'].lower()
+    d_name_low = a['device_name'].lower()
+    alias_candidates = a.get('aliases', [p_name_low])
+    target_param = None
+    if p_name_low in ('volume', 'track volume') or (d_name_low == 'mixer' and 'vol' in p_name_low):
+        target_param = trk.mixer_device.volume
+    elif p_name_low in ('panning', 'pan', 'panorama'):
+        target_param = trk.mixer_device.panning
+    else:
+        for cand_p in alias_candidates:
+            for d in getattr(trk, 'devices', []):
+                if not d_name_low or d_name_low in d.name.lower() or d_name_low in getattr(d, 'class_name', '').lower():
+                    for p in getattr(d, 'parameters', []):
+                        if p.name.lower() == cand_p:
+                            target_param = p
+                            break
+                if target_param is not None:
+                    break
+            if target_param is not None:
+                break
+        if target_param is None:
+            for cand_p in alias_candidates:
+                for d in getattr(trk, 'devices', []):
+                    for p in getattr(d, 'parameters', []):
+                        if p.name.lower() == cand_p or cand_p in p.name.lower():
+                            target_param = p
+                            break
+                    if target_param is not None:
+                        break
+                if target_param is not None:
+                    break
+
+    if target_param is None:
+        results.append({{'id': a['id'], 'status': 'PARAM_NOT_FOUND', 'param_name': a['parameter_name']}})
+        continue
+
+    pts = a.get('points', [])
+    if not pts:
+        results.append({{'id': a['id'], 'status': 'NO_POINTS', 'param_name': target_param.name}})
+        continue
+
+    for ac_idx, ac in enumerate(arr_clips):
+        ac_start = float(ac.start_time)
+        ac_end = float(ac.end_time)
+        ac_len = ac_end - ac_start
+        s_clip = pop_clips[ac_idx] if ac_idx < len(pop_clips) else (pop_clips[0] if pop_clips else None)
+        if s_clip is None or ac_end < float(pts[0]['time']) or ac_start > float(pts[-1]['time']):
+            continue
+        env = s_clip.automation_envelope(target_param)
+        if env is None:
+            try:
+                env = s_clip.create_automation_envelope(target_param)
+            except Exception:
+                env = s_clip.automation_envelope(target_param)
+        if env is None:
+            continue
+        grid_set = set([0.0, ac_len])
+        for p_pt in pts:
+            rel_t = round(float(p_pt['time']) - ac_start, 4)
+            if 0.0 < rel_t < ac_len:
+                grid_set.add(rel_t)
+        for step in range(1, int(ac_len // 2.0) + 1):
+            st_t = round(step * 2.0, 4)
+            if 0.0 < st_t < ac_len:
+                grid_set.add(st_t)
+        grid = sorted(list(grid_set))
+        for i in range(len(grid) - 1):
+            t0, t1 = float(grid[i]), float(grid[i + 1])
+            dur = t1 - t0
+            if dur <= 0.001:
+                continue
+            gt = ac_start + 0.5 * (t0 + t1)
+            if gt <= float(pts[0]['time']):
+                val = float(pts[0]['value'])
+            elif gt >= float(pts[-1]['time']):
+                val = float(pts[-1]['value'])
             else:
-                applied.append({"id": auto_id, "track_index": t_idx, "parameter": param})
+                val = float(pts[-1]['value'])
+                for k in range(len(pts) - 1):
+                    tk0, tk1 = float(pts[k]['time']), float(pts[k + 1]['time'])
+                    if tk0 <= gt <= tk1:
+                        vk0, vk1 = float(pts[k]['value']), float(pts[k + 1]['value'])
+                        val = vk0 + (vk1 - vk0) * ((gt - tk0) / max(0.0001, tk1 - tk0))
+                        break
+            clamped = float(max(target_param.min, min(target_param.max, val)))
+            env.insert_step(t0, dur, clamped)
+
+    results.append({{'id': a['id'], 'status': 'OK', 'param_name': target_param.name}})
+
+for ac_idx, ac in enumerate(list(trk.arrangement_clips)):
+    try:
+        ac_start = float(ac.start_time)
+        ac_len = float(ac.end_time) - ac_start
+    except Exception:
+        continue
+    s_clip = pop_clips[ac_idx] if ac_idx < len(pop_clips) else None
+    if s_clip is None or abs(float(s_clip.length) - ac_len) >= 0.05:
+        for cand_sc in pop_clips:
+            if abs(float(cand_sc.length) - ac_len) < 0.05:
+                s_clip = cand_sc
+                break
+    if s_clip is not None and abs(float(s_clip.length) - ac_len) < 0.05:
+        try:
+            trk.delete_clip(ac)
+            trk.duplicate_clip_to_arrangement(s_clip, ac_start)
+        except Exception:
+            pass
+
+song.re_enable_automation()
+res = results
+"""
+                try:
+                    raw_res = conn.send_command("execute_code", {"code": code_auto})
+                    if isinstance(raw_res, dict) and raw_res.get("status") == "error":
+                        err_msg = str(raw_res.get("message", raw_res))
+                        logger.warning(f"Error execute_code en apply_section_automations pista {t_idx}: {err_msg}")
+                        for a in track_autos:
+                            errors.append({"id": a.get("id"), "error": err_msg})
+                        continue
+                    r_outer = raw_res.get("result", raw_res) if isinstance(raw_res, dict) else {}
+                    res_list = r_outer.get("res", []) if isinstance(r_outer, dict) else []
+                    for a, r_item in zip(track_autos, res_list if isinstance(res_list, list) else []):
+                        pts = a.get("points", [])
+                        if isinstance(r_item, dict) and r_item.get("status") == "OK":
+                            applied.append({
+                                "id": a.get("id"),
+                                "track_index": t_idx,
+                                "parameter": a.get("parameter_name"),
+                                "points_count": len(pts),
+                                "start_time": pts[0]["time"] if pts else 0.0,
+                                "end_time": pts[-1]["time"] if pts else 0.0,
+                                "response": r_item
+                            })
+                            logger.info(f"  -> Automatización '{a.get('id')}' ({a.get('parameter_name')}) inyectada exitosamente en pista {t_idx} ({len(pts)} puntos).")
+                        else:
+                            errors.append({"id": a.get("id"), "error": str(r_item)})
+                except Exception as err:
+                    logger.warning(f"Aviso al aplicar automatizaciones en pista {t_idx}: {err}")
+                    for a in track_autos:
+                        errors.append({"id": a.get("id"), "error": str(err)})
+        else:
+            for auto in automations:
+                applied.append({"id": auto.get("id"), "track_index": auto["track_index"], "parameter": auto["parameter_name"]})
 
         return {
             "status": "SUCCESS" if applied and not errors else ("PARTIAL_SUCCESS" if applied else "FAILED"),

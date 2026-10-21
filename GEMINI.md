@@ -104,3 +104,12 @@ Queda **ESTRICTAMENTE PROHIBIDO** replicar o copiar el mismo bucle de 4 u 8 comp
    - **Estrofa 2:** Evolución rítmica obligatoria (rolls de hi-hats en tresillos/fusas tipo trap, variaciones sincopadas en el 808).
    - **Outro:** Deconstrucción progresiva y desvanecimiento espectral (caída de bombos y percusión).
 
+---
+
+## 🔌 8. Ley Inviolable de Conexión Física Real a Ableton Live (`conn = AbletonLiveConnection()`)
+
+Queda **ESTRICTAMENTE PROHIBIDO** ejecutar cualquier producción de canción o fase de `CopilotGuidedSession` pasando `conn = None` (ej. `G.step(conn=None, ...)` o `handler.handle(session, None, ...)`). Pasar `conn = None` ejecuta el motor únicamente en modo simulación en memoria sin enviar comandos TCP a `localhost:9877`, dejando Ableton Live vacío.
+
+1. **Conexión Física Obligatoria:** Todo script de producción DEBE instanciar y conectar `conn = AbletonLiveConnection(); conn.connect()` y pasar `conn=conn` en cada llamada a `copilot_guided_session_engine.step(conn=conn, ...)`.
+2. **Auto-Recuperación en `CopilotGuidedSession.step()`:** Si `conn is None` y el puerto `localhost:9877` de Ableton Live está activo (y no se definió `ABLETON_ALLOW_OFFLINE_SIMULATION=1`), el motor resuelve y conecta automáticamente una instancia física de `AbletonLiveConnection` para impedir ejecuciones fantasma en memoria.
+3. **Verificación Física Obligatoria:** Ninguna producción puede darse por completada sin verificar físicamente en Ableton Live las pistas, clips de Arrangement, dispositivos, guardado del `.als` y captura `visual_audit.png` (`VERIFIED_SUCCESS`).

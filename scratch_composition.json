@@ -1,0 +1,416 @@
+{
+  "composition": {
+    "Drums": {
+      "all": [
+        {
+          "pitch": 42,
+          "start_time": 0.0,
+          "duration": 0.25,
+          "velocity": 95
+        },
+        {
+          "pitch": 42,
+          "start_time": 0.52,
+          "duration": 0.2,
+          "velocity": 82
+        },
+        {
+          "pitch": 42,
+          "start_time": 1.0,
+          "duration": 0.25,
+          "velocity": 78
+        },
+        {
+          "pitch": 42,
+          "start_time": 1.52,
+          "duration": 0.2,
+          "velocity": 70
+        },
+        {
+          "pitch": 38,
+          "start_time": 1.0,
+          "duration": 0.4,
+          "velocity": 114
+        },
+        {
+          "pitch": 42,
+          "start_time": 2.0,
+          "duration": 0.25,
+          "velocity": 95
+        },
+        {
+          "pitch": 42,
+          "start_time": 2.52,
+          "duration": 0.2,
+          "velocity": 82
+        },
+        {
+          "pitch": 42,
+          "start_time": 3.0,
+          "duration": 0.25,
+          "velocity": 78
+        },
+        {
+          "pitch": 42,
+          "start_time": 3.52,
+          "duration": 0.2,
+          "velocity": 70
+        },
+        {
+          "pitch": 38,
+          "start_time": 3.0,
+          "duration": 0.4,
+          "velocity": 114
+        },
+        {
+          "pitch": 42,
+          "start_time": 4.0,
+          "duration": 0.25,
+          "velocity": 95
+        },
+        {
+          "pitch": 42,
+          "start_time": 4.52,
+          "duration": 0.2,
+          "velocity": 82
+        },
+        {
+          "pitch": 42,
+          "start_time": 5.0,
+          "duration": 0.25,
+          "velocity": 78
+        },
+        {
+          "pitch": 42,
+          "start_time": 5.52,
+          "duration": 0.2,
+          "velocity": 70
+        },
+        {
+          "pitch": 38,
+          "start_time": 5.0,
+          "duration": 0.4,
+          "velocity": 114
+        },
+        {
+          "pitch": 42,
+          "start_time": 6.0,
+          "duration": 0.25,
+          "velocity": 95
+        },
+        {
+          "pitch": 42,
+          "start_time": 6.52,
+          "duration": 0.2,
+          "velocity": 82
+        },
+        {
+          "pitch": 42,
+          "start_time": 7.0,
+          "duration": 0.25,
+          "velocity": 78
+        },
+        {
+          "pitch": 42,
+          "start_time": 7.52,
+          "duration": 0.2,
+          "velocity": 70
+        },
+        {
+          "pitch": 38,
+          "start_time": 7.0,
+          "duration": 0.4,
+          "velocity": 114
+        },
+        {
+          "pitch": 46,
+          "start_time": 6.5,
+          "duration": 0.45,
+          "velocity": 88
+        }
+      ]
+    },
+    "Kick": {
+      "all": [
+        {
+          "pitch": 36,
+          "start_time": 0.0,
+          "duration": 0.6,
+          "velocity": 118
+        },
+        {
+          "pitch": 36,
+          "start_time": 2.5,
+          "duration": 0.5,
+          "velocity": 110
+        },
+        {
+          "pitch": 36,
+          "start_time": 4.0,
+          "duration": 0.6,
+          "velocity": 116
+        },
+        {
+          "pitch": 36,
+          "start_time": 6.75,
+          "duration": 0.4,
+          "velocity": 105
+        }
+      ]
+    },
+    "Electric Bass": {
+      "all": [
+        {
+          "pitch": 36,
+          "start_time": 0.0,
+          "duration": 1.8,
+          "velocity": 105
+        },
+        {
+          "pitch": 36,
+          "start_time": 2.5,
+          "duration": 0.9,
+          "velocity": 98
+        },
+        {
+          "pitch": 39,
+          "start_time": 4.0,
+          "duration": 1.2,
+          "velocity": 102
+        },
+        {
+          "pitch": 41,
+          "start_time": 5.5,
+          "duration": 1.0,
+          "velocity": 100
+        },
+        {
+          "pitch": 43,
+          "start_time": 6.75,
+          "duration": 0.8,
+          "velocity": 95
+        }
+      ]
+    },
+    "Sub Underbed": {
+      "all": [
+        {
+          "pitch": 24,
+          "start_time": 0.0,
+          "duration": 3.8,
+          "velocity": 110
+        },
+        {
+          "pitch": 27,
+          "start_time": 4.0,
+          "duration": 1.8,
+          "velocity": 105
+        },
+        {
+          "pitch": 29,
+          "start_time": 6.0,
+          "duration": 1.8,
+          "velocity": 105
+        }
+      ]
+    },
+    "Grimy Upright Piano Riff": {
+      "all": [
+        {
+          "pitch": 48,
+          "start_time": 0.0,
+          "duration": 0.8,
+          "velocity": 96
+        },
+        {
+          "pitch": 51,
+          "start_time": 0.0,
+          "duration": 0.8,
+          "velocity": 94
+        },
+        {
+          "pitch": 55,
+          "start_time": 0.0,
+          "duration": 0.8,
+          "velocity": 92
+        },
+        {
+          "pitch": 48,
+          "start_time": 2.5,
+          "duration": 0.7,
+          "velocity": 90
+        },
+        {
+          "pitch": 51,
+          "start_time": 2.5,
+          "duration": 0.7,
+          "velocity": 88
+        },
+        {
+          "pitch": 55,
+          "start_time": 2.5,
+          "duration": 0.7,
+          "velocity": 86
+        },
+        {
+          "pitch": 53,
+          "start_time": 4.0,
+          "duration": 1.2,
+          "velocity": 95
+        },
+        {
+          "pitch": 56,
+          "start_time": 4.0,
+          "duration": 1.2,
+          "velocity": 92
+        },
+        {
+          "pitch": 60,
+          "start_time": 4.0,
+          "duration": 1.2,
+          "velocity": 90
+        },
+        {
+          "pitch": 55,
+          "start_time": 6.5,
+          "duration": 1.0,
+          "velocity": 98
+        },
+        {
+          "pitch": 59,
+          "start_time": 6.5,
+          "duration": 1.0,
+          "velocity": 95
+        },
+        {
+          "pitch": 62,
+          "start_time": 6.5,
+          "duration": 1.0,
+          "velocity": 93
+        }
+      ]
+    },
+    "Distorted Stab Guitar": {
+      "all": [
+        {
+          "pitch": 60,
+          "start_time": 1.5,
+          "duration": 0.35,
+          "velocity": 105
+        },
+        {
+          "pitch": 63,
+          "start_time": 1.5,
+          "duration": 0.35,
+          "velocity": 102
+        },
+        {
+          "pitch": 60,
+          "start_time": 3.5,
+          "duration": 0.35,
+          "velocity": 100
+        },
+        {
+          "pitch": 63,
+          "start_time": 3.5,
+          "duration": 0.35,
+          "velocity": 98
+        },
+        {
+          "pitch": 65,
+          "start_time": 5.5,
+          "duration": 0.45,
+          "velocity": 104
+        },
+        {
+          "pitch": 67,
+          "start_time": 7.25,
+          "duration": 0.5,
+          "velocity": 108
+        }
+      ]
+    },
+    "Tension Marcato Strings": {
+      "all": [
+        {
+          "pitch": 72,
+          "start_time": 0.0,
+          "duration": 3.8,
+          "velocity": 90
+        },
+        {
+          "pitch": 75,
+          "start_time": 4.0,
+          "duration": 1.8,
+          "velocity": 95
+        },
+        {
+          "pitch": 74,
+          "start_time": 6.0,
+          "duration": 1.8,
+          "velocity": 92
+        }
+      ]
+    },
+    "Sirens and Street Textures": {
+      "all": [
+        {
+          "pitch": 67,
+          "start_time": 0.0,
+          "duration": 4.0,
+          "velocity": 75
+        },
+        {
+          "pitch": 70,
+          "start_time": 4.0,
+          "duration": 3.5,
+          "velocity": 72
+        }
+      ]
+    },
+    "Vinyl Scratches and Shouts": {
+      "all": [
+        {
+          "pitch": 60,
+          "start_time": 1.75,
+          "duration": 0.2,
+          "velocity": 108
+        },
+        {
+          "pitch": 62,
+          "start_time": 2.0,
+          "duration": 0.2,
+          "velocity": 110
+        },
+        {
+          "pitch": 60,
+          "start_time": 5.75,
+          "duration": 0.2,
+          "velocity": 106
+        },
+        {
+          "pitch": 63,
+          "start_time": 7.0,
+          "duration": 0.4,
+          "velocity": 112
+        }
+      ]
+    },
+    "Impacts and Tape Noise": {
+      "all": [
+        {
+          "pitch": 48,
+          "start_time": 0.0,
+          "duration": 2.0,
+          "velocity": 95
+        },
+        {
+          "pitch": 50,
+          "start_time": 6.0,
+          "duration": 2.0,
+          "velocity": 90
+        }
+      ]
+    }
+  }
+}

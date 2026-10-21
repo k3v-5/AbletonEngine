@@ -38,6 +38,7 @@ class AbletonLiveConnection:
         self.sock.settimeout(self.timeout)
         self.sock.connect((self.host, self.port))
         logger.info(f"Connected to Ableton Live on {self.host}:{self.port}")
+        return True
 
     def send_command(self, cmd_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         for attempt in range(2):

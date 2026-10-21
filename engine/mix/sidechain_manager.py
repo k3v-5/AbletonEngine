@@ -42,7 +42,7 @@ class SidechainManager:
 
             for d_idx, d in enumerate(devices):
                 d_name = d.get("name", "") if isinstance(d, dict) else str(d)
-                if "Compressor" in d_name:
+                if "Compressor" in d_name and "Glue" not in d_name:
                     return {
                         "status": "EXISTS",
                         "device_index": d_idx,
@@ -63,7 +63,7 @@ class SidechainManager:
 
             for d_idx, d in enumerate(recheck_devices):
                 d_name = d.get("name", "") if isinstance(d, dict) else str(d)
-                if "Compressor" in d_name:
+                if "Compressor" in d_name and "Glue" not in d_name:
                     return {
                         "status": "LOADED",
                         "device_index": d_idx,
@@ -197,8 +197,8 @@ if 0 <= track_idx < len(song.tracks):
                 t_name = getattr(t, 'display_name', str(t)).lower()
                 is_match = bool(target_name and (target_name in t_name or t_name in target_name))
                 if not is_match and len(target_name) > 3:
-                    for w in target_name.replace('[', ' ').replace(']', ' ').split():
-                        if len(w) > 3 and w in t_name:
+                    for w in target_name.replace('[', ' ').replace(']', ' ').replace('_', ' ').replace('-', ' ').split():
+                        if len(w) > 3 and not w.isdigit() and w in t_name:
                             is_match = True
                             break
                 if is_match:

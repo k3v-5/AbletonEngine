@@ -511,16 +511,23 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
 
         # Parse arbitrary parameters if specified by user or AI
         param_patterns = {
-            "FILTER_CUTOFF": [r"filter_cutoff\s*[:=]?\s*([0-9\.]+)", r"cutoff\s*[:=]?\s*([0-9\.]+)", r"filtro\s*[:=]?\s*([0-9\.]+)"],
+            "FILTER_CUTOFF": [r"filter_cutoff\s*[:=]?\s*([0-9\.]+)", r"lp_freq\s*[:=]?\s*([0-9\.]+)", r"cutoff\s*[:=]?\s*([0-9\.]+)", r"filtro\s*[:=]?\s*([0-9\.]+)"],
             "DRIVE": [r"drive\s*[:=]?\s*([0-9\.]+)", r"saturaci[oó]n\s*[:=]?\s*([0-9\.]+)"],
-            "FILTER_RESONANCE": [r"filter_resonance\s*[:=]?\s*([0-9\.]+)", r"resonance\s*[:=]?\s*([0-9\.]+)", r"resonancia\s*[:=]?\s*([0-9\.]+)"],
+            "FILTER_RESONANCE": [r"filter_resonance\s*[:=]?\s*([0-9\.]+)", r"lp_res\s*[:=]?\s*([0-9\.]+)", r"resonance\s*[:=]?\s*([0-9\.]+)", r"resonancia\s*[:=]?\s*([0-9\.]+)"],
             "WAVETABLE_POS": [r"wavetable(?:_pos)?\s*[:=]?\s*([0-9\.]+)", r"tabla\s*[:=]?\s*([0-9\.]+)"],
-            "UNISON_DETUNE": [r"unison(?:_detune)?\s*[:=]?\s*([0-9\.]+)", r"detune\s*[:=]?\s*([0-9\.]+)"],
-            "SUB_LEVEL": [r"sub(?:_level)?\s*[:=]?\s*([0-9\.]+)", r"subgrave\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_ATTACK": [r"amp_attack\s*[:=]?\s*([0-9\.]+)", r"attack\s*[:=]?\s*([0-9\.]+)", r"ataque\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_DECAY": [r"amp_decay\s*[:=]?\s*([0-9\.]+)", r"decay\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_SUSTAIN": [r"amp_sustain\s*[:=]?\s*([0-9\.]+)", r"sustain\s*[:=]?\s*([0-9\.]+)"],
-            "AMP_RELEASE": [r"amp_release\s*[:=]?\s*([0-9\.]+)", r"release\s*[:=]?\s*([0-9\.]+)", r"relajaci[oó]n\s*[:=]?\s*([0-9\.]+)"],
+            "OSC_1_WAVE": [r"osc_1_wave\s*[:=]?\s*([0-9\.]+)", r"osc1_wave\s*[:=]?\s*([0-9\.]+)", r"wave\s*[:=]?\s*([0-9\.]+)"],
+            "OSC_2_WAVE": [r"osc_2_wave\s*[:=]?\s*([0-9\.]+)", r"osc2_wave\s*[:=]?\s*([0-9\.]+)"],
+            "OSC_1_SHAPE": [r"osc_1_shape\s*[:=]?\s*([0-9\.]+)", r"osc1_shape\s*[:=]?\s*([0-9\.]+)", r"shape\s*[:=]?\s*([0-9\.]+)"],
+            "THICKNESS": [r"thickness\s*[:=]?\s*([0-9\.]+)"],
+            "SPREAD": [r"spread\s*[:=]?\s*([0-9\.]+)"],
+            "STRENGTH": [r"strength\s*[:=]?\s*([0-9\.]+)"],
+            "DRIFT": [r"drift\s*[:=]?\s*([0-9\.]+)"],
+            "UNISON_DETUNE": [r"unison(?:_detune)?\s*[:=]?\s*([0-9\.]+)", r"osc_2_detune\s*[:=]?\s*([0-9\.]+)", r"detune\s*[:=]?\s*([0-9\.]+)"],
+            "SUB_LEVEL": [r"sub(?:_level|_boom|_sine)?\s*[:=]?\s*([0-9\.]+)", r"subgrave\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_ATTACK": [r"amp_attack\s*[:=]?\s*([0-9\.]+)", r"env_1_attack\s*[:=]?\s*([0-9\.]+)", r"attack\s*[:=]?\s*([0-9\.]+)", r"ataque\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_DECAY": [r"amp_decay\s*[:=]?\s*([0-9\.]+)", r"env_1_decay\s*[:=]?\s*([0-9\.]+)", r"decay\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_SUSTAIN": [r"amp_sustain\s*[:=]?\s*([0-9\.]+)", r"env_1_sustain\s*[:=]?\s*([0-9\.]+)", r"sustain\s*[:=]?\s*([0-9\.]+)"],
+            "AMP_RELEASE": [r"amp_release\s*[:=]?\s*([0-9\.]+)", r"env_1_release\s*[:=]?\s*([0-9\.]+)", r"release\s*[:=]?\s*([0-9\.]+)", r"relajaci[oó]n\s*[:=]?\s*([0-9\.]+)"],
             "BRIGHTNESS": [r"brightness\s*[:=]?\s*([0-9\.]+)", r"brillo\s*[:=]?\s*([0-9\.]+)"],
         }
         for p_name, patterns in param_patterns.items():
@@ -528,6 +535,9 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 m = re.search(pat, text)
                 if m:
                     val = float(m.group(1))
+                    if p_name in ("OSC_1_WAVE", "OSC_2_WAVE") and val > 1.0 and val <= 6.0:
+                        custom_params[p_name] = val
+                        break
                     if val > 1.0 and val <= 100.0 and p_name != "FILTER_CUTOFF":
                         val = val / 100.0
                     elif val > 100.0 and p_name == "FILTER_CUTOFF":
@@ -537,15 +547,39 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                     custom_params[p_name] = max(0.0, min(1.0, val))
                     break
 
+        # Parse signed parameters (Transpose / Tune / Octave)
+        signed_patterns = {
+            "TRANSPOSE": [r"transpose\s*[:=]?\s*([+\-]?[0-9\.]+)", r"tune\s*[:=]?\s*([+\-]?[0-9\.]+)", r"pitch\s*[:=]?\s*([+\-]?[0-9\.]+)"],
+            "OSC_1_OCT": [r"osc_1_oct\s*[:=]?\s*([+\-]?[0-9\.]+)", r"octave\s*[:=]?\s*([+\-]?[0-9\.]+)"],
+            "OSC_2_OCT": [r"osc_2_oct\s*[:=]?\s*([+\-]?[0-9\.]+)", r"sub_octave\s*[:=]?\s*([+\-]?[0-9\.]+)"],
+        }
+        for sp_name, spatterns in signed_patterns.items():
+            for spat in spatterns:
+                sm = re.search(spat, text)
+                if sm:
+                    custom_params[sp_name] = float(sm.group(1))
+                    break
+
         # Sovereign Polyphony & Voice Mode Parsing
         voice_mode = None
         voices_val = None
         if re.search(r"\b(?:mono|monof[oó]nico|monophonic|1\s*voz|1\s*voice)\b", text):
             voice_mode = "MONO"
             voices_val = 0.0
+        elif re.search(r"\b(?:unison|un[ií]sono)\b", text) and not re.search(r"unison(?:_detune)?\s*[:=]", text):
+            voice_mode = "UNISON"
+            voices_val = 0.0
+        elif re.search(r"\b(?:stereo)\b", text) and not re.search(r"stereo_width\s*[:=]", text):
+            voice_mode = "STEREO"
+            voices_val = 0.33
         elif re.search(r"\b(?:poly|polif[oó]nico|polyphonic)\b", text):
             voice_mode = "POLY"
             voices_val = 0.66
+
+        vm_explicit = re.search(r"(?:voice_mode|mode)\s*[:=]?\s*(mono|poly|stereo|unison)", text)
+        if vm_explicit:
+            voice_mode = vm_explicit.group(1).upper()
+            voices_val = 0.0 if voice_mode in ("MONO", "UNISON") else (0.33 if voice_mode == "STEREO" else 0.66)
 
         v_match = re.search(r"(?:voces|voices|polyphony|polifon[ií]a)\s*[:=]?\s*(\d+)", text)
         if not v_match:
@@ -565,10 +599,13 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
                 voices_val = 1.0
                 voice_mode = "POLY"
 
-        if voices_val is not None:
-            custom_params["POLYPHONY"] = voices_val
-            custom_params["VOICES"] = voices_val
-            custom_params["Poly Voice Depth"] = voices_val
+        if voices_val is not None or voice_mode is not None:
+            if voices_val is not None:
+                custom_params["POLYPHONY"] = voices_val
+                custom_params["VOICES"] = voices_val
+                custom_params["Poly Voice Depth"] = voices_val
+            if voice_mode is not None:
+                custom_params["VOICE_MODE_INDEX"] = {"POLY": 0.0, "MONO": 1.0, "STEREO": 2.0, "UNISON": 3.0}.get(voice_mode, 0.0)
             trk["voice_mode"] = voice_mode
             trk["voices"] = 1 if voices_val == 0.0 else (4 if voices_val == 0.33 else (8 if voices_val == 0.66 else 16))
 
@@ -581,7 +618,7 @@ class Phase4ParamSculptingHandler(BasePhaseHandler):
             trk["legato"] = bool(leg_v)
 
         # Glide / Portamento Parsing
-        glide_m = re.search(r"(?:glide|portamento)\s*[:=]?\s*([0-9\.]+)", text)
+        glide_m = re.search(r"(?:glide(?:_time)?|portamento)\s*[:=]?\s*([0-9\.]+)", text)
         if glide_m:
             g_v = float(glide_m.group(1))
             if g_v > 1.0 and g_v <= 1000.0:

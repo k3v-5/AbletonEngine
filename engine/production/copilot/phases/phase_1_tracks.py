@@ -168,8 +168,13 @@ class Phase1TracksHandler(BasePhaseHandler):
                         is_audio = True
                         is_fx_audio = True
                     else:
-                        is_audio = (c_role == "VOCALS") or ("audio" in c_name.lower())
-                        is_fx_audio = ("bus" in c_name.lower()) or (c_role == "FX" and is_audio)
+                        c_name_l = c_name.lower()
+                        inst_hint = str(item.get("instrument", "")).lower()
+                        is_midi_vocal = any(k in c_name_l for k in ("chop", "chops", "synth", "midi", "simpler", "sampler")) or any(
+                            k in inst_hint for k in ("drift", "vital", "serum", "wavetable", "operator", "simpler", "pad", "pluck", "arp", "lead")
+                        )
+                        is_audio = ((c_role == "VOCALS" and not is_midi_vocal) or ("audio" in c_name_l))
+                        is_fx_audio = ("bus" in c_name_l) or (c_role == "FX" and is_audio)
                     roles.append((c_name, c_role, is_audio, is_fx_audio))
                 elif isinstance(item, str):
                     c_name = item.strip()
@@ -200,7 +205,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                             is_fx_audio = True
                         else:
                             c_name_lower = c_name.lower()
-                            is_audio = ("(audio)" in c_name_lower) or ("audio" in c_name_lower) or (c_role == "VOCALS")
+                            is_midi_vocal = any(k in c_name_lower for k in ("chop", "chops", "synth", "midi", "simpler", "sampler"))
+                            is_audio = ("(audio)" in c_name_lower) or ("audio" in c_name_lower) or (c_role == "VOCALS" and not is_midi_vocal)
                             is_fx_audio = ("bus" in c_name_lower) or (c_role == "FX" and is_audio)
                         roles.append((final_name, c_role, is_audio, is_fx_audio))
         elif "," in user_input:
@@ -237,7 +243,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                         is_fx_audio = True
                     else:
                         c_name_lower = c_name.lower()
-                        is_audio = ("(audio)" in c_name_lower) or ("audio" in c_name_lower) or (c_role == "VOCALS")
+                        is_midi_vocal = any(k in c_name_lower for k in ("chop", "chops", "synth", "midi", "simpler", "sampler"))
+                        is_audio = ("(audio)" in c_name_lower) or ("audio" in c_name_lower) or (c_role == "VOCALS" and not is_midi_vocal)
                         is_fx_audio = ("bus" in c_name_lower) or (c_role == "FX" and is_audio)
                     roles.append((final_name, c_role, is_audio, is_fx_audio))
         elif is_test_env and ("opcion a" in text or "quinteto" in text):
@@ -299,13 +306,19 @@ class Phase1TracksHandler(BasePhaseHandler):
                         is_audio = True
                         is_fx_audio = True
                     else:
-                        is_audio = (c_role == "VOCALS") or ("audio" in c_name.lower())
-                        is_fx_audio = ("bus" in c_name.lower()) or (c_role == "FX" and is_audio)
+                        c_name_l = c_name.lower()
+                        inst_hint = str(item.get("instrument", "")).lower()
+                        is_midi_vocal = any(k in c_name_l for k in ("chop", "chops", "synth", "midi", "simpler", "sampler")) or any(
+                            k in inst_hint for k in ("drift", "vital", "serum", "wavetable", "operator", "simpler", "pad", "pluck", "arp", "lead")
+                        )
+                        is_audio = (c_role == "VOCALS" and not is_midi_vocal) or ("audio" in c_name_l)
+                        is_fx_audio = ("bus" in c_name_l) or (c_role == "FX" and is_audio)
                     roles.append((c_name, c_role, is_audio, is_fx_audio))
                 elif isinstance(item, str) and item.strip():
                     c_name = item.strip()
                     c_role = RoleTrackOrchestrator.normalize_role(c_name)
-                    is_audio = (c_role == "VOCALS") or ("audio" in c_name.lower())
+                    is_midi_vocal = any(k in c_name.lower() for k in ("chop", "chops", "synth", "midi", "simpler", "sampler"))
+                    is_audio = (c_role == "VOCALS" and not is_midi_vocal) or ("audio" in c_name.lower())
                     is_fx_audio = ("bus" in c_name.lower()) or (c_role == "FX" and is_audio)
                     roles.append((c_name, c_role, is_audio, is_fx_audio))
 
@@ -366,10 +379,13 @@ class Phase1TracksHandler(BasePhaseHandler):
                         ti = conn.send_command("get_track_info", {"track_index": idx})
                         res_ti = ti.get("result", ti) if isinstance(ti, dict) else {}
                         t_name_lower = str(res_ti.get("name", "")).lower()
+                        if "[bus]" in t_name_lower or "[return]" in t_name_lower or t_name_lower.startswith("bus "):
+                            continue
                         is_midi = bool(res_ti.get("is_midi_track", False))
                         is_audio = bool(res_ti.get("is_audio_track", False) or not is_midi)
                         is_foldable = bool(res_ti.get("is_foldable", False))
-                        if not is_foldable:
+                        is_grouped = bool(res_ti.get("is_grouped", False))
+                        if not is_foldable and not is_grouped:
                             if is_midi:
                                 valid_midi_indices.append(idx)
                             elif is_audio:
@@ -406,6 +422,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                                 c_res = conn.send_command("execute_code", {"code": "song.create_audio_track(-1); res = len(song.tracks)-1"})
                                 c_data = c_res.get("result", c_res) if isinstance(c_res, dict) else {}
                                 t_idx = int(c_data.get("res", existing_cnt))
+                                if t_idx < 0:
+                                    t_idx = existing_cnt
                                 existing_cnt = max(existing_cnt + 1, t_idx + 1)
                             except Exception:
                                 t_idx = existing_cnt
@@ -417,6 +435,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                             c_res = conn.send_command("create_midi_track", {"index": -1})
                             c_data = c_res.get("result", c_res) if isinstance(c_res, dict) else {}
                             t_idx = int(c_data.get("index", existing_cnt))
+                            if t_idx < 0:
+                                t_idx = existing_cnt
                             existing_cnt = max(existing_cnt + 1, t_idx + 1)
                         except Exception:
                             t_idx = existing_cnt + (i - len(valid_midi_indices))
@@ -429,7 +449,8 @@ class Phase1TracksHandler(BasePhaseHandler):
                     "index": t_idx,
                     "name": name,
                     "role": role,
-                    "is_audio": is_audio_role
+                    "is_audio": is_audio_role,
+                    "type": "BUS" if is_fx_audio else ("AUDIO" if is_audio_role else "MIDI"),
                 }
                 if is_fx_audio:
                     track_entry["is_fx_audio"] = True
@@ -472,69 +493,86 @@ class Phase1TracksHandler(BasePhaseHandler):
                     logger.debug(f"Notice auto-detecting vocal audio track: {ex_vocal_scan}")
 
             # -------------------------------------------------------------------------
-            # AUTOMATIC TRACK SANITIZATION (PURGE ORPHAN TEMPLATE TRACKS)
+            # AUTOMATIC TRACK SANITIZATION (PURGE ORPHAN TEMPLATE TRACKS & OLD DEVICES)
             # -------------------------------------------------------------------------
             if not is_test_env:
                 try:
                     assigned_names = [f"[{t['role']}] {t['name']}" for t in created_tracks]
                     sanitize_code = f"""
-assigned_names = set({repr(assigned_names)})
+def _sanitize_tracks(song, assigned_names_list):
+    assigned_names = set(assigned_names_list)
+    groups_to_delete = []
+    tracks_to_delete = []
 
-# Group & Orphan Analysis
-groups_to_delete = []
-tracks_to_delete = []
+    for i, t in enumerate(song.tracks):
+        if getattr(t, 'is_foldable', False):
+            assigned_children = []
+            for c in song.tracks:
+                if getattr(c, 'group_track', None) == t and c.name in assigned_names:
+                    assigned_children.append(c)
+            if not assigned_children:
+                groups_to_delete.append(i)
+        else:
+            if getattr(t, 'is_return_track', False):
+                continue
+            if t.name.startswith("[BUS]"):
+                tracks_to_delete.append(i)
+                continue
+                continue
+            gt = getattr(t, 'group_track', None)
+            gt_idx = None
+            if gt:
+                for g_i, cand_g in enumerate(song.tracks):
+                    if cand_g == gt:
+                        gt_idx = g_i
+                        break
+            if gt_idx in groups_to_delete:
+                continue
+            if t.name not in assigned_names:
+                tracks_to_delete.append(i)
 
-for i, t in enumerate(song.tracks):
-    if getattr(t, 'is_foldable', False):
-        assigned_children = []
-        for c in song.tracks:
-            if getattr(c, 'group_track', None) == t and c.name in assigned_names:
-                assigned_children.append(c)
-        if not assigned_children:
-            groups_to_delete.append(i)
-    else:
-        # Leaf track
-        if t.name.startswith("[BUS]") or getattr(t, 'is_return_track', False):
-            continue
-        gt = getattr(t, 'group_track', None)
-        gt_idx = None
-        if gt:
-            for g_i, cand_g in enumerate(song.tracks):
-                if cand_g == gt:
-                    gt_idx = g_i
-                    break
-        if gt_idx in groups_to_delete:
-            continue
-        if t.name not in assigned_names:
-            tracks_to_delete.append(i)
+    all_to_delete = sorted(set(groups_to_delete + tracks_to_delete), reverse=True)
+    deleted_log = []
+    for idx in all_to_delete:
+        t_name = song.tracks[idx].name
+        try:
+            song.delete_track(idx)
+            deleted_log.append({{'idx': idx, 'name': t_name, 'status': 'deleted'}})
+        except Exception as e:
+            deleted_log.append({{'idx': idx, 'name': t_name, 'status': 'error', 'err': str(e)}})
 
-# Perform deletions in reverse order
-all_to_delete = sorted(set(groups_to_delete + tracks_to_delete), reverse=True)
-deleted_log = []
-for idx in all_to_delete:
-    t_name = song.tracks[idx].name
-    try:
-        song.delete_track(idx)
-        deleted_log.append({{'idx': idx, 'name': t_name, 'status': 'deleted'}})
-    except Exception as e:
-        deleted_log.append({{'idx': idx, 'name': t_name, 'status': 'error', 'err': str(e)}})
+    live_map = {{}}
+    for i, t in enumerate(song.tracks):
+        live_map[t.name] = i
+        if t.name in assigned_names:
+            try:
+                t.arm = False
+            except Exception:
+                pass
+            try:
+                t.current_monitoring_state = 1  # Auto monitoring so clips play faithfully
+            except Exception:
+                pass
+            for d_idx in range(len(getattr(t, 'devices', [])) - 1, -1, -1):
+                try:
+                    t.delete_device(d_idx)
+                except Exception:
+                    pass
 
-# Re-map Live indices for created_tracks
-live_map = {{}}
-for i, t in enumerate(song.tracks):
-    live_map[t.name] = i
+    return {{'deleted': deleted_log, 'live_map': live_map}}
 
-result = {{'deleted': deleted_log, 'live_map': live_map}}
+result = _sanitize_tracks(song, {repr(assigned_names)})
 """
                     san_res = conn.send_command("execute_code", {"code": sanitize_code})
                     res_data = san_res.get("result", san_res) if isinstance(san_res, dict) else {}
-                    live_map = res_data.get("live_map", {})
+                    inner_san = res_data.get("result", res_data) if isinstance(res_data, dict) else {}
+                    live_map = inner_san.get("live_map", res_data.get("live_map", {})) if isinstance(inner_san, dict) else {}
                     if live_map:
                         for trk in created_tracks:
                             t_lbl = f"[{trk['role']}] {trk['name']}"
                             if t_lbl in live_map:
                                 trk["index"] = live_map[t_lbl]
-                    deleted_items = res_data.get("deleted", [])
+                    deleted_items = inner_san.get("deleted", res_data.get("deleted", [])) if isinstance(inner_san, dict) else []
                     if deleted_items:
                         logger.info(f"Phase 1 sanitization purged {len(deleted_items)} orphan tracks/groups: {[d.get('name') for d in deleted_items]}")
                 except Exception as ex_san:
@@ -560,7 +598,7 @@ result = {{'deleted': deleted_log, 'live_map': live_map}}
                     dt_name = str(dt.get("name", "")).strip().lower()
                     dt_role = str(dt.get("role", "")).strip().lower()
                     if (dt_name and (dt_name == t_name or dt_name in t_name or t_name in dt_name)) or (not dt_name and dt_role and dt_role == t_role):
-                        for k in ("preset_path", "preset_name", "synced_user_path", "output_bus", "instrument", "panning"):
+                        for k in ("preset_path", "preset_name", "synced_user_path", "output_bus", "instrument", "panning", "source_track", "input_from"):
                             if k in dt and k not in trk:
                                 trk[k] = dt[k]
                         break

@@ -422,11 +422,39 @@ class CopilotGuidedSession:
         response["question"] = reminder + q
         return response
 
+    def _ensure_physical_connection(self, conn: Any) -> Any:
+        """
+        Safeguard against accidental offline execution (conn=None):
+        If conn is None and offline simulation is not explicitly requested,
+        automatically connect to the active Ableton Live instance on localhost:9877.
+        """
+        if conn is not None:
+            return conn
+        if os.environ.get("ABLETON_ALLOW_OFFLINE_SIMULATION") == "1" or "PYTEST_CURRENT_TEST" in os.environ:
+            return None
+        cached = getattr(self, "_auto_live_conn", None)
+        if cached is not None and getattr(cached, "sock", None) is not None:
+            return cached
+        try:
+            from engine.production.full_song_producer import AbletonLiveConnection
+            auto_conn = AbletonLiveConnection(timeout=2.5)
+            auto_conn.connect()
+            if getattr(auto_conn, "sock", None) is not None:
+                logger.warning(
+                    "CopilotGuidedSession.step() received conn=None; auto-connected to physical Ableton Live on localhost:9877."
+                )
+                self._auto_live_conn = auto_conn
+                return auto_conn
+        except Exception as ex:
+            logger.debug(f"Auto-connection probe notice: {ex}")
+        return None
+
     def handle_input(self, user_input: str = "", conn: Any = None) -> Dict[str, Any]:
         """Convenience wrapper for step(conn, user_input)."""
         return self.step(conn=conn, user_input=user_input)
 
-    def step(self, conn: Any, user_input: str = "", reset: bool = False) -> Dict[str, Any]:
+    def step(self, conn: Any = None, user_input: str = "", reset: bool = False) -> Dict[str, Any]:
+        conn = self._ensure_physical_connection(conn)
         if reset:
             self.reset()
         elif not hasattr(self, "data") or not self.data:

@@ -1,5 +1,5 @@
 {
-  "total_presets": 141,
+  "total_presets": 143,
   "presets": {
     "Vital_LEAD_Lead_Synth": {
       "file": "Vital_LEAD_Lead_Synth.vital",
@@ -2328,6 +2328,22 @@
       "track_index": 7,
       "track_name": "05_Bass_Slap_Electric",
       "directives": {}
+    },
+    "Vital_BASS_Sub_Underbed": {
+      "file": "Vital_BASS_Sub_Underbed.vital",
+      "path": "Presets\\Vital_BASS_Sub_Underbed.vital",
+      "role": "BASS",
+      "track_index": 3,
+      "track_name": "Sub Underbed",
+      "directives": {}
+    },
+    "Vital_EAR_CANDY_Sirens_and_Street_Textures": {
+      "file": "Vital_EAR_CANDY_Sirens_and_Street_Textures.vital",
+      "path": "Presets\\Vital_EAR_CANDY_Sirens_and_Street_Textures.vital",
+      "role": "EAR_CANDY",
+      "track_index": 7,
+      "track_name": "Sirens and Street Textures",
+      "directives": {}
     }
   },
   "tracks": [
@@ -2350,7 +2366,7 @@
       "track_name": "Massive Space Pad",
       "role": "PAD",
       "instrument": "Vital",
-      "preset_file": "Vital_STRINGS_Vintage_Melodic_Strings.vital"
+      "preset_file": "Vital_BASS_Sub_Underbed.vital"
     },
     {
       "track_index": 4,
@@ -2385,7 +2401,7 @@
       "track_name": "05_Bass_Slap_Electric",
       "role": "BASS",
       "instrument": "Vital",
-      "preset_file": "Vital_BASS_05_Bass_Slap_Electric.vital"
+      "preset_file": "Vital_EAR_CANDY_Sirens_and_Street_Textures.vital"
     }
   ]
 }

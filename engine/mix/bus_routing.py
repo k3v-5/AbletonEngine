@@ -70,6 +70,9 @@ class BusRoutingManager:
         role = str(trk.get("role", "")).upper()
         name = str(trk.get("name", "")).upper()
 
+        # 0. FX / Audio Return / Risers / Foley (check before drum/bass substrings in FX source names)
+        if name.startswith("[FX]") or role in ("FX", "AUDIO_FX", "RISER", "IMPACT", "FOLEY", "TEXTURE_FOLEY", "SWEEP"):
+            return "AUDIO FX BUS"
         # 1. Drums / Percussion
         if any(w in role or w in name for w in ("DRUM", "PERC", "BEAT", "KIT", "KICK", "SNARE", "HIHAT", "DEMBOW")):
             return "DRUMS BUS"
@@ -82,7 +85,10 @@ class BusRoutingManager:
         # 4. Pads / Strings / Choir / Atmosphere
         if any(w in role or w in name for w in ("PAD", "STRINGS", "CHOIR", "VIOLIN", "CELLO", "ATMOSPHERE")):
             return "PADS BUS"
-        # 5. Synths / Leads / Keys / Guitar / Brass
+        # 5. Keys / Piano / Chords
+        if any(w in role or w in name for w in ("KEYS", "PIANO", "CHORD", "RHODES", "ORGAN")):
+            return "KEYS BUS"
+        # 6. Synths / Leads / Guitar / Brass
         return "SYNTHS BUS"
 
     @classmethod
@@ -165,10 +171,20 @@ result = {
             return {"error": str(ex)}
 
     @classmethod
-    def setup_submix_buses(cls, conn: Any, tracks: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def setup_submix_buses(cls, conn: Any, tracks: Optional[List[Dict[str, Any]]] = None, use_audio_bus_tracks: bool = False) -> Dict[str, Any]:
         """
-        Constructs and physically configures the submix bus architecture in Ableton Live.
-        Creates audio tracks with monitoring set to 'In' (0) and routes audio.
+        Orchestrates session signal flow in Ableton Live 12.
+        
+        Modern ITB (In-The-Box) Master Routing Architecture:
+        In modern digital workstations, dummy audio tracks acting as hardware-style submix buses
+        (with 'No Input' and 'Monitor = In') cause clip playback muting, PDC latency, and summing deadlocks.
+        
+        By default (use_audio_bus_tracks=False):
+        - Direct-to-Main: All production tracks route cleanly to 'Main' (Master).
+        - Auto Monitoring: Sets current_monitoring_state = 1 (Auto) so arrangement clips play faithfully.
+        - Master Glue: Global glue and loudness calibration is handled by the 5-stage Master Chain.
+        - Cleans up any legacy dummy [BUS] audio tracks.
+        - Sets up auxiliary return tracks ([RETURN] Reverb Aux, [RETURN] Delay Aux).
         """
         effective_tracks = list(tracks) if tracks is not None else []
 
@@ -196,7 +212,7 @@ result = t_list
             except Exception as ex_gt:
                 logger.debug(f"Error querying live tracks: {ex_gt}")
 
-        # Ensure output_bus is assigned on every track spec
+        # Ensure output_bus is assigned on every track spec for stem/metadata categorization
         for trk in effective_tracks:
             if not trk.get("output_bus"):
                 trk["output_bus"] = cls.infer_bus_for_track(trk)
@@ -205,7 +221,78 @@ result = t_list
         configured_buses: List[Dict[str, Any]] = []
 
         if conn is not None and hasattr(conn, "send_command"):
-            # 1. Create missing submix buses
+            if not use_audio_bus_tracks:
+                # Modern ITB Direct-to-Main Routing & Auto-monitoring
+                code_direct_main = """
+def _apply_modern_main_routing(song):
+    deleted_buses = []
+    # 1. Purge legacy [BUS] audio tracks that deadlock playback
+    for i in range(len(song.tracks) - 1, -1, -1):
+        t = song.tracks[i]
+        if t.name.startswith("[BUS]"):
+            b_name = t.name
+            try:
+                song.delete_track(i)
+                deleted_buses.append(b_name)
+            except Exception:
+                pass
+
+    routed_tracks = []
+    # 2. Route all playable tracks directly to Main and enforce Auto monitoring (1)
+    for i, t in enumerate(song.tracks):
+        if getattr(t, 'is_foldable', False) or getattr(t, 'is_return_track', False):
+            continue
+        # Set monitoring to Auto (1) unless explicitly armed for live external mic recording
+        if not getattr(t, 'arm', False):
+            try:
+                t.current_monitoring_state = 1
+            except Exception:
+                pass
+        
+        # Route to Main / Master
+        main_out = None
+        for out_type in getattr(t, 'available_output_routing_types', []):
+            dn = getattr(out_type, 'display_name', '').lower()
+            if dn in ('main', 'master'):
+                main_out = out_type
+                break
+        if main_out is not None:
+            try:
+                t.output_routing_type = main_out
+                routed_tracks.append({'index': i, 'name': t.name, 'output': main_out.display_name})
+            except Exception:
+                pass
+
+    return {'deleted_buses': deleted_buses, 'routed_tracks': routed_tracks}
+
+result = _apply_modern_main_routing(song)
+"""
+                try:
+                    conn.send_command("execute_code", {"code": code_direct_main})
+                except Exception as ex_main_route:
+                    logger.debug(f"Direct-to-main routing notice: {ex_main_route}")
+
+                for bus_name, member_tracks in topology.items():
+                    recipe = cls.get_bus_recipe(bus_name)
+                    configured_buses.append({
+                        "bus_name": bus_name,
+                        "bus_label": f"[BUS] {bus_name}" if not bus_name.startswith("[BUS]") else bus_name,
+                        "tracks_count": len(member_tracks),
+                        "member_tracks": [t.get("name", "") for t in member_tracks],
+                        "routing": "Direct -> Main (ITB)",
+                        "glue_recipe": recipe
+                    })
+
+                cls.setup_aux_return_tracks(conn)
+                logger.info(f"Applied Modern ITB routing: {len(configured_buses)} logical groups routed directly to Main with Auto monitoring.")
+                return {
+                    "status": "SUCCESS",
+                    "mode": "DIRECT_TO_MAIN",
+                    "buses_count": len(configured_buses),
+                    "buses": configured_buses
+                }
+
+            # Legacy hardware-style submix buses fallback (when explicitly requested)
             for bus_name, member_tracks in topology.items():
                 recipe = cls.get_bus_recipe(bus_name)
                 bus_label = f"[BUS] {bus_name}" if not bus_name.startswith("[BUS]") else bus_name
@@ -222,7 +309,14 @@ if not existing_bus:
     existing_bus = song.create_audio_track(-1)
     existing_bus.name = {repr(bus_label)}
 
-# Physical monitor in for audio group summing
+for in_rt in getattr(existing_bus, 'available_input_routing_types', []):
+    if getattr(in_rt, 'display_name', '') == 'No Input':
+        try:
+            existing_bus.input_routing_type = in_rt
+        except Exception:
+            pass
+        break
+
 existing_bus.current_monitoring_state = 0
 existing_bus.mixer_device.volume.value = 0.85
 """
@@ -250,95 +344,138 @@ existing_bus.mixer_device.volume.value = 0.85
                 for t in effective_tracks if isinstance(t, dict)
             ]
             code_route = f"""
-tracks_spec = {repr(light_specs)}
-routed_results = []
+def _route_all_buses(song, tracks_spec):
+    routed_results = []
 
-# Pass A: Group-level Submix Routing (Foldable Parent Groups -> Corresponding Submix Buses)
-for g in song.tracks:
-    if getattr(g, 'is_foldable', False) and not g.name.startswith("[BUS]"):
-        g_name = g.name.lower()
-        target_g_bus = None
-        if any(w in g_name for w in ("drum", "perc", "beat", "kit")):
-            target_g_bus = "[BUS] DRUMS BUS"
-        elif any(w in g_name for w in ("guitar",)):
-            target_g_bus = "[BUS] GUITARS BUS"
-        elif any(w in g_name for w in ("synth", "inst", "lead", "key", "chord", "brass", "string")):
-            target_g_bus = "[BUS] SYNTHS BUS"
-        elif any(w in g_name for w in ("vocal", "vox", "voice", "chop")):
-            target_g_bus = "[BUS] VOCALS BUS"
-        elif any(w in g_name for w in ("fx", "effect", "foley", "riser")):
-            target_g_bus = "[BUS] FX BUS"
-        elif any(w in g_name for w in ("bass", "808", "sub")):
-            target_g_bus = "[BUS] BASS BUS"
+    # Pass A: Group-level Submix Routing (Foldable Parent Groups -> Corresponding Submix Buses)
+    for g in song.tracks:
+        if getattr(g, 'is_foldable', False) and not g.name.startswith("[BUS]"):
+            g_name = g.name.lower()
+            target_g_bus = None
+            if "drum" in g_name or "perc" in g_name or "beat" in g_name or "kit" in g_name:
+                target_g_bus = "[BUS] DRUMS BUS"
+            elif "guitar" in g_name:
+                target_g_bus = "[BUS] GUITARS BUS"
+            elif "synth" in g_name or "inst" in g_name or "lead" in g_name or "key" in g_name or "chord" in g_name or "brass" in g_name or "string" in g_name:
+                target_g_bus = "[BUS] SYNTHS BUS"
+            elif "vocal" in g_name or "vox" in g_name or "voice" in g_name or "chop" in g_name:
+                target_g_bus = "[BUS] VOCALS BUS"
+            elif "fx" in g_name or "effect" in g_name or "foley" in g_name or "riser" in g_name:
+                target_g_bus = "[BUS] AUDIO FX BUS"
+            elif "bass" in g_name or "808" in g_name or "sub" in g_name:
+                target_g_bus = "[BUS] BASS BUS"
 
-        if target_g_bus:
-            for out_type in getattr(g, 'available_output_routing_types', []):
-                if target_g_bus.lower() in getattr(out_type, 'display_name', '').lower():
+            if target_g_bus:
+                matched_out = None
+                for out_type in getattr(g, 'available_output_routing_types', []):
+                    dn = getattr(out_type, 'display_name', '').lower()
+                    if target_g_bus.lower() in dn:
+                        matched_out = out_type
+                        break
+                    elif target_g_bus == "[BUS] AUDIO FX BUS" and "[bus] fx bus" in dn:
+                        matched_out = out_type
+                        break
+                    elif target_g_bus == "[BUS] VOCALS BUS" and "[bus] synth" in dn and matched_out is None:
+                        matched_out = out_type
+                if matched_out is not None:
                     try:
-                        g.output_routing_type = out_type
-                        routed_results.append({{'group': g.name, 'target_bus': target_g_bus, 'type': 'group_bus'}})
+                        g.output_routing_type = matched_out
+                        routed_results.append({{'group': g.name, 'target_bus': getattr(matched_out, 'display_name', target_g_bus), 'type': 'group_bus'}})
+                    except Exception:
+                        pass
+
+    # Pass B: Track-level Submix Routing (Individual Audio/Instrument Tracks -> Target Submix Bus)
+    for idx, spec in enumerate(tracks_spec):
+        bus_name = spec.get('output_bus')
+        if not bus_name:
+            continue
+        target_bus = f"[BUS] {{bus_name}}" if not bus_name.startswith("[BUS]") else bus_name
+
+        trk = None
+        target_name = str(spec.get('name', '')).strip()
+        target_role = str(spec.get('role', '')).strip()
+        spec_idx = spec.get('index')
+
+        if spec_idx is not None and 0 <= int(spec_idx) < len(song.tracks):
+            cand = song.tracks[int(spec_idx)]
+            if not cand.name.startswith("[BUS]") and not getattr(cand, 'is_foldable', False):
+                if (not target_name) or (target_name.lower() in cand.name.lower()) or (target_role and f"[{{target_role.lower()}}]" in cand.name.lower()):
+                    trk = cand
+
+        if not trk and target_name:
+            for t in song.tracks:
+                if t.name.startswith("[BUS]") or getattr(t, 'is_foldable', False):
+                    continue
+                if t.name.lower() == target_name.lower() or t.name.lower() == f"[{{target_role.lower()}}] {{target_name.lower()}}" or target_name.lower() in t.name.lower():
+                    trk = t
+                    break
+
+        if not trk:
+            fallback_i = int(spec_idx) if spec_idx is not None else idx
+            if 0 <= fallback_i < len(song.tracks):
+                cand = song.tracks[fallback_i]
+                if not cand.name.startswith("[BUS]") and not getattr(cand, 'is_foldable', False):
+                    trk = cand
+
+        if trk and not trk.name.startswith("[BUS]"):
+            target_assigned = False
+            for out_type in getattr(trk, 'available_output_routing_types', []):
+                if target_bus.lower() in getattr(out_type, 'display_name', '').lower():
+                    try:
+                        trk.output_routing_type = out_type
+                        routed_results.append({{'track': trk.name, 'target_bus': target_bus, 'type': 'direct'}})
+                        target_assigned = True
                     except Exception:
                         pass
                     break
 
-# Pass B: Track-level Submix Routing (Individual Audio/Instrument Tracks -> Target Submix Bus)
-for idx, spec in enumerate(tracks_spec):
-    bus_name = spec.get('output_bus')
-    if not bus_name:
-        continue
-    target_bus = f"[BUS] {{bus_name}}" if not bus_name.startswith("[BUS]") else bus_name
-    
-    trk = None
-    target_name = str(spec.get('name', '')).strip()
-    target_role = str(spec.get('role', '')).strip()
-    spec_idx = spec.get('index')
+            if not target_assigned and getattr(trk, 'is_grouped', False):
+                p_group = getattr(trk, 'group_track', None)
+                if p_group:
+                    for out_type in getattr(p_group, 'available_output_routing_types', []):
+                        if target_bus.lower() in getattr(out_type, 'display_name', '').lower():
+                            try:
+                                p_group.output_routing_type = out_type
+                                routed_results.append({{'track': trk.name, 'parent_group': p_group.name, 'target_bus': target_bus, 'type': 'parent_group_bus'}})
+                            except Exception:
+                                pass
+                            break
 
-    if spec_idx is not None and 0 <= int(spec_idx) < len(song.tracks):
-        cand = song.tracks[int(spec_idx)]
-        if not cand.name.startswith("[BUS]") and not getattr(cand, 'is_foldable', False):
-            if (not target_name) or (target_name.lower() in cand.name.lower()) or (target_role and f"[{{target_role.lower()}}]" in cand.name.lower()):
-                trk = cand
+    # Pass C: Remove any orphan [BUS] tracks that have zero tracks/groups routed to them
+    used_buses = set()
+    for t in song.tracks:
+        if not t.name.startswith("[BUS]"):
+            try:
+                dn = getattr(getattr(t, 'output_routing_type', None), 'display_name', '')
+                if dn and dn.startswith("[BUS]"):
+                    used_buses.add(dn)
+            except Exception:
+                pass
+    for i in range(len(song.tracks) - 1, -1, -1):
+        t = song.tracks[i]
+        if t.name.startswith("[BUS]") and t.name not in used_buses:
+            try:
+                song.delete_track(i)
+            except Exception:
+                pass
 
-    if not trk and target_name:
-        for t in song.tracks:
-            if t.name.startswith("[BUS]") or getattr(t, 'is_foldable', False):
-                continue
-            if t.name.lower() == target_name.lower() or t.name.lower() == f"[{{target_role.lower()}}] {{target_name.lower()}}" or target_name.lower() in t.name.lower():
-                trk = t
-                break
+    for t in song.tracks:
+        if t.name.startswith("[BUS]"):
+            for in_rt in getattr(t, 'available_input_routing_types', []):
+                if getattr(in_rt, 'display_name', '') == 'No Input':
+                    try:
+                        t.input_routing_type = in_rt
+                    except Exception:
+                        pass
+                    break
+            try:
+                t.current_monitoring_state = 0
+            except Exception:
+                pass
 
-    if not trk:
-        fallback_i = int(spec_idx) if spec_idx is not None else idx
-        if 0 <= fallback_i < len(song.tracks):
-            cand = song.tracks[fallback_i]
-            if not cand.name.startswith("[BUS]") and not getattr(cand, 'is_foldable', False):
-                trk = cand
+    return routed_results
 
-    if trk and not trk.name.startswith("[BUS]"):
-        target_assigned = False
-        for out_type in getattr(trk, 'available_output_routing_types', []):
-            if target_bus.lower() in getattr(out_type, 'display_name', '').lower():
-                try:
-                    trk.output_routing_type = out_type
-                    routed_results.append({{'track': trk.name, 'target_bus': target_bus, 'type': 'direct'}})
-                    target_assigned = True
-                except Exception:
-                    pass
-                break
-
-        if not target_assigned and getattr(trk, 'is_grouped', False):
-            p_group = getattr(trk, 'group_track', None)
-            if p_group:
-                for out_type in getattr(p_group, 'available_output_routing_types', []):
-                    if target_bus.lower() in getattr(out_type, 'display_name', '').lower():
-                        try:
-                            p_group.output_routing_type = out_type
-                            routed_results.append({{'track': trk.name, 'parent_group': p_group.name, 'target_bus': target_bus, 'type': 'parent_group_bus'}})
-                        except Exception:
-                            pass
-                        break
-
-result = routed_results
+result = _route_all_buses(song, {repr(light_specs)})
 """
             try:
                 conn.send_command("execute_code", {"code": code_route})
@@ -346,16 +483,15 @@ result = routed_results
                 logger.debug(f"Submix bus audio routing notice: {ex_route}")
 
             # 3. Physically load and calibrate devices (Glue Compressor + EQ Eight) on EVERY [BUS] track in song.tracks
-            import json
             import math
             try:
                 res_bi = conn.send_command("execute_code", {
-                    "code": "import json\nresult = json.dumps({t.name: i for i, t in enumerate(song.tracks) if t.name.startswith('[BUS]')})"
+                    "code": "b_map = {}\nfor i, t in enumerate(song.tracks):\n    if t.name.startswith('[BUS]'):\n        b_map[t.name] = i\nresult = b_map"
                 })
-                raw_bi = res_bi.get("result", "{}") if isinstance(res_bi, dict) else "{}"
-                if isinstance(raw_bi, dict):
-                    raw_bi = raw_bi.get("result", "{}")
-                bus_indices = json.loads(raw_bi) if isinstance(raw_bi, str) else (raw_bi if isinstance(raw_bi, dict) else {})
+                raw_bi = res_bi.get("result", {}) if isinstance(res_bi, dict) else {}
+                if isinstance(raw_bi, dict) and "result" in raw_bi:
+                    raw_bi = raw_bi.get("result", {})
+                bus_indices = raw_bi if isinstance(raw_bi, dict) else {}
             except Exception:
                 bus_indices = {}
 

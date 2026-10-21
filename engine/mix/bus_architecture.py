@@ -161,7 +161,8 @@ class LiveBusArchitectureEngine:
 
         try:
             from engine.mix.bus_routing import BusRoutingManager
-            BusRoutingManager.setup_submix_buses(conn, tracks)
+            # Modern ITB architecture: route directly to Main and enforce Auto monitoring (use_audio_bus_tracks=False)
+            BusRoutingManager.setup_submix_buses(conn, tracks, use_audio_bus_tracks=False)
         except Exception as ex_br:
             logger.debug(f"BusRoutingManager setup notice in deploy_submix_buses_nondestructive: {ex_br}")
 

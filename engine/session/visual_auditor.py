@@ -484,6 +484,67 @@ class LiveVisualAuditor:
                     "total_arrangement_clips": total_arr_clips,
                     "valid": total_arr_clips >= 4
                 }
+
+                # Deep Forensic Audit: Simpler samples, [BUS] routing & No-Input isolation, and Drift parameter sculpting
+                deep_code = """
+def _deep_audit(song):
+    empty_simplers = []
+    bus_bleed = []
+    bus_count = 0
+    routed_to_bus = 0
+    sculpted_drifts = 0
+    total_drifts = 0
+    for idx, t in enumerate(song.tracks):
+        t_name = getattr(t, 'name', '')
+        out_rt = getattr(getattr(t, 'output_routing_type', None), 'display_name', '')
+        in_rt = getattr(getattr(t, 'input_routing_type', None), 'display_name', '')
+        if t_name.startswith('[BUS]'):
+            bus_count += 1
+            if in_rt == 'Ext. In':
+                bus_bleed.append(t_name)
+        else:
+            if out_rt.startswith('[BUS]'):
+                routed_to_bus += 1
+        for d in getattr(t, 'devices', []):
+            cn = getattr(d, 'class_name', '')
+            if cn == 'OriginalSimpler':
+                if getattr(d, 'sample', None) is None:
+                    empty_simplers.append(t_name)
+            elif cn == 'Drift':
+                total_drifts += 1
+                p_map = {getattr(p, 'name', ''): getattr(p, 'value', None) for p in getattr(d, 'parameters', [])}
+                if p_map.get('LP Freq', 1.0) < 0.99 or p_map.get('Osc 1 Wave', 4.0) != 4.0 or p_map.get('Osc 1 Shape', 0.0) > 0.01:
+                    sculpted_drifts += 1
+    return {
+        'empty_simplers': empty_simplers,
+        'bus_bleed': bus_bleed,
+        'bus_count': bus_count,
+        'routed_to_bus': routed_to_bus,
+        'total_drifts': total_drifts,
+        'sculpted_drifts': sculpted_drifts,
+    }
+result = _deep_audit(song)
+"""
+                deep_res = conn.send_command("execute_code", {"code": deep_code})
+                d_info = deep_res.get("result", deep_res) if isinstance(deep_res, dict) else {}
+                if isinstance(d_info, dict) and "result" in d_info and isinstance(d_info["result"], dict):
+                    d_info = d_info["result"]
+                if isinstance(d_info, dict) and "bus_count" in d_info:
+                    bus_cnt = int(d_info.get("bus_count", 0))
+                    routed_cnt = int(d_info.get("routed_to_bus", 0))
+                    empty_s = d_info.get("empty_simplers", [])
+                    bleed_b = d_info.get("bus_bleed", [])
+                    tot_dr = int(d_info.get("total_drifts", 0))
+                    sc_dr = int(d_info.get("sculpted_drifts", 0))
+                    checks["lom_deep_routing_and_devices"] = {
+                        "empty_simplers": empty_s,
+                        "bus_ext_in_bleed": bleed_b,
+                        "bus_count": bus_cnt,
+                        "tracks_routed_to_bus": routed_cnt,
+                        "total_drifts": tot_dr,
+                        "sculpted_drifts": sc_dr,
+                        "valid": (len(empty_s) == 0) and (len(bleed_b) == 0) and (bus_cnt == 0 or routed_cnt >= 1) and (tot_dr == 0 or sc_dr >= 1)
+                    }
             except Exception as ex_lom:
                 checks["lom_verification"] = {"valid": False, "error": str(ex_lom)}
                 checks["lom_arrangement_clips"] = {"valid": False, "error": str(ex_lom)}

@@ -78,6 +78,8 @@ class PhaseRegistry:
 
     def dispatch_handle(self, phase_name: str, session: Any, conn: Any, user_input: str) -> Dict[str, Any]:
         """Polymorphically dispatches user input handling to the appropriate phase handler."""
+        if conn is None and hasattr(session, "_ensure_physical_connection"):
+            conn = session._ensure_physical_connection(conn)
         handler = self.get(phase_name)
         if handler is None:
             return {

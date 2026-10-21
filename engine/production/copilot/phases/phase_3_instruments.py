@@ -38,7 +38,8 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         t_idx = trk["index"]
         t_name = trk["name"]
         role = trk["role"]
-        is_audio = trk.get("is_audio", False) or role == "VOCALS"
+        is_midi_vocal_name = any(k in str(t_name).lower() for k in ("chop", "chops", "synth", "midi", "simpler", "sampler"))
+        is_audio = bool(trk.get("is_audio", (role == "VOCALS" and not is_midi_vocal_name)))
         is_fx_audio = (role == "FX" and is_audio) or trk.get("is_fx_audio", False)
     
         # Audio FX Track / Parallel Bus Routing Selection
@@ -227,7 +228,15 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
         t_name = trk.get("name", "")
         u_clean = _normalize_text(user_input)
     
-        is_audio = trk.get("is_audio", False) or role == "VOCALS"
+        is_midi_vocal_name = any(k in str(t_name).lower() for k in ("chop", "chops", "synth", "midi", "simpler", "sampler"))
+        is_synth_input = any(
+            k in u_clean
+            for k in ("drift", "vital", "serum", "wavetable", "operator", "analog", "pigments", "omnisphere", "surge", "meld", "pluck", "arp", "lead", "pad", "keys", "bell")
+        )
+        is_audio = bool(trk.get("is_audio", (role == "VOCALS" and not is_midi_vocal_name)))
+        if role == "VOCALS" and (is_midi_vocal_name or is_synth_input or str(trk.get("type", "")).upper() == "MIDI"):
+            is_audio = False
+            trk["is_audio"] = False
         is_fx_audio = (role == "FX" and is_audio) or trk.get("is_fx_audio", False)
         wants_chopping = any(w in u_clean for w in ["chopping", "chop", "cortar", "rebanar", "simpler", "opcion 3", "3."]) or u_clean == "3"
     
@@ -258,26 +267,30 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                 chosen_fx_name = "Cableguys ShaperBox 3"
                 chosen_fx_uri = "query:Plugins#VST3:Cableguys:ShaperBox%203"
     
-            # Resolve source track for input routing
-            target_source_name = None
-            for other_t in tracks:
-                if other_t.get("index") != t_idx:
-                    ot_role = str(other_t.get("role", "")).lower()
-                    ot_name = str(other_t.get("name", "")).lower()
-                    if ot_role in u_clean or ot_name in u_clean:
-                        target_source_name = other_t.get("name")
-                        break
-                    for token in ot_name.replace("[", "").replace("]", "").replace("(", "").replace(")", "").split():
-                        if len(token) > 2 and token in u_clean:
+            # Resolve source track for input routing (strictly from explicit user_input or track spec)
+            target_source_name = trk.get("source_track") or trk.get("input_from")
+            if not target_source_name:
+                for other_t in tracks:
+                    if other_t.get("index") != t_idx:
+                        ot_role = str(other_t.get("role", "")).lower()
+                        ot_name = str(other_t.get("name", "")).lower()
+                        if ot_name and ot_name in u_clean:
                             target_source_name = other_t.get("name")
                             break
-                    if target_source_name:
-                        break
+                        if ot_role and re.search(rf"\b{re.escape(ot_role)}\b", u_clean):
+                            target_source_name = other_t.get("name")
+                            break
+                        for token in re.split(r"[\s_\-\[\]\(\)\|/:]+", ot_name):
+                            if len(token) > 2 and not token.isdigit() and token in u_clean:
+                                target_source_name = other_t.get("name")
+                                break
+                        if target_source_name:
+                            break
     
             if not target_source_name:
-                for cand_role in ["LEAD", "DRUMS", "BRASS", "KEYS", "BASS"]:
+                for cand_role in ["LEAD", "VOCALS", "PAD", "KEYS", "COUNTER_LEAD", "DRUMS", "BRASS", "BASS"]:
                     for other_t in tracks:
-                        if other_t.get("index") != t_idx and other_t.get("role") == cand_role:
+                        if other_t.get("index") != t_idx and str(other_t.get("role", "")).upper() == cand_role:
                             target_source_name = other_t.get("name")
                             break
                     if target_source_name:
@@ -302,28 +315,41 @@ class Phase3InstrumentsHandler(BasePhaseHandler):
                     clean_source_query = target_source_name.lower().replace("[", "").replace("]", "").strip()
                     code_route = f"""
 t = song.tracks[{t_idx}]
-t.current_monitoring_state = 0
 target_q = "{clean_source_query}"
 matched_rt = None
 for rt in getattr(t, 'available_input_routing_types', []):
     dn = rt.display_name.lower()
+    if dn in ('ext. in', 'no input', 'resampling'):
+        continue
     if target_q in dn:
         matched_rt = rt
         break
 if not matched_rt:
-    for w in target_q.split():
-        if len(w) > 2:
+    for w in target_q.replace('_', ' ').replace('-', ' ').split():
+        if len(w) > 2 and not w.isdigit():
             for rt in getattr(t, 'available_input_routing_types', []):
-                if w in rt.display_name.lower():
+                dn = rt.display_name.lower()
+                if dn in ('ext. in', 'no input', 'resampling'):
+                    continue
+                if w in dn:
                     matched_rt = rt
                     break
             if matched_rt:
                 break
 if matched_rt:
     t.input_routing_type = matched_rt
+    t.current_monitoring_state = 0
     res = {{'status': 'success', 'routed_to': matched_rt.display_name, 'monitoring': t.current_monitoring_state}}
 else:
-    res = {{'status': 'not_found', 'available': [rt.display_name for rt in getattr(t, 'available_input_routing_types', [])]}}
+    for rt in getattr(t, 'available_input_routing_types', []):
+        if getattr(rt, 'display_name', '') == 'No Input':
+            t.input_routing_type = rt
+            break
+    t.current_monitoring_state = 1
+    avail_names = []
+    for rt in getattr(t, 'available_input_routing_types', []):
+        avail_names.append(getattr(rt, 'display_name', ''))
+    res = {{'status': 'not_found', 'available': avail_names}}
 """
                     try:
                         r_res = conn.send_command("execute_code", {"code": code_route})
@@ -357,6 +383,11 @@ else:
             if session.data["current_track_ptr"] < len(tracks):
                 return session._prompt_current_track_instrument()
             else:
+                try:
+                    from engine.mix.bus_routing import BusRoutingManager
+                    BusRoutingManager.route_tracks_to_submix_buses(conn, tracks)
+                except Exception as ex_bus_route:
+                    logger.debug(f"Submix bus post-instrument routing notice: {ex_bus_route}")
                 session.data["current_phase"] = "PHASE_6_COMPOSITION"
                 session.data["phase_index"] = 4
                 session._save_state()
@@ -488,7 +519,7 @@ for slot in t.clip_slots:
     
         is_chopping = False
         chosen_sample = None
-        lookup_role = role
+        lookup_role = "COUNTER_LEAD" if (role == "VOCALS" and not is_audio) else role
 
         # Check if track is currently in Level 2 Sub-selection for a multi-preset plugin
         pending_plugin = trk.get("pending_plugin_subselection")
@@ -635,7 +666,7 @@ if rack and getattr(rack, 'can_have_chains', False):
             "STRINGS": ("query:Sounds#Strings:FileId_4765", "Ac Strings Orch (.adg)"),
             "BRASS": ("query:Sounds#Brass:FileId_5168", "Some Trumpets (.adg)"),
             "CHOIR": ("query:Sounds#Pad:FileId_4910", "Choir Pad Avalon (.adg)"),
-            "VOCALS": ("query:Synths#Simpler", "Ableton Simpler"),
+            "VOCALS": ("query:Synths#Drift", "Drift Vocal Lead"),
             "BACKING_VOCALS": ("query:Sounds#Voices:FileId_6632", "Backing Vocal Stereo Spread (.adg)"),
             "FX": ("query:AudioFx#AutoFilter", "Ableton Auto Filter")
         }
@@ -710,8 +741,13 @@ if rack and getattr(rack, 'can_have_chains', False):
                     if not selected_opt:
                         for opt in options:
                             o_name = opt.name.lower()
+                            o_norm = _normalize_text(opt.name)
                             o_id = opt.id.lower()
-                            if o_name == u_clean or o_id == u_clean or u_clean in o_name or o_name in u_clean or o_id in u_clean:
+                            if (
+                                o_name == u_clean or o_norm == u_clean or o_id == u_clean
+                                or u_clean in o_name or u_clean in o_norm
+                                or o_name in u_clean or o_norm in u_clean or o_id in u_clean
+                            ):
                                 selected_opt = opt
                                 break
     
@@ -741,9 +777,14 @@ if rack and getattr(rack, 'can_have_chains', False):
                                 c_list = CURATED_SOURCES.get(c_role, [])
                                 for c_opt in c_list:
                                     c_clean = c_opt.name.lower()
+                                    c_norm = _normalize_text(c_opt.name)
                                     if u_clean in bare_engines and "rhodes" in c_clean and role.upper() not in ("KEYS", "PIANO", "CHORDS"):
                                         continue
-                                    if c_clean == u_clean or c_clean in u_clean or u_clean in c_clean:
+                                    if (
+                                        c_clean == u_clean or c_norm == u_clean
+                                        or c_clean in u_clean or c_norm in u_clean
+                                        or u_clean in c_clean or u_clean in c_norm
+                                    ):
                                         selected_opt = c_opt
                                         break
                                 if selected_opt:
@@ -818,52 +859,6 @@ if rack and getattr(rack, 'can_have_chains', False):
                     if selected_opt and getattr(selected_opt, "blueprint", None):
                         trk["blueprint"] = selected_opt.blueprint
 
-        # Timbral Diversity & Role Coherence Harness:
-        # Prevent any preset (e.g. 'Drift Neo-Soul Rhodes', 'Drift Classic Lead', 'Agenda Lead') from cloning across incompatible roles
-        if locals().get("display_name") and not is_audio and not is_fx_audio:
-            disp_low = str(display_name).lower()
-            prev_same_inst = [
-                t for t in tracks[:ptr]
-                if str(t.get("instrument", "")).lower() == disp_low
-            ]
-            is_generic_lead_on_non_lead = (
-                ("drift classic lead" in disp_low or "agenda lead" in disp_low)
-                and role.upper() not in ("LEAD", "SYNTH", "COUNTER_LEAD", "ARPS", "KEYS", "CHORDS", "PLUCK")
-            )
-            is_keys_preset_on_non_keys = (
-                any(k in disp_low for k in ("rhodes", "wurli", "upright", "grand piano"))
-                and role.upper() not in ("KEYS", "PIANO", "CHORDS")
-            )
-            has_cross_role_clone = (
-                len(prev_same_inst) >= 1
-                and any(str(t.get("role", "")).upper() != role.upper() for t in prev_same_inst)
-                and role.upper() not in ("DRUMS", "KICK")
-            )
-            if is_generic_lead_on_non_lead or is_keys_preset_on_non_keys or has_cross_role_clone:
-                used_names = {str(t.get("instrument", "")).lower() for t in tracks[:ptr]}
-                role_opts = LiveBrowserCatalogEngine.get_available_sources_for_role(role, filter_installed=True)
-                replacement_found = False
-                for r_opt in role_opts:
-                    if r_opt.name.lower() not in used_names and r_opt.vendor == "Ableton":
-                        logger.info(
-                            f"[TimbralCoherenceHarness] Preventing cross-role duplicate '{display_name}' on Track {t_idx} "
-                            f"('{t_name}', Role: {role}) -> assigning role-authentic '{r_opt.name}'."
-                        )
-                        target_uri = r_opt.uri
-                        display_name = r_opt.name
-                        if getattr(r_opt, "blueprint", None):
-                            trk["blueprint"] = r_opt.blueprint
-                        replacement_found = True
-                        break
-                if not replacement_found and role.upper() in native_fallbacks:
-                    fb_uri, fb_name = native_fallbacks[role.upper()]
-                    logger.info(
-                        f"[TimbralCoherenceHarness] Preventing generic duplicate '{display_name}' on Track {t_idx} "
-                        f"('{t_name}', Role: {role}) -> assigning role-authentic '{fb_name}'."
-                    )
-                    target_uri = fb_uri
-                    display_name = fb_name
-    
         is_verified = False
         load_error = None
 
@@ -976,8 +971,12 @@ slices_count = len(getattr(s, 'slices', [])) if s else 0
                             logger.warning(f"Notice on autonomous sample loading into Simpler: {s_load_err}")
                             trk["slices_count"] = 16
 
-                # Autogenous Foley / Texture Generation if Simpler was loaded for TEXTURE_FOLEY
-                if role in ("TEXTURE_FOLEY", "FOLEY") and is_verified and dev_idx is not None:
+                # Universal Simpler Sample Guarantee: ensure NO OriginalSimpler device in Ableton Live ever remains empty (sample == None)
+                if is_verified and dev_idx is not None and not trk.get("sample_loaded") and (
+                    role in ("TEXTURE_FOLEY", "FOLEY")
+                    or "simpler" in str(target_uri).lower()
+                    or "simpler" in str(display_name).lower()
+                ):
                     try:
                         from engine.audio_genesis import AudioGenesisEngine, GenesisPipelineType
                         genesis = AudioGenesisEngine(conn=conn)
@@ -987,7 +986,7 @@ slices_count = len(getattr(s, 'slices', [])) if s else 0
                                 source_name = candidate_t.get("name", "Keys")
                                 break
                         sound_res = genesis.create_provenanced_sound(
-                            musical_need="organic_foley_texture",
+                            musical_need="organic_foley_texture" if role in ("TEXTURE_FOLEY", "FOLEY") else f"simpler_{role.lower()}_sample",
                             source_track_name=source_name,
                             genesis_pipeline=GenesisPipelineType.FREEZE_PAD,
                             session_tracks=tracks
@@ -1010,9 +1009,9 @@ for p in d.parameters:
 """
                             conn.send_command("execute_code", {"code": exec_foley})
                             trk["sample_loaded"] = True
-                            logger.info(f"Loaded autogenous foley sample into Simpler on Track {t_idx} (source: {source_name}).")
+                            logger.info(f"Loaded autogenous sample into Simpler on Track {t_idx} (source: {source_name}).")
                     except Exception as f_err:
-                        logger.warning(f"Notice on autogenous foley generation in Phase 3: {f_err}")
+                        logger.warning(f"Notice on autogenous sample generation in Phase 3: {f_err}")
 
                 if is_verified:
                     if not trk.get("original_name"):

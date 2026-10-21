@@ -1631,6 +1631,34 @@ CURATED_SOURCES: Dict[str, List[SoundSourceOption]] = {
             },
         ),
         SoundSourceOption(
+            id="native_basic_bell_keys_ear_candy",
+            name="Basic Bell Keys (.adg)",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Synth%20Keys:FileId_4674",
+            vendor="Ableton",
+            description="Crystalline native bell and pluck rack for high-frequency ear candy and risers (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Cutoff": 0.78, "Decay": 0.45, "Space": 0.40},
+                "description": "Crystalline native bell and pluck rack."
+            },
+        ),
+        SoundSourceOption(
+            id="native_basic_pluck_arp_ear_candy",
+            name="Basic Pluck Arp (.adg)",
+            role="EAR_CANDY",
+            category=InstrumentSourceCategory.NATIVE_SYNTH,
+            uri="query:Sounds#Synth%20Rhythmic:FileId_4539",
+            vendor="Ableton",
+            description="Rhythmic synth pluck rack for stereo ear candy and transitions (Live 12 verified).",
+            blueprint={
+                "sculpt_type": "macro",
+                "parameters": {"Cutoff": 0.75, "Release": 0.30},
+                "description": "Rhythmic synth pluck rack."
+            },
+        ),
+        SoundSourceOption(
             id="native_simpler_ear_candy",
             name="Ableton Simpler (Micro-Chop / Ear Candy)",
             role="EAR_CANDY",

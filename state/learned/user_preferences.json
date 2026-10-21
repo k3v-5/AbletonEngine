@@ -36,5 +36,11 @@
       "value": "express",
       "updated_at": "2026-09-22T12:31:05.147071"
     }
+  },
+  "execution": {
+    "require_physical_live_connection": {
+      "value": "PROHIBIDO pasar conn=None en producciones; usar siempre conn = AbletonLiveConnection() conectado a localhost:9877 y verificar con LiveVisualAuditor",
+      "updated_at": "2026-10-17T00:03:39.332829"
+    }
   }
 }

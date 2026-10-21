@@ -451,3 +451,158 @@ class PhysicalAlsAutomator:
                 "Time": ev["time"],
                 "Value": ev["value"]
             })
+
+    @classmethod
+    def _find_sovereign_automation_target(
+        cls,
+        track_elem: ET.Element,
+        device_name: str,
+        parameter_name: str
+    ) -> Optional[str]:
+        """Resolves the exact AutomationTarget Id on a track element for a sovereign automation spec."""
+        p_low = parameter_name.strip().lower()
+        d_low = device_name.strip().lower()
+
+        if p_low in ("volume", "track volume") or (d_low == "mixer" and "vol" in p_low):
+            vt = track_elem.find(".//MixerDevice/Volume/AutomationTarget")
+            if vt is not None and vt.attrib.get("Id"):
+                return vt.attrib.get("Id")
+
+        if p_low in ("panning", "pan", "panorama"):
+            pt = track_elem.find(".//MixerDevice/Panorama/AutomationTarget")
+            if pt is not None and pt.attrib.get("Id"):
+                return pt.attrib.get("Id")
+
+        # EQ Eight band frequency mapping: "1 Frequency A" -> Band.0/ParameterA/Freq/AutomationTarget
+        if "frequency a" in p_low and p_low[0].isdigit():
+            band_idx = int(p_low[0]) - 1
+            eq_target = track_elem.find(f".//Eq8//Band.{band_idx}/ParameterA/Freq/AutomationTarget")
+            if eq_target is not None and eq_target.attrib.get("Id"):
+                return eq_target.attrib.get("Id")
+
+        # Search devices on track
+        for dev in track_elem.findall(".//DeviceChain/Devices/*"):
+            dev_tag = dev.tag.lower()
+            # Check VST3 PluginFloatParameter
+            for pfp in dev.findall(".//PluginFloatParameter"):
+                pn = pfp.find("ParameterName")
+                if pn is not None and p_low in pn.attrib.get("Value", "").lower():
+                    at = pfp.find(".//ParameterValue/AutomationTarget")
+                    if at is not None and at.attrib.get("Id"):
+                        return at.attrib.get("Id")
+            # Check Drift / native device parameters
+            for elem in dev.findall(".//*"):
+                at = elem.find("AutomationTarget")
+                if at is None or not at.attrib.get("Id"):
+                    continue
+                tag_low = elem.tag.lower()
+                if p_low in ("lp freq", "cutoff", "filter") and any(k in tag_low for k in ("lowpass", "freq", "cutoff")):
+                    return at.attrib.get("Id")
+                if p_low.replace(" ", "") in tag_low.replace("_", ""):
+                    return at.attrib.get("Id")
+
+        # Fallback: first filter/device automation target if available
+        fallback_filters = cls._find_filter_automation_targets(track_elem)
+        if fallback_filters:
+            return fallback_filters[0][0]
+        return None
+
+    @classmethod
+    def inject_sovereign_automations(
+        cls,
+        als_path: Path,
+        automations: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        100% Agnostic XML Automation Injector:
+        Clears any unsolicited envelopes and injects ONLY the exact automation curves specified in `automations`.
+        """
+        als_path = Path(als_path)
+        if not als_path.exists():
+            return {"status": "ERROR", "message": f"ALS file not found: {als_path}"}
+
+        try:
+            with gzip.open(als_path, "rb") as gz_in:
+                tree = ET.parse(gz_in)
+            root = tree.getroot()
+
+            all_tracks = [
+                t for t in root.findall(".//Tracks/*")
+                if t.tag in ("MidiTrack", "AudioTrack")
+            ]
+
+            injected = 0
+            details = []
+
+            for auto in automations:
+                t_idx = auto.get("track_index")
+                t_name_query = str(auto.get("track_name", "")).strip().lower()
+                dev_name = str(auto.get("device_name") or auto.get("device") or "")
+                param_name = str(auto.get("parameter_name") or auto.get("parameter") or "Volume")
+
+                target_track = None
+                if t_idx is not None and 0 <= int(t_idx) < len(all_tracks):
+                    target_track = all_tracks[int(t_idx)]
+                elif t_name_query:
+                    for trk in all_tracks:
+                        ne = trk.find(".//Name/EffectiveName")
+                        eff = ne.attrib.get("Value", "").lower() if ne is not None else ""
+                        if t_name_query in eff or eff in t_name_query:
+                            target_track = trk
+                            break
+
+                if target_track is None:
+                    continue
+
+                auto_envs_parent = target_track.find(".//AutomationEnvelopes/Envelopes")
+                if auto_envs_parent is None:
+                    continue
+
+                target_id = cls._find_sovereign_automation_target(target_track, dev_name, param_name)
+                if not target_id:
+                    continue
+
+                raw_pts = auto.get("points")
+                if not raw_pts:
+                    sb = float(auto.get("start_beat", 0.0))
+                    eb = float(auto.get("end_beat", sb + 32.0))
+                    sv = float(auto.get("start_value", 0.5))
+                    ev = float(auto.get("end_value", 0.85))
+                    curve = str(auto.get("curve", "linear")).lower()
+                    raw_pts = []
+                    steps = 8
+                    for i in range(steps + 1):
+                        frac = i / steps
+                        t_pos = sb + (eb - sb) * frac
+                        val = sv + (ev - sv) * (frac ** 2.2 if curve == "exponential" else frac)
+                        raw_pts.append({"time": t_pos, "value": val})
+
+                pts_sorted = sorted(raw_pts, key=lambda x: float(x["time"]))
+                first_val = f"{float(pts_sorted[0]['value']):.4f}" if pts_sorted else "0.85"
+                events = [{"id": "0", "time": "-63072000", "value": first_val}]
+                for idx_pt, pt in enumerate(pts_sorted, start=1):
+                    events.append({
+                        "id": str(idx_pt),
+                        "time": f"{float(pt['time']):.2f}",
+                        "value": f"{float(pt['value']):.4f}"
+                    })
+
+                cls._add_or_update_envelope_node(auto_envs_parent, target_id, events)
+                injected += 1
+                ne = target_track.find(".//Name/EffectiveName")
+                t_eff = ne.attrib.get("Value", "") if ne is not None else ""
+                details.append({"track": t_eff, "device": dev_name, "parameter": param_name, "target_id": target_id, "points": len(events)})
+
+            with gzip.open(als_path, "wb") as gz_out:
+                tree.write(gz_out, encoding="UTF-8", xml_declaration=True)
+
+            return {
+                "status": "SUCCESS",
+                "als_path": str(als_path),
+                "injected_envelopes": injected,
+                "details": details
+            }
+        except Exception as ex:
+            logger.error(f"Error in inject_sovereign_automations: {ex}", exc_info=True)
+            return {"status": "ERROR", "error": str(ex)}
+

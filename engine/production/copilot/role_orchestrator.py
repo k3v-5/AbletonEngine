@@ -160,7 +160,7 @@ class RoleTrackOrchestrator:
                 if tok in cls.ROLE_MAP:
                     return cls.ROLE_MAP[tok]
 
-        clean_tokens = re.sub(r"[^\w\s]", " ", cleaned)
+        clean_tokens = re.sub(r"[^\w\s]|_", " ", cleaned)
         words = set(clean_tokens.split())
 
         # Disambiguate 808 drum kits vs 808 bass synths
@@ -169,6 +169,10 @@ class RoleTrackOrchestrator:
                 return "DRUMS"
             if words.intersection({"BASS", "SUB", "BAJO", "LOW", "PUNCH", "REESE"}):
                 return "808_BASS"
+
+        # Disambiguate dedicated Kick track vs full Drum kit
+        if words.intersection({"KICK", "BOMBO"}) and not words.intersection({"DRUM", "DRUMS", "KIT", "BEAT", "BATERIA", "BATERÍA"}):
+            return "KICK"
 
         for role_name, token_set in cls.PRIORITY_CATEGORIES:
             if words.intersection(token_set):
